@@ -1,0 +1,32 @@
+name: mmo
+main: com.server.Main
+version: 0.0.1
+api-version: 1.20
+description: MMO plugin for Minecraft servers
+depend: [Geyser-Spigot]
+
+commands:
+  menu:
+    description: Opens the MMO menu
+    usage: /menu
+    aliases: [mmomenu]
+  profile:
+    description: Opens the profile selector
+    usage: /profile
+    aliases: [mprofile]
+  stats:
+    description: Opens the stats menu
+    usage: /stats
+    aliases: [mmostats]   
+  cosmetics:
+    description: Opens the cosmetic equipment menu
+    usage: /cosmetics
+    aliases: [costume, outfits]
+  givehat:
+    description: Gives a witch hat cosmetic
+    usage: /givehat
+    aliases: [witchhat]
+  giveitem:
+    description: Gives a custom item to a player
+    usage: /giveitem <itemname> [player]
+    aliases: [customitem, ci]
