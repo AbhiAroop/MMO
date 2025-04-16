@@ -7,14 +7,18 @@ import java.util.UUID;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import com.server.Main;
+
 public class ProfileManager {
     private static ProfileManager instance;
     private final Map<UUID, PlayerProfile[]> profiles;
     private final Map<UUID, Integer> activeProfiles; // Track active profile for each player
+    private final Main plugin;
 
     private ProfileManager() {
         profiles = new HashMap<>();
         activeProfiles = new HashMap<>();
+        this.plugin = Main.getInstance();
     }
 
     public static ProfileManager getInstance() {
@@ -104,6 +108,11 @@ public class ProfileManager {
         // Load profile state
         newProfile.loadProfile(player);
         activeProfiles.put(player.getUniqueId(), slot);
+
+        // Update the scoreboard for the player
+        if (plugin != null && plugin.getScoreboardManager() != null) {
+            plugin.getScoreboardManager().startTracking(player);
+        }
 
         player.sendMessage(ChatColor.GREEN + "Selected profile '" + 
                          ChatColor.GOLD + newProfile.getName() + ChatColor.GREEN + "' from slot #" + (slot + 1));

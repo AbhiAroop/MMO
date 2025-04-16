@@ -259,17 +259,40 @@ public class AbilityManager {
         setCooldown(player, "lightning_throw", finalCooldown * 1000); // Convert to milliseconds
         
         // Calculate damage
-        int physicalDamage = profile.getStats().getPhysicalDamage();
-        double baseDamage = 10.0;
-        double percentDamage = physicalDamage * 0.1; // 10% of physical damage
-        double totalDamage = baseDamage + percentDamage;
+        int playerPhysicalDamage = profile.getStats().getPhysicalDamage();
+        int itemPhysicalDamage = 0;
         
-        // Store the current slot where the trident is
-        final int tridentSlot = player.getInventory().getHeldItemSlot();
+        // Extract physical damage from item lore
+        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            for (String loreLine : item.getItemMeta().getLore()) {
+                if (loreLine.contains("Physical Damage:")) {
+                    try {
+                        String[] parts = loreLine.split("\\+");
+                        if (parts.length > 1) {
+                            String damageStr = parts[1].replaceAll("§[0-9a-fk-or]", "").trim();
+                            itemPhysicalDamage = Integer.parseInt(damageStr);
+                            break;
+                        }
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Error parsing physical damage from item lore: " + e.getMessage());
+                    }
+                }
+            }
+        }
+        
+        // New damage calculation formula
+        int totalPhysicalDamage = playerPhysicalDamage + itemPhysicalDamage;
+        double baseDamage = 10.0;
+        double bonusDamage = totalPhysicalDamage;
+        double percentBonus = totalPhysicalDamage * 0.1; // 10% of total physical damage
+        double finalDamage = baseDamage + bonusDamage + percentBonus;
+            
+        // Store the current slot where the weapon is
+        final int weaponSlot = player.getInventory().getHeldItemSlot();
         final ItemStack originalItem = item.clone();
         
         // Hide the item from player's hand temporarily
-        player.getInventory().setItem(tridentSlot, null);
+        player.getInventory().setItem(weaponSlot, null);
         
         // Play throw sound
         World world = player.getWorld();
@@ -317,7 +340,7 @@ public class AbilityManager {
                 weaponVisual.setGravity(false);
                 weaponVisual.setSmall(true);
                 weaponVisual.setMarker(true);
-                weaponVisual.getEquipment().setItemInMainHand(new ItemStack(Material.WOODEN_HOE)); // Changed from TRIDENT to WOODEN_HOE
+                weaponVisual.getEquipment().setItemInMainHand(new ItemStack(Material.WOODEN_HOE)); 
                 weaponVisual.setRightArmPose(new EulerAngle(Math.toRadians(90), 0, 0));
 
                 // Schedule removal of the visual
@@ -331,12 +354,21 @@ public class AbilityManager {
                         // Add to hit list so we don't hit multiple times
                         hitEntities.add(target);
                         
-                        // Apply damage
-                        target.damage(totalDamage, player);
+                        // IMPORTANT CHANGE: Apply damage directly, bypassing Minecraft's damage reduction
+                        // Use setHealth instead of damage() method to apply raw damage value
+                        double currentHealth = target.getHealth();
+                        double newHealth = Math.max(0, currentHealth - finalDamage);
                         
-                        // Visual and sound effects
-                        world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 10, 0.3, 0.3, 0.3, 0.2);
+                        // For proper damage attribution (shows player as killer)
+                        target.damage(0.1, player); // Apply tiny damage to register hit
+                        target.setHealth(newHealth); // Then set health directly
+                        
+                        // Add more dramatic visual effects to match the powerful hit
+                        world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.5, 0.5, 0.5, 0.3);
+                        world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0), 10, 0.3, 0.3, 0.3, 0.1);
+                        world.playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.6f, 1.2f);
                         world.playSound(target.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.2f);
+                        
                     }
                 }
                 
@@ -376,7 +408,7 @@ public class AbilityManager {
                     
                     // Return item to player's inventory
                     if (player.isOnline()) {
-                        player.getInventory().setItem(tridentSlot, originalItem);
+                        player.getInventory().setItem(weaponSlot, originalItem);
                         player.sendMessage("§aArcloom §7returns to your hand!");
                     }
                 }, 40L); // 2 seconds (40 ticks)

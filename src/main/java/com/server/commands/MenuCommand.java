@@ -12,6 +12,10 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
+import com.server.utils.CurrencyFormatter;
+
 public class MenuCommand implements CommandExecutor {
     
     @Override
@@ -56,6 +60,42 @@ public class MenuCommand implements CommandExecutor {
             "§eClick to view stats"
         ));
         statsButton.setItemMeta(statsMeta);
+        
+        // Create Currency Display button (Gold Ingot)
+        ItemStack currencyButton = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta currencyMeta = currencyButton.getItemMeta();
+        currencyMeta.setDisplayName("§e§lCurrency Balances");
+        
+        // Get profile currencies
+        int units = 0;
+        int premiumUnits = 0;
+        int essence = 0;
+        int bits = 0;
+        
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                units = profile.getUnits();
+                premiumUnits = profile.getPremiumUnits();
+                essence = profile.getEssence();
+                bits = profile.getBits();
+            }
+        }
+        
+        // Format currency values using the CurrencyFormatter
+        currencyMeta.setLore(Arrays.asList(
+            "§7Your current balances:",
+            "",
+            "§e§lUnits: §f" + CurrencyFormatter.formatUnits(units),
+            "§d§lPremium Units: §f" + CurrencyFormatter.formatPremiumUnits(premiumUnits),
+            "§b§lEssence: §f" + CurrencyFormatter.formatEssence(essence),
+            "§a§lBits: §f" + CurrencyFormatter.formatBits(bits),
+            "",
+            "§7Use /balance to check currencies",
+            "§7Use /pay to transfer Units/Premium"
+        ));
+        currencyButton.setItemMeta(currencyMeta);
 
         // Fill empty slots with black glass panes
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
@@ -69,8 +109,9 @@ public class MenuCommand implements CommandExecutor {
         }
 
         // Add buttons in specific slots (centered)
-        menu.setItem(11, profileButton);  // Left-center position
-        menu.setItem(15, statsButton);    // Right-center position
+        menu.setItem(11, profileButton);  // Left position
+        menu.setItem(13, currencyButton); // Center position
+        menu.setItem(15, statsButton);    // Right position
 
         player.openInventory(menu);
     }

@@ -169,5 +169,44 @@ public class CustomItems {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static ItemStack createCrownOfMagnus() {
+        ItemStack item = new ItemStack(Material.GOLDEN_HELMET);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 30000 base for helmets)
+        meta.setCustomModelData(230001); // 2 for functional item, 3 for helmet, 0001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§a§lCrown of Magnus");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.ENHANCED.getFormattedName(),
+            "§7\"A towering crown once worn by the giant king",
+            "§7Magnus, granting its wearer extraordinary",
+            "§7vitality and stature.\"",
+            "",
+            "§7Stats:",
+            "§cHealth: §c+300",
+            "§aArmor: §a+30",
+            "§bMagic Resist: §b+20",
+            "§eSize: §e+0.5",
+            "",
+            "§8The crown adjusts to fit its wearer, but the",
+            "§8magic within still carries the essence of its",
+            "§8former giant owner."
+        ));
+        
+        // Add armor attribute modifier
+        AttributeModifier armorModifier = new AttributeModifier(
+            UUID.randomUUID(),
+            "generic.armor",
+            0.0, // Same as golden helmet base armor
+            AttributeModifier.Operation.ADD_NUMBER
+        );
+        meta.addAttributeModifier(Attribute.GENERIC_ARMOR, armorModifier);
+        
+        item.setItemMeta(meta);
+        return item;
+    }
     
 }

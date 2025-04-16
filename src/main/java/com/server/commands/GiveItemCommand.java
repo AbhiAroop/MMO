@@ -1,19 +1,23 @@
 package com.server.commands;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.items.CustomItems;
 
-public class GiveItemCommand implements CommandExecutor {
+public class GiveItemCommand implements CommandExecutor, TabCompleter {
     private final Map<String, Supplier<ItemStack>> itemCreators = new HashMap<>();
     
     public GiveItemCommand() {
@@ -22,6 +26,7 @@ public class GiveItemCommand implements CommandExecutor {
         itemCreators.put("apprenticeedge", CustomItems::createApprenticeEdge);
         itemCreators.put("emberwood", CustomItems::createEmberwoodStaff);
         itemCreators.put("arcloom", CustomItems::createArcloom);
+        itemCreators.put("crownofmagnus", CustomItems::createCrownOfMagnus);
         // Add more items as they are created
     }
     
@@ -70,5 +75,27 @@ public class GiveItemCommand implements CommandExecutor {
         }
         
         return true;
+    }
+    
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> completions = new ArrayList<>();
+        
+        if (args.length == 1) {
+            // First argument: item name
+            String partialItem = args[0].toLowerCase();
+            completions.addAll(itemCreators.keySet().stream()
+                              .filter(item -> item.startsWith(partialItem))
+                              .collect(Collectors.toList()));
+        } else if (args.length == 2) {
+            // Second argument: player name
+            String partialName = args[1].toLowerCase();
+            completions.addAll(Bukkit.getOnlinePlayers().stream()
+                             .map(Player::getName)
+                             .filter(name -> name.toLowerCase().startsWith(partialName))
+                             .collect(Collectors.toList()));
+        }
+        
+        return completions;
     }
 }

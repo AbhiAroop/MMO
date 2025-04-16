@@ -30,3 +30,23 @@ commands:
     description: Gives a custom item to a player
     usage: /giveitem <itemname> [player]
     aliases: [customitem, ci]
+  debugmode:
+    description: Toggle debug mode for the MMO plugin
+    usage: /<command>
+  balance:
+    description: Check your currency balances
+    usage: /balance [player]
+    aliases: [bal, money]
+  currency:
+    description: Admin command to modify player currencies
+    usage: /currency <give|take|set> <player> <currency> <amount>
+    permission: mmo.admin.currency
+  pay:
+    description: Transfer currency to another player
+    usage: /pay <player> <amount> <units|premium>
+  confirm:
+    description: Confirm a pending currency transfer
+    usage: /confirm
+  cancel:
+    description: Cancel a pending currency transfer
+    usage: /cancel

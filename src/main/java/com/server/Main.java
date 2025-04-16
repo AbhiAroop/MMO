@@ -6,6 +6,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
 import com.server.commands.CosmeticCommand;
+import com.server.commands.CurrencyCommand;
+import com.server.commands.DebugCommand;
 import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
@@ -16,6 +18,7 @@ import com.server.cosmetics.CosmeticManager;
 import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
+import com.server.display.ScoreboardManager;
 import com.server.events.AbilityListener;
 import com.server.events.CombatListener;
 import com.server.events.GUIListener;
@@ -29,6 +32,7 @@ public class Main extends JavaPlugin {
     private ActionBarManager actionBarManager;
     private MobDisplayManager mobDisplayManager;
     private DamageIndicatorManager damageIndicatorManager;
+    private ScoreboardManager scoreboardManager;
 
     @Override
     public void onEnable() {
@@ -40,6 +44,9 @@ public class Main extends JavaPlugin {
         
         mobDisplayManager = new MobDisplayManager();
         damageIndicatorManager = new DamageIndicatorManager(this);
+
+        // Initialize scoreboard manager
+        scoreboardManager = new ScoreboardManager(this);
 
         // Initialize CosmeticManager
         CosmeticManager.initialize(this);
@@ -56,6 +63,10 @@ public class Main extends JavaPlugin {
         if (actionBarManager != null) {
             actionBarManager.stopActionBarUpdates();
         }
+
+        if (scoreboardManager != null) {
+            scoreboardManager.cleanup();
+        }
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
@@ -66,7 +77,7 @@ public class Main extends JavaPlugin {
     private void registerListeners() {
         this.getServer().getPluginManager().registerEvents(new GUIListener(), this);
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        this.getServer().getPluginManager().registerEvents(new CombatListener(), this);
+        this.getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         this.getServer().getPluginManager().registerEvents(mobDisplayManager, this);
         this.getServer().getPluginManager().registerEvents(damageIndicatorManager, this);
         this.getServer().getPluginManager().registerEvents(new ItemListener(), this);
@@ -77,6 +88,17 @@ public class Main extends JavaPlugin {
 
     public static Main getInstance() {
         return instance;
+    }
+
+    public boolean isDebugMode() {
+        return getConfig().getBoolean("debug-mode", false);
+    }
+
+    public void setDebugMode(boolean enabled) {
+        // Update the value in the config
+        getConfig().set("debug-mode", enabled);
+        // Save the config to persist the setting
+        saveConfig();
     }
 
     private void registerCommands() {
@@ -117,10 +139,67 @@ public class Main extends JavaPlugin {
 
         org.bukkit.command.PluginCommand giveItemCommand = this.getCommand("giveitem");
         if (giveItemCommand != null) {
-            giveItemCommand.setExecutor(new GiveItemCommand());
+            GiveItemCommand giveItemHandler = new GiveItemCommand();
+            giveItemCommand.setExecutor(giveItemHandler);
+            giveItemCommand.setTabCompleter(giveItemHandler);
         } else {
             LOGGER.warning("Command 'giveitem' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand debugCommand = this.getCommand("debugmode");
+        if (debugCommand != null) {
+            debugCommand.setExecutor(new DebugCommand());
+        } else {
+            LOGGER.warning("Command 'debugmode' not registered in plugin.yml file!");
+        }
+
+        CurrencyCommand currencyHandler = new CurrencyCommand(this);
+
+        // Register all currency-related commands with the SAME instance
+        org.bukkit.command.PluginCommand balanceCommand = this.getCommand("balance");
+        if (balanceCommand != null) {
+            balanceCommand.setExecutor(currencyHandler);
+            balanceCommand.setTabCompleter(currencyHandler);
+        } else {
+            LOGGER.warning("Command 'balance' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand currencyCommand = this.getCommand("currency");
+        if (currencyCommand != null) {
+            currencyCommand.setExecutor(currencyHandler);
+            currencyCommand.setTabCompleter(currencyHandler);
+        } else {
+            LOGGER.warning("Command 'currency' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand payCommand = this.getCommand("pay");
+        if (payCommand != null) {
+            payCommand.setExecutor(currencyHandler);
+            payCommand.setTabCompleter(currencyHandler);
+        } else {
+            LOGGER.warning("Command 'pay' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand confirmCommand = this.getCommand("confirm");
+        if (confirmCommand != null) {
+            confirmCommand.setExecutor(currencyHandler);
+            confirmCommand.setTabCompleter(currencyHandler);
+        } else {
+            LOGGER.warning("Command 'confirm' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand cancelCommand = this.getCommand("cancel");
+        if (cancelCommand != null) {
+            cancelCommand.setExecutor(currencyHandler);
+            cancelCommand.setTabCompleter(currencyHandler);
+        } else {
+            LOGGER.warning("Command 'cancel' not registered in plugin.yml file!");
+        }
+
+    }
+
+    public ScoreboardManager getScoreboardManager() {
+        return scoreboardManager;
     }
 
 

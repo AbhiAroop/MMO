@@ -1,7 +1,12 @@
 package com.server.profiles.stats;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 
 public class PlayerStats {
@@ -44,6 +49,7 @@ public class PlayerStats {
     private boolean isFlying;
     private boolean allowFlight;
     private double attackRange;
+    private double size;
 
     // Default Values
     private final int defaultHealth = 100;
@@ -54,7 +60,7 @@ public class PlayerStats {
     private final int defaultMana = 100;
     private final double defaultSpeed = 0.1;
     private final double defaultCritDmg = 1.5;
-    private final double defaultCritChance = 0.05;
+    private final double defaultCritChance = 0.00;
     private final double defaultBurstDmg = 2.0;
     private final double defaultBurstChance = 0.01;
     private final double defaultCDR = 0;
@@ -69,6 +75,7 @@ public class PlayerStats {
     private final double defaultLootingFortune = 1.0;
     private final double defaultFishingFortune = 1.0;
     private final double defaultAttackRange = 3.0;
+    private final double defaultSize = 1.0;
 
     // Default Values for Minecraft Stats
     private final double defaultCurrentHealth = 100.0; // 10 hearts
@@ -115,6 +122,7 @@ public class PlayerStats {
         this.isFlying = false;
         this.allowFlight = false;
         this.attackRange = defaultAttackRange;
+        this.size = defaultSize;
     }
 
     // Getters and Setters for all stats
@@ -231,25 +239,131 @@ public class PlayerStats {
     public double getAttackRange() { return attackRange; }
     public void setAttackRange(double attackRange) { this.attackRange = Math.max(3.0, attackRange); }
 
+    public double getSize() { return size; }
+    public void setSize(double size) { 
+        // Clamp size between Minecraft's allowed range
+        this.size = Math.min(16.0, Math.max(0.0625, size)); 
+    }
+
+    public int getDefaultHealth() {
+        return defaultHealth;
+    }
+
+    public int getDefaultArmor() {
+        return defaultArmor;
+    }
+
+    public int getDefaultMagicResist() {
+        return defaultMR;
+    }
 
     public int getDefaultPhysicalDamage() {
         return defaultPhysicalDamage;
     }    
 
     public int getDefaultMagicDamage() {
-    return defaultMagicDamage;
+        return defaultMagicDamage;
     }
 
     public int getDefaultMana() {
-    return defaultMana;
+        return defaultMana;
     }   
+
+    public double getDefaultSpeed() {
+        return defaultSpeed;
+    }
+
+    public double getDefaultCriticalDamage() {
+        return defaultCritDmg;
+    }
+
+    public double getDefaultCriticalChance() {
+        return defaultCritChance;
+    }
+
+    public double getDefaultBurstDamage() {
+        return defaultBurstDmg;
+    }
+
+    public double getDefaultBurstChance() {
+        return defaultBurstChance;
+    }
+
+    public int getDefaultCooldownReduction() {
+        return (int)defaultCDR;
+    }
+
+    public double getDefaultLifeSteal() {
+        return defaultLifeSteal;
+    }
+
+    public int getDefaultRangedDamage() {
+        return defaultRangedDamage;
+    }
 
     public double getDefaultAttackSpeed() {
-    return defaultAttackSpeed;
+        return defaultAttackSpeed;
     }   
 
+    public double getDefaultOmnivamp() {
+        return defaultOmnivamp;
+    }
+
+    public int getDefaultManaRegen() {
+        return defaultManaRegen;
+    }
+
+    public int getDefaultLuck() {
+        return defaultLuck;
+    }
+
+    public double getDefaultMiningFortune() {
+        return defaultMiningFortune;
+    }
+
+    public double getDefaultFarmingFortune() {
+        return defaultFarmingFortune;
+    }
+
+    public double getDefaultLootingFortune() {
+        return defaultLootingFortune;
+    }
+
+    public double getDefaultFishingFortune() {
+        return defaultFishingFortune;
+    }
+
     public double getDefaultAttackRange() {
-    return defaultAttackRange;
+        return defaultAttackRange;
+    }
+
+    public double getDefaultSize() {
+        return defaultSize;
+    }
+
+    // Default Minecraft stats getters
+    public double getDefaultCurrentHealth() {
+        return defaultCurrentHealth;
+    }
+
+    public int getDefaultFoodLevel() {
+        return defaultFoodLevel;
+    }
+
+    public float getDefaultSaturation() {
+        return defaultSaturation;
+    }
+
+    public float getDefaultExhaustion() {
+        return defaultExhaustion;
+    }
+
+    public int getDefaultExpLevel() {
+        return defaultExpLevel;
+    }
+
+    public float getDefaultExpProgress() {
+        return defaultExpProgress;
     }
 
     public double calculatePhysicalDamage() {
@@ -276,12 +390,30 @@ public class PlayerStats {
 
         // Apply stats to player's minecraft attributes
     public void applyToPlayer(Player player) {
-        // Health (scale to keep visual hearts at 10 while affecting actual health)
-         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        // Health (set max health based on the health stat)
+        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(health);
-            // Set current health
-            player.setHealth(Math.min(currentHealth, health));
+            // Remove all existing modifiers
+            Set<AttributeModifier> healthModifiers = new HashSet<>(maxHealth.getModifiers());
+            for (AttributeModifier mod : healthModifiers) {
+                maxHealth.removeModifier(mod);
+            }
+            
+            // Set base value to vanilla default (20.0)
+            maxHealth.setBaseValue(20.0);
+            
+            // Add our custom modifier for the health stat value
+            // This allows health to be properly adjusted when armor is equipped/unequipped
+            double healthBonus = health - 20.0;
+            if (healthBonus != 0) {
+                AttributeModifier healthMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.max_health",
+                    healthBonus,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                maxHealth.addModifier(healthMod);
+            }
         }
 
         // Attack Damage
@@ -296,10 +428,35 @@ public class PlayerStats {
             movementSpeed.setBaseValue(speed);
         }
 
-        // Attack Speed
-        AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
-        if (attackSpeedAttr != null) {
-            attackSpeedAttr.setBaseValue(this.attackSpeed);
+        // Attack Speed - handled separately with proper attribute modifiers
+
+        // Apply Scale attribute (added in 1.20.5)
+        try {
+            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttr != null) {
+                // Remove any existing modifiers
+                Set<AttributeModifier> scaleModifiers = new HashSet<>(scaleAttr.getModifiers());
+                for (AttributeModifier mod : scaleModifiers) {
+                    scaleAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (1.0)
+                scaleAttr.setBaseValue(1.0);
+                
+                // Add our custom modifier for the size value
+                double sizeBonus = size - 1.0;
+                if (sizeBonus != 0) {
+                    AttributeModifier sizeMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        "mmo.size",
+                        sizeBonus,
+                        AttributeModifier.Operation.ADD_NUMBER
+                    );
+                    scaleAttr.addModifier(sizeMod);
+                }
+            }
+        } catch (Exception e) {
+            // Scale attribute might not be available in older versions
         }
 
         // Apply additional Minecraft stats
@@ -336,6 +493,15 @@ public class PlayerStats {
         AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
         if (attackSpeedAttr != null) {
             this.attackSpeed = attackSpeedAttr.getBaseValue();
+        }
+
+        try {
+            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttr != null) {
+                this.size = scaleAttr.getBaseValue();
+            }
+        } catch (Exception e) {
+            // Scale attribute might not be available in older versions
         }
 
         this.foodLevel = player.getFoodLevel();
@@ -406,4 +572,21 @@ public class PlayerStats {
     public int getEffectiveTotalMana(int tempBonus) {
         return totalMana + tempBonus;
     }
+
+    /**
+     * Calculate physical damage reduction percentage from armor
+     * @return Percentage of physical damage reduced (0-100)
+     */
+    public double getPhysicalDamageReduction() {
+        return (armor * 100.0) / (100.0 + armor);
+    }
+
+    /**
+     * Calculate magic damage reduction percentage from magic resist
+     * @return Percentage of magic damage reduced (0-100)
+     */
+    public double getMagicDamageReduction() {
+        return (magicResist * 100.0) / (100.0 + magicResist);
+    }
+
 }
