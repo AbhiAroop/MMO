@@ -36,6 +36,7 @@ public class StatsUpdateManager {
     private static final Pattern ATTACK_RANGE_PATTERN = Pattern.compile("Attack Range: .*?\\+(\\d+\\.?\\d*)");
     private static final Pattern SIZE_PATTERN = Pattern.compile("Size: .*?\\+(\\d+\\.?\\d*)");
     private static final Pattern HEALTH_PATTERN = Pattern.compile("Health: .*?\\+(\\d+)");
+    private static final Pattern HEALTH_REGEN_PATTERN = Pattern.compile("Health Regen: \\+(\\d+)");
 
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
@@ -257,13 +258,14 @@ public class StatsUpdateManager {
                 bonuses.mana += extractStat(cleanLine, MANA_PATTERN);
                 bonuses.health += extractStat(cleanLine, HEALTH_PATTERN);
                 bonuses.cooldownReduction += extractStat(cleanLine, COOLDOWN_REDUCTION_PATTERN);
+                bonuses.healthRegen += extractStat(cleanLine, HEALTH_REGEN_PATTERN); // Add health regen extraction
                 bonuses.attackSpeed += extractDoubleStat(cleanLine, ATTACK_SPEED_PATTERN);
                 bonuses.attackRange += extractDoubleStat(cleanLine, ATTACK_RANGE_PATTERN);
                 bonuses.size += extractDoubleStat(cleanLine, SIZE_PATTERN);
             }
         }
     }
-    
+        
     /**
      * Apply extracted bonuses to the player's stats
      */
@@ -279,6 +281,7 @@ public class StatsUpdateManager {
         stats.setAttackSpeed(stats.getDefaultAttackSpeed() + bonuses.attackSpeed);
         stats.setAttackRange(stats.getDefaultAttackRange() + bonuses.attackRange);
         stats.setSize(stats.getDefaultSize() + bonuses.size);
+        stats.setHealthRegen(stats.getDefaultHealthRegen() + bonuses.healthRegen);
     }
     
     /**
@@ -473,6 +476,7 @@ public class StatsUpdateManager {
                                 ", Magic Dmg: +" + bonuses.magicDamage +
                                 ", Mana: +" + bonuses.mana +
                                 ", CDR: +" + bonuses.cooldownReduction + 
+                                ", Health Regen: +" + bonuses.healthRegen + // Add health regen to log
                                 ", Attack Speed: +" + bonuses.attackSpeed +
                                 ", Attack Range: +" + bonuses.attackRange +
                                 ", Size: +" + bonuses.size);
@@ -490,6 +494,7 @@ public class StatsUpdateManager {
         int mana = 0;
         int health = 0;
         int cooldownReduction = 0;
+        int healthRegen = 0;
         double attackSpeed = 0;
         double attackRange = 0;
         double size = 0;

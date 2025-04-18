@@ -106,7 +106,10 @@ public class PlayerProfile {
     public void loadProfile(Player player) {
         loadInventory(player);
         teleportPlayer(player);
-        stats.applyToPlayer(player);
+
+        double currentHealth = player.getHealth();
+
+        stats.applyToPlayerWithoutHealth(player);
 
         player.setHealthScaled(true);
         player.setHealthScale(20.0);
@@ -117,7 +120,15 @@ public class PlayerProfile {
     public void saveProfile(Player player) {
         saveInventory(player);
         saveLocation(player);
+        
+        // Important: Update the profile with current values before saving
         stats.updateFromPlayer(player);
+        
+        // Critical: Explicitly save current health value
+        if (player.getHealth() > 0) {
+            stats.setCurrentHealth(player.getHealth());
+        }
+        
         updateLastPlayed();
     }
 

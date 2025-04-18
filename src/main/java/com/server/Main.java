@@ -8,6 +8,7 @@ import com.server.abilities.AbilityManager;
 import com.server.commands.CosmeticCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
+import com.server.commands.FlyCommand;
 import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
@@ -25,6 +26,8 @@ import com.server.events.GUIListener;
 import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
+import com.server.profiles.stats.health.HealthRegenerationListener;
+import com.server.profiles.stats.health.HealthRegenerationManager;
 
 public class Main extends JavaPlugin {
     private static Main instance;
@@ -33,6 +36,7 @@ public class Main extends JavaPlugin {
     private MobDisplayManager mobDisplayManager;
     private DamageIndicatorManager damageIndicatorManager;
     private ScoreboardManager scoreboardManager;
+    private HealthRegenerationManager healthRegenerationManager;
 
     @Override
     public void onEnable() {
@@ -47,6 +51,9 @@ public class Main extends JavaPlugin {
 
         // Initialize scoreboard manager
         scoreboardManager = new ScoreboardManager(this);
+
+        // Initialize health regeneration manager
+        healthRegenerationManager = new HealthRegenerationManager(this);
 
         // Initialize CosmeticManager
         CosmeticManager.initialize(this);
@@ -67,6 +74,10 @@ public class Main extends JavaPlugin {
         if (scoreboardManager != null) {
             scoreboardManager.cleanup();
         }
+
+        if (healthRegenerationManager != null) {
+            healthRegenerationManager.cleanup();
+        }
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
@@ -84,6 +95,7 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new CosmeticGUI(), this);
         this.getServer().getPluginManager().registerEvents(new AbilityListener(), this);
         this.getServer().getPluginManager().registerEvents(new RangedCombatManager(this), this);
+        this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
     }
 
     public static Main getInstance() {
@@ -153,6 +165,16 @@ public class Main extends JavaPlugin {
             LOGGER.warning("Command 'debugmode' not registered in plugin.yml file!");
         }
 
+        // Register the new FlyCommand
+        org.bukkit.command.PluginCommand flyCommand = this.getCommand("fly");
+        if (flyCommand != null) {
+            FlyCommand flyHandler = new FlyCommand(this);
+            flyCommand.setExecutor(flyHandler);
+            flyCommand.setTabCompleter(flyHandler);
+        } else {
+            LOGGER.warning("Command 'fly' not registered in plugin.yml file!");
+        }
+
         CurrencyCommand currencyHandler = new CurrencyCommand(this);
 
         // Register all currency-related commands with the SAME instance
@@ -195,13 +217,13 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'cancel' not registered in plugin.yml file!");
         }
-
     }
 
     public ScoreboardManager getScoreboardManager() {
         return scoreboardManager;
     }
 
-
-
+    public HealthRegenerationManager getHealthRegenerationManager() {
+        return healthRegenerationManager;
+    }
 }

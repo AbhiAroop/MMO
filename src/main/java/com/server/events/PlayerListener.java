@@ -46,7 +46,7 @@ public class PlayerListener implements Listener {
         ProfileManager pm = ProfileManager.getInstance();
         PlayerProfile[] profiles = pm.getProfiles(player.getUniqueId());
 
-        // Always set health display scale - but don't modify actual health yet
+        // Always set health display scale - but don't modify actual health
         player.setHealthScaled(true);
         player.setHealthScale(20.0);
         
@@ -60,7 +60,7 @@ public class PlayerListener implements Listener {
         }
 
         if (!hasProfiles) {
-            // Reset player's state for first time join
+            // Reset player's state for first time join - but not for returning players
             resetPlayerState(player);
             
             // Open profile creation menu in the next tick
@@ -71,46 +71,30 @@ public class PlayerListener implements Listener {
                 }
             }.runTaskLater(plugin, 1L);
         } else {
+            // For returning players, we don't need to do anything special with health
             // Start tracking stats for returning player with an active profile
             Integer activeSlot = pm.getActiveProfile(player.getUniqueId());
             if (activeSlot != null) {
-                // Apply default health for the existing profile
                 PlayerProfile activeProfile = profiles[activeSlot];
                 if (activeProfile != null) {
-                    // Apply health after a short delay to ensure the player is fully loaded
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            if (player.isOnline()) {
-                                // Apply the health setting from the profile
-                                int profileHealth = activeProfile.getStats().getHealth();
-                                applyDefaultHealth(player, profileHealth);
-                                
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Applied profile health to returning player: " + 
-                                                        profileHealth + " for " + player.getName());
-                                }
-                            }
-                        }
-                    }.runTaskLater(plugin, 5L);
+                    // Start tracking stats without modifying health
+                    statsManager.startTracking(player);
                 }
             }
-            
-            // Start tracking stats
-            statsManager.startTracking(player);
         }
+
+        // Start health regeneration tracking
+        plugin.getHealthRegenerationManager().startTracking(player);
 
         // Start scoreboard tracking with a delay to ensure everything is properly loaded
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (player.isOnline()) {
-                    if (plugin != null && plugin.getScoreboardManager() != null) {
-                        plugin.getScoreboardManager().startTracking(player);
-                    }
+                    plugin.getScoreboardManager().startTracking(player);
                 }
             }
-        }.runTaskLater(plugin, 20L); // Delay to ensure player is fully loaded
+        }.runTaskLater(plugin, 10L);
     }
 
     private void resetPlayerState(Player player) {
@@ -144,13 +128,112 @@ public class PlayerListener implements Listener {
         player.setFireTicks(0);
         player.setFallDistance(0f);
         
-        // Reset flight
-        player.setAllowFlight(false);
-        player.setFlying(false);
-        
         // Clear potion effects
         for (PotionEffect effect : player.getActivePotionEffects()) {
             player.removePotionEffect(effect.getType());
+        }
+    }
+
+   /**
+     * Applies the default health stat to the player using a stored absolute health value
+     */
+    private void applyDefaultHealthWithStoredValue(Player player, int defaultHealth, double storedHealth) {
+        try {
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Applying health of " + defaultHealth + " to " + player.getName() + 
+                            " with stored health value: " + storedHealth);
+            }
+            
+            // CRITICAL STEP: Save the actual current health before doing any attribute changes
+            double originalHealth = storedHealth;
+            
+            AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+            if (maxHealth != null) {
+                // Clear existing modifiers
+                Set<AttributeModifier> healthModifiers = new HashSet<>(maxHealth.getModifiers());
+                for (AttributeModifier mod : healthModifiers) {
+                    maxHealth.removeModifier(mod);
+                }
+                
+                // Set base value to vanilla default
+                maxHealth.setBaseValue(20.0);
+                
+                // Create a modifier to add the difference between default and vanilla
+                double healthBonus = defaultHealth - 20.0;
+                if (healthBonus != 0) {
+                    AttributeModifier healthMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        "mmo.health",
+                        healthBonus,
+                        AttributeModifier.Operation.ADD_NUMBER
+                    );
+                    maxHealth.addModifier(healthMod);
+                }
+                
+                // Get the new max health after attributes are applied
+                double newMaxHealth = maxHealth.getValue();
+                
+                // Calculate new health as the stored absolute value, but capped at the new max
+                double newHealth = Math.min(newMaxHealth, Math.max(1.0, originalHealth));
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Preserved health calculation: Original=" + originalHealth + 
+                                ", New Max=" + newMaxHealth + ", Final Health=" + newHealth);
+                }
+                
+                // IMPORTANT: Apply health immediately, then reapply with a delayed task
+                player.setHealth(newHealth);
+                
+                // IMPORTANT: Use a delayed task to set health to ensure it takes effect after all attribute changes
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (player.isOnline()) {
+                            // Set health to the stored value (capped at max)
+                            player.setHealth(newHealth);
+                            
+                            if (plugin.isDebugMode()) {
+                                plugin.getLogger().info("Set delayed health: " + newHealth + 
+                                            ", Current health: " + player.getHealth());
+                            }
+                        }
+                    }
+                }.runTaskLater(plugin, 1L);
+                
+                // Add a second delayed task to be extra sure
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (player.isOnline()) {
+                            // Check if the health needs to be fixed again
+                            if (Math.abs(player.getHealth() - newHealth) > 0.1) {
+                                player.setHealth(newHealth);
+                                
+                                if (plugin.isDebugMode()) {
+                                    plugin.getLogger().info("Fixed health again: " + newHealth + 
+                                                ", Current health: " + player.getHealth());
+                                }
+                            }
+                        }
+                    }
+                }.runTaskLater(plugin, 3L);
+                
+                // Set health display to always show 10 hearts
+                player.setHealthScaled(true);
+                player.setHealthScale(20.0); // 20.0 = 10 hearts
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Applied health stat to " + player.getName() + ": " + 
+                                    defaultHealth + " (final max health: " + newMaxHealth + ")");
+                    plugin.getLogger().info("Set current health to stored value: " + newHealth + "/" + newMaxHealth);
+                    plugin.getLogger().info("Set health display scale to 10 hearts");
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error applying default health with stored value: " + e.getMessage());
+            if (plugin.isDebugMode()) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -238,8 +321,9 @@ public class PlayerListener implements Listener {
             }
         }
     }
-   /**
-     * Applies the default health stat to the player
+
+    /**
+     * Applies the default health stat to the player without healing them to full
      */
     private void applyDefaultHealth(Player player, int defaultHealth) {
         try {
@@ -249,6 +333,16 @@ public class PlayerListener implements Listener {
             
             AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
             if (maxHealth != null) {
+                // Store current health percentage before modifying attributes
+                double currentHealth = player.getHealth();
+                double currentMaxHealth = maxHealth.getValue();
+                double healthPercentage = currentMaxHealth > 0 ? currentHealth / currentMaxHealth : 0.5; // Default to 50% if invalid
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Current health before adjustment: " + currentHealth + "/" + currentMaxHealth + 
+                                    " (" + (healthPercentage * 100) + "%)");
+                }
+                
                 // Clear existing modifiers
                 Set<AttributeModifier> healthModifiers = new HashSet<>(maxHealth.getModifiers());
                 for (AttributeModifier mod : healthModifiers) {
@@ -270,30 +364,22 @@ public class PlayerListener implements Listener {
                     maxHealth.addModifier(healthMod);
                 }
                 
-                // Give the attribute time to update
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        if (player.isOnline()) {
-                            // Set health to max
-                            double currentMaxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
-                            player.setHealth(currentMaxHealth);
-                            
-                            // Set health display to always show 10 hearts
-                            player.setHealthScaled(true);
-                            player.setHealthScale(20.0); // 20.0 = 10 hearts
-                            
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info("Health set for " + player.getName() + ": " + 
-                                                    player.getHealth() + "/" + currentMaxHealth);
-                            }
-                        }
-                    }
-                }.runTaskLater(plugin, 1L);
+                // Calculate new health value based on previous percentage
+                double newMaxHealth = maxHealth.getValue();
+                double newHealth = Math.max(1.0, Math.min(newMaxHealth, healthPercentage * newMaxHealth));
+                
+                // Set health to the calculated value (preserving percentage)
+                player.setHealth(newHealth);
+                
+                // Set health display to always show 10 hearts
+                player.setHealthScaled(true);
+                player.setHealthScale(20.0); // 20.0 = 10 hearts
                 
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info("Applied default health stat to " + player.getName() + ": " + 
                                         defaultHealth + " (final value: " + maxHealth.getValue() + ")");
+                    plugin.getLogger().info("Set health to: " + newHealth + "/" + newMaxHealth + 
+                                    " (preserved " + (healthPercentage * 100) + "% of max health)");
                     plugin.getLogger().info("Set health display scale to 10 hearts");
                 }
             }
@@ -460,6 +546,9 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+
+        // Stop tracking health regeneration
+        plugin.getHealthRegenerationManager().stopTracking(player);
         
         // Clean up tasks
         statsManager.stopTracking(player);
@@ -487,15 +576,7 @@ public class PlayerListener implements Listener {
      */
     private void resetAttributesToDefaults(Player player) {
         // Reset all attributes to default values
-        try {
-            if (player.getAttribute(Attribute.GENERIC_MAX_HEALTH) != null) {
-                Set<AttributeModifier> healthModifiers = new HashSet<>(player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getModifiers());
-                for (AttributeModifier mod : healthModifiers) {
-                    player.getAttribute(Attribute.GENERIC_MAX_HEALTH).removeModifier(mod);
-                }
-                player.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(20.0);
-            }
-            
+        try {            
             if (player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE) != null) {
                 Set<AttributeModifier> damageModifiers;
                 damageModifiers = new HashSet<>(player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).getModifiers());

@@ -209,7 +209,8 @@ public class StatsGUI {
             "§7Omnivamp: §f" + stats.getOmnivamp(),
             "§7Size: §f" + baseSize + 
             (sizeBonus > 0 ? " §a(+" + String.format("%.2f", sizeBonus) + ")" : "") +
-            (heldSize > 0 ? " §e[+" + String.format("%.2f", heldSize) + " weapon]" : "")
+            (heldSize > 0 ? " §e[+" + String.format("%.2f", heldSize) + " weapon]" : ""),
+            "§7Health Regeneration: §f" + stats.getHealthRegen() + " §7per second"
         );
 
         // Resource Stats (Experience Bottle) - properly shows mana with temporary bonuses

@@ -16,6 +16,7 @@ com\server\abilities\AbilityManager$1.class
 com\server\events\CombatListener.class
 com\server\display\ScoreboardManager$1.class
 com\server\events\RangedCombatManager.class
+com\server\commands\FlyCommand.class
 com\server\events\GUIListener.class
 com\server\commands\CurrencyCommand$TransferRequest.class
 com\server\commands\GiveHatCommand.class
@@ -48,6 +49,7 @@ com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
 com\server\events\PlayerListener$1.class
 com\server\items\ItemType.class
+com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\events\RangedCombatManager$2.class
 com\server\commands\CurrencyCommand$1.class
 com\server\display\MobDisplayManager.class
@@ -61,8 +63,10 @@ com\server\items\CustomItems.class
 com\server\display\DamageIndicatorManager.class
 com\server\events\RangedCombatManager$1.class
 com\server\items\ItemManager.class
+com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\abilities\AbilityManager$3.class
 com\server\display\ScoreboardManager$2.class
+com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\MenuCommand.class
 com\server\events\RangedCombatManager$5.class
 com\server\profiles\ProfileManager.class

@@ -28,6 +28,7 @@ public class PlayerStats {
     private int rangedDamage;
     private double attackSpeed;
     private double omnivamp;
+    private int healthRegen;
     
     // Fortune Stats
     private double miningFortune;
@@ -46,8 +47,6 @@ public class PlayerStats {
     private float exhaustion;
     private int expLevel;
     private float expProgress;
-    private boolean isFlying;
-    private boolean allowFlight;
     private double attackRange;
     private double size;
 
@@ -68,6 +67,7 @@ public class PlayerStats {
     private final int defaultRangedDamage = 5;
     private final double defaultAttackSpeed = 4.0; // 4 attacks per second
     private final double defaultOmnivamp = 0;
+    private final int defaultHealthRegen = 1;
     private final int defaultManaRegen = 1;
     private final int defaultLuck = 0;
     private final double defaultMiningFortune = 1.0;
@@ -107,6 +107,7 @@ public class PlayerStats {
         this.rangedDamage = defaultRangedDamage;
         this.attackSpeed = defaultAttackSpeed;
         this.omnivamp = defaultOmnivamp;
+        this.healthRegen = defaultHealthRegen;
         this.manaRegen = defaultManaRegen;
         this.luck = defaultLuck;
         this.miningFortune = defaultMiningFortune;
@@ -119,8 +120,6 @@ public class PlayerStats {
         this.exhaustion = defaultExhaustion;
         this.expLevel = defaultExpLevel;
         this.expProgress = defaultExpProgress;
-        this.isFlying = false;
-        this.allowFlight = false;
         this.attackRange = defaultAttackRange;
         this.size = defaultSize;
     }
@@ -230,12 +229,6 @@ public class PlayerStats {
         this.expProgress = Math.min(1.0f, Math.max(0.0f, expProgress));
     }
     
-    public boolean isFlying() { return isFlying; }
-    public void setFlying(boolean flying) { this.isFlying = flying; }
-    
-    public boolean getAllowFlight() { return allowFlight; }
-    public void setAllowFlight(boolean allowFlight) { this.allowFlight = allowFlight; }
-
     public double getAttackRange() { return attackRange; }
     public void setAttackRange(double attackRange) { this.attackRange = Math.max(3.0, attackRange); }
 
@@ -244,6 +237,11 @@ public class PlayerStats {
         // Clamp size between Minecraft's allowed range
         this.size = Math.min(16.0, Math.max(0.0625, size)); 
     }
+
+    // Add getter and setter for healthRegen
+    public int getHealthRegen() { return healthRegen; }
+    public void setHealthRegen(int healthRegen) { this.healthRegen = Math.max(0, healthRegen); }
+    
 
     public int getDefaultHealth() {
         return defaultHealth;
@@ -366,6 +364,10 @@ public class PlayerStats {
         return defaultExpProgress;
     }
 
+    public int getDefaultHealthRegen() {
+        return defaultHealthRegen;
+    }
+
     public double calculatePhysicalDamage() {
         double damage = physicalDamage;
         if (Math.random() < criticalChance) {
@@ -465,10 +467,6 @@ public class PlayerStats {
         player.setExhaustion(exhaustion);
         player.setLevel(expLevel);
         player.setExp(expProgress);
-        player.setAllowFlight(allowFlight);
-        if (allowFlight) {
-            player.setFlying(isFlying);
-        }
     }
 
     // Update stats from player's minecraft attributes
@@ -509,9 +507,6 @@ public class PlayerStats {
         this.exhaustion = player.getExhaustion();
         this.expLevel = player.getLevel();
         this.expProgress = player.getExp();
-        this.allowFlight = player.getAllowFlight();
-        this.isFlying = player.isFlying();
-
     }
 
     // Modify existing calculatePhysicalDamage method to handle critical hits
@@ -587,6 +582,79 @@ public class PlayerStats {
      */
     public double getMagicDamageReduction() {
         return (magicResist * 100.0) / (100.0 + magicResist);
+    }
+
+    // Add regeneration method for health
+    public void regenerateHealth() {
+        if (currentHealth < health) {
+            setCurrentHealth(Math.min(currentHealth + healthRegen, health));
+        }
+    }
+    
+    // Also add a method to apply health regeneration to a player
+    public void applyHealthRegeneration(Player player) {
+        if (player.getHealth() < player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue()) {
+            double newHealth = Math.min(
+                player.getHealth() + healthRegen,
+                player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue()
+            );
+            player.setHealth(newHealth);
+        }
+    }
+
+    /**
+     * Apply stats to player's minecraft attributes without modifying health
+     */
+    public void applyToPlayerWithoutHealth(Player player) {
+        // Apply all attributes except health
+        
+        // Attack Damage
+        AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
+        if (attackDamage != null) {
+            attackDamage.setBaseValue(physicalDamage);
+        }
+
+        // Movement Speed
+        AttributeInstance movementSpeed = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (movementSpeed != null) {
+            movementSpeed.setBaseValue(speed);
+        }
+
+        // Apply Scale attribute (added in 1.20.5)
+        try {
+            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttr != null) {
+                // Remove any existing modifiers
+                Set<AttributeModifier> scaleModifiers = new HashSet<>(scaleAttr.getModifiers());
+                for (AttributeModifier mod : scaleModifiers) {
+                    scaleAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (1.0)
+                scaleAttr.setBaseValue(1.0);
+                
+                // Add our custom modifier for the size value
+                double sizeBonus = size - 1.0;
+                if (sizeBonus != 0) {
+                    AttributeModifier sizeMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        "mmo.size",
+                        sizeBonus,
+                        AttributeModifier.Operation.ADD_NUMBER
+                    );
+                    scaleAttr.addModifier(sizeMod);
+                }
+            }
+        } catch (Exception e) {
+            // Scale attribute might not be available in older versions
+        }
+
+        // Apply non-health related Minecraft stats
+        player.setFoodLevel(foodLevel);
+        player.setSaturation(saturation);
+        player.setExhaustion(exhaustion);
+        player.setLevel(expLevel);
+        player.setExp(expProgress);
     }
 
 }

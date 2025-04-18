@@ -591,7 +591,7 @@ public class RangedCombatManager implements Listener {
     }
 
     /**
-     * Reset a player's attributes to default Minecraft values
+     * Reset a player's attributes to default Minecraft values except health
      */
     private void resetPlayerAttributes(Player player) {
         try {
@@ -625,18 +625,6 @@ public class RangedCombatManager implements Listener {
                 attackSpeedAttribute.setBaseValue(4.0); // Vanilla default
             }
             
-            // Reset max health attribute
-            AttributeInstance maxHealthAttribute = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-            if (maxHealthAttribute != null) {
-                Set<AttributeModifier> healthModifiers = new HashSet<>(maxHealthAttribute.getModifiers());
-                for (AttributeModifier modifier : healthModifiers) {
-                    maxHealthAttribute.removeModifier(modifier);
-                }
-                maxHealthAttribute.setBaseValue(20.0); // Vanilla default
-                
-                // Set health to match max health
-                player.setHealth(Math.min(player.getHealth(), 20.0));
-            }
         } catch (Exception e) {
             plugin.getLogger().warning("Error resetting attributes on join: " + e.getMessage());
         }

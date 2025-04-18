@@ -32,21 +32,38 @@ commands:
     aliases: [customitem, ci]
   debugmode:
     description: Toggle debug mode for the MMO plugin
-    usage: /<command>
+    usage: /debugmode
+    permission: mmo.admin
+  fly:
+    description: Toggle flight mode for yourself or another player
+    usage: /fly [player] [on|off]
+    permission: mmo.admin.fly
+    aliases: [togglefly]
   balance:
     description: Check your currency balances
-    usage: /balance [player]
+    usage: /balance [currency]
     aliases: [bal, money]
   currency:
-    description: Admin command to modify player currencies
-    usage: /currency <give|take|set> <player> <currency> <amount>
+    description: Manage currencies (admin)
+    usage: /currency <give|take|set> <player> <amount> <type>
     permission: mmo.admin.currency
   pay:
-    description: Transfer currency to another player
-    usage: /pay <player> <amount> <units|premium>
+    description: Send currency to another player
+    usage: /pay <player> <amount> [currency]
   confirm:
-    description: Confirm a pending currency transfer
+    description: Confirm a pending transaction
     usage: /confirm
   cancel:
-    description: Cancel a pending currency transfer
+    description: Cancel a pending transaction
     usage: /cancel
+
+permissions:
+  mmo.admin:
+    description: Grants access to administrative commands
+    default: op
+  mmo.admin.fly:
+    description: Allows toggling flight mode for self and others
+    default: op
+  mmo.admin.currency:
+    description: Allows managing player currencies
+    default: op
