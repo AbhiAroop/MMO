@@ -31,10 +31,12 @@ com\server\events\RangedCombatManager$6.class
 com\server\display\DamageIndicatorManager$2.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\gui\ProfileGUI.class
+com\server\events\AutoRespawnListener.class
 com\server\profiles\PlayerProfile.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\ProfileCommand.class
 com\server\profiles\stats\StatsUpdateManager.class
+com\server\events\AutoRespawnListener$2.class
 com\server\commands\GiveItemCommand.class
 com\server\events\PlayerListener.class
 com\server\display\MobDisplayManager$1.class
@@ -66,6 +68,7 @@ com\server\items\ItemManager.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\abilities\AbilityManager$3.class
 com\server\display\ScoreboardManager$2.class
+com\server\events\AutoRespawnListener$1.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\MenuCommand.class
 com\server\events\RangedCombatManager$5.class

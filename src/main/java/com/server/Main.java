@@ -14,18 +14,19 @@ import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
 import com.server.commands.ProfileCommand;
 import com.server.commands.StatsCommand;
-import com.server.cosmetics.CosmeticGUI;
 import com.server.cosmetics.CosmeticManager;
 import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
 import com.server.events.AbilityListener;
+import com.server.events.AutoRespawnListener;
 import com.server.events.CombatListener;
 import com.server.events.GUIListener;
 import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
+import com.server.profiles.ProfileManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
 import com.server.profiles.stats.health.HealthRegenerationManager;
 
@@ -37,6 +38,7 @@ public class Main extends JavaPlugin {
     private DamageIndicatorManager damageIndicatorManager;
     private ScoreboardManager scoreboardManager;
     private HealthRegenerationManager healthRegenerationManager;
+    private RangedCombatManager rangedCombatManager;
 
     @Override
     public void onEnable() {
@@ -92,10 +94,12 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(mobDisplayManager, this);
         this.getServer().getPluginManager().registerEvents(damageIndicatorManager, this);
         this.getServer().getPluginManager().registerEvents(new ItemListener(), this);
-        this.getServer().getPluginManager().registerEvents(new CosmeticGUI(), this);
         this.getServer().getPluginManager().registerEvents(new AbilityListener(), this);
-        this.getServer().getPluginManager().registerEvents(new RangedCombatManager(this), this);
+        rangedCombatManager = new RangedCombatManager(this);
+        this.getServer().getPluginManager().registerEvents(rangedCombatManager, this);
         this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new AutoRespawnListener(this), this);
     }
 
     public static Main getInstance() {
@@ -225,5 +229,23 @@ public class Main extends JavaPlugin {
 
     public HealthRegenerationManager getHealthRegenerationManager() {
         return healthRegenerationManager;
+    }
+
+    /**
+     * Get the ProfileManager instance
+     * 
+     * @return The ProfileManager instance
+     */
+    public ProfileManager getProfileManager() {
+        return ProfileManager.getInstance();
+    }
+
+    /**
+     * Get the RangedCombatManager instance
+     * 
+     * @return The RangedCombatManager instance
+     */
+    public RangedCombatManager getRangedCombatManager() {
+        return rangedCombatManager;
     }
 }
