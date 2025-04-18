@@ -16,6 +16,7 @@ import com.server.profiles.stats.PlayerStats;
 public class HealthRegenerationManager {
     private final Main plugin;
     private final Map<UUID, Integer> regenTasks = new HashMap<>();
+    private final Map<UUID, Double> healingAccumulator = new HashMap<>();
     private final int TICKS_PER_SECOND = 20;
     
     public HealthRegenerationManager(Main plugin) {
@@ -81,6 +82,9 @@ public class HealthRegenerationManager {
             plugin.getServer().getScheduler().cancelTask(regenTasks.get(playerId));
             regenTasks.remove(playerId);
             
+            // Also remove healing accumulator
+            healingAccumulator.remove(playerId);
+            
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("Stopped health regeneration tracking for " + player.getName());
             }
@@ -91,25 +95,48 @@ public class HealthRegenerationManager {
      * Apply health regeneration based on player stats
      */
     private void applyHealthRegeneration(Player player, PlayerStats stats) {
-        // Only apply if player is not at full health
-        double maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
-        double currentHealth = player.getHealth();
-        
-        if (currentHealth < maxHealth) {
-            int regenAmount = stats.getHealthRegen();
+            // Only apply if player is not at full health
+            double maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            double currentHealth = player.getHealth();
             
-            // Calculate new health value
-            double newHealth = Math.min(currentHealth + regenAmount, maxHealth);
-            
-            // Apply the health change
-            player.setHealth(newHealth);
-            
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Applied health regeneration to " + player.getName() + 
-                                    ": +" + regenAmount + " (" + currentHealth + " -> " + newHealth + ")");
+            if (currentHealth < maxHealth) {
+                UUID playerId = player.getUniqueId();
+                double regenAmount = stats.getHealthRegen();
+                
+                // Get accumulated healing (or initialize to 0 if not present)
+                double accumulator = healingAccumulator.getOrDefault(playerId, 0.0);
+                
+                // Add current regen amount to accumulator
+                accumulator += regenAmount;
+                
+                // Get the whole number part to apply (if >= 1)
+                int healthToApply = (int)Math.floor(accumulator);
+                
+                if (healthToApply >= 1) {
+                    // Calculate new health value
+                    double newHealth = Math.min(currentHealth + healthToApply, maxHealth);
+                    
+                    // Apply the health change
+                    player.setHealth(newHealth);
+                    
+                    // Keep the fractional part in the accumulator
+                    accumulator -= healthToApply;
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("Applied health regeneration to " + player.getName() + 
+                                            ": +" + healthToApply + " (" + currentHealth + " -> " + newHealth + ")" +
+                                            ", remaining accumulator: " + accumulator);
+                    }
+                }
+                
+                // Store the updated accumulator
+                healingAccumulator.put(playerId, accumulator);
+                
+            } else if (healingAccumulator.containsKey(player.getUniqueId())) {
+                // Player is at full health, reset accumulator
+                healingAccumulator.remove(player.getUniqueId());
             }
         }
-    }
     
     /**
      * Cleanup all tasks on plugin disable
@@ -119,6 +146,7 @@ public class HealthRegenerationManager {
             plugin.getServer().getScheduler().cancelTask(taskId);
         }
         regenTasks.clear();
+        healingAccumulator.clear();
         plugin.getLogger().info("Cleaned up all health regeneration tasks");
     }
 }

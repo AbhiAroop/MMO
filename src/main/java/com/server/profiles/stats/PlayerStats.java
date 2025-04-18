@@ -28,7 +28,7 @@ public class PlayerStats {
     private int rangedDamage;
     private double attackSpeed;
     private double omnivamp;
-    private int healthRegen;
+    private double healthRegen;
     
     // Fortune Stats
     private double miningFortune;
@@ -67,7 +67,7 @@ public class PlayerStats {
     private final int defaultRangedDamage = 5;
     private final double defaultAttackSpeed = 4.0; // 4 attacks per second
     private final double defaultOmnivamp = 0;
-    private final int defaultHealthRegen = 1;
+    private final double defaultHealthRegen = 0.3;
     private final int defaultManaRegen = 1;
     private final int defaultLuck = 0;
     private final double defaultMiningFortune = 1.0;
@@ -239,8 +239,8 @@ public class PlayerStats {
     }
 
     // Add getter and setter for healthRegen
-    public int getHealthRegen() { return healthRegen; }
-    public void setHealthRegen(int healthRegen) { this.healthRegen = Math.max(0, healthRegen); }
+    public double getHealthRegen() { return healthRegen; }
+    public void setHealthRegen(double healthRegen) { this.healthRegen = Math.max(0, healthRegen); }
     
 
     public int getDefaultHealth() {
@@ -364,8 +364,8 @@ public class PlayerStats {
         return defaultExpProgress;
     }
 
-    public int getDefaultHealthRegen() {
-        return defaultHealthRegen;
+    public double getDefaultHealthRegen() {
+            return defaultHealthRegen;
     }
 
     public double calculatePhysicalDamage() {
@@ -584,14 +584,14 @@ public class PlayerStats {
         return (magicResist * 100.0) / (100.0 + magicResist);
     }
 
-    // Add regeneration method for health
+
     public void regenerateHealth() {
         if (currentHealth < health) {
             setCurrentHealth(Math.min(currentHealth + healthRegen, health));
         }
     }
     
-    // Also add a method to apply health regeneration to a player
+    // Update the applyHealthRegeneration method to handle decimal values
     public void applyHealthRegeneration(Player player) {
         if (player.getHealth() < player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue()) {
             double newHealth = Math.min(
