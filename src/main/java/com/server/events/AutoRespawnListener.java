@@ -1,12 +1,7 @@
 package com.server.events;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,7 +12,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
-import com.server.profiles.stats.PlayerStats;
 
 /**
  * Handles automatic respawning of players when they die
@@ -56,83 +50,53 @@ public class AutoRespawnListener implements Listener {
                     // Use the respawn method to properly respawn the player
                     player.spigot().respawn();
                     
-                    // Schedule health and other attribute updates after respawn
-                    schedulePostRespawnUpdates(player);
+                    // Force stat scanning after respawn with multiple delays to ensure it takes effect
+                    scheduleStatScanning(player);
                 }
             }
         }.runTaskLater(plugin, 1L);
     }
     
     /**
-     * Schedule updates to health and other attributes after a player respawns
+     * Schedule stat scanning after respawn with multiple delays to ensure attributes are correctly applied
      */
-    private void schedulePostRespawnUpdates(Player player) {
-        // Schedule multiple update attempts to ensure everything is properly applied
-        for (int delay : new int[] {1, 5, 10, 20}) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (player.isOnline()) {
-                        // Get the player's active profile using ProfileManager directly
-                        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
-                        if (activeSlot == null) return;
-                        
-                        // Get the profile
+    private void scheduleStatScanning(Player player) {
+        // Only need one simple scan attempt after a reasonable delay
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (player.isOnline()) {
+                    // Get the player's active profile
+                    Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+                    if (activeSlot != null) {
                         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
-                        if (profile == null) return;
-                        
-                        // Apply stats with proper health setting
-                        PlayerStats stats = profile.getStats();
-                        
-                        // Set max health 
-                        try {
-                            AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-                            if (maxHealth != null) {
-                                // Set the base value to vanilla default
-                                maxHealth.setBaseValue(20.0);
+                        if (profile != null) {
+                            // First apply stats to ensure correct max health
+                            plugin.getStatScanManager().scanAndUpdatePlayerStats(player);
+                            
+                            // Then set health to the default health stat value
+                            int defaultHealth = profile.getStats().getHealth();
+                            
+                            // Ensure we don't exceed max health
+                            AttributeInstance maxHealthAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+                            if (maxHealthAttr != null) {
+                                double maxHealth = maxHealthAttr.getValue();
+                                double healthToSet = Math.min(defaultHealth, maxHealth);
                                 
-                                // Apply health boost modifier
-                                double healthBonus = stats.getHealth() - 20.0;
-                                if (healthBonus != 0) {
-                                    AttributeModifier healthMod = new AttributeModifier(
-                                        UUID.randomUUID(),
-                                        "mmo.health",
-                                        healthBonus,
-                                        AttributeModifier.Operation.ADD_NUMBER
-                                    );
-                                    
-                                    // Remove existing modifiers first
-                                    Set<AttributeModifier> existingModifiers = new HashSet<>(maxHealth.getModifiers());
-                                    for (AttributeModifier mod : existingModifiers) {
-                                        maxHealth.removeModifier(mod);
-                                    }
-                                    
-                                    // Add the new modifier
-                                    maxHealth.addModifier(healthMod);
-                                }
-                                
-                                // Set health to max on respawn
-                                player.setHealth(maxHealth.getValue());
-                                
-                                // Ensure health display is scaled to show 10 hearts
-                                player.setHealthScaled(true);
-                                player.setHealthScale(20.0);
+                                // Set player's health and update the stats object
+                                player.setHealth(healthToSet);
+                                profile.getStats().setCurrentHealth(healthToSet);
                                 
                                 if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Post-respawn health update: " + 
-                                                    "Max: " + maxHealth.getValue() + 
-                                                    ", Current: " + player.getHealth());
+                                    plugin.getLogger().info("Set " + player.getName() + 
+                                                    "'s health to default value (" + healthToSet + 
+                                                    ") after respawn");
                                 }
                             }
-                        } catch (Exception e) {
-                            plugin.getLogger().warning("Error updating health after respawn: " + e.getMessage());
                         }
-                        
-                        // Update other attributes
-                        plugin.getRangedCombatManager().updatePlayerAttributes(player);
                     }
                 }
-            }.runTaskLater(plugin, delay);
-        }
+            }
+        }.runTaskLater(plugin, 5L); // Small delay to ensure respawn is complete
     }
 }

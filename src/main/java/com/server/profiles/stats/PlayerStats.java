@@ -472,11 +472,7 @@ public class PlayerStats {
     // Update stats from player's minecraft attributes
     public void updateFromPlayer(Player player) {
         // Existing attribute updates
-        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-        if (maxHealth != null) {
-            this.health = (int) maxHealth.getBaseValue();
-            this.currentHealth = player.getHealth();
-        }
+        this.currentHealth = player.getHealth();
 
         AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
         if (attackDamage != null) {
@@ -606,49 +602,7 @@ public class PlayerStats {
      * Apply stats to player's minecraft attributes without modifying health
      */
     public void applyToPlayerWithoutHealth(Player player) {
-        // Apply all attributes except health
         
-        // Attack Damage
-        AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
-        if (attackDamage != null) {
-            attackDamage.setBaseValue(physicalDamage);
-        }
-
-        // Movement Speed
-        AttributeInstance movementSpeed = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
-        if (movementSpeed != null) {
-            movementSpeed.setBaseValue(speed);
-        }
-
-        // Apply Scale attribute (added in 1.20.5)
-        try {
-            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
-            if (scaleAttr != null) {
-                // Remove any existing modifiers
-                Set<AttributeModifier> scaleModifiers = new HashSet<>(scaleAttr.getModifiers());
-                for (AttributeModifier mod : scaleModifiers) {
-                    scaleAttr.removeModifier(mod);
-                }
-                
-                // Set base value to default (1.0)
-                scaleAttr.setBaseValue(1.0);
-                
-                // Add our custom modifier for the size value
-                double sizeBonus = size - 1.0;
-                if (sizeBonus != 0) {
-                    AttributeModifier sizeMod = new AttributeModifier(
-                        UUID.randomUUID(),
-                        "mmo.size",
-                        sizeBonus,
-                        AttributeModifier.Operation.ADD_NUMBER
-                    );
-                    scaleAttr.addModifier(sizeMod);
-                }
-            }
-        } catch (Exception e) {
-            // Scale attribute might not be available in older versions
-        }
-
         // Apply non-health related Minecraft stats
         player.setFoodLevel(foodLevel);
         player.setSaturation(saturation);

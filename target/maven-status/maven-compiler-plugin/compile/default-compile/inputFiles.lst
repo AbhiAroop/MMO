@@ -34,7 +34,6 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\AbilityListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\cosmetics\CosmeticGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\AutoRespawnListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\StatsUpdateManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\PlayerSkills.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\PlayerArmorChangeEvent.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\StatScanManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\utils\CurrencyFormatter.java

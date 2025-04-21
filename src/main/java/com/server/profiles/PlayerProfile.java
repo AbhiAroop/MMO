@@ -1,6 +1,7 @@
 package com.server.profiles;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,9 +9,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import com.server.Main;
 import com.server.items.ItemType;
 import com.server.profiles.skills.PlayerSkills;
 import com.server.profiles.stats.PlayerStats;
@@ -105,15 +110,49 @@ public class PlayerProfile {
 
     public void loadProfile(Player player) {
         loadInventory(player);
+        
+        // IMPORTANT: Set health BEFORE teleporting to avoid health reset issues
+        // First handle the max health attribute to ensure the player can hold the stored health value
+        AttributeInstance maxHealthAttr;
+        maxHealthAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHealthAttr != null) {
+            // Remove any existing modifiers for clean state
+            for (AttributeModifier mod : new HashSet<>(maxHealthAttr.getModifiers())) {
+                maxHealthAttr.removeModifier(mod);
+            }
+            
+            // Set base value to vanilla default
+            maxHealthAttr.setBaseValue(20.0);
+            
+            // Apply health bonus from profile stats
+            double healthBonus = stats.getHealth() - 20.0;
+            if (healthBonus > 0) {
+                AttributeModifier healthMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.max_health",
+                    healthBonus,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                maxHealthAttr.addModifier(healthMod);
+            }
+            
+            // Now set current health to the saved value (capped by max health)
+            double healthToSet = Math.min(stats.getCurrentHealth(), maxHealthAttr.getValue());
+            player.setHealth(healthToSet);
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Profile load: set " + player.getName() + "'s health to " + 
+                                healthToSet + "/" + maxHealthAttr.getValue());
+            }
+        }
+        
+        // Now teleport the player after health is set
         teleportPlayer(player);
-
-        double currentHealth = player.getHealth();
-
-        stats.applyToPlayerWithoutHealth(player);
-
+        
+        // Apply health display scale
         player.setHealthScaled(true);
         player.setHealthScale(20.0);
-
+        
         updateLastPlayed();
     }
 
@@ -124,12 +163,17 @@ public class PlayerProfile {
         // Important: Update the profile with current values before saving
         stats.updateFromPlayer(player);
         
-        // Critical: Explicitly save current health value
-        if (player.getHealth() > 0) {
-            stats.setCurrentHealth(player.getHealth());
-        }
+        // CRITICAL: Always explicitly save current health value
+        double currentHealth = player.getHealth();
+        stats.setCurrentHealth(currentHealth);
         
         updateLastPlayed();
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Profile saved for " + player.getName() + 
+                                    " with health: " + currentHealth + "/" + 
+                                    player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue());
+        }
     }
 
     // Getters

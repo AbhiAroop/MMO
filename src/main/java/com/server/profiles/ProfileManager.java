@@ -80,42 +80,38 @@ public class ProfileManager {
             return false;
         }
 
-        // Save current profile if one exists
+        // CRITICAL: Save current profile's health if one exists
         Integer currentSlot = activeProfiles.get(player.getUniqueId());
         if (currentSlot != null && playerProfiles[currentSlot] != null) {
+            // Explicitly save current health before switching
+            PlayerProfile currentProfile = playerProfiles[currentSlot];
+            currentProfile.getStats().setCurrentHealth(player.getHealth());
+            
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Saving " + player.getName() + "'s health (" + player.getHealth() + 
+                            ") before switching from profile " + currentSlot + " to " + slot);
+            }
+            
+            // Save full profile state
             playerProfiles[currentSlot].saveProfile(player);
         }
 
+        // Load the new profile (which will set correct health value)
         PlayerProfile newProfile = playerProfiles[slot];
         
-        // Check if this is the first time loading this profile
-        if (newProfile.getLastPlayed() == newProfile.getCreated()) {
-            // Reset player state for fresh profile
-            player.getInventory().clear();
-            player.setHealth((double) player.getMaxHealth());
-            player.setFoodLevel(20);
-            player.setSaturation(20f);
-            player.setExhaustion(0f);
-            player.setLevel(0);
-            player.setExp(0f);
-            player.setFlying(false);
-            player.setAllowFlight(false);
-            
-            // Save initial state
-            newProfile.saveProfile(player);
-        }
-
-        // Load profile state
-        newProfile.loadProfile(player);
+        // Set profile as active before loading to ensure it's recognized
         activeProfiles.put(player.getUniqueId(), slot);
-
+        
+        // Load the profile (this will set proper health from profile)
+        newProfile.loadProfile(player);
+        
         // Update the scoreboard for the player
         if (plugin != null && plugin.getScoreboardManager() != null) {
             plugin.getScoreboardManager().startTracking(player);
         }
 
         player.sendMessage(ChatColor.GREEN + "Selected profile '" + 
-                         ChatColor.GOLD + newProfile.getName() + ChatColor.GREEN + "' from slot #" + (slot + 1));
+                        ChatColor.GOLD + newProfile.getName() + ChatColor.GREEN + "' from slot #" + (slot + 1));
         return true;
     }
 

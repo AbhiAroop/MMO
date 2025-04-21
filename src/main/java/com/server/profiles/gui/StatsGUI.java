@@ -35,190 +35,142 @@ public class StatsGUI {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
 
-        // Get current stats WITHOUT modifying them with StatsUpdateManager
+        // Get current stats from the profile - these already include both base stats and equipment bonuses
         PlayerStats stats = profile.getStats();
 
-        // Calculate base values
+        // Get base/default values for display purposes
         int basePDamage = stats.getDefaultPhysicalDamage();
         int baseMDamage = stats.getDefaultMagicDamage();
         int baseMana = stats.getDefaultMana();
         int baseHealth = stats.getDefaultHealth();
         int baseArmor = stats.getDefaultArmor();
         int baseMagicResist = stats.getDefaultMagicResist();
+        double baseAttackRange = stats.getDefaultAttackRange();
+        double baseSize = stats.getDefaultSize();
         
-        // Calculate current values (already includes permanent bonuses)
+        // Current values already include all equipment bonuses thanks to StatScanManager
         int currentPDamage = stats.getPhysicalDamage();
         int currentMDamage = stats.getMagicDamage();
         int currentTotalMana = stats.getTotalMana();
         int currentHealth = stats.getHealth();
         int currentArmor = stats.getArmor();
         int currentMagicResist = stats.getMagicResist();
-        
-        // Calculate permanent bonuses
-        int permPDamageBonus = currentPDamage - basePDamage;
-        int permMDamageBonus = currentMDamage - baseMDamage;
-        int permManaBonus = currentTotalMana - baseMana;
-        int permHealthBonus = currentHealth - baseHealth;
-        int permArmorBonus = currentArmor - baseArmor;
-        int permMagicResistBonus = currentMagicResist - baseMagicResist;
-
-        // Get base attack range
-        double baseAttackRange = stats.getDefaultAttackRange();
         double currentAttackRange = stats.getAttackRange();
-        double attackRangeBonus = currentAttackRange - baseAttackRange;
-
-        // Get base size
-        double baseSize = stats.getDefaultSize();
         double currentSize = stats.getSize();
-        double sizeBonus = currentSize - baseSize;
-
-        // Extract additional temporary bonuses from held item
-        int heldPhysicalDamage = 0;
-        int heldMagicDamage = 0;
-        int heldManaBonus = 0;
-        double heldAttackRange = 0;
-        double heldSize = 0;
-
-        // Extract equipped armor stats
-        int helmetHealth = 0, helmetArmor = 0, helmetMagicResist = 0, helmetPDamage = 0, helmetMDamage = 0;
-        int chestplateHealth = 0, chestplateArmor = 0, chestplateMagicResist = 0, chestplatePDamage = 0, chestplateMDamage = 0;
-        int leggingsHealth = 0, leggingsArmor = 0, leggingsMagicResist = 0, leggingsPDamage = 0, leggingsMDamage = 0;
-        int bootsHealth = 0, bootsArmor = 0, bootsMagicResist = 0, bootsPDamage = 0, bootsMDamage = 0;
         
-        // Check held item stats (only if not armor)
-        ItemStack heldItem = player.getInventory().getItemInMainHand();
-        if (heldItem != null && heldItem.hasItemMeta() && heldItem.getItemMeta().hasLore()) {
-            // First check if it's an armor item - if so, don't show its stats when held
-            boolean isArmor = false;
-            if (heldItem.getType().name().endsWith("_HELMET") || 
-                heldItem.getType().name().endsWith("_CHESTPLATE") || 
-                heldItem.getType().name().endsWith("_LEGGINGS") || 
-                heldItem.getType().name().endsWith("_BOOTS") ||
-                heldItem.getType().name().equals("CARVED_PUMPKIN") || 
-                heldItem.getType().name().equals("PLAYER_HEAD") ||
-                heldItem.getType().name().equals("SKULL_ITEM")) {
-                isArmor = true;
-            }
-            
-            // Only process stats if it's not an armor item
-            if (!isArmor) {
-                for (String loreLine : heldItem.getItemMeta().getLore()) {
-                    if (loreLine.contains("Physical Damage:")) {
-                        try {
-                            String damageStr = loreLine.split("\\+")[1].trim();
-                            damageStr = damageStr.replaceAll("§[0-9a-fk-or]", "");
-                            heldPhysicalDamage = (int) Double.parseDouble(damageStr);
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    } else if (loreLine.contains("Magic Damage:")) {
-                        try {
-                            String damageStr = loreLine.split("\\+")[1].trim();
-                            damageStr = damageStr.replaceAll("§[0-9a-fk-or]", "");
-                            heldMagicDamage = (int) Double.parseDouble(damageStr);
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    } else if (loreLine.contains("Mana:")) {
-                        try {
-                            String manaStr = loreLine.split("\\+")[1].trim();
-                            manaStr = manaStr.replaceAll("§[0-9a-fk-or]", "");
-                            heldManaBonus = (int) Double.parseDouble(manaStr);
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    }
-                    else if (loreLine.contains("Attack Range:")) {
-                        try {
-                            String rangeStr = loreLine.split("\\+")[1].trim();
-                            rangeStr = rangeStr.replaceAll("§[0-9a-fk-or]", "");
-                            heldAttackRange = Double.parseDouble(rangeStr);
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    }
-                    else if (loreLine.contains("Size:")) {
-                        try {
-                            String sizeStr = loreLine.split("\\+")[1].trim();
-                            sizeStr = sizeStr.replaceAll("§[0-9a-fk-or]", "");
-                            heldSize = Double.parseDouble(sizeStr);
-                        } catch (Exception e) {
-                            // Ignore parsing errors
-                        }
-                    }
-                }
-            }
-        }
+        // Calculate total bonuses (equipment + permanent)
+        int totalPDamageBonus = currentPDamage - basePDamage;
+        int totalMDamageBonus = currentMDamage - baseMDamage;
+        int totalManaBonus = currentTotalMana - baseMana;
+        int totalHealthBonus = currentHealth - baseHealth;
+        int totalArmorBonus = currentArmor - baseArmor;
+        int totalMagicResistBonus = currentMagicResist - baseMagicResist;
+        double totalAttackRangeBonus = currentAttackRange - baseAttackRange;
+        double totalSizeBonus = currentSize - baseSize;
 
-        // Check equipped armor stats
+        // Extract information about equipped items for display purposes only
+        // (not for stat calculation since StatScanManager already handles that)
+        
+        // Display info for armor pieces
+        String helmetName = "None";
+        String chestplateName = "None";
+        String leggingsName = "None";
+        String bootsName = "None";
+        
+        List<String> helmetStats = new ArrayList<>();
+        List<String> chestplateStats = new ArrayList<>();
+        List<String> leggingsStats = new ArrayList<>();
+        List<String> bootsStats = new ArrayList<>();
+        
+        // Get helmet info
         ItemStack helmet = player.getInventory().getHelmet();
-        if (helmet != null && helmet.hasItemMeta() && helmet.getItemMeta().hasLore()) {
-            extractArmorStats(helmet, "Helmet", helmetHealth, helmetArmor, helmetMagicResist, helmetPDamage, helmetMDamage);
+        if (helmet != null && helmet.hasItemMeta()) {
+            helmetName = getItemDisplayName(helmet);
+            if (helmet.getItemMeta().hasLore()) {
+                extractItemStatsForDisplay(helmet, helmetStats);
+            }
         }
-
+        
+        // Get chestplate info
         ItemStack chestplate = player.getInventory().getChestplate();
-        if (chestplate != null && chestplate.hasItemMeta() && chestplate.getItemMeta().hasLore()) {
-            extractArmorStats(chestplate, "Chestplate", chestplateHealth, chestplateArmor, chestplateMagicResist, chestplatePDamage, chestplateMDamage);
+        if (chestplate != null && chestplate.hasItemMeta()) {
+            chestplateName = getItemDisplayName(chestplate);
+            if (chestplate.getItemMeta().hasLore()) {
+                extractItemStatsForDisplay(chestplate, chestplateStats);
+            }
         }
-
+        
+        // Get leggings info
         ItemStack leggings = player.getInventory().getLeggings();
-        if (leggings != null && leggings.hasItemMeta() && leggings.getItemMeta().hasLore()) {
-            extractArmorStats(leggings, "Leggings", leggingsHealth, leggingsArmor, leggingsMagicResist, leggingsPDamage, leggingsMDamage);
+        if (leggings != null && leggings.hasItemMeta()) {
+            leggingsName = getItemDisplayName(leggings);
+            if (leggings.getItemMeta().hasLore()) {
+                extractItemStatsForDisplay(leggings, leggingsStats);
+            }
         }
-
+        
+        // Get boots info
         ItemStack boots = player.getInventory().getBoots();
-        if (boots != null && boots.hasItemMeta() && boots.getItemMeta().hasLore()) {
-            extractArmorStats(boots, "Boots", bootsHealth, bootsArmor, bootsMagicResist, bootsPDamage, bootsMDamage);
+        if (boots != null && boots.hasItemMeta()) {
+            bootsName = getItemDisplayName(boots);
+            if (boots.getItemMeta().hasLore()) {
+                extractItemStatsForDisplay(boots, bootsStats);
+            }
+        }
+        
+        // Get main hand item info for display
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        String mainHandName = "None";
+        List<String> mainHandStats = new ArrayList<>();
+        
+        if (mainHand != null && mainHand.hasItemMeta()) {
+            mainHandName = getItemDisplayName(mainHand);
+            if (mainHand.getItemMeta().hasLore()) {
+                extractItemStatsForDisplay(mainHand, mainHandStats);
+            }
         }
 
         // Create the main GUI
         Inventory gui = Bukkit.createInventory(null, 36, "Profile Stats");
 
-        // Combat Stats (Diamond Sword) - properly shows base, permanent bonuses, and held item bonuses
+        // Combat Stats (Diamond Sword)
         ItemStack combatItem = createGuiItem(Material.DIAMOND_SWORD, "§c§lCombat Stats",
-            "§7Physical Damage: §f" + (currentPDamage + heldPhysicalDamage) + 
-                (permPDamageBonus > 0 ? " §a(+" + permPDamageBonus + ")" : "") + 
-                (heldPhysicalDamage > 0 ? " §e[+" + heldPhysicalDamage + " weapon]" : ""),
-            "§7Magic Damage: §f" + (currentMDamage + heldMagicDamage) + 
-                (permMDamageBonus > 0 ? " §a(+" + permMDamageBonus + ")" : "") +
-                (heldMagicDamage > 0 ? " §e[+" + heldMagicDamage + " weapon]" : ""),
-            "§7Attack Range: §f" + baseAttackRange + 
-                (attackRangeBonus > 0 ? " §a(+" + attackRangeBonus + ")" : "") +
-                (heldAttackRange > 0 ? " §e[+" + heldAttackRange + " weapon]" : "") +
-                " blocks",
-            "§7Effective Range: §f" + (currentAttackRange + heldAttackRange) + " blocks",
+            "§7Physical Damage: §f" + currentPDamage + 
+                (totalPDamageBonus > 0 ? " §a(+" + totalPDamageBonus + ")" : ""),
+            "§7Magic Damage: §f" + currentMDamage + 
+                (totalMDamageBonus > 0 ? " §a(+" + totalMDamageBonus + ")" : ""),
+            "§7Attack Range: §f" + currentAttackRange + " blocks" +
+                (totalAttackRangeBonus > 0 ? " §a(+" + totalAttackRangeBonus + ")" : ""),
             "§7Ranged Damage: §f" + stats.getRangedDamage(),
-            "§7Critical Chance: §f" + (stats.getCriticalChance() * 100) + "%",
+            "§7Critical Chance: §f" + String.format("%.1f", stats.getCriticalChance() * 100) + "%",
             "§7Critical Damage: §f" + stats.getCriticalDamage() + "x",
-            "§7Burst Chance: §f" + (stats.getBurstChance() * 100) + "%",
+            "§7Burst Chance: §f" + String.format("%.1f", stats.getBurstChance() * 100) + "%",
             "§7Burst Damage: §f" + stats.getBurstDamage() + "x",
             "§7Attack Speed: §f" + stats.getAttackSpeed()
         );
 
         // Defense Stats (Diamond Chestplate)
         ItemStack defenseItem = createGuiItem(Material.DIAMOND_CHESTPLATE, "§b§lDefense Stats",
-            "§7Health: §f" + stats.getHealth() + 
-                (permHealthBonus > 0 ? " §a(+" + permHealthBonus + ")" : ""),
-            "§7Armor: §f" + stats.getArmor() + 
-                (permArmorBonus > 0 ? " §a(+" + permArmorBonus + ")" : "") +
+            "§7Health: §f" + currentHealth + 
+                (totalHealthBonus > 0 ? " §a(+" + totalHealthBonus + ")" : ""),
+            "§7Armor: §f" + currentArmor + 
+                (totalArmorBonus > 0 ? " §a(+" + totalArmorBonus + ")" : "") +
                 " §7[" + String.format("%.1f", stats.getPhysicalDamageReduction()) + "% reduction]",                
-            "§7Magic Resist: §f" + stats.getMagicResist() + 
-                (permMagicResistBonus > 0 ? " §a(+" + permMagicResistBonus + ")" : "") +
+            "§7Magic Resist: §f" + currentMagicResist + 
+                (totalMagicResistBonus > 0 ? " §a(+" + totalMagicResistBonus + ")" : "") +
                 " §7[" + String.format("%.1f", stats.getMagicDamageReduction()) + "% reduction]",
-            "§7Life Steal: §f" + stats.getLifeSteal(),
-            "§7Omnivamp: §f" + stats.getOmnivamp(),
-            "§7Size: §f" + baseSize + 
-            (sizeBonus > 0 ? " §a(+" + String.format("%.2f", sizeBonus) + ")" : "") +
-            (heldSize > 0 ? " §e[+" + String.format("%.2f", heldSize) + " weapon]" : ""),
+            "§7Life Steal: §f" + stats.getLifeSteal() + "%",
+            "§7Omnivamp: §f" + stats.getOmnivamp() + "%",
+            "§7Size: §f" + currentSize + 
+            (totalSizeBonus > 0 ? " §a(+" + String.format("%.2f", totalSizeBonus) + ")" : ""),
             "§7Health Regeneration: §f" + stats.getHealthRegen() + " §7per second"
         );
 
-        // Resource Stats (Experience Bottle) - properly shows mana with temporary bonuses
+        // Resource Stats (Experience Bottle)
         ItemStack resourceItem = createGuiItem(Material.EXPERIENCE_BOTTLE, "§a§lResource Stats",
-            "§7Mana: §f" + stats.getMana() + "/" + (currentTotalMana + heldManaBonus),
+            "§7Mana: §f" + stats.getMana() + "/" + currentTotalMana,
             "§7Base Mana: §f" + baseMana + 
-                (permManaBonus > 0 ? " §a(+" + permManaBonus + ")" : "") +
-                (heldManaBonus > 0 ? " §e[+" + heldManaBonus + " weapon]" : ""),
+                (totalManaBonus > 0 ? " §a(+" + totalManaBonus + ")" : ""),
             "§7Mana Regen: §f" + stats.getManaRegen() + "/s",
             "§7Cooldown Reduction: §f" + stats.getCooldownReduction() + "%",
             "§7Movement Speed: §f" + stats.getSpeed() + "x"
@@ -233,32 +185,43 @@ public class StatsGUI {
             "§7Luck: §f" + stats.getLuck()
         );
 
-        // New: Equipped Armor Stats
-        ItemStack equippedItem = createGuiItem(Material.GOLDEN_HELMET, "§d§lEquipped Armor",
-            "§6§lHelmet:",
-            (helmet != null ? "§7" + getItemDisplayName(helmet) : "§7None"),
-            helmetHealth > 0 ? "  §7Health: §a+" + helmetHealth : "",
-            helmetArmor > 0 ? "  §7Armor: §a+" + helmetArmor : "",
-            helmetMagicResist > 0 ? "  §7Magic Resist: §a+" + helmetMagicResist : "",
-            "",
-            "§6§lChestplate:",
-            (chestplate != null ? "§7" + getItemDisplayName(chestplate) : "§7None"),
-            chestplateHealth > 0 ? "  §7Health: §a+" + chestplateHealth : "",
-            chestplateArmor > 0 ? "  §7Armor: §a+" + chestplateArmor : "",
-            chestplateMagicResist > 0 ? "  §7Magic Resist: §a+" + chestplateMagicResist : "",
-            "",
-            "§6§lLeggings:",
-            (leggings != null ? "§7" + getItemDisplayName(leggings) : "§7None"),
-            leggingsHealth > 0 ? "  §7Health: §a+" + leggingsHealth : "",
-            leggingsArmor > 0 ? "  §7Armor: §a+" + leggingsArmor : "",
-            leggingsMagicResist > 0 ? "  §7Magic Resist: §a+" + leggingsMagicResist : "",
-            "",
-            "§6§lBoots:",
-            (boots != null ? "§7" + getItemDisplayName(boots) : "§7None"),
-            bootsHealth > 0 ? "  §7Health: §a+" + bootsHealth : "",
-            bootsArmor > 0 ? "  §7Armor: §a+" + bootsArmor : "",
-            bootsMagicResist > 0 ? "  §7Magic Resist: §a+" + bootsMagicResist : ""
-        );
+        // Equipment summary (for display purposes only)
+        List<String> armorLore = new ArrayList<>();
+        
+        // Helmet
+        armorLore.add("§6§lHelmet:");
+        armorLore.add("§7" + helmetName);
+        helmetStats.forEach(stat -> armorLore.add("  §7" + stat));
+        armorLore.add("");
+        
+        // Chestplate
+        armorLore.add("§6§lChestplate:");
+        armorLore.add("§7" + chestplateName);
+        chestplateStats.forEach(stat -> armorLore.add("  §7" + stat));
+        armorLore.add("");
+        
+        // Leggings
+        armorLore.add("§6§lLeggings:");
+        armorLore.add("§7" + leggingsName);
+        leggingsStats.forEach(stat -> armorLore.add("  §7" + stat));
+        armorLore.add("");
+        
+        // Boots
+        armorLore.add("§6§lBoots:");
+        armorLore.add("§7" + bootsName);
+        bootsStats.forEach(stat -> armorLore.add("  §7" + stat));
+        
+        // Main hand (if it has stats)
+        if (mainHandStats.size() > 0) {
+            armorLore.add("");
+            armorLore.add("§6§lMain Hand:");
+            armorLore.add("§7" + mainHandName);
+            mainHandStats.forEach(stat -> armorLore.add("  §7" + stat));
+        }
+        
+        // Equipment display item
+        ItemStack equippedItem = createGuiItem(Material.GOLDEN_HELMET, "§d§lEquipped Items", 
+                                            armorLore.toArray(new String[0]));
 
         // Place items in GUI
         gui.setItem(10, combatItem);    // Left side
@@ -276,6 +239,34 @@ public class StatsGUI {
         }
 
         player.openInventory(gui);
+    }
+
+    /**
+     * Extract item stats for display purposes only (not for calculation)
+     */
+    private static void extractItemStatsForDisplay(ItemStack item, List<String> statsList) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
+        
+        for (String loreLine : item.getItemMeta().getLore()) {
+            String cleanLine = loreLine.replaceAll("§[0-9a-fk-or]", "");
+            
+            // Only add lines that contain stat information
+            if (cleanLine.contains("Health:") || 
+                cleanLine.contains("Armor:") || 
+                cleanLine.contains("Magic Resist:") ||
+                cleanLine.contains("Physical Damage:") ||
+                cleanLine.contains("Magic Damage:") ||
+                cleanLine.contains("Mana:") ||
+                cleanLine.contains("Attack Range:") ||
+                cleanLine.contains("Size:") ||
+                cleanLine.contains("Life Steal:") ||
+                cleanLine.contains("Critical Chance:") ||
+                cleanLine.contains("Critical Damage:") ||
+                cleanLine.contains("Attack Speed:")) {
+                
+                statsList.add(cleanLine);
+            }
+        }
     }
 
     private static void extractArmorStats(ItemStack armor, String pieceType, int health, int armorVal, int magicResist, int physDamage, int magicDamage) {

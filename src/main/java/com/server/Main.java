@@ -27,6 +27,7 @@ import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.stats.StatScanManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
 import com.server.profiles.stats.health.HealthRegenerationManager;
 
@@ -39,7 +40,9 @@ public class Main extends JavaPlugin {
     private ScoreboardManager scoreboardManager;
     private HealthRegenerationManager healthRegenerationManager;
     private RangedCombatManager rangedCombatManager;
+    private StatScanManager statScanManager;
 
+    // Update the onEnable method
     @Override
     public void onEnable() {
         instance = this;
@@ -56,6 +59,12 @@ public class Main extends JavaPlugin {
 
         // Initialize health regeneration manager
         healthRegenerationManager = new HealthRegenerationManager(this);
+        
+        // Initialize the stat scan manager FIRST before RangedCombatManager
+        statScanManager = new StatScanManager(this);
+
+        // Initialize RangedCombatManager AFTER StatScanManager
+        rangedCombatManager = new RangedCombatManager(this);
 
         // Initialize CosmeticManager
         CosmeticManager.initialize(this);
@@ -66,6 +75,7 @@ public class Main extends JavaPlugin {
         registerListeners();
         LOGGER.info("mmo enabled");
     }
+
     
     @Override
     public void onDisable() {
@@ -97,7 +107,6 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new AbilityListener(), this);
         rangedCombatManager = new RangedCombatManager(this);
         this.getServer().getPluginManager().registerEvents(rangedCombatManager, this);
-        this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
         this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AutoRespawnListener(this), this);
     }
@@ -247,5 +256,9 @@ public class Main extends JavaPlugin {
      */
     public RangedCombatManager getRangedCombatManager() {
         return rangedCombatManager;
+    }
+
+    public StatScanManager getStatScanManager() {
+        return statScanManager;
     }
 }
