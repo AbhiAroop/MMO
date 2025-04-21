@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -72,6 +73,14 @@ public class StatScanManager {
         final ItemStack[] lastItem = new ItemStack[1];
         lastItem[0] = player.getInventory().getItemInMainHand();
         
+        // Initialize last known armor
+        ItemStack[] currentArmor = new ItemStack[4];
+        currentArmor[0] = player.getInventory().getHelmet();
+        currentArmor[1] = player.getInventory().getChestplate();
+        currentArmor[2] = player.getInventory().getLeggings();
+        currentArmor[3] = player.getInventory().getBoots();
+        updateLastKnownArmor(player, currentArmor);
+        
         // Do an initial scan
         scanAndUpdatePlayerStats(player);
         
@@ -82,6 +91,7 @@ public class StatScanManager {
                 if (!player.isOnline()) {
                     this.cancel();
                     playerScanTasks.remove(player.getUniqueId());
+                    player.removeMetadata("last_known_armor", plugin);
                     return;
                 }
                 
@@ -96,7 +106,7 @@ public class StatScanManager {
                 ItemStack currentItem = player.getInventory().getItemInMainHand();
                 boolean itemChanged = !itemsEqual(lastItem[0], currentItem);
                 
-                if (itemChanged || shouldScanRegardless()) {
+                if (itemChanged || shouldScanRegardless(player)) {
                     // Update the last known item
                     lastItem[0] = currentItem != null ? currentItem.clone() : null;
                     
@@ -152,11 +162,65 @@ public class StatScanManager {
 
     /**
      * Determine if we should scan regardless of item changes
-     * (e.g., for armor changes, passive effects, etc.)
      */
-    private boolean shouldScanRegardless() {
+    private boolean shouldScanRegardless(Player player) {
+        // Store current armor pieces in a temporary array
+        ItemStack[] currentArmor = new ItemStack[4];
+        currentArmor[0] = player.getInventory().getHelmet();
+        currentArmor[1] = player.getInventory().getChestplate();
+        currentArmor[2] = player.getInventory().getLeggings();
+        currentArmor[3] = player.getInventory().getBoots();
+        
+        // Get the last known armor from the player metadata
+        ItemStack[] lastArmor = getLastKnownArmor(player);
+        
+        // Check if any armor piece has changed
+        boolean armorChanged = false;
+        for (int i = 0; i < 4; i++) {
+            if (!itemsEqual(currentArmor[i], lastArmor[i])) {
+                armorChanged = true;
+                break;
+            }
+        }
+        
+        // Update last known armor
+        if (armorChanged) {
+            updateLastKnownArmor(player, currentArmor);
+        }
+        
         // Every 20 ticks (1 second) do a full scan regardless
-        return System.currentTimeMillis() % 20 == 0;
+        boolean timeBased = System.currentTimeMillis() % 20 == 0;
+        
+        return armorChanged || timeBased;
+    }
+
+    /**
+     * Get the last known armor from player metadata
+     */
+    private ItemStack[] getLastKnownArmor(Player player) {
+        ItemStack[] armor = new ItemStack[4];
+        
+        // Try to get stored armor from metadata
+        if (player.hasMetadata("last_known_armor")) {
+            try {
+                Object obj = player.getMetadata("last_known_armor").get(0).value();
+                if (obj instanceof ItemStack[]) {
+                    return (ItemStack[]) obj;
+                }
+            } catch (Exception e) {
+                // Ignore and return empty array
+            }
+        }
+        
+        return armor;
+    }
+
+    /**
+     * Update the last known armor in player metadata
+     */
+    private void updateLastKnownArmor(Player player, ItemStack[] armor) {
+        player.removeMetadata("last_known_armor", plugin);
+        player.setMetadata("last_known_armor", new FixedMetadataValue(plugin, armor.clone()));
     }
         
     /**
@@ -169,6 +233,7 @@ public class StatScanManager {
             
             // Important: Also clear any stored held item bonuses
             lastHeldItemBonuses.remove(player.getUniqueId());
+            player.removeMetadata("last_known_armor", plugin); // Clean up armor metadata
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("Stopped stat scanning for " + player.getName());
@@ -291,7 +356,8 @@ public class StatScanManager {
         ItemStack chestplate = inventory.getChestplate();
         ItemStack leggings = inventory.getLeggings();
         ItemStack boots = inventory.getBoots();
-        
+        ItemStack mainHand = inventory.getItemInMainHand();
+                
         // Process armor pieces
         if (helmet != null && helmet.hasItemMeta() && helmet.getItemMeta().hasLore()) {
             String itemName = helmet.hasItemMeta() && helmet.getItemMeta().hasDisplayName() ? 
@@ -336,9 +402,6 @@ public class StatScanManager {
             
             extractStatsFromItem(boots, bonuses);
         }
-
-        // Clear any stored held item bonuses
-        lastHeldItemBonuses.remove(player.getUniqueId());
         
         return bonuses;
     }
