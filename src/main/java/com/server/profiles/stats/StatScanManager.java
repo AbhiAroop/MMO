@@ -15,6 +15,7 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -28,6 +29,7 @@ import com.server.profiles.ProfileManager;
 public class StatScanManager {
     private final Main plugin;
     private final Map<UUID, BukkitTask> playerScanTasks = new HashMap<>();
+    private Map<UUID, ItemStatBonuses> lastHeldItemBonuses = new HashMap<>();
     private static final int SCAN_INTERVAL = 5; // Update every 5 ticks (1/4 second)
     
     // Stat extraction patterns for parsing lore
@@ -66,6 +68,10 @@ public class StatScanManager {
     public void startScanning(Player player) {
         stopScanning(player); // Stop any existing scanning first
         
+        // Store the current item in hand to detect when it changes
+        final ItemStack[] lastItem = new ItemStack[1];
+        lastItem[0] = player.getInventory().getItemInMainHand();
+        
         // Do an initial scan
         scanAndUpdatePlayerStats(player);
         
@@ -86,8 +92,21 @@ public class StatScanManager {
                 PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
                 if (profile == null) return;
                 
-                // Scan and update stats
-                scanAndUpdatePlayerStats(player);
+                // Check if the main hand item has changed to avoid unnecessary scans
+                ItemStack currentItem = player.getInventory().getItemInMainHand();
+                boolean itemChanged = !itemsEqual(lastItem[0], currentItem);
+                
+                if (itemChanged || shouldScanRegardless()) {
+                    // Update the last known item
+                    lastItem[0] = currentItem != null ? currentItem.clone() : null;
+                    
+                    // Scan and update stats
+                    scanAndUpdatePlayerStats(player);
+                    
+                    if (plugin.isDebugMode() && itemChanged) {
+                        plugin.getLogger().info("Item in hand changed for " + player.getName() + ", updating stats");
+                    }
+                }
             }
         }.runTaskTimer(plugin, SCAN_INTERVAL, SCAN_INTERVAL);
         
@@ -98,14 +117,58 @@ public class StatScanManager {
             plugin.getLogger().info("Started stat scanning for " + player.getName());
         }
     }
-    
+
     /**
-     * Stop scanning a player's stats
+     * Compare two items for functional equality (ignoring durability/amount)
+     */
+    private boolean itemsEqual(ItemStack item1, ItemStack item2) {
+        if (item1 == null && item2 == null) return true;
+        if (item1 == null || item2 == null) return false;
+        
+        // Check basic properties
+        if (item1.getType() != item2.getType()) return false;
+        
+        // Check meta existence
+        if (item1.hasItemMeta() != item2.hasItemMeta()) return false;
+        if (!item1.hasItemMeta()) return true; // Both don't have meta, so equal
+        
+        ItemMeta meta1 = item1.getItemMeta();
+        ItemMeta meta2 = item2.getItemMeta();
+        
+        // Check custom model data
+        if (meta1.hasCustomModelData() != meta2.hasCustomModelData()) return false;
+        if (meta1.hasCustomModelData() && meta1.getCustomModelData() != meta2.getCustomModelData()) return false;
+        
+        // Check display name
+        if (meta1.hasDisplayName() != meta2.hasDisplayName()) return false;
+        if (meta1.hasDisplayName() && !meta1.getDisplayName().equals(meta2.getDisplayName())) return false;
+        
+        // Check lore
+        if (meta1.hasLore() != meta2.hasLore()) return false;
+        if (meta1.hasLore() && !meta1.getLore().equals(meta2.getLore())) return false;
+        
+        return true;
+    }
+
+    /**
+     * Determine if we should scan regardless of item changes
+     * (e.g., for armor changes, passive effects, etc.)
+     */
+    private boolean shouldScanRegardless() {
+        // Every 20 ticks (1 second) do a full scan regardless
+        return System.currentTimeMillis() % 20 == 0;
+    }
+        
+    /**
+     * Stop scanning a player's stats 
      */
     public void stopScanning(Player player) {
         BukkitTask task = playerScanTasks.remove(player.getUniqueId());
         if (task != null) {
             task.cancel();
+            
+            // Important: Also clear any stored held item bonuses
+            lastHeldItemBonuses.remove(player.getUniqueId());
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("Stopped stat scanning for " + player.getName());
@@ -218,126 +281,66 @@ public class StatScanManager {
         ItemStatBonuses bonuses = new ItemStatBonuses();
         PlayerInventory inventory = player.getInventory();
         
-        // Create a set to track processed items and prevent duplicates
-        Set<ItemStack> processedItems = new HashSet<>();
-        
-        // Process armor pieces first (these take priority)
+        // Process armor pieces first
         if (plugin.isDebugMode()) {
             plugin.getLogger().info("Scanning equipment for " + player.getName() + ":");
         }
         
-        // Explicitly process each armor piece to ensure they're all captured
+        // Explicitly process each armor piece
         ItemStack helmet = inventory.getHelmet();
         ItemStack chestplate = inventory.getChestplate();
         ItemStack leggings = inventory.getLeggings();
         ItemStack boots = inventory.getBoots();
         
-        // Process helmet
+        // Process armor pieces
         if (helmet != null && helmet.hasItemMeta() && helmet.getItemMeta().hasLore()) {
             String itemName = helmet.hasItemMeta() && helmet.getItemMeta().hasDisplayName() ? 
                             helmet.getItemMeta().getDisplayName() : helmet.getType().toString();
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("  Processing helmet: " + itemName);
-                logBonusesDebug("    Before extraction", bonuses);
             }
             
             extractStatsFromItem(helmet, bonuses);
-            processedItems.add(helmet);
-            
-            if (plugin.isDebugMode()) {
-                logBonusesDebug("    After extraction", bonuses);
-            }
         }
         
-        // Process chestplate
         if (chestplate != null && chestplate.hasItemMeta() && chestplate.getItemMeta().hasLore()) {
             String itemName = chestplate.hasItemMeta() && chestplate.getItemMeta().hasDisplayName() ? 
                             chestplate.getItemMeta().getDisplayName() : chestplate.getType().toString();
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("  Processing chestplate: " + itemName);
-                logBonusesDebug("    Before extraction", bonuses);
             }
             
             extractStatsFromItem(chestplate, bonuses);
-            processedItems.add(chestplate);
-            
-            if (plugin.isDebugMode()) {
-                logBonusesDebug("    After extraction", bonuses);
-            }
         }
         
-        // Process leggings
         if (leggings != null && leggings.hasItemMeta() && leggings.getItemMeta().hasLore()) {
             String itemName = leggings.hasItemMeta() && leggings.getItemMeta().hasDisplayName() ? 
                             leggings.getItemMeta().getDisplayName() : leggings.getType().toString();
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("  Processing leggings: " + itemName);
-                logBonusesDebug("    Before extraction", bonuses);
             }
             
             extractStatsFromItem(leggings, bonuses);
-            processedItems.add(leggings);
-            
-            if (plugin.isDebugMode()) {
-                logBonusesDebug("    After extraction", bonuses);
-            }
         }
         
-        // Process boots
         if (boots != null && boots.hasItemMeta() && boots.getItemMeta().hasLore()) {
             String itemName = boots.hasItemMeta() && boots.getItemMeta().hasDisplayName() ? 
                             boots.getItemMeta().getDisplayName() : boots.getType().toString();
             
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("  Processing boots: " + itemName);
-                logBonusesDebug("    Before extraction", bonuses);
             }
             
             extractStatsFromItem(boots, bonuses);
-            processedItems.add(boots);
-            
-            if (plugin.isDebugMode()) {
-                logBonusesDebug("    After extraction", bonuses);
-            }
         }
-        
-        // Then process main hand item if it's not already processed as armor
-        ItemStack mainHand = inventory.getItemInMainHand();
-        if (mainHand != null && mainHand.hasItemMeta() && mainHand.getItemMeta().hasLore() && 
-            !processedItems.contains(mainHand) && !isArmorItem(mainHand)) {
-            
-            String itemName = mainHand.hasItemMeta() && mainHand.getItemMeta().hasDisplayName() ? 
-                            mainHand.getItemMeta().getDisplayName() : mainHand.getType().toString();
-            
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Processing main hand: " + itemName);
-                logBonusesDebug("    Before extraction", bonuses);
-            }
-            
-            extractStatsFromItem(mainHand, bonuses);
-            
-            if (plugin.isDebugMode()) {
-                logBonusesDebug("    After extraction", bonuses);
-            }
-        }
+
+        // Clear any stored held item bonuses
+        lastHeldItemBonuses.remove(player.getUniqueId());
         
         return bonuses;
-    }
-
-    /**
-     * Helper method to log bonuses in a compact format for debugging
-     */
-    private void logBonusesDebug(String prefix, ItemStatBonuses bonuses) {
-        plugin.getLogger().info(prefix + " - H:" + bonuses.health + 
-                        " A:" + bonuses.armor + 
-                        " MR:" + bonuses.magicResist + 
-                        " PD:" + bonuses.physicalDamage + 
-                        " MD:" + bonuses.magicDamage +
-                        " M:" + bonuses.mana +
-                        " S:" + bonuses.size);
     }
         
     /**
