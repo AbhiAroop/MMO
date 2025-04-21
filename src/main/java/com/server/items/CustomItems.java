@@ -37,8 +37,8 @@ public class CustomItems {
         return item;
     }
 
-    public static ItemStack createApprenticeEdge() {
-        ItemStack item = new ItemStack(Material.IRON_SWORD);
+        public static ItemStack createApprenticeEdge() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
         ItemMeta meta = item.getItemMeta();
         
         // Set custom model data (2XXXXX for weapons, 10000 base for swords)
@@ -58,7 +58,8 @@ public class CustomItems {
             "",
             "§8This simple yet effective weapon serves as",
             "§8a faithful companion for those beginning",
-            "§8their journey into combat mastery."
+            "§8their journey into combat mastery.",
+            ""
         ));
         
         // Track hit counter with persistent data
@@ -70,7 +71,7 @@ public class CustomItems {
     }
 
     public static ItemStack createEmberwoodStaff() {
-        ItemStack item = new ItemStack(Material.WOODEN_HOE);
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
         ItemMeta meta = item.getItemMeta();
         
         // Set custom model data (2XXXXX for functional items, 40000 base for staves)
@@ -93,19 +94,9 @@ public class CustomItems {
             "§7Cooldown: §e20s",
             "",
             "§8The wood remains eternally warm to the touch,",
-            "§8resonating with the ancient fire magic within."
+            "§8resonating with the ancient fire magic within.",
+            ""
         ));
-        
-        // Set base attack speed attribute (wooden hoes have -3 attack speed by default)
-        // We need to override this to make it usable
-        AttributeModifier attackSpeedMod;
-            attackSpeedMod = new AttributeModifier(
-                    UUID.randomUUID(),
-                    "generic.attackSpeed",
-                    -2.0, // Set to player's default attack speed
-                    AttributeModifier.Operation.ADD_NUMBER
-            );
-        meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, attackSpeedMod);
         
         // Add identifier for ability system
         NamespacedKey keyAbilityId = new NamespacedKey(Main.getInstance(), "ability_id");
@@ -120,7 +111,7 @@ public class CustomItems {
     }
 
     public static ItemStack createArcloom() {
-        ItemStack item = new ItemStack(Material.WOODEN_HOE);
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
         ItemMeta meta = item.getItemMeta();
         
         // Set custom model data (2XXXXX for functional items, 50000 base for special weapons)
@@ -146,17 +137,9 @@ public class CustomItems {
             "",
             "§8Forged in the heart of a tempest, this weapon",
             "§8commands the fury of storms and extends the",
-            "§8reach of its wielder beyond normal limits."
+            "§8reach of its wielder beyond normal limits.",
+            ""
         ));
-        
-        // Set attack speed modifier to override wooden hoe's slow attack speed
-        AttributeModifier attackSpeedMod = new AttributeModifier(
-            UUID.randomUUID(),
-            "generic.attackSpeed",
-            -2.0, // Set to player's default attack speed
-            AttributeModifier.Operation.ADD_NUMBER
-        );
-        meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, attackSpeedMod);
         
         // Add identifier for ability system
         NamespacedKey keyAbilityId = new NamespacedKey(Main.getInstance(), "ability_id");
@@ -193,7 +176,8 @@ public class CustomItems {
             "",
             "§8The crown adjusts to fit its wearer, but the",
             "§8magic within still carries the essence of its",
-            "§8former giant owner."
+            "§8former giant owner.",
+            ""
         ));
         
         // Add armor attribute modifier

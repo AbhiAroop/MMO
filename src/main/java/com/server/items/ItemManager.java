@@ -14,50 +14,41 @@ import org.bukkit.inventory.meta.ItemMeta;
 public class ItemManager {
     
     public static ItemStack applyRarity(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) return item;
-        if (hasRarity(item)) return item;
-        
         ItemStack modifiedItem = item.clone();
         ItemMeta meta = modifiedItem.getItemMeta();
         if (meta == null) return modifiedItem;
         
-        // Get rarity for this item
-        ItemRarity rarity = getItemRarity(modifiedItem.getType());
-
-        // Set display name with rarity color
-        String itemName = formatItemName(modifiedItem.getType().toString());
-        meta.setDisplayName(rarity.getColor() + itemName);
-
-        // Create new lore list
-        List<String> lore = new ArrayList<>();
-        
-        // Add rarity information
-        lore.add(ChatColor.GRAY + "Rarity: " + rarity.getFormattedName());
-        lore.add(ChatColor.GRAY + "\"" + rarity.getDescription() + "\"");
-        lore.add(""); // Blank line
-
-        // Add stats based on item type
-        if (isWeapon(modifiedItem.getType())) {
-            double damage = getWeaponDamage(modifiedItem.getType());
-            lore.add(ChatColor.GRAY + "Physical Damage: " + ChatColor.RED + "+" + damage);
+        // Apply rarity tag if it doesn't have one already
+        if (!hasRarity(modifiedItem)) {
+            ItemRarity rarity = getItemRarity(modifiedItem.getType());
+            List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
             
-            // No attack speed bonus for vanilla items
-            // Will be added for custom items later
-            AttributeModifier attackSpeed = new AttributeModifier(
-                UUID.randomUUID(),
-                "generic.attackSpeed",
-                0.0, // No bonus attack speed for vanilla items
-                AttributeModifier.Operation.ADD_NUMBER
-            );
-            meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, attackSpeed);
-        }
-        else if (isArmor(modifiedItem.getType())) {
-            double armor = getArmorValue(modifiedItem.getType());
-            lore.add(ChatColor.GRAY + "Armor: " + ChatColor.GREEN + "+" + armor);
-        }
+            lore.add(0, ChatColor.GRAY + "Rarity: " + rarity.getFormattedName());
+            
+            // Add other stats based on item type
+            if (isWeapon(modifiedItem.getType())) {
+                double damage = getWeaponDamage(modifiedItem.getType());
+                lore.add(ChatColor.GRAY + "Physical Damage: " + ChatColor.RED + "+" + damage);
+                
+                // For vanilla weapons, set attack speed to 0
+                // This means they'll use the default player attack speed of 1.0
+                AttributeModifier attackSpeed = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "generic.attackSpeed",
+                    0.0, // No attack speed modifier for vanilla weapons
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, attackSpeed);
+            }
+            else if (isArmor(modifiedItem.getType())) {
+                double armor = getArmorValue(modifiedItem.getType());
+                lore.add(ChatColor.GRAY + "Armor: " + ChatColor.GREEN + "+" + armor);
+            }
 
-        meta.setLore(lore);
-        modifiedItem.setItemMeta(meta);
+            meta.setLore(lore);
+            modifiedItem.setItemMeta(meta);
+        }
+        
         return modifiedItem;
     }
 
@@ -69,8 +60,10 @@ public class ItemManager {
         List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
         
         // Add attack speed to lore
-        if (attackSpeedBonus > 0) {
-            lore.add(ChatColor.GRAY + "Attack Speed: " + ChatColor.YELLOW + "+" + attackSpeedBonus);
+        if (attackSpeedBonus != 0) {
+            lore.add(ChatColor.GRAY + "Attack Speed: " + 
+                (attackSpeedBonus > 0 ? ChatColor.YELLOW + "+" : ChatColor.RED) + 
+                attackSpeedBonus);
         }
         
         // Add attack speed attribute

@@ -127,7 +127,7 @@ public class RangedCombatManager implements Listener {
                 for (AttributeModifier modifier : speedModifiers) {
                     attackSpeedAttribute.removeModifier(modifier);
                 }
-                attackSpeedAttribute.setBaseValue(4.0); // Vanilla default
+                attackSpeedAttribute.setBaseValue(0.5); // Changed from vanilla 4.0 to our default
             }
             
             // Reset movement speed attribute

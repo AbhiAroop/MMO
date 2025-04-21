@@ -210,7 +210,7 @@ public class StatScanManager {
             AttributeInstance attackSpeedAttribute = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
             if (attackSpeedAttribute != null) {
                 removeModifiersByName(attackSpeedAttribute, MMO_ATTACK_SPEED_MODIFIER);
-                attackSpeedAttribute.setBaseValue(4.0); // Vanilla default
+                attackSpeedAttribute.setBaseValue(0.5); // Vanilla default
             }
             
             // Reset other attributes
@@ -718,12 +718,12 @@ public class StatScanManager {
                 // Remove existing modifiers
                 removeModifiersByName(attackSpeed, MMO_ATTACK_SPEED_MODIFIER);
                 
-                // Set base to vanilla default
-                attackSpeed.setBaseValue(4.0);
+                // Set base to new default value (0.5 instead of vanilla 4.0)
+                attackSpeed.setBaseValue(0.5);
                 
                 // Apply bonus attack speed if needed
                 double totalAttackSpeed = stats.getAttackSpeed();
-                double attackSpeedBonus = totalAttackSpeed - 4.0;
+                double attackSpeedBonus = totalAttackSpeed - 0.5; // Adjusted from 1.0
                 
                 if (attackSpeedBonus != 0) {
                     AttributeModifier attackSpeedMod = new AttributeModifier(
@@ -737,7 +737,7 @@ public class StatScanManager {
                 
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info("Applied attack speed attribute to " + player.getName() + 
-                                    ": " + totalAttackSpeed + " (Final: " + attackSpeed.getValue() + ")");
+                                ": " + totalAttackSpeed + " (Final: " + attackSpeed.getValue() + ")");
                 }
             }
         } catch (Exception e) {

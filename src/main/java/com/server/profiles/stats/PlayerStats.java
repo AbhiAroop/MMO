@@ -65,7 +65,7 @@ public class PlayerStats {
     private final double defaultCDR = 0;
     private final double defaultLifeSteal = 0;
     private final int defaultRangedDamage = 5;
-    private final double defaultAttackSpeed = 4.0; // 4 attacks per second
+    private final double defaultAttackSpeed = 0.5; // 0.5 attacks per second
     private final double defaultOmnivamp = 0;
     private final double defaultHealthRegen = 0.3;
     private final int defaultManaRegen = 1;

@@ -87,20 +87,62 @@ public class CombatListener implements Listener {
                 }
             }
         }
-
+        
+        // Get the attack charge progression
+        float chargePercent = player.getAttackCooldown();
+        
+        // Determine if attack is fully charged (chargePercent is very close to 1.0)
+        boolean isFullyCharged = chargePercent >= 0.9f;
+        
+        // Check for critical hit - only apply if attack is fully charged
+        boolean isCritical = isFullyCharged && !player.isOnGround() && player.getFallDistance() > 0.0f;
+        
+        // UPDATED DAMAGE CALCULATION:
+        // At 0% charge: Damage is 0.5
+        // At 1% charge: Damage is max(0.5, 1% of full damage)
+        // At X% charge: Damage is max(0.5, X% of full damage)
+        // At 100% charge: Full damage
+        double scaledDamage;
+        if (chargePercent <= 0.01) {
+            // At 0-1% charge, minimum damage is 0.5
+            scaledDamage = 0.5;
+        } else {
+            // For charges above 1%, scale linearly but ensure minimum 0.5 damage
+            scaledDamage = Math.max(0.5, damage * chargePercent);
+        }
+        
         // Apply critical hit multiplier if applicable
-        boolean isCritical = !player.isOnGround() && player.getFallDistance() > 0.0f;
         if (isCritical) {
-            damage *= profile.getStats().getCriticalDamage();
+            scaledDamage *= profile.getStats().getCriticalDamage();
         }
         
         // Set the final damage
-        event.setDamage(damage);
+        event.setDamage(scaledDamage);
+        
+        // Debug information
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info(player.getName() + "'s attack: Charge=" + String.format("%.2f", chargePercent) + 
+                                ", Base Damage=" + String.format("%.2f", damage) + 
+                                ", Scaled Damage=" + String.format("%.2f", scaledDamage) +
+                                ", Critical=" + isCritical);
+        }
         
         // Display damage indicator if procced bonus damage
         if (procBonusDamage) {
             // Optional: Add visual effect for Precision Strike
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 1.5f);
+        }
+        
+        // Visual and sound effects based on charge level
+        if (isFullyCharged) {
+            // Full charge attack sound and effect
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_STRONG, 1.0f, 1.0f);
+        } else if (chargePercent >= 0.5f) {
+            // Medium charge attack sound
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_WEAK, 0.8f, 1.0f);
+        } else {
+            // Low charge attack sound
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_NODAMAGE, 0.5f, 1.0f);
         }
     }
     
