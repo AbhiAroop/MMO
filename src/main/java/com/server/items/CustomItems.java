@@ -192,5 +192,36 @@ public class CustomItems {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static ItemStack createSiphonFang() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for weapons, 10000 base for swords)
+        meta.setCustomModelData(210002); // 2 for weapon, 1 for sword type, 0002 for second sword variant
+        
+        // Set name and lore
+        meta.setDisplayName("§c§lSiphon Fang");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A jagged blade that hungers for the essence of its victims.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+7",
+            "§dLifesteal: §d+50",
+            "",
+            "§6Passive: §eLife Siphon",
+            "§7Your attacks drain vitality from enemies,",
+            "§7healing you for §d50% §7of damage dealt.",
+            "",
+            "§8Forged from the fang of an ancient parasitic creature,",
+            "§8this weapon transfers the life force of its victims",
+            "§8directly to its wielder with each strike.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
     
 }

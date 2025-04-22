@@ -2,6 +2,7 @@ package com.server.events;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -40,17 +41,18 @@ public class CombatListener implements Listener {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
 
-        // Get base damage from stats
+        // Get base damage from stats - This already includes weapon damage from StatScanManager
         double damage = profile.getStats().getPhysicalDamage();
         
-        // Check held weapon for bonus damage and special effects
+        // Check held weapon for special effects only (NOT for base damage)
         ItemStack heldItem = player.getInventory().getItemInMainHand();
         boolean procBonusDamage = false;
         
         if (heldItem != null && heldItem.hasItemMeta()) {
             ItemMeta meta = heldItem.getItemMeta();
             
-            // Check for Apprentice's Edge passive - Precision Strike
+            // Only check for special effects like Precision Strike
+            // DO NOT add the weapon's base damage again
             if (meta.hasCustomModelData() && meta.getCustomModelData() == 210001) {
                 NamespacedKey key = new NamespacedKey(Main.getInstance(), "hit_counter");
                 PersistentDataContainer container = meta.getPersistentDataContainer();
@@ -72,20 +74,6 @@ public class CombatListener implements Listener {
                 }
             }
             
-            // Add weapon damage from lore
-            if (meta.hasLore()) {
-                for (String loreLine : meta.getLore()) {
-                    if (loreLine.contains("Physical Damage:")) {
-                        try {
-                            String damageStr = loreLine.split("\\+")[1].trim();
-                            damage += Double.parseDouble(damageStr);
-                            break;
-                        } catch (Exception e) {
-                            continue;
-                        }
-                    }
-                }
-            }
         }
         
         // Get the attack charge progression
@@ -125,6 +113,46 @@ public class CombatListener implements Listener {
                                 ", Base Damage=" + String.format("%.2f", damage) + 
                                 ", Scaled Damage=" + String.format("%.2f", scaledDamage) +
                                 ", Critical=" + isCritical);
+        }
+        
+        // Apply lifesteal based on final damage dealt
+        double lifeStealPercent = profile.getStats().getLifeSteal();
+        if (lifeStealPercent > 0) {
+            // Calculate amount to heal (lifeStealPercent% of final damage)
+            double healAmount = scaledDamage * (lifeStealPercent / 100.0);
+            
+            // Get player's current and max health
+            double currentHealth = player.getHealth();
+            double maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            
+            // Only heal if player isn't at full health
+            if (currentHealth < maxHealth && healAmount > 0) {
+                // Calculate new health value (capped at max health)
+                double newHealth = Math.min(currentHealth + healAmount, maxHealth);
+                
+                // Apply the healing
+                player.setHealth(newHealth);
+                
+                // Store the updated health in player stats
+                profile.getStats().setCurrentHealth(newHealth);
+                
+                // Show a visual effect for lifesteal if it's significant (at least 1 health point)
+                if (healAmount >= 1.0) {
+                    // Play a subtle healing sound
+                    player.playSound(player.getLocation(), Sound.ITEM_HONEY_BOTTLE_DRINK, 0.5f, 1.2f);
+                    
+                    // Display healing message if significant
+                    if (healAmount >= 3.0) {
+                        player.sendMessage("§a⚕ §7Lifesteal healed you for §a" + String.format("%.1f", healAmount) + " §7health");
+                    }
+                    
+                    // Debug info
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info(player.getName() + " healed for " + healAmount + 
+                                            " from lifesteal (" + lifeStealPercent + "%)");
+                    }
+                }
+            }
         }
         
         // Display damage indicator if procced bonus damage

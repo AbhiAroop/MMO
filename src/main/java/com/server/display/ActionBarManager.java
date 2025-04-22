@@ -1,7 +1,6 @@
 package com.server.display;
 
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
@@ -66,31 +65,16 @@ public class ActionBarManager {
 
         PlayerStats stats = profile.getStats();
         
-        // Calculate temporary mana bonus from held item
-        int bonusMana = 0;
-        ItemStack heldItem = player.getInventory().getItemInMainHand();
-        if (heldItem != null && heldItem.hasItemMeta() && heldItem.getItemMeta().hasLore()) {
-            for (String loreLine : heldItem.getItemMeta().getLore()) {
-                if (loreLine.contains("Mana:")) {
-                    try {
-                        String manaStr = loreLine.split("\\+")[1].trim();
-                        bonusMana = (int) Double.parseDouble(manaStr);
-                    } catch (Exception e) {
-                        // Ignore parsing errors
-                    }
-                }
-            }
-        }
+        // IMPORTANT: Don't manually check held item for mana bonuses!
+        // Let the mana regenerate naturally based on stats already set by StatScanManager
         
-        // Get current mana values
+        // Get current mana values - already includes any held item bonuses
         int currentMana = stats.getMana();
-        int effectiveTotalMana = stats.getTotalMana() + bonusMana;
+        int totalMana = stats.getTotalMana();
         
-        // Only regenerate if we haven't reached the effective cap
-        if (currentMana < effectiveTotalMana) {
-            int newMana = Math.min(currentMana + stats.getManaRegen(), effectiveTotalMana);
-            
-            // Use uncapped setMana to allow exceeding base totalMana
+        // Only regenerate if we haven't reached the cap
+        if (currentMana < totalMana) {
+            int newMana = Math.min(currentMana + stats.getManaRegen(), totalMana);
             stats.setMana(newMana);
         }
     }
@@ -104,55 +88,15 @@ public class ActionBarManager {
 
         PlayerStats stats = profile.getStats();
         
-        // Check held item for weapon damage and mana bonuses
-        int physicalDamage = 0;
-        int magicDamage = 0;
-        int bonusMana = 0;
-        ItemStack heldItem = player.getInventory().getItemInMainHand();
-        if (heldItem != null && heldItem.hasItemMeta() && heldItem.getItemMeta().hasLore()) {
-            for (String loreLine : heldItem.getItemMeta().getLore()) {
-                // Check for physical damage specifically
-                if (loreLine.contains("Physical Damage:")) {
-                    try {
-                        String damageStr = loreLine.split("\\+")[1].trim();
-                        physicalDamage = (int) Double.parseDouble(damageStr);
-                    } catch (Exception e) {
-                        // Ignore parsing errors
-                    }
-                }
-                // Check for magic damage specifically
-                else if (loreLine.contains("Magic Damage:")) {
-                    try {
-                        String damageStr = loreLine.split("\\+")[1].trim();
-                        magicDamage = (int) Double.parseDouble(damageStr);
-                    } catch (Exception e) {
-                        // Ignore parsing errors
-                    }
-                }
-                // Check for mana specifically
-                else if (loreLine.contains("Mana:")) {
-                    try {
-                        String manaStr = loreLine.split("\\+")[1].trim();
-                        bonusMana = (int) Double.parseDouble(manaStr);
-                    } catch (Exception e) {
-                        // Ignore parsing errors
-                    }
-                }
-            }
-        }
-        
-        // Calculate effective total mana for display
-        int effectiveTotalMana = stats.getTotalMana() + bonusMana;
-        
-        // Create action bar text with real-time values
+        // Create action bar text with real-time values - do NOT modify the stats!
         String actionBar = String.format(
             "§c❤ %.1f/%d §8| §e⚔ %d §8| §b✦ %d §8| §9✧ %d/%d §8| §a♦ %d/s",
             player.getHealth(),
             stats.getHealth(),
-            stats.getPhysicalDamage() + physicalDamage,
-            stats.getMagicDamage() + magicDamage,
+            stats.getPhysicalDamage(), // Already includes any weapon bonuses from StatScanManager
+            stats.getMagicDamage(),     // Already includes any weapon bonuses from StatScanManager
             stats.getMana(),
-            effectiveTotalMana,
+            stats.getTotalMana(),      // Already includes any mana bonuses from StatScanManager
             stats.getManaRegen()
         );
 

@@ -45,7 +45,7 @@ public class StatScanManager {
     private static final Pattern ATTACK_SPEED_PATTERN = Pattern.compile("Attack Speed: \\+(\\d+\\.?\\d*)");
     private static final Pattern ATTACK_RANGE_PATTERN = Pattern.compile("Attack Range: \\+(\\d+\\.?\\d*)");
     private static final Pattern SIZE_PATTERN = Pattern.compile("Size: \\+(\\d+\\.?\\d*)");
-    private static final Pattern LIFE_STEAL_PATTERN = Pattern.compile("Life Steal: \\+(\\d+\\.?\\d*)%");
+    private static final Pattern LIFE_STEAL_PATTERN = Pattern.compile("(?:Life Steal|Lifesteal): \\+(\\d+\\.?\\d*)%?");
     private static final Pattern CRIT_CHANCE_PATTERN = Pattern.compile("Critical Chance: \\+(\\d+\\.?\\d*)%");
     private static final Pattern CRIT_DAMAGE_PATTERN = Pattern.compile("Critical Damage: \\+(\\d+\\.?\\d*)x");
 
@@ -350,14 +350,41 @@ public class StatScanManager {
         if (plugin.isDebugMode()) {
             plugin.getLogger().info("Scanning equipment for " + player.getName() + ":");
         }
-        
+
+        // Process main hand item ONLY if it's a weapon, not if it's armor or something else that double-processes
+        ItemStack mainHandItem = inventory.getItemInMainHand();
+        if (mainHandItem != null && mainHandItem.getType() != Material.AIR && 
+            mainHandItem.hasItemMeta() && mainHandItem.getItemMeta().hasLore()) {
+            
+            // Skip if it's armor - armors are processed separately
+            if (!isArmorItem(mainHandItem)) {
+                // Only process if it's an identifiable weapon or has weapon stats
+                // This prevents double counting
+                if (isWeaponItem(mainHandItem)) {
+                    String itemName = mainHandItem.hasItemMeta() && mainHandItem.getItemMeta().hasDisplayName() ? 
+                                mainHandItem.getItemMeta().getDisplayName() : mainHandItem.getType().toString();
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("  Processing main hand: " + itemName);
+                    }
+                    
+                    extractStatsFromItem(mainHandItem, bonuses);
+                } else if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("  Skipping non-weapon item in main hand: " + 
+                                        mainHandItem.getType().toString());
+                }
+            } else if (plugin.isDebugMode()) {
+                plugin.getLogger().info("  Skipping armor item in main hand: " + 
+                                    mainHandItem.getType().toString());
+            }
+        }
+            
         // Explicitly process each armor piece
         ItemStack helmet = inventory.getHelmet();
         ItemStack chestplate = inventory.getChestplate();
         ItemStack leggings = inventory.getLeggings();
         ItemStack boots = inventory.getBoots();
-        ItemStack mainHand = inventory.getItemInMainHand();
-                
+        
         // Process armor pieces
         if (helmet != null && helmet.hasItemMeta() && helmet.getItemMeta().hasLore()) {
             String itemName = helmet.hasItemMeta() && helmet.getItemMeta().hasDisplayName() ? 
@@ -428,6 +455,48 @@ public class StatScanManager {
         
         return isStandardArmor || isSpecialHeadgear;
     }
+
+    /**
+     * Determine if an item is a weapon that shouldn't be processed twice
+     */
+    private boolean isWeaponItem(ItemStack item) {
+        if (item == null) return false;
+        
+        // If it's a recognized weapon by material type
+        Material type = item.getType();
+        String name = type.name();
+        boolean isVanillaWeapon = name.endsWith("_SWORD") || 
+                                name.endsWith("_AXE") || 
+                                name.contains("BOW") ||
+                                name.contains("TRIDENT");
+                                
+        // If it's a custom weapon (based on custom model data)
+        boolean isCustomWeapon = false;
+        if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
+            int modelData = item.getItemMeta().getCustomModelData();
+            // This is our custom pattern for weapons (2xxxxx)
+            isCustomWeapon = (modelData >= 210000 && modelData < 300000);
+        }
+        
+        // If it contains weapon stat patterns in the lore
+        boolean hasWeaponStats = false;
+        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            for (String loreLine : item.getItemMeta().getLore()) {
+                String cleanLine = stripColorCodes(loreLine);
+                if (cleanLine.contains("Physical Damage:") || 
+                    cleanLine.contains("Critical Damage:") ||
+                    cleanLine.contains("Attack Speed:") ||
+                    cleanLine.contains("Life Steal:") ||
+                    cleanLine.contains("Lifesteal:")) {
+                    hasWeaponStats = true;
+                    break;
+                }
+            }
+        }
+        
+        // It's a weapon if it fits any of these criteria
+        return isVanillaWeapon || isCustomWeapon || hasWeaponStats;
+    }
     
     /**
      * Extract all stats from a single item
@@ -448,7 +517,8 @@ public class StatScanManager {
                     cleanLine.contains("Physical Damage:") ||
                     cleanLine.contains("Magic Damage:") ||
                     cleanLine.contains("Mana:") ||
-                    cleanLine.contains("Size:")) {
+                    cleanLine.contains("Size:") ||
+                    cleanLine.contains("Lifesteal:")) {
                     plugin.getLogger().info("Processing stat line: " + cleanLine);
                 }
             }
@@ -501,8 +571,11 @@ public class StatScanManager {
                 bonuses.size += sizeBonus;
                 if (plugin.isDebugMode()) plugin.getLogger().info("Added size: " + sizeBonus);
             }
-            
+               
+            // Try specific pattern first
             bonuses.lifeSteal += extractDoubleStat(cleanLine, LIFE_STEAL_PATTERN);
+
+
             bonuses.critChance += extractDoubleStat(cleanLine, CRIT_CHANCE_PATTERN);
             bonuses.critDamage += extractDoubleStat(cleanLine, CRIT_DAMAGE_PATTERN);
         }
@@ -635,7 +708,6 @@ public class StatScanManager {
         // Maintain current mana as is, just cap at max mana if needed
         stats.setMana(Math.min(currentMana, stats.getTotalMana()));
     }
-    
     /**
      * Apply stats to player's Minecraft attributes
      */

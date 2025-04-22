@@ -80,6 +80,7 @@ public class ItemManager {
         return item;
     }
 
+
     // Add method to check if item already has rarity
     public static boolean hasRarity(ItemStack item) {
         if (!item.hasItemMeta()) return false;

@@ -27,6 +27,7 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
         itemCreators.put("emberwood", CustomItems::createEmberwoodStaff);
         itemCreators.put("arcloom", CustomItems::createArcloom);
         itemCreators.put("crownofmagnus", CustomItems::createCrownOfMagnus);
+        itemCreators.put("siphonfang", CustomItems::createSiphonFang);
         // Add more items as they are created
     }
     

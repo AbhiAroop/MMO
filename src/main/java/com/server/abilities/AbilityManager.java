@@ -258,35 +258,18 @@ public class AbilityManager {
         int finalCooldown = Math.max(1, (int)(baseCooldown * cooldownReduction));
         setCooldown(player, "lightning_throw", finalCooldown * 1000); // Convert to milliseconds
         
-        // Calculate damage
+        // Get player's physical damage - already includes weapon damage
         int playerPhysicalDamage = profile.getStats().getPhysicalDamage();
-        int itemPhysicalDamage = 0;
         
-        // Extract physical damage from item lore
-        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
-            for (String loreLine : item.getItemMeta().getLore()) {
-                if (loreLine.contains("Physical Damage:")) {
-                    try {
-                        String[] parts = loreLine.split("\\+");
-                        if (parts.length > 1) {
-                            String damageStr = parts[1].replaceAll("§[0-9a-fk-or]", "").trim();
-                            itemPhysicalDamage = Integer.parseInt(damageStr);
-                            break;
-                        }
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("Error parsing physical damage from item lore: " + e.getMessage());
-                    }
-                }
-            }
-        }
-        
-        // New damage calculation formula
-        int totalPhysicalDamage = playerPhysicalDamage + itemPhysicalDamage;
+        // New damage calculation formula - use only the player stats which already include weapon damage
+        // int totalPhysicalDamage = playerPhysicalDamage + itemPhysicalDamage; // OLD: double-counting
+        int totalPhysicalDamage = playerPhysicalDamage; // NEW: use only player stats which already include weapon damage
         double baseDamage = 10.0;
         double bonusDamage = totalPhysicalDamage;
         double percentBonus = totalPhysicalDamage * 0.1; // 10% of total physical damage
         double finalDamage = baseDamage + bonusDamage + percentBonus;
-            
+        
+        // Rest of the method remains unchanged...
         // Store the current slot where the weapon is
         final int weaponSlot = player.getInventory().getHeldItemSlot();
         final ItemStack originalItem = item.clone();
