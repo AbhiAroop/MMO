@@ -208,17 +208,57 @@ public class CustomItems {
             "",
             "§7Stats:",
             "§cPhysical Damage: §c+7",
-            "§dLifesteal: §d+50",
-            "",
-            "§6Passive: §eLife Siphon",
-            "§7Your attacks drain vitality from enemies,",
-            "§7healing you for §d50% §7of damage dealt.",
+            "§dLifesteal: §d+3",
             "",
             "§8Forged from the fang of an ancient parasitic creature,",
             "§8this weapon transfers the life force of its victims",
             "§8directly to its wielder with each strike.",
             ""
         ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createFleshrake() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for weapons, 20000 base for special scythes)
+        meta.setCustomModelData(220001); // 2 for weapon, 2 for scythe type, 0001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§4§lFleshrake");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.RARE.getFormattedName(),
+            "§7\"An unholy scythe that harvests more than just flesh.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+25",
+            "§dOmnivamp: §d+50%",
+            "",
+            "§6Ability: §eBlood Harvest §7(Right-Click)",
+            "§7Unleash a devastating arc that deals §b50 §7magic",
+            "§7damage to all enemies in a cone in front of you.",
+            "§7If 3 or more targets are hit, damage increases to §b80",
+            "§7for all targets.",
+            "§7Mana Cost: §b40",
+            "§7Cooldown: §e10s",
+            "",
+            "§8Forged from bones of the fallen and etched with",
+            "§8runes that hunger for life essence, this weapon",
+            "§8drains vitality from all those unfortunate enough",
+            "§8to fall under its wicked edge.",
+            ""
+        ));
+        
+        // Add identifier for ability system
+        NamespacedKey keyAbilityId = new NamespacedKey(Main.getInstance(), "ability_id");
+        meta.getPersistentDataContainer().set(keyAbilityId, PersistentDataType.STRING, "blood_harvest");
+        
+        // Add cooldown tracker
+        NamespacedKey keyCooldown = new NamespacedKey(Main.getInstance(), "cooldown");
+        meta.getPersistentDataContainer().set(keyCooldown, PersistentDataType.LONG, 0L);
         
         item.setItemMeta(meta);
         return item;

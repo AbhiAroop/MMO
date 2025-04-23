@@ -48,6 +48,7 @@ public class StatScanManager {
     private static final Pattern LIFE_STEAL_PATTERN = Pattern.compile("(?:Life Steal|Lifesteal): \\+(\\d+\\.?\\d*)%?");
     private static final Pattern CRIT_CHANCE_PATTERN = Pattern.compile("Critical Chance: \\+(\\d+\\.?\\d*)%");
     private static final Pattern CRIT_DAMAGE_PATTERN = Pattern.compile("Critical Damage: \\+(\\d+\\.?\\d*)x");
+    private static final Pattern OMNIVAMP_PATTERN = Pattern.compile("(?:Omnivamp|Omni Vamp): \\+(\\d+\\.?\\d*)%?");
 
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
@@ -518,7 +519,8 @@ public class StatScanManager {
                     cleanLine.contains("Magic Damage:") ||
                     cleanLine.contains("Mana:") ||
                     cleanLine.contains("Size:") ||
-                    cleanLine.contains("Lifesteal:")) {
+                    cleanLine.contains("Lifesteal:")||
+                    cleanLine.contains("Omnivamp:")) {
                     plugin.getLogger().info("Processing stat line: " + cleanLine);
                 }
             }
@@ -574,6 +576,7 @@ public class StatScanManager {
                
             // Try specific pattern first
             bonuses.lifeSteal += extractDoubleStat(cleanLine, LIFE_STEAL_PATTERN);
+            bonuses.omnivamp += extractDoubleStat(cleanLine, OMNIVAMP_PATTERN);
 
 
             bonuses.critChance += extractDoubleStat(cleanLine, CRIT_CHANCE_PATTERN);
@@ -666,6 +669,7 @@ public class StatScanManager {
         stats.setAttackRange(stats.getDefaultAttackRange() + bonuses.attackRange);
         stats.setSize(stats.getDefaultSize() + bonuses.size);
         stats.setLifeSteal(stats.getDefaultLifeSteal() + bonuses.lifeSteal);
+        stats.setOmnivamp(stats.getDefaultOmnivamp() + bonuses.omnivamp);
         stats.setCriticalChance(stats.getDefaultCriticalChance() + (bonuses.critChance / 100.0)); // Convert % to decimal
         stats.setCriticalDamage(stats.getDefaultCriticalDamage() + bonuses.critDamage);
         
@@ -699,6 +703,7 @@ public class StatScanManager {
         stats.setAttackRange(stats.getDefaultAttackRange());
         stats.setSize(stats.getDefaultSize());
         stats.setLifeSteal(stats.getDefaultLifeSteal());
+        stats.setOmnivamp(stats.getDefaultOmnivamp());
         stats.setCriticalChance(stats.getDefaultCriticalChance());
         stats.setCriticalDamage(stats.getDefaultCriticalDamage());
         
@@ -1000,6 +1005,7 @@ public class StatScanManager {
         plugin.getLogger().info("  Attack Range: +" + bonuses.attackRange);
         plugin.getLogger().info("  Size: +" + bonuses.size);
         plugin.getLogger().info("  Life Steal: +" + bonuses.lifeSteal + "%");
+        plugin.getLogger().info("  Omnivamp: +" + bonuses.omnivamp + "%");
         plugin.getLogger().info("  Crit Chance: +" + bonuses.critChance + "%");
         plugin.getLogger().info("  Crit Damage: +" + bonuses.critDamage + "x");
     }
@@ -1031,6 +1037,7 @@ public class StatScanManager {
         double lifeSteal = 0;
         double critChance = 0;
         double critDamage = 0;
+        double omnivamp = 0;
     }
 
 }

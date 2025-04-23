@@ -1,6 +1,7 @@
 com\server\abilities\AbilityManager.class
 com\server\commands\DebugCommand.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
+com\server\abilities\AbilityManager$4.class
 com\server\cosmetics\CosmeticManager.class
 com\server\commands\CosmeticCommand.class
 com\server\profiles\skills\PlayerSkills.class

@@ -14,6 +14,7 @@ import org.bukkit.Particle;
 import org.bukkit.Particle.DustOptions;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -67,7 +68,10 @@ public class AbilityManager {
             return castFireBeam(player, item);
         } else if (abilityId.equals("lightning_throw")) {
             return castLightningThrow(player, item);
-        }
+        } else if (abilityId.equals("blood_harvest")) {
+        return castBloodHarvest(player, item);
+    }
+        
         
         return false;
     }
@@ -109,11 +113,10 @@ public class AbilityManager {
         
         // Fire sound effect
         world.playSound(startLoc, Sound.ENTITY_BLAZE_SHOOT, 1.0f, 0.8f);
-        
         // Calculate beam damage based on player's magic damage
-        int magicDamage = profile.getStats().getMagicDamage();
+
         double damagePerSecond = 3.0; // Base damage
-        double finalDamagePerTick = (damagePerSecond / 20) * (1 + (magicDamage / 100.0)); // Convert to damage per tick with scaling
+        double finalDamagePerTick = (damagePerSecond / 20); // Convert to damage per tick with scaling
         
         // Create the particle beam
         new BukkitRunnable() {
@@ -156,10 +159,14 @@ public class AbilityManager {
                         livingEntity.setFireTicks(60); // Set on fire for 3 seconds
                         
                         // Apply damage
-                        livingEntity.damage(finalDamagePerTick * 5, player); // Initial hit damage
+                        double initialDamage = finalDamagePerTick * 3;
+                        livingEntity.damage(finalDamagePerTick * 3, player); // Initial hit damage
+
+                        // Apply omnivamp from initial hit
+                        applyOmnivampHealing(player, initialDamage);
                         
                         // Apply DoT effect
-                        applyBurnDamageOverTime(player, livingEntity, finalDamagePerTick, 5);
+                        applyBurnDamageOverTime(player, livingEntity, finalDamagePerTick, 3);
                     }
                 }
                 
@@ -190,9 +197,12 @@ public class AbilityManager {
                 // Show burning particle effect
                 target.getWorld().spawnParticle(Particle.FLAME, target.getLocation().add(0, 1, 0), 2, 0.2, 0.2, 0.2, 0.01);
                 
-                // Apply damage every other tick (10 times per second)
-                if (ticks % 2 == 0) {
+                // Apply damage (1 time per second)
+                if (ticks % 20 == 0) {
                     target.damage(damagePerTick, source);
+
+                    // Apply omnivamp healing for DoT damage
+                    applyOmnivampHealing(source, damagePerTick);
                 }
                 
                 ticks++;
@@ -395,6 +405,237 @@ public class AbilityManager {
                         player.sendMessage("§aArcloom §7returns to your hand!");
                     }
                 }, 40L); // 2 seconds (40 ticks)
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+        
+        return true;
+    }
+
+    /**
+     * Applies omnivamp healing based on magic damage dealt
+     * @param player The player who dealt the damage
+     * @param damage The amount of magic damage dealt
+     */
+    private void applyOmnivampHealing(Player player, double damage) {
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return;
+
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return;
+        
+        // Apply omnivamp healing
+        double omnivampPercent = profile.getStats().getOmnivamp();
+        if (omnivampPercent > 0) {
+            // Calculate amount to heal (omnivampPercent% of damage)
+            double healAmount = damage * (omnivampPercent / 100.0);
+            
+            // Get player's current and max health
+            double currentHealth = player.getHealth();
+            double maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            
+            // Only heal if player isn't at full health
+            if (currentHealth < maxHealth && healAmount > 0) {
+                // Calculate new health value (capped at max health)
+                double newHealth = Math.min(currentHealth + healAmount, maxHealth);
+                
+                // Apply the healing
+                player.setHealth(newHealth);
+                
+                // Store the updated health in player stats
+                profile.getStats().setCurrentHealth(newHealth);
+                
+                // Show a visual effect for omnivamp if it's significant (at least 1 health point)
+                if (healAmount >= 1.0) {
+                    // Play a subtle healing sound
+                    player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 1.4f);
+                    
+                    // Display healing message if significant
+                    if (healAmount >= 3.0) {
+                        player.sendMessage("§d✦ §7Omnivamp healed you for §d" + String.format("%.1f", healAmount) + " §7health");
+                    }
+                    
+                    // Debug info
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info(player.getName() + " healed for " + healAmount + 
+                                                " from omnivamp (" + omnivampPercent + "%)");
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean castBloodHarvest(Player player, ItemStack item) {
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        // Check for cooldown
+        if (isOnCooldown(player, "blood_harvest")) {
+            long remainingCooldown = getCooldownTimeRemaining(player, "blood_harvest") / 1000;
+            player.sendMessage("§cAbility on cooldown for " + remainingCooldown + " more seconds!");
+            return false;
+        }
+        
+        // Check for mana cost
+        if (!profile.getStats().canUseMana(40)) {
+            player.sendMessage("§cNot enough mana! Required: §b40");
+            return false;
+        }
+        
+        // Use mana
+        profile.getStats().useMana(40);
+        
+        // Apply cooldown with reduction from player stats
+        double baseCooldown = 10.0; // 10 seconds
+        double cooldownReduction = 1.0 - (profile.getStats().getCooldownReduction() / 100.0);
+        int finalCooldown = Math.max(1, (int)(baseCooldown * cooldownReduction));
+        setCooldown(player, "blood_harvest", finalCooldown * 1000); // Convert to milliseconds
+        
+        // Base damage values - FIXED values that won't be modified by scaling
+        double baseDamage = 50.0;
+        double enhancedDamage = 80.0;
+        
+        // Get player's location and direction
+        Location playerLoc = player.getLocation();
+        Vector playerDir = player.getLocation().getDirection().setY(0).normalize();
+        World world = player.getWorld();
+        
+        // Play initial cast sound
+        world.playSound(playerLoc, Sound.ENTITY_WITHER_SHOOT, 0.7f, 1.5f);
+        world.playSound(playerLoc, Sound.ITEM_TRIDENT_RIPTIDE_3, 0.5f, 0.8f);
+        
+        // Create a list to track hit entities
+        List<LivingEntity> hitEntities = new ArrayList<>();
+        
+        // Create cone-shaped attack
+        double coneAngle = Math.PI / 3; // 60-degree cone
+        double coneRange = 5.0; // 5 blocks range
+        
+        // Animation and damage application
+        new BukkitRunnable() {
+            double animTime = 0;
+            final double animDuration = 0.5; // Animation lasts 0.5 seconds
+            final double step = 0.05;
+            
+            @Override
+            public void run() {
+                if (animTime >= animDuration) {
+                    // Animation complete, apply final effects
+                    
+                    // Determine if enhanced damage should be applied (3+ targets hit)
+                    boolean applyEnhancedDamage = hitEntities.size() >= 3;
+                    double finalDamage = applyEnhancedDamage ? enhancedDamage : baseDamage;
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("Blood Harvest hit " + hitEntities.size() + 
+                                            " entities, applying " + finalDamage + " damage");
+                    }
+                    
+                    // Apply damage to all hit entities using direct health manipulation for exact damage
+                    for (LivingEntity target : hitEntities) {
+                        // Store current health
+                        double currentHealth = target.getHealth();
+                        
+                        // Apply a tiny amount of damage to register the hit and for attribution
+                        target.damage(0.1, player);
+                        
+                        // Then directly set health to the value we want (bypassing armor and resistance)
+                        double newHealth = Math.max(0, currentHealth - finalDamage);
+                        target.setHealth(newHealth);
+                        
+                        // Apply omnivamp from ability damage
+                        applyOmnivampHealing(player, finalDamage);
+                        
+                        // Visual impact effect
+                        Location targetLoc = target.getLocation().add(0, 1, 0);
+                        world.spawnParticle(Particle.SOUL, targetLoc, 10, 0.3, 0.3, 0.3, 0.05);
+                        
+                        // Impact sound
+                        world.playSound(targetLoc, Sound.ENTITY_PHANTOM_BITE, 0.7f, 0.7f);
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("  - Target: " + target.getType().name() + 
+                                                ", Old Health: " + currentHealth + 
+                                                ", New Health: " + newHealth);
+                        }
+                    }
+                    
+                    // Success message with damage value included
+                    if (applyEnhancedDamage) {
+                        player.sendMessage("§4Blood Harvest §cstrikes " + hitEntities.size() + 
+                                        " targets with §4enhanced damage §c(" + (int)finalDamage + ")!");
+                    } else if (hitEntities.size() > 0) {
+                        player.sendMessage("§4Blood Harvest §cstrikes " + hitEntities.size() + " target" + 
+                                        (hitEntities.size() > 1 ? "s" : "") + " §c(" + (int)finalDamage + ")!");
+                    } else {
+                        player.sendMessage("§4Blood Harvest §cfound no targets!");
+                    }
+                    
+                    this.cancel();
+                    return;
+                }
+                
+                // Calculate progress (0 to 1)
+                double progress = animTime / animDuration;
+                
+                // Create the cone visual with two sets of particles for a more dramatic effect
+                for (double r = 0; r < coneRange; r += 0.5) {
+                    double arcWidth = Math.tan(coneAngle) * r;
+                    
+                    for (double a = -arcWidth; a <= arcWidth; a += 0.3) {
+                        // Calculate position in the arc
+                        Vector right = playerDir.clone().crossProduct(new Vector(0, 1, 0)).normalize();
+                        Vector arcPos = playerDir.clone().multiply(r).add(right.multiply(a));
+                        
+                        // Add some vertical variation for a 3D effect
+                        double yOffset = Math.sin(r + progress * Math.PI * 2) * 0.2;
+                        
+                        // Calculate position in world space
+                        Location particleLoc = playerLoc.clone().add(arcPos).add(0, 0.5 + yOffset, 0);
+                        
+                        // Blood particle effect (red dust)
+                        DustOptions bloodDust = new DustOptions(Color.fromRGB(128, 0, 0), 1.2f);
+                        world.spawnParticle(Particle.DUST, particleLoc, 1, 0.05, 0.05, 0.05, 0, bloodDust);
+                        
+                        // Trail effects that follow the arc shape
+                        if (Math.random() < 0.3) {
+                            DustOptions darkDust = new DustOptions(Color.fromRGB(50, 0, 0), 1.0f);
+                            Location trailLoc = particleLoc.clone().add(0, Math.sin(progress * Math.PI * 4) * 0.3, 0);
+                            world.spawnParticle(Particle.DUST, trailLoc, 1, 0.05, 0.05, 0.05, 0, darkDust);
+                        }
+                        
+                        // Soul fire effect for a supernatural touch
+                        if (Math.random() < 0.1) {
+                            world.spawnParticle(Particle.SOUL_FIRE_FLAME, particleLoc, 1, 0.05, 0.05, 0.05, 0);
+                        }
+                        
+                        // Check for entities in this part of the cone
+                        for (Entity entity : world.getNearbyEntities(particleLoc, 0.8, 1.0, 0.8)) {
+                            if (entity instanceof LivingEntity && entity != player && !hitEntities.contains(entity)) {
+                                // Calculate angle between player direction and entity direction
+                                Vector toEntity = entity.getLocation().toVector().subtract(playerLoc.toVector());
+                                double angle = playerDir.angle(toEntity);
+                                
+                                // Check if entity is within cone angle and range
+                                if (angle <= coneAngle && toEntity.length() <= coneRange) {
+                                    hitEntities.add((LivingEntity) entity);
+                                    
+                                    // Target acquired indicator
+                                    DustOptions targetDust = new DustOptions(Color.fromRGB(255, 0, 0), 1.5f);
+                                    world.spawnParticle(Particle.DUST, entity.getLocation().add(0, 1, 0), 
+                                                    8, 0.3, 0.3, 0.3, 0, targetDust);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Update animation time
+                animTime += step;
             }
         }.runTaskTimer(plugin, 0L, 1L);
         
