@@ -235,7 +235,7 @@ public class CustomItems {
             "",
             "§7Stats:",
             "§cPhysical Damage: §c+25",
-            "§dOmnivamp: §d+50%",
+            "§dOmnivamp: §d+10%",
             "",
             "§6Ability: §eBlood Harvest §7(Right-Click)",
             "§7Unleash a devastating arc that deals §b50 §7magic",

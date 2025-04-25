@@ -56,6 +56,10 @@ commands:
   cancel:
     description: Cancel a pending transaction
     usage: /cancel
+  spawnentity:
+    description: Spawn a custom model entity
+    usage: /spawnentity <model_name> [entity_type]
+    permission: mmo.admin
 
 permissions:
   mmo.admin:
@@ -66,4 +70,7 @@ permissions:
     default: op
   mmo.admin.currency:
     description: Allows managing player currencies
+    default: op
+  mmo.spawnentity:
+    description: Allows to spawn custom entities
     default: op

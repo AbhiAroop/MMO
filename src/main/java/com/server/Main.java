@@ -70,10 +70,12 @@ public class Main extends JavaPlugin {
         CosmeticManager.initialize(this);
         AbilityManager.initialize(this);
         
-        // Register commands and listeners
+
+        // Register commands and event listeners
         registerCommands();
         registerListeners();
-        LOGGER.info("mmo enabled");
+        
+        getLogger().info("mmo enabled");
     }
 
     
@@ -90,6 +92,7 @@ public class Main extends JavaPlugin {
         if (healthRegenerationManager != null) {
             healthRegenerationManager.cleanup();
         }
+        
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
@@ -261,4 +264,5 @@ public class Main extends JavaPlugin {
     public StatScanManager getStatScanManager() {
         return statScanManager;
     }
+    
 }
