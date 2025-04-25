@@ -1,4 +1,5 @@
 com\server\abilities\AbilityManager.class
+com\server\entities\CustomEntityManager$2.class
 com\server\commands\DebugCommand.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
@@ -28,6 +29,7 @@ com\server\events\PlayerListener$5.class
 com\server\abilities\AbilityManager$3$1.class
 com\server\profiles\skills\SkillType.class
 com\server\display\DamageIndicatorManager$2.class
+com\server\entities\CustomEntityManager$3.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\gui\ProfileGUI.class
 com\server\events\AutoRespawnListener.class

@@ -1,6 +1,7 @@
 package com.server.entities;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -20,6 +21,12 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import static org.bukkit.event.EventPriority.HIGHEST;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -268,6 +275,7 @@ public class CustomEntityManager {
             stats.setHealth(100);
             stats.setMaxHealth(100);
             stats.setPhysicalDamage(10);
+            stats.setArmor(50);
             stats.setLevel(5);
             stats.setMobType(MobType.ELITE);
             stats.setName("Runemark Colossus");
@@ -280,9 +288,9 @@ public class CustomEntityManager {
                 entity.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(stats.getMaxHealth());
                 entity.setHealth(stats.getHealth());
                 
-                // Important: Set attack damage but disable the entity's attack moves
+                // Important: Set attack damage to 0 to prevent ANY damage from normal attacks
                 if (entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE) != null) {
-                    entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(stats.getPhysicalDamage());
+                    entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(0);
                 }
                 
                 // Make the base entity invisible but ensure the nameplate is shown
@@ -295,9 +303,53 @@ public class CustomEntityManager {
                     
                     // Set custom metadata to identify it as our custom entity
                     entity.setMetadata("runemark_colossus", new FixedMetadataValue(plugin, true));
-                    
-                    // Important for our follow behavior
                     entity.setMetadata("custom_follow_only", new FixedMetadataValue(plugin, true));
+                    
+                    // Prevent targeting any entity (including non-players)
+                    ((Mob) entity).setTarget(null);
+                    
+                    // A more aggressive approach to make sure it doesn't attack at all:
+                    // Register a global event listener that cancels ALL damage from this entity
+                    try {
+                        final UUID entityId = entity.getUniqueId();
+                        
+                        plugin.getServer().getPluginManager().registerEvents(new Listener() {
+                            @EventHandler(priority = EventPriority.LOWEST)
+                            public void onEntityDamageByColossus(EntityDamageByEntityEvent event) {
+                                // If this specific Colossus is dealing damage through vanilla mechanics,
+                                // cancel it completely - we handle damage application manually
+                                if (event.getDamager().getUniqueId().equals(entityId)) {
+                                    // Only cancel damage from normal attacks, not our custom damage
+                                    if (!event.getCause().equals(EntityDamageEvent.DamageCause.CUSTOM)) {
+                                        // Cancel the damage event completely
+                                        event.setCancelled(true);
+                                        plugin.getLogger().info("Cancelled native attack from Runemark Colossus");
+                                    }
+                                }
+                            }
+                        }, plugin);
+                        
+                        // The existing damage prevention events
+                        plugin.getServer().getPluginManager().registerEvents(new Listener() {
+                            @EventHandler(priority = HIGHEST)
+                            public void onColossusHurt(EntityDamageByEntityEvent event) {
+                                if (event.getEntity().getUniqueId().equals(entityId)) {
+                                    // If this specific Colossus is hurt, prevent it from targeting the damager
+                                    if (event.getEntity() instanceof Mob) {
+                                        Mob mob = (Mob) event.getEntity();
+                                        
+                                        // Force it not to target due to being hurt
+                                        plugin.getServer().getScheduler().runTask(plugin, () -> {
+                                            // Let our custom AI handle targeting
+                                            mob.setTarget(null);
+                                        });
+                                    }
+                                }
+                            }
+                        }, plugin);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Could not register event handlers: " + e.getMessage());
+                    }
                     
                     try {
                         // Access NMS classes with reflection to remove its attack goals
@@ -305,16 +357,49 @@ public class CustomEntityManager {
                         
                         // Access the goalSelector field
                         Field goalSelectorField = null;
+                        Field targetSelectorField = null;
+                        
                         for (Field field : craftEntity.getClass().getSuperclass().getDeclaredFields()) {
                             if (field.getType().getSimpleName().contains("PathfinderGoalSelector")) {
                                 field.setAccessible(true);
-                                goalSelectorField = field;
-                                break;
+                                
+                                // There are typically two PathfinderGoalSelector fields:
+                                // - one for general goals (movement, etc.)
+                                // - one for target selection goals
+                                if (goalSelectorField == null) {
+                                    goalSelectorField = field;
+                                } else {
+                                    targetSelectorField = field;
+                                }
                             }
                         }
                         
+                        // Clear the target selector goals first (prevents targeting anything)
+                        if (targetSelectorField != null) {
+                            Object targetSelector = targetSelectorField.get(craftEntity);
+                            
+                            // Get the 'goals' Set field inside targetSelector
+                            Field goalsField = null;
+                            for (Field field : targetSelector.getClass().getDeclaredFields()) {
+                                if (field.getType().equals(Set.class)) {
+                                    field.setAccessible(true);
+                                    goalsField = field;
+                                    break;
+                                }
+                            }
+                            
+                            if (goalsField != null) {
+                                // Get the Set<PathfinderGoalWrapper>
+                                Set<?> availableTargetGoals = (Set<?>) goalsField.get(targetSelector);
+                                
+                                // Clear all targeting goals
+                                availableTargetGoals.clear();
+                                plugin.getLogger().info("Successfully cleared entity target goals for Runemark Colossus");
+                            }
+                        }
+                        
+                        // Now clear the regular goals (or just attack goals if we could)
                         if (goalSelectorField != null) {
-                            // Get the goalSelector
                             Object goalSelector = goalSelectorField.get(craftEntity);
                             
                             // Get the 'goals' Set field inside goalSelector
@@ -331,18 +416,20 @@ public class CustomEntityManager {
                                 // Get the Set<PathfinderGoalWrapper>
                                 Set<?> availableGoals = (Set<?>) goalsField.get(goalSelector);
                                 
-                                // Clear all goals to create completely custom AI
+                                // Clear all goals - we will handle movement ourselves
                                 availableGoals.clear();
-                                
                                 plugin.getLogger().info("Successfully cleared entity goals for Runemark Colossus");
                             }
                         }
                     } catch (Exception e) {
                         plugin.getLogger().warning("Could not modify golem AI via NMS: " + e.getMessage());
+                        if (plugin.isDebugMode()) {
+                            e.printStackTrace();
+                        }
                     }
                 }
                 
-                // Keep follow AI on but prevent attack AI
+                // Keep base AI on but prevent attack AI
                 entity.setAI(true);
                 
                 // Start custom follow and attack behavior for this entity
@@ -441,18 +528,43 @@ public class CustomEntityManager {
                         if (entity.isValid() && !entity.isDead() && player.isOnline()) {
                             // Check if still in range
                             if (entity.getLocation().distance(player.getLocation()) <= 7.0) {
-                                // Deal damage based on entity stats
+                                // Get the exact physical damage from stats
                                 double damage = stats.getPhysicalDamage();
-                                player.damage(damage, entity);
                                 
-                                // Add visual effects
-                                player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
-                                player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
-                                        player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
+                                // We need to apply damage directly to ensure the right amount
+                                // Use the CUSTOM cause to avoid our own damage cancellation
+                                EntityDamageEvent customDamageEvent = new EntityDamageEvent(
+                                    player, 
+                                    EntityDamageEvent.DamageCause.CUSTOM,
+                                    damage
+                                );
+                                plugin.getServer().getPluginManager().callEvent(customDamageEvent);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Runemark Colossus hit " + player.getName() + 
-                                            " for " + damage + " damage");
+                                if (!customDamageEvent.isCancelled()) {
+                                    // Apply the damage directly to the player
+                                    double finalDamage = customDamageEvent.getFinalDamage();
+                                    player.damage(finalDamage);
+                                    
+                                    // Ensure damage attribution - this will set the entity as the last damager
+                                    try {
+                                        // Use reflection to get access to CraftLivingEntity's setLastDamager method
+                                        Method setLastDamager = player.getClass().getDeclaredMethod("setLastDamager", org.bukkit.entity.Entity.class);
+                                        setLastDamager.setAccessible(true);
+                                        setLastDamager.invoke(player, entity);
+                                    } catch (Exception e) {
+                                        // If reflection fails, do a tiny amount of direct damage for attribution
+                                        player.damage(0.0, entity);
+                                    }
+                                    
+                                    // Add visual effects
+                                    player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
+                                    player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
+                                            player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
+                                    
+                                    if (plugin.isDebugMode()) {
+                                        plugin.getLogger().info("Runemark Colossus hit " + player.getName() + 
+                                                " for " + finalDamage + " damage (stats say: " + damage + ")");
+                                    }
                                 }
                             }
                         }
@@ -922,15 +1034,23 @@ public void updateEntityNameplate(LivingEntity entity) {
         entity.setAI(false);
         entity.setInvulnerable(true);
         
+        // Special handling for Runemark Colossus
+        boolean isColossus = entity.hasMetadata("runemark_colossus");
+        
         // Schedule removal of the entity after the animation completes
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (entity.isValid() && !entity.isDead()) {
-                // Remove the entity if it hasn't been removed yet
+            // Force remove the base entity immediately to prevent any lingering effects
+            if (entity.isValid()) {
+                // Make sure the entity is completely removed from the world
                 entity.remove();
+                if (isColossus) {
+                    plugin.getLogger().info("Removed Runemark Colossus base entity");
+                }
             }
-            // Clean up tracking regardless
+            
+            // Clean up tracking for our custom systems
             removeTracking(entity.getUniqueId());
-        }, 60L); // 3 seconds (60 ticks) for death animation to complete
+        }, isColossus ? 60L : 40L); // 3 seconds for Colossus, 2 seconds for other entities
     }
     
 }

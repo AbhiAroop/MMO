@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
@@ -242,6 +243,31 @@ public class CustomMobListener implements Listener {
                 attackTasks.get(entityId).cancel();
                 attackTasks.remove(entityId);
                 lastAttackTime.remove(entityId);
+            }
+            
+            // If this is a Runemark Colossus, make sure it's completely gone
+            if (entity.hasMetadata("runemark_colossus")) {
+                // Force its death state
+                if (entity instanceof IronGolem) {
+                    IronGolem golem = (IronGolem) entity;
+                    
+                    // Force 0 health to ensure it's considered dead by the game
+                    golem.setHealth(0);
+                    
+                    // Remove any metadata that might keep it alive
+                    for (String key : golem.getMetadata("runemark_colossus").stream()
+                            .map(m -> m.getOwningPlugin().getName() + ":" + "runemark_colossus")
+                            .toArray(String[]::new)) {
+                        try {
+                            golem.removeMetadata(key, plugin);
+                        } catch (Exception e) {
+                            // Ignore errors during cleanup
+                        }
+                    }
+                    
+                    // Log for debugging
+                    plugin.getLogger().info("Ensured Runemark Colossus death and cleanup");
+                }
             }
         }
     }
