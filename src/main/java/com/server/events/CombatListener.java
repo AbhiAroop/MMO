@@ -1,21 +1,29 @@
 package com.server.events;
 
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.entity.EntityTargetEvent.TargetReason;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import static org.bukkit.persistence.PersistentDataType.INTEGER;
+import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.entities.CustomMobStats;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -171,6 +179,81 @@ public class CombatListener implements Listener {
         } else {
             // Low charge attack sound
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_NODAMAGE, 0.5f, 1.0f);
+        }
+    }
+
+    /**
+     * Handle special abilities for custom mobs
+     */
+    @EventHandler
+    public void onEntityTarget(EntityTargetEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity)) return;
+        
+        LivingEntity entity = (LivingEntity) event.getEntity();
+        
+        // Check if it's a custom mob with abilities
+        if (plugin.getCustomEntityManager().isCustomMob(entity)) {
+            CustomMobStats stats = plugin.getCustomEntityManager().getMobStats(entity);
+            if (stats == null || !stats.hasCustomAbilities()) return;
+            
+            // If the target is a player and the mob is not already attacking
+            if (event.getTarget() instanceof Player && event.getReason() == TargetReason.CLOSEST_PLAYER) {
+                // Random chance to use special ability when targeting a player
+                if (Math.random() < 0.3) { // 30% chance
+                    // Randomly choose between ability 1 and 2
+                    int abilityIndex = (Math.random() < 0.5) ? 1 : 2;
+                    
+                    // Play the special ability animation
+                    plugin.getCustomEntityManager().playSpecialAbility(entity, abilityIndex);
+                    
+                    // For the Runemark Colossus, implement actual ability effects
+                    if (stats.getName().equals("Runemark Colossus")) {
+                        Player player = (Player) event.getTarget();
+                        
+                        if (abilityIndex == 1) {
+                            // Ground slam - area effect damage
+                            plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
+                                @Override
+                                public void run() {
+                                    // Create ground slam effect
+                                    entity.getWorld().playSound(entity.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.6f);
+                                    entity.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, entity.getLocation(), 1, 0, 0, 0, 0);
+                                    
+                                    // Damage nearby players
+                                    for (Entity nearby : entity.getNearbyEntities(5, 2, 5)) {
+                                        if (nearby instanceof Player) {
+                                            Player nearbyPlayer = (Player) nearby;
+                                            nearbyPlayer.damage(stats.getPhysicalDamage() * 0.8, entity);
+                                            nearbyPlayer.setVelocity(nearbyPlayer.getLocation().subtract(entity.getLocation()).toVector().normalize().multiply(1.2).setY(0.5));
+                                        }
+                                    }
+                                }
+                            }, 15L); // Delay for animation to play before effect
+                        } else if (abilityIndex == 2) {
+                            // Energy beam
+                            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                                // Create beam effect
+                                Location startLoc = entity.getEyeLocation();
+                                Vector direction = player.getLocation().subtract(startLoc).toVector().normalize();
+                                
+                                // Particle beam effect
+                                for (double d = 0; d < 10; d += 0.5) {
+                                    Location particleLoc = startLoc.clone().add(direction.clone().multiply(d));
+                                    org.bukkit.Particle.DustOptions dustOptions = new org.bukkit.Particle.DustOptions(
+                                            org.bukkit.Color.fromRGB(0, 180, 255), 1.5f);
+                                    entity.getWorld().spawnParticle(org.bukkit.Particle.DUST, particleLoc, 3, 0.1, 0.1, 0.1, 0, dustOptions);
+                                }
+                                
+                                // Check if player is hit
+                                if (player.getLocation().distance(entity.getLocation()) < 12) {
+                                    player.damage(stats.getPhysicalDamage() * 1.5, entity);
+                                    player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_HURT_FREEZE, 1.0f, 1.0f);
+                                }
+                            }, 20L); // Delay for animation to play before effect
+                        }
+                    }
+                }
+            }
         }
     }
     

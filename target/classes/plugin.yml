@@ -3,7 +3,8 @@ main: com.server.Main
 version: 0.0.1
 api-version: 1.20
 description: MMO plugin for Minecraft servers
-depend: [Geyser-Spigot]
+depend: [ModelEngine]
+softdepend: [Geyser]
 
 commands:
   menu:
@@ -56,9 +57,13 @@ commands:
   cancel:
     description: Cancel a pending transaction
     usage: /cancel
-  spawnentity:
-    description: Spawn a custom model entity
-    usage: /spawnentity <model_name> [entity_type]
+  spawnmob:
+    description: Spawn a custom mob
+    usage: /spawnmob <type>
+    permission: mmo.spawnmob
+  animdebug:
+    description: Debug custom mob animations
+    usage: /animdebug <animation> [entityType]
     permission: mmo.admin
 
 permissions:
@@ -71,6 +76,9 @@ permissions:
   mmo.admin.currency:
     description: Allows managing player currencies
     default: op
-  mmo.spawnentity:
+  mmo.spawnmob:
     description: Allows to spawn custom entities
+    default: op
+  mmo.animdebug:
+    description: Grants access to animation debug commands
     default: op

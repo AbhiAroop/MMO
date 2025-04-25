@@ -5,6 +5,7 @@ import java.util.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AnimationDebugCommand;
 import com.server.commands.CosmeticCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
@@ -13,15 +14,18 @@ import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
 import com.server.commands.ProfileCommand;
+import com.server.commands.SpawnCustomMobCommand;
 import com.server.commands.StatsCommand;
 import com.server.cosmetics.CosmeticManager;
 import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
+import com.server.entities.CustomEntityManager;
 import com.server.events.AbilityListener;
 import com.server.events.AutoRespawnListener;
 import com.server.events.CombatListener;
+import com.server.events.CustomMobListener;
 import com.server.events.GUIListener;
 import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
@@ -41,6 +45,7 @@ public class Main extends JavaPlugin {
     private HealthRegenerationManager healthRegenerationManager;
     private RangedCombatManager rangedCombatManager;
     private StatScanManager statScanManager;
+    private CustomEntityManager customEntityManager;
 
     // Update the onEnable method
     @Override
@@ -66,19 +71,20 @@ public class Main extends JavaPlugin {
         // Initialize RangedCombatManager AFTER StatScanManager
         rangedCombatManager = new RangedCombatManager(this);
 
+        // Initialize custom entity manager
+        customEntityManager = new CustomEntityManager(this);
+
         // Initialize CosmeticManager
         CosmeticManager.initialize(this);
         AbilityManager.initialize(this);
         
-
         // Register commands and event listeners
         registerCommands();
         registerListeners();
         
-        getLogger().info("mmo enabled");
+        getLogger().info("mmo enabled with ModelEngine integration");
     }
 
-    
     @Override
     public void onDisable() {
         if (actionBarManager != null) {
@@ -93,6 +99,10 @@ public class Main extends JavaPlugin {
             healthRegenerationManager.cleanup();
         }
         
+        // Clean up custom entities
+        if (customEntityManager != null) {
+            customEntityManager.cleanup();
+        }
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
@@ -108,11 +118,13 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(damageIndicatorManager, this);
         this.getServer().getPluginManager().registerEvents(new ItemListener(), this);
         this.getServer().getPluginManager().registerEvents(new AbilityListener(), this);
-        rangedCombatManager = new RangedCombatManager(this);
         this.getServer().getPluginManager().registerEvents(rangedCombatManager, this);
         this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AutoRespawnListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new CustomMobListener(this), this);
+        this.getCommand("animdebug").setExecutor(new AnimationDebugCommand(this));
     }
+
 
     public static Main getInstance() {
         return instance;
@@ -233,6 +245,15 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'cancel' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand spawnMobCommand = this.getCommand("spawnmob");
+        if (spawnMobCommand != null) {
+            SpawnCustomMobCommand spawnMobHandler = new SpawnCustomMobCommand(this);
+            spawnMobCommand.setExecutor(spawnMobHandler);
+            spawnMobCommand.setTabCompleter(spawnMobHandler);
+        } else {
+            LOGGER.warning("Command 'spawnmob' not registered in plugin.yml file!");
+        }
     }
 
     public ScoreboardManager getScoreboardManager() {
@@ -263,6 +284,10 @@ public class Main extends JavaPlugin {
 
     public StatScanManager getStatScanManager() {
         return statScanManager;
+    }
+
+    public CustomEntityManager getCustomEntityManager() {
+        return customEntityManager;
     }
     
 }
