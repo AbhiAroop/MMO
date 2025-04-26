@@ -11,6 +11,7 @@ import com.server.entities.CustomEntityManager;
 import com.server.entities.mobs.colossus.DuneetchedColossus;
 import com.server.entities.mobs.colossus.RunemarkColossus;
 import com.server.entities.mobs.colossus.VerdigranColossus;
+import com.server.entities.mobs.duskhollow.DuskhollowFang;
 
 /**
  * Registry for custom mobs
@@ -41,7 +42,7 @@ public class MobRegistry {
         mobTypes.put("runemarkcolossus", new RunemarkColossus(plugin, entityManager));
         mobTypes.put("verdigrancolossus", new VerdigranColossus(plugin, entityManager));
         mobTypes.put("duneetchedcolossus", new DuneetchedColossus(plugin, entityManager));
-        
+        mobTypes.put("duskhollowfang", new DuskhollowFang(plugin, entityManager));
         // Add more mobs as needed
         // mobTypes.put("ghost", new Ghost(plugin, entityManager));
         // mobTypes.put("lich", new Lich(plugin, entityManager));

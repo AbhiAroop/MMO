@@ -57,6 +57,7 @@ public class CustomEntityManager {
         registeredModels.put("golem_prismarine_gm_rain", "golem_prismarine_gm_rain");
         registeredModels.put("golem_stoneblack_gm_rain", "golem_stoneblack_gm_rain");
         registeredModels.put("golem_stonesand_gm_rain", "golem_stonesand_gm_rain");
+        registeredModels.put("darkwolf", "darkwolf");
         // Add more models as needed
     }
     
@@ -192,12 +193,20 @@ public class CustomEntityManager {
         }
     }
     
+
     /**
      * Create a nameplate ArmorStand for an entity
      */
     private void createNameplateStand(LivingEntity entity, String displayName) {
         // Remove any existing nameplate stand
         removeNameplateStand(entity.getUniqueId());
+        
+        // Get custom height offset if it exists
+        double tempHeightOffset = 0.25;
+        if (entity.hasMetadata("nameplate_height_offset")) {
+            tempHeightOffset = entity.getMetadata("nameplate_height_offset").get(0).asDouble();
+        }
+        final double heightOffset = tempHeightOffset;
         
         // Create a new ArmorStand for the nameplate
         ArmorStand stand = entity.getWorld().spawn(entity.getLocation().add(0, 0.5, 0), ArmorStand.class);
@@ -230,7 +239,8 @@ public class CustomEntityManager {
             }
             
             // Update the ArmorStand position to follow the entity
-            stand.teleport(entity.getLocation().add(0, entity.getHeight() + 0.25, 0));
+            // Use the custom height offset instead of the default
+            stand.teleport(entity.getLocation().add(0, entity.getHeight() + heightOffset, 0));
         }, 1L, 1L); // Update every tick for smooth following
     }
     

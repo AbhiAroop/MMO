@@ -10,6 +10,7 @@ com\server\profiles\skills\PlayerSkills.class
 com\server\events\CombatListener$1.class
 com\server\events\PlayerListener$6.class
 com\server\events\PlayerListener$2.class
+com\server\entities\mobs\duskhollow\DuskhollowFang$1.class
 com\server\display\DamageIndicatorManager$1.class
 com\server\abilities\AbilityManager$1.class
 com\server\events\CombatListener.class
@@ -26,6 +27,7 @@ com\server\display\ActionBarManager$1.class
 com\server\profiles\stats\StatScanManager$1.class
 com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
+com\server\entities\mobs\duskhollow\DuskhollowFang.class
 com\server\abilities\AbilityManager$3$1.class
 com\server\profiles\skills\SkillType.class
 com\server\display\DamageIndicatorManager$2.class
