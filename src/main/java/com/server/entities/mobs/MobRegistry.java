@@ -8,6 +8,9 @@ import org.bukkit.entity.LivingEntity;
 
 import com.server.Main;
 import com.server.entities.CustomEntityManager;
+import com.server.entities.mobs.colossus.DuneetchedColossus;
+import com.server.entities.mobs.colossus.RunemarkColossus;
+import com.server.entities.mobs.colossus.VerdigranColossus;
 
 /**
  * Registry for custom mobs

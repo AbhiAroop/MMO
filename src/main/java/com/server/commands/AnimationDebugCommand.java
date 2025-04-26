@@ -16,7 +16,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
 import com.server.entities.mobs.CustomMob;
-import com.server.entities.mobs.RunemarkColossus;
+import com.server.entities.mobs.colossus.RunemarkColossus;
 
 public class AnimationDebugCommand implements CommandExecutor {
 
@@ -38,7 +38,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         
         if (args.length < 1) {
             player.sendMessage("§cUsage: /animdebug <animation> [entityType]");
-            player.sendMessage("§7Available animations: idle, attack, hurt, walk, special1, special2, death");
+            player.sendMessage("§7Available animations: idle, attack, hurt, walk, debast, special2, death");
             player.sendMessage("§7Special commands: colossusauto, verdigranauto, duneetchedauto, colossusattack, diagnose");
             player.sendMessage("§7Entity types: nearest, target");
             return true;
@@ -81,6 +81,47 @@ public class AnimationDebugCommand implements CommandExecutor {
             if (colossusEntity != null) {
                 plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
                 player.sendMessage("§aForced attack1 animation on " + getColossusDisplayName(metadataKey));
+                return true;
+            } else {
+                player.sendMessage("§cNo " + getColossusDisplayName(metadataKey) + " found within 20 blocks!");
+                return true;
+            }
+        }
+
+        if ("colossusslam".equalsIgnoreCase(animationName) || "debast".equalsIgnoreCase(animationName)) {
+            // Get the type of colossus from args if provided
+            String colossusType = args.length > 1 ? args[1].toLowerCase() : "runemark_colossus";
+            
+            // Map the command argument to the actual metadata key
+            String metadataKey;
+            switch (colossusType) {
+                case "verdigran":
+                    metadataKey = "verdigran_colossus";
+                    break;
+                case "duneetched":
+                    metadataKey = "duneetched_colossus";
+                    break;
+                default:
+                    metadataKey = "runemark_colossus";
+            }
+            
+            LivingEntity colossusEntity = findEntityWithMetadata(player, 20, metadataKey);
+            if (colossusEntity != null) {
+                // Get the RunemarkColossus from registry
+                CustomMob mobType = plugin.getCustomEntityManager().getMobRegistry().getMobType(
+                    metadataKey.equals("verdigran_colossus") ? "verdigrancolossus" :
+                    metadataKey.equals("duneetched_colossus") ? "duneetchedcolossus" : 
+                    "runemarkcolossus"
+                );
+                
+                if (mobType instanceof RunemarkColossus) {
+                    ((RunemarkColossus) mobType).playSpecialAbility(colossusEntity, 1);
+                    player.sendMessage("§aForced debast slam ability on " + getColossusDisplayName(metadataKey));
+                } else {
+                    // Fallback to regular animation
+                    plugin.getCustomEntityManager().playAnimation(colossusEntity, "debast");
+                    player.sendMessage("§aForced debast animation on " + getColossusDisplayName(metadataKey));
+                }
                 return true;
             } else {
                 player.sendMessage("§cNo " + getColossusDisplayName(metadataKey) + " found within 20 blocks!");
@@ -171,7 +212,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         plugin.getLogger().info(metadataInfo.toString());
         
         // Attempt to play core animations and log results
-        String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "death"};
+        String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "debast", "special2", "death"};
         plugin.getLogger().info("Testing core animations...");
         
         for (String anim : coreAnimations) {

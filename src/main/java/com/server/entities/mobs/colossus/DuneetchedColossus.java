@@ -1,4 +1,4 @@
-package com.server.entities.mobs;
+package com.server.entities.mobs.colossus;
 
 import org.bukkit.entity.EntityType;
 
