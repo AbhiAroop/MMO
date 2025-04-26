@@ -1,5 +1,6 @@
 com\server\abilities\AbilityManager.class
 com\server\commands\DebugCommand.class
+com\server\entities\mobs\VerdigranColossus.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
 com\server\cosmetics\CosmeticManager.class
@@ -42,6 +43,7 @@ com\server\events\AutoRespawnListener$2.class
 com\server\commands\GiveItemCommand.class
 com\server\events\PlayerListener.class
 com\server\entities\CustomEntityManager.class
+com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
 com\server\display\ScoreboardManager.class
 com\server\display\ActionBarManager.class
@@ -53,6 +55,7 @@ com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
 com\server\entities\mobs\MobRegistry.class
 com\server\events\PlayerListener$1.class
+com\server\entities\mobs\DuneetchedColossus.class
 com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class

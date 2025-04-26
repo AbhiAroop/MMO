@@ -55,6 +55,8 @@ public class CustomEntityManager {
     private void registerModels() {
         // Model ID format needs to match what ModelEngine expects
         registeredModels.put("golem_prismarine_gm_rain", "golem_prismarine_gm_rain");
+        registeredModels.put("golem_stoneblack_gm_rain", "golem_stoneblack_gm_rain");
+        registeredModels.put("golem_stonesand_gm_rain", "golem_stonesand_gm_rain");
         // Add more models as needed
     }
     

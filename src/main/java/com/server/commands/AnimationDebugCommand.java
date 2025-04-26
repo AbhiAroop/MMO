@@ -39,7 +39,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         if (args.length < 1) {
             player.sendMessage("§cUsage: /animdebug <animation> [entityType]");
             player.sendMessage("§7Available animations: idle, attack, hurt, walk, special1, special2, death");
-            player.sendMessage("§7Special commands: colossusauto, colossusattack, specialability, diagnose");
+            player.sendMessage("§7Special commands: colossusauto, verdigranauto, duneetchedauto, colossusattack, diagnose");
             player.sendMessage("§7Entity types: nearest, target");
             return true;
         }
@@ -49,17 +49,41 @@ public class AnimationDebugCommand implements CommandExecutor {
         
         // Special handlers for colossus animations
         if ("colossusauto".equalsIgnoreCase(animationName)) {
-            return toggleColossusAutoAttack(player);
+            return toggleColossusAutoAttack(player, "runemark_colossus");
+        }
+        
+        if ("verdigranauto".equalsIgnoreCase(animationName)) {
+            return toggleColossusAutoAttack(player, "verdigran_colossus");
+        }
+        
+        if ("duneetchedauto".equalsIgnoreCase(animationName)) {
+            return toggleColossusAutoAttack(player, "duneetched_colossus");
         }
         
         if ("colossusattack".equalsIgnoreCase(animationName)) {
-            LivingEntity colossusEntity = findEntityWithMetadata(player, 20, "runemark_colossus");
+            // Get the type of colossus from args if provided
+            String colossusType = args.length > 1 ? args[1].toLowerCase() : "runemark_colossus";
+            
+            // Map the command argument to the actual metadata key
+            String metadataKey;
+            switch (colossusType) {
+                case "verdigran":
+                    metadataKey = "verdigran_colossus";
+                    break;
+                case "duneetched":
+                    metadataKey = "duneetched_colossus";
+                    break;
+                default:
+                    metadataKey = "runemark_colossus";
+            }
+            
+            LivingEntity colossusEntity = findEntityWithMetadata(player, 20, metadataKey);
             if (colossusEntity != null) {
                 plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
-                player.sendMessage("§aForced attack1 animation on Runemark Colossus");
+                player.sendMessage("§aForced attack1 animation on " + getColossusDisplayName(metadataKey));
                 return true;
             } else {
-                player.sendMessage("§cNo Runemark Colossus found within 20 blocks!");
+                player.sendMessage("§cNo " + getColossusDisplayName(metadataKey) + " found within 20 blocks!");
                 return true;
             }
         }
@@ -139,7 +163,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         
         // Check metadata to identify mob type
         StringBuilder metadataInfo = new StringBuilder("Metadata: ");
-        for (String key : new String[] {"runemark_colossus"}) {
+        for (String key : new String[] {"runemark_colossus", "verdigran_colossus", "duneetched_colossus"}) {
             if (entity.hasMetadata(key)) {
                 metadataInfo.append(key).append("=true ");
             }
@@ -240,6 +264,69 @@ public class AnimationDebugCommand implements CommandExecutor {
         }
         
         return null;
+    }
+
+    /**
+     * Toggle automatic attack1 animation for a specific colossus type
+     */
+    private boolean toggleColossusAutoAttack(Player player, String metadataKey) {
+        LivingEntity colossusEntity = findEntityWithMetadata(player, 20, metadataKey);
+        if (colossusEntity == null) {
+            player.sendMessage("§cNo " + getColossusDisplayName(metadataKey) + " found within 20 blocks!");
+            return true;
+        }
+        
+        UUID entityId = colossusEntity.getUniqueId();
+        
+        // Check if we already have an auto-animation task for this entity
+        if (autoAnimationTasks.containsKey(entityId)) {
+            // Stop the existing task
+            autoAnimationTasks.get(entityId).cancel();
+            autoAnimationTasks.remove(entityId);
+            player.sendMessage("§cDisabled auto-attack animation for " + getColossusDisplayName(metadataKey));
+            
+            // Remove debug metadata
+            colossusEntity.removeMetadata("debug_auto_attack", plugin);
+            return true;
+        }
+        
+        // Start a new auto-animation task
+        player.sendMessage("§aEnabled auto-attack animation for " + getColossusDisplayName(metadataKey));
+        colossusEntity.setMetadata("debug_auto_attack", new FixedMetadataValue(plugin, true));
+        
+        BukkitTask task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!colossusEntity.isValid() || colossusEntity.isDead()) {
+                    cancel();
+                    autoAnimationTasks.remove(entityId);
+                    return;
+                }
+                
+                // Play the attack1 animation directly
+                plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
+                
+                // Log for debugging
+                plugin.getLogger().info("Auto-playing attack1 animation on " + getColossusDisplayName(metadataKey) + ": " + entityId);
+            }
+        }.runTaskTimer(plugin, 0L, 40L); // Every 2 seconds (40 ticks)
+        
+        autoAnimationTasks.put(entityId, task);
+        return true;
+    }
+
+    /**
+     * Get a display name for a colossus type based on its metadata key
+     */
+    private String getColossusDisplayName(String metadataKey) {
+        switch (metadataKey) {
+            case "verdigran_colossus":
+                return "Verdigran Colossus";
+            case "duneetched_colossus":
+                return "Duneetched Colossus";
+            default:
+                return "Runemark Colossus";
+        }
     }
     
     /**

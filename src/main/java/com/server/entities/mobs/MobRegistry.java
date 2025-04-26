@@ -34,8 +34,10 @@ public class MobRegistry {
      * Register all custom mobs
      */
     private void registerMobs() {
-        // Add Runemark Colossus
+        // Add Colossus variants
         mobTypes.put("runemarkcolossus", new RunemarkColossus(plugin, entityManager));
+        mobTypes.put("verdigrancolossus", new VerdigranColossus(plugin, entityManager));
+        mobTypes.put("duneetchedcolossus", new DuneetchedColossus(plugin, entityManager));
         
         // Add more mobs as needed
         // mobTypes.put("ghost", new Ghost(plugin, entityManager));
