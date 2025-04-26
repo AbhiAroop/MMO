@@ -1,63 +1,72 @@
 package com.server.entities;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.attribute.Attribute;
+import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Mob;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Zombie;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import static org.bukkit.event.EventPriority.HIGHEST;
-import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.entities.mobs.MobRegistry;
 import com.ticxo.modelengine.api.ModelEngineAPI;
 import com.ticxo.modelengine.api.model.ActiveModel;
 import com.ticxo.modelengine.api.model.ModeledEntity;
 
+/**
+ * Manages custom entities with ModelEngine integration
+ */
 public class CustomEntityManager {
 
     private final Main plugin;
     private final Map<UUID, ModeledEntity> modeledEntities = new HashMap<>();
     private final Map<UUID, CustomMobStats> mobStats = new HashMap<>();
     private final Map<String, String> registeredModels = new HashMap<>();
+    private final Map<UUID, ArmorStand> nameplateStands = new HashMap<>();
+    private final Map<UUID, BukkitTask> customBehaviorTasks = new HashMap<>();
+    private final MobRegistry mobRegistry;
     
+    /**
+     * Create a new CustomEntityManager
+     * 
+     * @param plugin The plugin instance
+     */
     public CustomEntityManager(Main plugin) {
         this.plugin = plugin;
         
         // Register available models
         registerModels();
+        
+        // Create mob registry
+        this.mobRegistry = new MobRegistry(plugin, this);
     }
     
     /**
-     * Register available models
+     * Register available models with ModelEngine
      */
     private void registerModels() {
-        // Model ID format may need to match what ModelEngine expects
-        // Make sure these model IDs match exactly what's registered in ModelEngine
+        // Model ID format needs to match what ModelEngine expects
         registeredModels.put("golem_prismarine_gm_rain", "golem_prismarine_gm_rain");
-        
         // Add more models as needed
+    }
+    
+    /**
+     * Spawn a custom mob by type ID
+     * 
+     * @param mobTypeId The mob type ID
+     * @param location The location to spawn at
+     * @return The spawned entity
+     */
+    public LivingEntity spawnCustomMobByType(String mobTypeId, Location location) {
+        return mobRegistry.spawnMob(mobTypeId, location);
     }
     
     /**
@@ -85,92 +94,20 @@ public class CustomEntityManager {
         LivingEntity livingEntity = (LivingEntity) entity;
         
         try {
-            // Configure entity properties before applying model
-            if (livingEntity instanceof Zombie) {
-                ((Zombie) livingEntity).setBaby(false);
-                ((Zombie) livingEntity).setSilent(true);
-                ((Zombie) livingEntity).setAI(true);
-            }
-            
             // Common settings for all entity types
-            livingEntity.setSilent(true); // Make all custom entities silent
-            
-            // For Iron Golems specifically
-            if (type == EntityType.IRON_GOLEM) {
-                // Iron golems don't need special properties, 
-                // but we can make it invisible here generically
-                livingEntity.setInvisible(true);
-            }
+            livingEntity.setSilent(true);
             
             // Get the full model ID from our registered models
             String fullModelId = registeredModels.get(modelId);
             
-            // Create ModeledEntity and ActiveModel using the correct API method
-            // Note: We're adapting to whatever method signature the API has
-            try {
-                // Create ModeledEntity from the spawned entity - using static methods directly
-                ModeledEntity modeledEntity = ModelEngineAPI.createModeledEntity(livingEntity);
-                if (modeledEntity == null) {
-                    plugin.getLogger().severe("Failed to create ModeledEntity - API returned null");
-                    entity.remove();
-                    return null;
-                }
-                
-                // Create an active model - using static methods directly
-                ActiveModel activeModel = ModelEngineAPI.createActiveModel(fullModelId);
-                if (activeModel == null) {
-                    plugin.getLogger().severe("Failed to create ActiveModel for " + fullModelId + " - API returned null");
-                    entity.remove();
-                    return null;
-                }
-                
-                // Apply the model to the entity - try different method signatures
-                try {
-                    // First try the method with boolean parameter
-                    modeledEntity.addModel(activeModel, true);
-                } catch (NoSuchMethodError e1) {
-                    try {
-                        // Then try without the boolean
-                        modeledEntity.addModel(activeModel,false);
-                    } catch (NoSuchMethodError e2) {
-                        try {
-                            // Different method name perhaps
-                            modeledEntity.addModel(activeModel,true);
-                        } catch (NoSuchMethodError e3) {
-                            // Last resort - log the error and fail
-                            plugin.getLogger().severe("Could not find compatible method to add model to entity");
-                            plugin.getLogger().severe("ModelEngine API version mismatch");
-                            entity.remove();
-                            return null;
-                        }
-                    }
-                }
-                
-                // Store the modeled entity for later reference
-                modeledEntities.put(entity.getUniqueId(), modeledEntity);
-            } catch (NoSuchMethodError e) {
-                // Fallback for older ModelEngine versions
-                plugin.getLogger().warning("Using alternative ModelEngine API methods due to: " + e.getMessage());
-                
-                try {
-                    // Try static methods if they exist
-                    ModeledEntity modeledEntity = ModelEngineAPI.createModeledEntity(livingEntity);
-                    ActiveModel activeModel = ModelEngineAPI.createActiveModel(fullModelId);
-                    
-                    // Try to find the right method
-                    try {
-                        modeledEntity.addModel(activeModel, true);
-                    } catch (NoSuchMethodError e2) {
-                        modeledEntity.addModel(activeModel,false);
-                    }
-                    
-                    modeledEntities.put(entity.getUniqueId(), modeledEntity);
-                } catch (Exception | NoSuchMethodError e2) {
-                    plugin.getLogger().severe("Failed to create model using alternative methods: " + e2.getMessage());
-                    entity.remove();
-                    return null;
-                }
-            }
+            // Create ModeledEntity directly using ModelEngineAPI
+            ModeledEntity modeledEntity = ModelEngineAPI.createModeledEntity(entity);
+            ActiveModel activeModel = ModelEngineAPI.createActiveModel(fullModelId);
+            modeledEntity.addModel(activeModel, false);
+            modeledEntity.setBaseEntityVisible(false);
+            
+            // Store the ModeledEntity for future reference
+            modeledEntities.put(livingEntity.getUniqueId(), modeledEntity);
             
             // Set custom display name if provided
             if (customName != null && !customName.isEmpty()) {
@@ -178,7 +115,9 @@ public class CustomEntityManager {
                 livingEntity.setCustomNameVisible(true);
             }
             
-            plugin.getLogger().info("Spawned custom entity with model: " + modelId);
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Spawned custom entity with model: " + modelId);
+            }
             
             return livingEntity;
         } catch (Exception e) {
@@ -188,531 +127,69 @@ public class CustomEntityManager {
             return null;
         }
     }
-
+    
     /**
-     * Diagnose animation capabilities and log all available animations
-     * @param entity The entity to diagnose
+     * Register mob stats for an entity
+     * 
+     * @param entityId The entity UUID
+     * @param stats The mob stats
      */
-    public void diagnoseAnimations(LivingEntity entity) {
-        if (entity == null || !isCustomMob(entity)) {
-            plugin.getLogger().info("Entity is not a custom mob: " + (entity == null ? "null" : entity.getUniqueId()));
-            return;
-        }
-        
-        ModeledEntity modeledEntity = modeledEntities.get(entity.getUniqueId());
-        if (modeledEntity == null) {
-            plugin.getLogger().info("ModeledEntity not found for entity: " + entity.getUniqueId());
-            return;
-        }
-        
-        plugin.getLogger().info("Diagnosing animations for entity: " + entity.getUniqueId());
-        
-        try {
-            // Get all models
-            Map<String, ActiveModel> models = modeledEntity.getModels();
-            if (models == null || models.isEmpty()) {
-                plugin.getLogger().info("No models found for entity");
-                return;
-            }
-            
-            plugin.getLogger().info("Entity has " + models.size() + " models");
-            
-            for (Map.Entry<String, ActiveModel> entry : models.entrySet()) {
-                String modelId = entry.getKey();
-                ActiveModel model = entry.getValue();
-                
-                plugin.getLogger().info("Model ID: " + modelId);
-                
-                // Try to get animation handler
-                try {
-                    Object handler = model.getAnimationHandler();
-                    plugin.getLogger().info("  Has animation handler: " + (handler != null));
-                    
-                    // Try reflection to get available animations
-                    try {
-                        java.lang.reflect.Method getAnimationsMethod = handler.getClass().getMethod("getAnimations");
-                        Object result = getAnimationsMethod.invoke(handler);
-                        plugin.getLogger().info("  Available animations: " + result);
-                    } catch (Exception e) {
-                        plugin.getLogger().info("  Could not get animations list: " + e.getMessage());
-                    }
-                } catch (Exception e) {
-                    plugin.getLogger().info("  Error accessing animation handler: " + e.getMessage());
-                }
-                
-                // Try alternative methods to detect animation capabilities
-                try {
-                    java.lang.reflect.Method[] methods = model.getClass().getMethods();
-                    plugin.getLogger().info("  Model class has these methods:");
-                    for (java.lang.reflect.Method method : methods) {
-                        if (method.getName().contains("nim")) {  // "anim" would be in "animation"
-                            plugin.getLogger().info("    " + method.getName() + " " + java.util.Arrays.toString(method.getParameterTypes()));
-                        }
-                    }
-                } catch (Exception e) {
-                    plugin.getLogger().info("  Error listing methods: " + e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            plugin.getLogger().info("Error diagnosing animations: " + e.getMessage());
-            e.printStackTrace();
-        }
+    public void registerMobStats(UUID entityId, CustomMobStats stats) {
+        mobStats.put(entityId, stats);
     }
     
     /**
-     * Create a Runemark Colossus
+     * Update the entity's nameplate to display its stats
      * 
-     * @param location The location to spawn at
-     * @return The spawned entity
+     * @param entity The entity to update
      */
-    public LivingEntity spawnRunemarkColossus(Location location) {
-        // Changed entity type from ZOMBIE to IRON_GOLEM
-        LivingEntity entity = spawnCustomMob(EntityType.IRON_GOLEM, location, "golem_prismarine_gm_rain", "§6Runemark Colossus");
+    public void updateEntityNameplate(LivingEntity entity) {
+        CustomMobStats stats = mobStats.get(entity.getUniqueId());
+        if (stats == null) return;
         
-        if (entity != null) {
-            // Create and apply custom stats
-            CustomMobStats stats = new CustomMobStats();
-            stats.setHealth(100);
-            stats.setMaxHealth(100);
-            stats.setPhysicalDamage(10);
-            stats.setArmor(50);
-            stats.setLevel(5);
-            stats.setMobType(MobType.ELITE);
-            stats.setName("Runemark Colossus");
-            stats.setHasCustomAbilities(true);
-            stats.setAttackSpeed(1.0); // 1 attack per second
-            
-            // Apply the stats to the entity
-            try {
-                // Use Bukkit's attribute system
-                entity.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(stats.getMaxHealth());
-                entity.setHealth(stats.getHealth());
-                
-                // Important: Set attack damage to 0 to prevent ANY damage from normal attacks
-                if (entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE) != null) {
-                    entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(0);
-                }
-                
-                // Make the base entity invisible but ensure the nameplate is shown
-                entity.setInvisible(true);
-                
-                // COMPLETELY PASSIVE IRON GOLEM - No native attacks at all
-                if (entity instanceof IronGolem) {
-                    // Mark the golem as player-created to prevent hostile behavior
-                    ((IronGolem) entity).setPlayerCreated(true);
-                    
-                    // Set custom metadata to identify it as our custom entity
-                    entity.setMetadata("runemark_colossus", new FixedMetadataValue(plugin, true));
-                    entity.setMetadata("custom_follow_only", new FixedMetadataValue(plugin, true));
-                    
-                    // Prevent targeting any entity (including non-players)
-                    ((Mob) entity).setTarget(null);
-                    
-                    // A more aggressive approach to make sure it doesn't attack at all:
-                    // Register a global event listener that cancels ALL damage from this entity
-                    try {
-                        final UUID entityId = entity.getUniqueId();
-                        
-                        plugin.getServer().getPluginManager().registerEvents(new Listener() {
-                            @EventHandler(priority = EventPriority.LOWEST)
-                            public void onEntityDamageByColossus(EntityDamageByEntityEvent event) {
-                                // If this specific Colossus is dealing damage through vanilla mechanics,
-                                // cancel it completely - we handle damage application manually
-                                if (event.getDamager().getUniqueId().equals(entityId)) {
-                                    // Only cancel damage from normal attacks, not our custom damage
-                                    if (!event.getCause().equals(EntityDamageEvent.DamageCause.CUSTOM)) {
-                                        // Cancel the damage event completely
-                                        event.setCancelled(true);
-                                        plugin.getLogger().info("Cancelled native attack from Runemark Colossus");
-                                    }
-                                }
-                            }
-                        }, plugin);
-                        
-                        // The existing damage prevention events
-                        plugin.getServer().getPluginManager().registerEvents(new Listener() {
-                            @EventHandler(priority = HIGHEST)
-                            public void onColossusHurt(EntityDamageByEntityEvent event) {
-                                if (event.getEntity().getUniqueId().equals(entityId)) {
-                                    // If this specific Colossus is hurt, prevent it from targeting the damager
-                                    if (event.getEntity() instanceof Mob) {
-                                        Mob mob = (Mob) event.getEntity();
-                                        
-                                        // Force it not to target due to being hurt
-                                        plugin.getServer().getScheduler().runTask(plugin, () -> {
-                                            // Let our custom AI handle targeting
-                                            mob.setTarget(null);
-                                        });
-                                    }
-                                }
-                            }
-                        }, plugin);
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("Could not register event handlers: " + e.getMessage());
-                    }
-                    
-                    try {
-                        // Access NMS classes with reflection to remove its attack goals
-                        Object craftEntity = entity.getClass().getMethod("getHandle").invoke(entity);
-                        
-                        // Access the goalSelector field
-                        Field goalSelectorField = null;
-                        Field targetSelectorField = null;
-                        
-                        for (Field field : craftEntity.getClass().getSuperclass().getDeclaredFields()) {
-                            if (field.getType().getSimpleName().contains("PathfinderGoalSelector")) {
-                                field.setAccessible(true);
-                                
-                                // There are typically two PathfinderGoalSelector fields:
-                                // - one for general goals (movement, etc.)
-                                // - one for target selection goals
-                                if (goalSelectorField == null) {
-                                    goalSelectorField = field;
-                                } else {
-                                    targetSelectorField = field;
-                                }
-                            }
-                        }
-                        
-                        // Clear the target selector goals first (prevents targeting anything)
-                        if (targetSelectorField != null) {
-                            Object targetSelector = targetSelectorField.get(craftEntity);
-                            
-                            // Get the 'goals' Set field inside targetSelector
-                            Field goalsField = null;
-                            for (Field field : targetSelector.getClass().getDeclaredFields()) {
-                                if (field.getType().equals(Set.class)) {
-                                    field.setAccessible(true);
-                                    goalsField = field;
-                                    break;
-                                }
-                            }
-                            
-                            if (goalsField != null) {
-                                // Get the Set<PathfinderGoalWrapper>
-                                Set<?> availableTargetGoals = (Set<?>) goalsField.get(targetSelector);
-                                
-                                // Clear all targeting goals
-                                availableTargetGoals.clear();
-                                plugin.getLogger().info("Successfully cleared entity target goals for Runemark Colossus");
-                            }
-                        }
-                        
-                        // Now clear the regular goals (or just attack goals if we could)
-                        if (goalSelectorField != null) {
-                            Object goalSelector = goalSelectorField.get(craftEntity);
-                            
-                            // Get the 'goals' Set field inside goalSelector
-                            Field goalsField = null;
-                            for (Field field : goalSelector.getClass().getDeclaredFields()) {
-                                if (field.getType().equals(Set.class)) {
-                                    field.setAccessible(true);
-                                    goalsField = field;
-                                    break;
-                                }
-                            }
-                            
-                            if (goalsField != null) {
-                                // Get the Set<PathfinderGoalWrapper>
-                                Set<?> availableGoals = (Set<?>) goalsField.get(goalSelector);
-                                
-                                // Clear all goals - we will handle movement ourselves
-                                availableGoals.clear();
-                                plugin.getLogger().info("Successfully cleared entity goals for Runemark Colossus");
-                            }
-                        }
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("Could not modify golem AI via NMS: " + e.getMessage());
-                        if (plugin.isDebugMode()) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                
-                // Keep base AI on but prevent attack AI
-                entity.setAI(true);
-                
-                // Start custom follow and attack behavior for this entity
-                startCustomFollowBehavior(entity, stats);
-                
-                // Make movement slightly slower
-                if (entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED) != null) {
-                    entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).setBaseValue(0.22);
-                }
-                
-                // Make it fireproof and prevent despawning
-                entity.setRemoveWhenFarAway(false);
-                entity.setFireTicks(0);
-                
-                // Store the stats for later reference
-                mobStats.put(entity.getUniqueId(), stats);
-                
-                // Update the display name
-                updateEntityNameplate(entity);
-                
-                // Play idle animation after spawning
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                    playAnimation(entity, "idle");
-                }, 5L);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Error setting entity attributes: " + e.getMessage());
-            }
+        // Format: [Lv.5] ❈ Runemark Colossus ❤ 100/100
+        String prefix;
+        switch (stats.getMobType()) {
+            case ELITE:
+                prefix = "§6❈";
+                break;
+            case BOSS:
+                prefix = "§4☠";
+                break;
+            case MINIBOSS:
+                prefix = "§c✵";
+                break;
+            default:
+                prefix = "§c❈";
+                break;
         }
         
-        return entity;
-    }
-
-    /**
-     * Start custom follow and attack behavior for a Runemark Colossus
-     * 
-     * @param entity The entity to apply behavior to
-     * @param stats The entity's stats
-     */
-    private void startCustomFollowBehavior(LivingEntity entity, CustomMobStats stats) {
-        // Track whether an attack animation is currently playing
-        entity.setMetadata("attack_cooldown", new FixedMetadataValue(plugin, false));
+        String displayName = String.format("§7[Lv.%d] %s §f%s §c❤ %.1f/%.1f",
+                stats.getLevel(), 
+                prefix, 
+                stats.getName(),
+                entity.getHealth(),
+                stats.getMaxHealth());
         
-        // Start a task to handle custom follow behavior
-        BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            // If entity is dead or no longer valid, cancel task
-            if (!entity.isValid() || entity.isDead()) {
-                return;
-            }
-            
-            // Check if we are on attack cooldown
-            boolean onCooldown = entity.hasMetadata("attack_cooldown") ? 
-                                entity.getMetadata("attack_cooldown").get(0).asBoolean() : false;
-            
-            // Find closest player within 15 blocks
-            Player targetPlayer = null;
-            double closestDistance = 15.0;
-            
-            for (Entity nearby : entity.getNearbyEntities(15, 15, 15)) {
-                if (nearby instanceof Player) {
-                    Player player = (Player) nearby;
-                    
-                    // Skip players in creative/spectator mode
-                    if (player.getGameMode() == GameMode.CREATIVE || 
-                        player.getGameMode() == GameMode.SPECTATOR) {
-                        continue;
-                    }
-                    
-                    double distance = entity.getLocation().distance(player.getLocation());
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        targetPlayer = player;
-                    }
-                }
-            }
-            
-            // If we found a player to follow
-            if (targetPlayer != null) {
-                Player player = targetPlayer;
-                
-                // If within attack range (5 blocks) and not on cooldown, attack
-                if (closestDistance <= 5.0 && !onCooldown) {
-                    // Set cooldown flag
-                    entity.setMetadata("attack_cooldown", new FixedMetadataValue(plugin, true));
-                    
-                    // Look at the player
-                    Location lookLoc = entity.getLocation().clone();
-                    lookLoc.setDirection(player.getLocation().subtract(entity.getLocation()).toVector());
-                    entity.teleport(lookLoc);
-                    
-                    // Play attack animation
-                    playAnimation(entity, "attack1");
-                    plugin.getLogger().info("Runemark Colossus playing attack1 animation at player: " + player.getName());
-                    
-                    // Deal damage after a delay to match animation
-                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                        if (entity.isValid() && !entity.isDead() && player.isOnline()) {
-                            // Check if still in range
-                            if (entity.getLocation().distance(player.getLocation()) <= 7.0) {
-                                // Get the exact physical damage from stats
-                                double damage = stats.getPhysicalDamage();
-                                
-                                // We need to apply damage directly to ensure the right amount
-                                // Use the CUSTOM cause to avoid our own damage cancellation
-                                EntityDamageEvent customDamageEvent = new EntityDamageEvent(
-                                    player, 
-                                    EntityDamageEvent.DamageCause.CUSTOM,
-                                    damage
-                                );
-                                plugin.getServer().getPluginManager().callEvent(customDamageEvent);
-                                
-                                if (!customDamageEvent.isCancelled()) {
-                                    // Apply the damage directly to the player
-                                    double finalDamage = customDamageEvent.getFinalDamage();
-                                    player.damage(finalDamage);
-                                    
-                                    // Ensure damage attribution - this will set the entity as the last damager
-                                    try {
-                                        // Use reflection to get access to CraftLivingEntity's setLastDamager method
-                                        Method setLastDamager = player.getClass().getDeclaredMethod("setLastDamager", org.bukkit.entity.Entity.class);
-                                        setLastDamager.setAccessible(true);
-                                        setLastDamager.invoke(player, entity);
-                                    } catch (Exception e) {
-                                        // If reflection fails, do a tiny amount of direct damage for attribution
-                                        player.damage(0.0, entity);
-                                    }
-                                    
-                                    // Add visual effects
-                                    player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
-                                    player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
-                                            player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
-                                    
-                                    if (plugin.isDebugMode()) {
-                                        plugin.getLogger().info("Runemark Colossus hit " + player.getName() + 
-                                                " for " + finalDamage + " damage (stats say: " + damage + ")");
-                                    }
-                                }
-                            }
-                        }
-                    }, 30L); // 0.75 seconds delay to sync with animation
-                    
-                    // Reset cooldown after attack animation completes (1.5 seconds)
-                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                        entity.setMetadata("attack_cooldown", new FixedMetadataValue(plugin, false));
-                    }, 30L); // 1.5 seconds cooldown
-                }
-                // If not in attack range, follow the player
-                else if (closestDistance > 2.0) {
-                    // Use Bukkit's pathfinding to follow the player
-                    if (entity instanceof Mob) {
-                        Mob mob = (Mob) entity;
-                        mob.getPathfinder().moveTo(player.getLocation(), 1.0);
-                    }
-                }
-            }
-        }, 10L, 10L); // Check every half second (10 ticks)
-        
-        // Store the task so we can cancel it later
+        // Use a separate ArmorStand for the nameplate
         UUID entityId = entity.getUniqueId();
-        customBehaviorTasks.put(entityId, task);
-    }
-
-// Map to track custom behavior tasks
-private final Map<UUID, BukkitTask> customBehaviorTasks = new HashMap<>();
-
-    /**
-     * Play a special ability animation and sound
-     * 
-     * @param entity The entity to play the special ability for
-     * @param abilityIndex The index of the ability to use (1, 2, 3, etc.)
-     */
-    public void playSpecialAbility(LivingEntity entity, int abilityIndex) {
-        if (!isCustomMob(entity)) return;
         
-        CustomMobStats stats = getMobStats(entity);
-        if (stats == null || !stats.hasCustomAbilities()) return;
-        
-        // Get the entity ID
-        UUID entityId = entity.getUniqueId();
-        ModeledEntity modeledEntity = modeledEntities.get(entityId);
-        if (modeledEntity == null) return;
-        
-        String animationName;
-        String mobName = stats.getName();
-        
-        // Determine which animation to play based on mob type and ability index
-        if (mobName.equals("Runemark Colossus")) {
-            switch (abilityIndex) {
-                case 1:
-                    animationName = "special1"; // Ground slam
-                    entity.getWorld().playSound(entity.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1.0f, 0.5f);
-                    break;
-                case 2:
-                    animationName = "special2"; // Energy beam
-                    entity.getWorld().playSound(entity.getLocation(), org.bukkit.Sound.ENTITY_ILLUSIONER_PREPARE_MIRROR, 1.0f, 0.8f);
-                    break;
-                default:
-                    animationName = "attack"; // Default attack
-                    entity.getWorld().playSound(entity.getLocation(), org.bukkit.Sound.ENTITY_IRON_GOLEM_ATTACK, 1.0f, 1.0f);
-                    break;
-            }
-        } else {
-            // Default for other mobs
-            animationName = "attack";
-            entity.getWorld().playSound(entity.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, 1.0f, 1.0f);
-        }
-        
-        // Play the animation
-        playAnimation(entity, animationName);
-    }
-
-    /**
-     * Schedule periodic nameplate refreshes for an entity
-     * This helps ensure the nameplate remains visible
-     */
-    private void scheduleNameplateRefresh(LivingEntity entity) {
-        plugin.getServer().getScheduler().runTaskTimer(plugin, task -> {
-            if (!entity.isValid() || entity.isDead()) {
-                task.cancel();
-                return;
-            }
-            
-            // Refresh the nameplate
-            updateEntityNameplate(entity);
-        }, 20L, 100L); // Initial delay 1 second, then every 5 seconds
-    }
-    
-    /**
- * Update the entity's nameplate to display its stats
- * 
- * @param entity The entity to update
- */
-public void updateEntityNameplate(LivingEntity entity) {
-    CustomMobStats stats = mobStats.get(entity.getUniqueId());
-    if (stats == null) return;
-    
-    // Format: [Lv.5] ❈ Runemark Colossus ❤ 100/100
-    String prefix;
-    switch (stats.getMobType()) {
-        case ELITE:
-            prefix = "§6❈";
-            break;
-        case BOSS:
-            prefix = "§4☠";
-            break;
-        case MINIBOSS:
-            prefix = "§c✵";
-            break;
-        default:
-            prefix = "§c❈";
-            break;
-    }
-    
-    String displayName = String.format("§7[Lv.%d] %s §f%s §c❤ %.1f/%.1f",
-            stats.getLevel(), 
-            prefix, 
-            stats.getName(),
-            entity.getHealth(),
-            stats.getMaxHealth());
-    
-    // Use a separate ArmorStand for the nameplate
-    UUID entityId = entity.getUniqueId();
-    
-    // Check if we already have a nameplate ArmorStand for this entity
-    if (!nameplateStands.containsKey(entityId)) {
-        // Create a new ArmorStand for the nameplate
-        createNameplateStand(entity, displayName);
-    } else {
-        // Update the existing ArmorStand
-        ArmorStand stand = nameplateStands.get(entityId);
-        if (stand != null && stand.isValid() && !stand.isDead()) {
-            stand.setCustomName(displayName);
-        } else {
-            // Stand no longer valid, create a new one
+        // Check if we already have a nameplate ArmorStand for this entity
+        if (!nameplateStands.containsKey(entityId)) {
+            // Create a new ArmorStand for the nameplate
             createNameplateStand(entity, displayName);
+        } else {
+            // Update the existing ArmorStand
+            ArmorStand stand = nameplateStands.get(entityId);
+            if (stand != null && stand.isValid() && !stand.isDead()) {
+                stand.setCustomName(displayName);
+            } else {
+                // Stand is gone but entity exists, create a new one
+                createNameplateStand(entity, displayName);
+            }
         }
     }
-}
-
-    /**
-     * Map to track nameplate ArmorStands for each entity
-     */
-    private final Map<UUID, ArmorStand> nameplateStands = new HashMap<>();
-
+    
     /**
      * Create a nameplate ArmorStand for an entity
      */
@@ -754,7 +231,7 @@ public void updateEntityNameplate(LivingEntity entity) {
             stand.teleport(entity.getLocation().add(0, entity.getHeight() + 0.25, 0));
         }, 1L, 1L); // Update every tick for smooth following
     }
-
+    
     /**
      * Remove a nameplate ArmorStand
      */
@@ -764,7 +241,7 @@ public void updateEntityNameplate(LivingEntity entity) {
             stand.remove();
         }
     }
-
+    
     /**
      * Clean up resources
      */
@@ -799,7 +276,7 @@ public void updateEntityNameplate(LivingEntity entity) {
         nameplateStands.clear();
         customBehaviorTasks.clear();
     }
-
+    
     /**
      * Remove tracking for an entity
      */
@@ -855,18 +332,7 @@ public void updateEntityNameplate(LivingEntity entity) {
     }
     
     /**
-     * Get the ModeledEntity for an entity
-     * 
-     * @param entity The entity
-     * @return The ModeledEntity or null if not found
-     */
-    public ModeledEntity getModeledEntity(Entity entity) {
-        if (entity == null) return null;
-        return modeledEntities.get(entity.getUniqueId());
-    }
-
-    /**
-     * Play an animation on a custom mob with more reliable animation triggering
+     * Play an animation on a custom mob
      * 
      * @param entity The entity to play the animation on
      * @param animationName The name of the animation to play
@@ -876,151 +342,27 @@ public void updateEntityNameplate(LivingEntity entity) {
         
         ModeledEntity modeledEntity = modeledEntities.get(entity.getUniqueId());
         if (modeledEntity == null) return;
-
-        // Log attempt to play animation
-        plugin.getLogger().info("Attempting to play animation '" + animationName + "' on entity " + entity.getUniqueId());
         
-        // Direct approach using ModelEngine API specific to your version
         try {
-            // Get all models
-            for (ActiveModel model : modeledEntity.getModels().values()) {
-                try {
-                    // Convert animation name for Runemark Colossus if needed
-                    String finalAnimName = animationName;
-                    if (entity.hasMetadata("runemark_colossus")) {
-                        // Convert any "attack" to "attack1" for this specific entity
-                        if (animationName.equals("attack")) {
-                            finalAnimName = "attack1";
-                        }
-                        plugin.getLogger().info("Runemark Colossus using animation: " + finalAnimName);
-                    }
-                    
-                    // Direct approach - using ModelEngine API method
-                    model.getAnimationHandler().playAnimation(finalAnimName, 1.0, 1.0, 1.0, true);
-                    plugin.getLogger().info("Successfully played animation '" + finalAnimName + "' on entity " + entity.getUniqueId());
-                    return;
-                } catch (NoSuchMethodError methodError) {
-                    plugin.getLogger().warning("Method error trying to play animation: " + methodError.getMessage());
-                    // Try fallback methods
-                }
-            }
-            
-            // If we reach here, the direct approach failed, use an alternative
+            // Try to play the animation on all models
             for (Map.Entry<String, ActiveModel> entry : modeledEntity.getModels().entrySet()) {
                 ActiveModel model = entry.getValue();
-                
-                // Convert animation name for Runemark Colossus if needed
-                String finalAnimName = animationName;
-                if (entity.hasMetadata("runemark_colossus")) {
-                    if (animationName.equals("attack")) {
-                        finalAnimName = "attack1";
-                    }
-                }
-                
-                // Fallback 1: Try animation handler
                 try {
-                    // Use the correct method signature with appropriate parameters
-                    model.getAnimationHandler().playAnimation(finalAnimName, 1.0, 1.0, 1.0, true);
-                    plugin.getLogger().info("Played animation via handler");
+                    model.getAnimationHandler().playAnimation(animationName, 1.0, 1.0, 1.0, true);
                     return;
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Animation handler failed: " + e.getMessage());
-                }
-                
-                // Fallback 2: Try via reflection
-                try {
-                    Object animHandler = model.getAnimationHandler();
-                    java.lang.reflect.Method method = animHandler.getClass().getDeclaredMethod("playAnimation", String.class);
-                    method.setAccessible(true);
-                    method.invoke(animHandler, finalAnimName);
-                    plugin.getLogger().info("Played animation via reflection");
-                    return;
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Reflection approach failed: " + e.getMessage());
-                }
-            }
-            
-            // Final fallback - try a completely different approach using ModelEngine API
-            try {
-                // Get the first model and try to play the animation through its handler
-                if (!modeledEntity.getModels().isEmpty()) {
-                    ActiveModel firstModel = modeledEntity.getModels().values().iterator().next();
-                    firstModel.getAnimationHandler().playAnimation(animationName, 1.0, 1.0, 1.0, true);
-                    plugin.getLogger().info("Played animation via first model's animation handler");
-                } else {
-                    plugin.getLogger().warning("No models found to play animation");
-                }
-            } catch (Exception e) {
-                plugin.getLogger().severe("All animation approaches failed: " + e.getMessage());
-            }
-        } catch (Exception e) {
-            plugin.getLogger().severe("Error playing animation: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Stop an animation on a custom mob
-     * 
-     * @param entity The entity to stop the animation on
-     * @param animationName The name of the animation to stop
-     */
-    public void stopAnimation(LivingEntity entity, String animationName) {
-        if (entity == null || !isCustomMob(entity)) return;
-        
-        ModeledEntity modeledEntity = modeledEntities.get(entity.getUniqueId());
-        if (modeledEntity == null) return;
-        
-        try {
-            // Similar approach to playAnimation but for stopping
-            if (modeledEntity.getModels() != null && !modeledEntity.getModels().isEmpty()) {
-                for (Map.Entry<String, ActiveModel> entry : modeledEntity.getModels().entrySet()) {
-                    ActiveModel model = entry.getValue();
-                    try {
-                        // Try different ways to stop animations
-                        try {
-                            // Try direct access to animation handler
-                            model.getAnimationHandler().stopAnimation(animationName);
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info("Stopped animation '" + animationName + "' using handler on entity " + entity.getUniqueId());
-                            }
-                            return;
-                        } catch (NoSuchMethodError | NullPointerException e1) {
-                            try {
-                                // First try to find if there's a direct method
-                                java.lang.reflect.Method method = model.getClass().getMethod("stopAnimation", String.class);
-                                method.invoke(model, animationName);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Stopped animation '" + animationName + "' using reflection on entity " + entity.getUniqueId());
-                                }
-                                return;
-                            } catch (Exception e2) {
-                                // Try alternative method names
-                                try {
-                                    model.getClass().getMethod("cancelAnimation", String.class).invoke(model, animationName);
-                                    if (plugin.isDebugMode()) {
-                                        plugin.getLogger().info("Cancelled animation '" + animationName + "' on entity " + entity.getUniqueId());
-                                    }
-                                    return;
-                                } catch (Exception e3) {
-                                    plugin.getLogger().warning("Failed to stop animation: No compatible method found in this ModelEngine version");
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("Error with model animation: " + e.getMessage());
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().warning("Error playing animation: " + e.getMessage());
                     }
                 }
-            } else {
-                plugin.getLogger().warning("No models found for entity " + entity.getUniqueId());
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error stopping animation '" + animationName + "': " + e.getMessage());
+            plugin.getLogger().warning("Failed to play animation: " + e.getMessage());
         }
     }
-
+    
     /**
-     * Play a death animation and handle death sequence for a custom mob
+     * Handle death sequence for a custom mob
      * 
      * @param entity The entity that died
      */
@@ -1034,23 +376,48 @@ public void updateEntityNameplate(LivingEntity entity) {
         entity.setAI(false);
         entity.setInvulnerable(true);
         
-        // Special handling for Runemark Colossus
-        boolean isColossus = entity.hasMetadata("runemark_colossus");
-        
         // Schedule removal of the entity after the animation completes
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            // Force remove the base entity immediately to prevent any lingering effects
             if (entity.isValid()) {
-                // Make sure the entity is completely removed from the world
                 entity.remove();
-                if (isColossus) {
-                    plugin.getLogger().info("Removed Runemark Colossus base entity");
-                }
             }
             
             // Clean up tracking for our custom systems
             removeTracking(entity.getUniqueId());
-        }, isColossus ? 60L : 40L); // 3 seconds for Colossus, 2 seconds for other entities
+        }, 40L); // 2 seconds
+    }
+
+    /**
+     * Plays a special ability animation/effect for a custom mob
+     * @param entity The living entity performing the ability
+     * @param abilityIndex The index of the ability to play (1 or 2)
+     */
+    public void playSpecialAbility(LivingEntity entity, int abilityIndex) {
+        // Implementation depends on your needs
+        // Example implementation:
+        if (entity == null) return;
+        
+        // Play particles and sounds based on ability
+        Location loc = entity.getLocation();
+        World world = entity.getWorld();
+        
+        if (abilityIndex == 1) {
+            // Ability 1 effects
+            world.spawnParticle(Particle.EXPLOSION, loc, 5, 0.5, 0.5, 0.5, 0.1);
+            world.playSound(loc, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
+        } else {
+            // Ability 2 effects
+            world.spawnParticle(Particle.WITCH, loc, 20, 0.5, 1.0, 0.5, 0.1);
+            world.playSound(loc, Sound.ENTITY_ILLUSIONER_PREPARE_MIRROR, 1.0f, 1.0f);
+        }
     }
     
+    /**
+     * Get the mob registry
+     * 
+     * @return The mob registry
+     */
+    public MobRegistry getMobRegistry() {
+        return mobRegistry;
+    }
 }

@@ -1,5 +1,10 @@
 package com.server.commands;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -8,14 +13,9 @@ import org.bukkit.entity.Player;
 
 import com.server.Main;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 public class SpawnCustomMobCommand implements CommandExecutor, TabCompleter {
 
     private final Main plugin;
-    private final List<String> mobTypes = Arrays.asList("runemarkcolossus");
     
     public SpawnCustomMobCommand(Main plugin) {
         this.plugin = plugin;
@@ -44,14 +44,11 @@ public class SpawnCustomMobCommand implements CommandExecutor, TabCompleter {
         
         String mobType = args[0].toLowerCase();
         
-        switch (mobType) {
-            case "runemarkcolossus":
-                plugin.getCustomEntityManager().spawnRunemarkColossus(player.getLocation());
-                player.sendMessage("§aSpawned a Runemark Colossus.");
-                break;
-            default:
-                player.sendMessage("§cUnknown mob type: " + mobType);
-                return true;
+        // Spawn the mob
+        if (plugin.getCustomEntityManager().spawnCustomMobByType(mobType, player.getLocation()) != null) {
+            player.sendMessage("§aSpawned a " + mobType + ".");
+        } else {
+            player.sendMessage("§cUnknown mob type: " + mobType);
         }
         
         return true;
@@ -60,14 +57,15 @@ public class SpawnCustomMobCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length == 1) {
-            List<String> completions = new ArrayList<>();
-            for (String mobType : mobTypes) {
-                if (mobType.startsWith(args[0].toLowerCase())) {
-                    completions.add(mobType);
-                }
-            }
-            return completions;
+            // Get all registered mob types from the registry
+            Map<String, ?> mobTypes = plugin.getCustomEntityManager().getMobRegistry().getMobTypes();
+            
+            // Return matching mob types
+            String prefix = args[0].toLowerCase();
+            return mobTypes.keySet().stream()
+                    .filter(type -> type.startsWith(prefix))
+                    .collect(Collectors.toList());
         }
-        return null;
+        return new ArrayList<>();
     }
 }

@@ -1,11 +1,11 @@
 com\server\abilities\AbilityManager.class
-com\server\entities\CustomEntityManager$2.class
 com\server\commands\DebugCommand.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
 com\server\cosmetics\CosmeticManager.class
 com\server\commands\CosmeticCommand.class
 com\server\events\CustomMobListener.class
+com\server\entities\mobs\CustomMob$1.class
 com\server\profiles\skills\PlayerSkills.class
 com\server\events\CombatListener$1.class
 com\server\events\PlayerListener$6.class
@@ -27,9 +27,9 @@ com\server\profiles\stats\StatScanManager$1.class
 com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
 com\server\abilities\AbilityManager$3$1.class
+com\server\entities\mobs\RunemarkColossus.class
 com\server\profiles\skills\SkillType.class
 com\server\display\DamageIndicatorManager$2.class
-com\server\entities\CustomEntityManager$3.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\gui\ProfileGUI.class
 com\server\events\AutoRespawnListener.class
@@ -51,6 +51,7 @@ com\server\Main.class
 com\server\events\ItemListener.class
 com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
+com\server\entities\mobs\MobRegistry.class
 com\server\events\PlayerListener$1.class
 com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
@@ -58,9 +59,11 @@ com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\commands\CurrencyCommand$1.class
 com\server\display\MobDisplayManager.class
 com\server\commands\StatsCommand.class
+com\server\entities\mobs\CustomMob$1$1.class
 com\server\events\PlayerListener$4.class
 com\server\cosmetics\CosmeticManager$1.class
 com\server\entities\CustomMobStats.class
+com\server\entities\mobs\CustomMob$2.class
 com\server\entities\CustomEntityManager$1.class
 com\server\items\CustomItems.class
 com\server\commands\AnimationDebugCommand$1.class
@@ -74,7 +77,8 @@ com\server\display\ScoreboardManager$2.class
 com\server\events\AutoRespawnListener$1.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\MenuCommand.class
-com\server\events\CustomMobListener$3.class
+com\server\entities\mobs\CustomMob.class
+com\server\entities\mobs\RunemarkColossus$1.class
 com\server\profiles\ProfileManager.class
 com\server\events\PlayerListener$3.class
 com\server\events\AbilityListener.class

@@ -4,11 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Particle;
-import org.bukkit.Sound;
-import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -25,18 +21,22 @@ import com.server.entities.CustomMobStats;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
+/**
+ * Handles events related to custom mobs
+ */
 public class CustomMobListener implements Listener {
-
+    
     private final Main plugin;
     private final Map<UUID, BukkitTask> attackTasks = new HashMap<>();
     private final Map<UUID, Long> lastAttackTime = new HashMap<>();
-    private static final int ATTACK_COOLDOWN = 20; // ticks between attacks (1 second)
-    private static final double ATTACK_RANGE = 3.0; // blocks
     
     public CustomMobListener(Main plugin) {
         this.plugin = plugin;
     }
     
+    /**
+     * Handle general damage to custom mobs
+     */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof LivingEntity)) return;
@@ -56,134 +56,16 @@ public class CustomMobListener implements Listener {
             }.runTaskLater(plugin, 1L);
             
             // For proper visual feedback, play hurt animation when mob takes damage
+            // Note: This is now handled by the individual custom mob classes for specific behaviors
+            // But we'll keep this as a fallback for general damage events
             if (!entity.isDead()) {
                 plugin.getCustomEntityManager().playAnimation(entity, "hurt");
-                entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_IRON_GOLEM_HURT, 0.7f, 1.0f);
             }
         }
     }
     
-   @EventHandler(priority = EventPriority.NORMAL)
-    public void onEntityTarget(EntityTargetEvent event) {
-        if (!(event.getEntity() instanceof LivingEntity)) return;
-        if (!(event.getTarget() instanceof Player)) return;
-        
-        LivingEntity entity = (LivingEntity) event.getEntity();
-        Player player = (Player) event.getTarget();
-
-        // Skip Runemark Colossus entities - they have their own custom behavior
-        if (entity.hasMetadata("runemark_colossus")) {
-            event.setCancelled(true);
-            return;
-        }
-        
-        // Check if it's a custom mob
-        if (plugin.getCustomEntityManager().isCustomMob(entity)) {
-            // Disable vanilla AI attacks for custom mobs
-            event.setCancelled(true);
-            
-            UUID entityId = entity.getUniqueId();
-            
-            // Already has an attack task running
-            if (attackTasks.containsKey(entityId)) {
-                return;
-            }
-            
-            // Get mob stats
-            CustomMobStats stats = plugin.getCustomEntityManager().getMobStats(entity);
-            if (stats == null) return;
-            
-            // Calculate attack cooldown based on attack speed
-            int attackCooldownTicks = (int)(ATTACK_COOLDOWN / stats.getAttackSpeed());
-            
-            // Start a new attack cycle
-            BukkitTask task = new BukkitRunnable() {
-                @Override
-                public void run() {
-                    // Cancel if entity or player is gone
-                    if (!entity.isValid() || entity.isDead() || !player.isOnline()) {
-                        attackTasks.remove(entityId);
-                        this.cancel();
-                        return;
-                    }
-                    
-                    // Check if entity is within attack range of player
-                    double distance = entity.getLocation().distance(player.getLocation());
-                    if (distance <= ATTACK_RANGE) {
-                        // Check cooldown
-                        long currentTime = System.currentTimeMillis();
-                        if (!lastAttackTime.containsKey(entityId) || 
-                            currentTime - lastAttackTime.get(entityId) >= attackCooldownTicks * 50) {
-                            
-                            // Look at player before attacking
-                            entity.teleport(entity.getLocation().setDirection(
-                                player.getLocation().subtract(entity.getLocation()).toVector()));
-                            
-                            // Special handling for Runemark Colossus
-                            if (entity.hasMetadata("runemark_colossus")) {
-                                plugin.getLogger().info("Runemark Colossus initiating attack1 animation");
-                                
-                                // Force a specific animation for Runemark Colossus
-                                // This animation will be directly passed to the model engine
-                                plugin.getCustomEntityManager().playAnimation(entity, "attack1");
-                                
-                                // Delayed damage application to sync with animation
-                                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                                    if (entity.isValid() && !entity.isDead() && player.isOnline()) {
-                                        // Only apply damage if player is still in range
-                                        double currentDistance = entity.getLocation().distance(player.getLocation());
-                                        if (currentDistance <= ATTACK_RANGE) {
-                                            // Apply damage to player
-                                            double damage = stats.getPhysicalDamage();
-                                            player.damage(damage, entity);
-                                            
-                                            // Visual and sound effects
-                                            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
-                                            player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
-                                                    player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
-                                            player.getWorld().spawnParticle(Particle.CRIT, 
-                                                player.getLocation().add(0, 1, 0), 
-                                                10, 0.3, 0.3, 0.3, 0.2);
-                                            
-                                            plugin.getLogger().info("Runemark Colossus successfully damaged player for " + damage);
-                                        }
-                                    }
-                                }, 20L); // 1 second delay for Runemark Colossus's attack animation
-                            } else {
-                                // Generic attack for other custom mobs
-                                String attackAnimation = "attack1";
-                                plugin.getCustomEntityManager().playAnimation(entity, attackAnimation);
-                                
-                                // Standard delay for other mobs
-                                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                                    if (entity.isValid() && !entity.isDead() && player.isOnline()) {
-                                        double currentDistance = entity.getLocation().distance(player.getLocation());
-                                        if (currentDistance <= ATTACK_RANGE) {
-                                            double damage = stats.getPhysicalDamage();
-                                            player.damage(damage, entity);
-                                            
-                                            // Basic effects
-                                            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
-                                            player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
-                                                    player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
-                                        }
-                                    }
-                                }, 10L);
-                            }
-                            
-                            // Update cooldown
-                            lastAttackTime.put(entityId, currentTime);
-                        }
-                    }
-                }
-            }.runTaskTimer(plugin, 0L, 5L); // Check every 5 ticks (0.25 seconds)
-            
-            attackTasks.put(entityId, task);
-        }
-    }
-
     /**
-     * Handle when player attacks a custom mob
+     * Handle damage from players to custom mobs
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -201,33 +83,18 @@ public class CustomMobListener implements Listener {
             
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
             if (profile != null) {
-                // Play hurt animation with a slight delay to better sync visually
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                    if (!entity.isDead() && entity.isValid()) {
-                        plugin.getCustomEntityManager().playAnimation(entity, "hurt");
-                        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_IRON_GOLEM_HURT, 0.7f, 1.0f);
-                    }
-                }, 1L);
-                
                 // Standard damage calculation already happens in the event
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info(player.getName() + " attacked a custom mob: " + 
                             entity.getCustomName() + " for " + event.getFinalDamage() + " damage");
                 }
-                
-                // Trigger mob to target the player if not already targeting
-                // For Runemark Colossus, we need to manually set the target
-                // since it's a passive Iron Golem
-                if (entity instanceof Mob) {
-                    Mob mob = (Mob) entity;
-                    if (mob.getTarget() == null || mob.getTarget() != player) {
-                        mob.setTarget(player);
-                    }
-                }
             }
         }
     }
 
+    /**
+     * Handle early entity death to play death animations
+     */
     @EventHandler(priority = EventPriority.LOW)
     public void onEntityDeathEarly(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
@@ -244,34 +111,12 @@ public class CustomMobListener implements Listener {
                 attackTasks.remove(entityId);
                 lastAttackTime.remove(entityId);
             }
-            
-            // If this is a Runemark Colossus, make sure it's completely gone
-            if (entity.hasMetadata("runemark_colossus")) {
-                // Force its death state
-                if (entity instanceof IronGolem) {
-                    IronGolem golem = (IronGolem) entity;
-                    
-                    // Force 0 health to ensure it's considered dead by the game
-                    golem.setHealth(0);
-                    
-                    // Remove any metadata that might keep it alive
-                    for (String key : golem.getMetadata("runemark_colossus").stream()
-                            .map(m -> m.getOwningPlugin().getName() + ":" + "runemark_colossus")
-                            .toArray(String[]::new)) {
-                        try {
-                            golem.removeMetadata(key, plugin);
-                        } catch (Exception e) {
-                            // Ignore errors during cleanup
-                        }
-                    }
-                    
-                    // Log for debugging
-                    plugin.getLogger().info("Ensured Runemark Colossus death and cleanup");
-                }
-            }
         }
     }
 
+    /**
+     * Handle entity death for loot and rewards
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityDeath(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
@@ -316,6 +161,24 @@ public class CustomMobListener implements Listener {
                     }
                 }
             }
+        }
+    }
+    
+    /**
+     * Handle entity targeting event
+     * Used specifically to cancel targeting for custom mobs
+     * since we handle targeting in their individual behavior classes
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityTarget(EntityTargetEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity)) return;
+        
+        LivingEntity entity = (LivingEntity) event.getEntity();
+        
+        // If this is a custom mob, cancel vanilla targeting behavior
+        // Our custom implementations handle targeting
+        if (plugin.getCustomEntityManager().isCustomMob(entity)) {
+            event.setCancelled(true);
         }
     }
     

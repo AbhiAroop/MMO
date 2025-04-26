@@ -15,6 +15,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.entities.mobs.CustomMob;
+import com.server.entities.mobs.RunemarkColossus;
 
 public class AnimationDebugCommand implements CommandExecutor {
 
@@ -37,7 +39,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         if (args.length < 1) {
             player.sendMessage("§cUsage: /animdebug <animation> [entityType]");
             player.sendMessage("§7Available animations: idle, attack, hurt, walk, special1, special2, death");
-            player.sendMessage("§7Special commands: colossusauto, colossusattack, diagnose");
+            player.sendMessage("§7Special commands: colossusauto, colossusattack, specialability, diagnose");
             player.sendMessage("§7Entity types: nearest, target");
             return true;
         }
@@ -45,9 +47,43 @@ public class AnimationDebugCommand implements CommandExecutor {
         String animationName = args[0].toLowerCase();
         String entityType = args.length > 1 ? args[1].toLowerCase() : "nearest";
         
-        // Special handler for colossus auto attack animation
+        // Special handlers for colossus animations
         if ("colossusauto".equalsIgnoreCase(animationName)) {
             return toggleColossusAutoAttack(player);
+        }
+        
+        if ("colossusattack".equalsIgnoreCase(animationName)) {
+            LivingEntity colossusEntity = findEntityWithMetadata(player, 20, "runemark_colossus");
+            if (colossusEntity != null) {
+                plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
+                player.sendMessage("§aForced attack1 animation on Runemark Colossus");
+                return true;
+            } else {
+                player.sendMessage("§cNo Runemark Colossus found within 20 blocks!");
+                return true;
+            }
+        }
+        
+        if ("specialability".equalsIgnoreCase(animationName)) {
+            int abilityIndex = args.length > 1 ? Integer.parseInt(args[1]) : 1;
+            LivingEntity colossusEntity = findEntityWithMetadata(player, 20, "runemark_colossus");
+            if (colossusEntity != null) {
+                // Get the RunemarkColossus from registry
+                CustomMob mobType = plugin.getCustomEntityManager().getMobRegistry().getMobType("runemarkcolossus");
+                
+                if (mobType instanceof RunemarkColossus) {
+                    ((RunemarkColossus) mobType).playSpecialAbility(colossusEntity, abilityIndex);
+                    player.sendMessage("§aForced special ability " + abilityIndex + " on Runemark Colossus");
+                } else {
+                    // Fallback to regular animation
+                    plugin.getCustomEntityManager().playAnimation(colossusEntity, "special" + abilityIndex);
+                    player.sendMessage("§aForced special" + abilityIndex + " animation on Runemark Colossus");
+                }
+                return true;
+            } else {
+                player.sendMessage("§cNo Runemark Colossus found within 20 blocks!");
+                return true;
+            }
         }
         
         // Find the target entity
@@ -80,24 +116,10 @@ public class AnimationDebugCommand implements CommandExecutor {
             player.sendMessage("§cTarget entity is not a custom mob!");
             return true;
         }
-
-        if ("colossusattack".equalsIgnoreCase(animationName)) {
-            plugin.getLogger().info("Debug command: Forcing Runemark Colossus attack1 animation");
-            LivingEntity colossusEntity = findRunemarkColossus(player, 20);
-            if (colossusEntity != null) {
-                plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
-                player.sendMessage("§aForced attack1 animation on Runemark Colossus");
-                return true;
-            } else {
-                player.sendMessage("§cNo Runemark Colossus found within 20 blocks!");
-                return true;
-            }
-        }
         
-        // Diagnose animations
+        // Handle diagnose command if specified
         if ("diagnose".equals(animationName)) {
-            plugin.getCustomEntityManager().diagnoseAnimations(targetEntity);
-            player.sendMessage("§aDiagnosing animations for entity " + targetEntity.getUniqueId() + ". Check console for results.");
+            diagnoseEntityAnimations(targetEntity, player);
             return true;
         }
         
@@ -109,11 +131,42 @@ public class AnimationDebugCommand implements CommandExecutor {
     }
     
     /**
+     * Diagnose entity animations and output information
+     */
+    private void diagnoseEntityAnimations(LivingEntity entity, Player player) {
+        plugin.getLogger().info("=== Animation Diagnosis for Entity " + entity.getUniqueId() + " ===");
+        plugin.getLogger().info("Entity Type: " + entity.getType());
+        
+        // Check metadata to identify mob type
+        StringBuilder metadataInfo = new StringBuilder("Metadata: ");
+        for (String key : new String[] {"runemark_colossus"}) {
+            if (entity.hasMetadata(key)) {
+                metadataInfo.append(key).append("=true ");
+            }
+        }
+        plugin.getLogger().info(metadataInfo.toString());
+        
+        // Attempt to play core animations and log results
+        String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "death"};
+        plugin.getLogger().info("Testing core animations...");
+        
+        for (String anim : coreAnimations) {
+            try {
+                plugin.getCustomEntityManager().playAnimation(entity, anim);
+                plugin.getLogger().info("Animation '" + anim + "': Attempt made (check if visible in-game)");
+            } catch (Exception e) {
+                plugin.getLogger().warning("Animation '" + anim + "': Failed - " + e.getMessage());
+            }
+        }
+        
+        player.sendMessage("§aDiagnosing animations for entity. Check server console for results.");
+    }
+    
+    /**
      * Toggle automatic attack1 animation for the nearest Runemark Colossus
-     * This helps debug and fix animation issues by repeatedly playing the animation
      */
     private boolean toggleColossusAutoAttack(Player player) {
-        LivingEntity colossusEntity = findRunemarkColossus(player, 20);
+        LivingEntity colossusEntity = findEntityWithMetadata(player, 20, "runemark_colossus");
         if (colossusEntity == null) {
             player.sendMessage("§cNo Runemark Colossus found within 20 blocks!");
             return true;
@@ -158,6 +211,21 @@ public class AnimationDebugCommand implements CommandExecutor {
         return true;
     }
     
+    /**
+     * Find an entity with a specific metadata key
+     */
+    private LivingEntity findEntityWithMetadata(Player player, int radius, String metadataKey) {
+        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
+            if (entity instanceof LivingEntity && entity.hasMetadata(metadataKey)) {
+                return (LivingEntity) entity;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Get the entity the player is looking at
+     */
     private LivingEntity getTargetEntity(Player player, int maxDistance) {
         // Simple ray-casting to find target entity
         for (double d = 0; d <= maxDistance; d += 0.5) {
@@ -171,15 +239,6 @@ public class AnimationDebugCommand implements CommandExecutor {
             }
         }
         
-        return null;
-    }
-
-    private LivingEntity findRunemarkColossus(Player player, int radius) {
-        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
-            if (entity instanceof LivingEntity && entity.hasMetadata("runemark_colossus")) {
-                return (LivingEntity) entity;
-            }
-        }
         return null;
     }
     
