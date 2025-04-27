@@ -33,6 +33,7 @@ public class DuskhollowFang extends CustomMob {
     private static final String CUSTOM_NAME = "§5Duskhollow Fang";
     private static final String METADATA_KEY = "duskhollow_fang";
     private static final double ATTACK_RANGE = 5.0;
+    private static final double BASE_LIFESTEAL_PERCENT = 25.0; // Increased base lifesteal to compensate for removal of empowered state
     
     public DuskhollowFang(Main plugin, CustomEntityManager entityManager) {
         super(plugin, entityManager);
@@ -66,14 +67,14 @@ public class DuskhollowFang extends CustomMob {
                 
                 // Customize movement speed
                 if (entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED) != null) {
-                    entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).setBaseValue(0.3); // Faster than the Colossus
+                    entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).setBaseValue(0.35); // Slightly faster by default
                 }
                 
                 // Store the stats in the entity manager
                 entityManager.registerMobStats(entity.getUniqueId(), stats);
                 
                 // Set custom metadata for nameplate height adjustment
-                entity.setMetadata("nameplate_height_offset", new FixedMetadataValue(plugin, 4.0)); // Set higher offset
+                entity.setMetadata("nameplate_height_offset", new FixedMetadataValue(plugin, 4.0));
                 
                 // Update the display name
                 entityManager.updateEntityNameplate(entity);
@@ -95,7 +96,7 @@ public class DuskhollowFang extends CustomMob {
         
         return entity;
     }
-        
+    
     @Override
     public void initializeBehavior(LivingEntity entity, CustomMobStats stats) {
         // Track whether an attack animation is currently playing
@@ -111,9 +112,9 @@ public class DuskhollowFang extends CustomMob {
                     return;
                 }
                 
-                // Check if we are on attack cooldown
-                boolean onCooldown = entity.hasMetadata("attack_cooldown") ? 
-                                    entity.getMetadata("attack_cooldown").get(0).asBoolean() : false;
+                // Check if attack is on cooldown
+                boolean onCooldown = entity.hasMetadata("attack_cooldown") && 
+                                     entity.getMetadata("attack_cooldown").get(0).asBoolean();
                 
                 // Find closest player within 15 blocks
                 Player targetPlayer = null;
@@ -151,106 +152,8 @@ public class DuskhollowFang extends CustomMob {
                         lookLoc.setDirection(player.getLocation().subtract(entity.getLocation()).toVector());
                         entity.teleport(lookLoc);
                         
-                        // Regular attack with lifesteal
-                        entityManager.playAnimation(entity, "attack1");
-                        
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(getCustomName() + " playing attack1 animation at player: " + player.getName());
-                        }
-                        
-                        // Growl sound
-                        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WOLF_GROWL, 1.2f, 0.7f);
-                        
-                        // Deal damage after a delay to match animation
-                        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                            if (entity.isValid() && !entity.isDead() && player.isOnline()) {
-                                // Check if still in range
-                                if (entity.getLocation().distance(player.getLocation()) <= 7.0) {
-                                    // Get the exact physical damage from stats
-                                    double damage = stats.getPhysicalDamage();
-                                    
-                                    // Use the CUSTOM cause to avoid our own damage cancellation
-                                    EntityDamageEvent customDamageEvent = new EntityDamageEvent(
-                                        player, 
-                                        EntityDamageEvent.DamageCause.CUSTOM,
-                                        damage
-                                    );
-                                    plugin.getServer().getPluginManager().callEvent(customDamageEvent);
-                                    
-                                    if (!customDamageEvent.isCancelled()) {
-                                        // Apply the damage directly
-                                        double finalDamage = customDamageEvent.getFinalDamage();
-                                        player.damage(finalDamage);
-                                        
-                                        // Ensure damage attribution - set the entity as the last damager
-                                        try {
-                                            // Use reflection to get access to CraftLivingEntity's setLastDamager method
-                                            Method setLastDamager = player.getClass().getDeclaredMethod(
-                                                "setLastDamager", 
-                                                org.bukkit.entity.Entity.class
-                                            );
-                                            setLastDamager.setAccessible(true);
-                                            setLastDamager.invoke(player, entity);
-                                        } catch (Exception e) {
-                                            // If reflection fails, do a tiny amount of direct damage for attribution
-                                            player.damage(0.0, entity);
-                                        }
-                                        
-                                        // Apply lifesteal (heal for 15% of damage dealt)
-                                        double healAmount = finalDamage * 0.15;
-                                        double newHealth = Math.min(entity.getHealth() + healAmount, stats.getMaxHealth());
-                                        entity.setHealth(newHealth);
-                                        
-                                        // Visual lifesteal effect
-                                        for (int i = 0; i < 8; i++) {
-                                            Vector particleOffset = new Vector(
-                                                (Math.random() - 0.5) * 0.5,
-                                                Math.random() * 1.0,
-                                                (Math.random() - 0.5) * 0.5
-                                            );
-                                            player.getWorld().spawnParticle(
-                                                Particle.DAMAGE_INDICATOR, 
-                                                player.getLocation().add(0, 1, 0).add(particleOffset), 
-                                                1, 0, 0, 0, 0
-                                            );
-                                        }
-                                        
-                                        // Crimson particles flowing to the wolf
-                                        for (int i = 0; i < 5; i++) {
-                                            final int particleIndex = i;
-                                            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                                                Location startLoc = player.getLocation().add(0, 1, 0);
-                                                Location endLoc = entity.getLocation().add(0, 1, 0);
-                                                Vector direction = endLoc.clone().subtract(startLoc).toVector().normalize().multiply(0.5);
-                                                
-                                                Location particleLoc = startLoc.clone().add(direction.clone().multiply(particleIndex));
-                                                player.getWorld().spawnParticle(
-                                                    Particle.CRIMSON_SPORE, 
-                                                    particleLoc,
-                                                    5, 0.1, 0.1, 0.1, 0
-                                                );
-                                            }, i + 1);
-                                        }
-                                        
-                                        // Bite sound
-                                        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WOLF_GROWL, 1.0f, 0.8f);
-                                        
-                                        // Update nameplate after lifesteal
-                                        entityManager.updateEntityNameplate(entity);
-                                        
-                                        if (plugin.isDebugMode()) {
-                                            plugin.getLogger().info(getCustomName() + " hit " + player.getName() + 
-                                                    " for " + finalDamage + " damage and healed for " + String.format("%.1f", healAmount));
-                                        }
-                                    }
-                                }
-                            }
-                        }, 40L); // 1.25 seconds delay to sync with animation
-                        
-                        // Reset cooldown after attack animation completes
-                        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                            entity.setMetadata("attack_cooldown", new FixedMetadataValue(plugin, false));
-                        }, 45L); // 1.75 seconds cooldown
+                        // Perform regular attack with lifesteal
+                        performAttack(entity, player, stats);
                     }
                     // If not in attack range, follow the player
                     else if (closestDistance > 2.0) {
@@ -263,6 +166,122 @@ public class DuskhollowFang extends CustomMob {
                 }
             }
         }.runTaskTimer(plugin, 10L, 10L);
+    }
+    
+    /**
+     * Perform an attack against the target
+     */
+    private void performAttack(LivingEntity entity, Player player, CustomMobStats stats) {
+        // Play attack animation and sound
+        entityManager.playAnimation(entity, "attack1");
+        entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WOLF_GROWL, 1.2f, 0.7f);
+        
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info(getCustomName() + " playing attack1 animation at player: " + player.getName());
+        }
+        
+        // Deal damage after a delay to match animation
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (entity.isValid() && !entity.isDead() && player.isOnline()) {
+                // Check if still in range
+                if (entity.getLocation().distance(player.getLocation()) <= 7.0) {
+                    // Get the exact physical damage from stats
+                    double damage = stats.getPhysicalDamage();
+                    
+                    // Use the CUSTOM cause to avoid our own damage cancellation
+                    EntityDamageEvent customDamageEvent = new EntityDamageEvent(
+                        player, 
+                        EntityDamageEvent.DamageCause.CUSTOM,
+                        damage
+                    );
+                    plugin.getServer().getPluginManager().callEvent(customDamageEvent);
+                    
+                    if (!customDamageEvent.isCancelled()) {
+                        // Apply the damage directly
+                        double finalDamage = customDamageEvent.getFinalDamage();
+                        player.damage(finalDamage);
+                        
+                        // Ensure damage attribution - set the entity as the last damager
+                        try {
+                            // Use reflection to get access to CraftLivingEntity's setLastDamager method
+                            Method setLastDamager = player.getClass().getDeclaredMethod(
+                                "setLastDamager", 
+                                org.bukkit.entity.Entity.class
+                            );
+                            setLastDamager.setAccessible(true);
+                            setLastDamager.invoke(player, entity);
+                        } catch (Exception e) {
+                            // If reflection fails, do a tiny amount of direct damage for attribution
+                            player.damage(0.0, entity);
+                        }
+                        
+                        // Apply lifesteal
+                        double healAmount = finalDamage * (BASE_LIFESTEAL_PERCENT / 100.0);
+                        double newHealth = Math.min(entity.getHealth() + healAmount, stats.getMaxHealth());
+                        entity.setHealth(newHealth);
+                        
+                        // Visual effects for the attack
+                        applyAttackVisualEffects(entity, player);
+                        
+                        // Update nameplate after lifesteal
+                        entityManager.updateEntityNameplate(entity);
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info(getCustomName() + " hit " + player.getName() + 
+                                    " for " + finalDamage + " damage and healed for " + String.format("%.1f", healAmount));
+                        }
+                    }
+                }
+            }
+        }, 40L); // 1.25 seconds delay to sync with animation
+        
+        // Reset cooldown after attack animation completes
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            entity.setMetadata("attack_cooldown", new FixedMetadataValue(plugin, false));
+        }, 45L); // 1.75 seconds cooldown
+    }
+    
+    /**
+     * Apply visual effects for a successful attack
+     */
+    private void applyAttackVisualEffects(LivingEntity entity, Player player) {
+        // Apply visual lifesteal effect
+        for (int i = 0; i < 8; i++) {
+            Vector particleOffset = new Vector(
+                (Math.random() - 0.5) * 0.5,
+                Math.random() * 1.0,
+                (Math.random() - 0.5) * 0.5
+            );
+            player.getWorld().spawnParticle(
+                Particle.DAMAGE_INDICATOR, 
+                player.getLocation().add(0, 1, 0).add(particleOffset), 
+                1, 0, 0, 0, 0
+            );
+        }
+        
+        // Crimson particles flowing to the wolf
+        for (int i = 0; i < 5; i++) {
+            final int particleIndex = i;
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                Location startLoc = player.getLocation().add(0, 1, 0);
+                Location endLoc = entity.getLocation().add(0, 1, 0);
+                Vector direction = endLoc.clone().subtract(startLoc).toVector().normalize().multiply(0.5);
+                
+                Location particleLoc = startLoc.clone().add(direction.clone().multiply(particleIndex));
+                player.getWorld().spawnParticle(
+                    Particle.CRIMSON_SPORE, 
+                    particleLoc,
+                    5, 0.1, 0.1, 0.1, 0
+                );
+            }, i + 1);
+        }
+        
+        // Bite sound
+        player.getWorld().playSound(
+            player.getLocation(), 
+            Sound.ENTITY_WOLF_GROWL, 
+            1.0f, 0.8f
+        );
     }
     
     @Override
@@ -301,7 +320,7 @@ public class DuskhollowFang extends CustomMob {
         stats.setLevel(7);
         stats.setMobType(MobType.ELITE);
         stats.setName("Duskhollow Fang");
-        stats.setHasCustomAbilities(true);
+        stats.setHasCustomAbilities(false); // Set to false since we removed special abilities
         stats.setAttackSpeed(1.3);  // Faster attack speed
         stats.setExpReward(35);
         stats.setMinGoldDrop(25);

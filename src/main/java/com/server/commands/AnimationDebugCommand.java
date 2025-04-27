@@ -39,7 +39,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         if (args.length < 1) {
             player.sendMessage("§cUsage: /animdebug <animation> [entityType]");
             player.sendMessage("§7Available animations: idle, attack, hurt, walk, debast, special2, death");
-            player.sendMessage("§7Special commands: colossusauto, verdigranauto, duneetchedauto, colossusattack, diagnose");
+            player.sendMessage("§7Special commands: colossusauto, verdigranauto, duneetchedauto, colossusattack, fanghowl, diagnose");
             player.sendMessage("§7Entity types: nearest, target");
             return true;
         }
@@ -128,6 +128,7 @@ public class AnimationDebugCommand implements CommandExecutor {
                 return true;
             }
         }
+
         
         if ("specialability".equalsIgnoreCase(animationName)) {
             int abilityIndex = args.length > 1 ? Integer.parseInt(args[1]) : 1;
@@ -204,7 +205,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         
         // Check metadata to identify mob type
         StringBuilder metadataInfo = new StringBuilder("Metadata: ");
-        for (String key : new String[] {"runemark_colossus", "verdigran_colossus", "duneetched_colossus"}) {
+        for (String key : new String[] {"runemark_colossus", "verdigran_colossus", "duneetched_colossus", "duskhollow_fang"}) {
             if (entity.hasMetadata(key)) {
                 metadataInfo.append(key).append("=true ");
             }
@@ -212,7 +213,7 @@ public class AnimationDebugCommand implements CommandExecutor {
         plugin.getLogger().info(metadataInfo.toString());
         
         // Attempt to play core animations and log results
-        String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "debast", "special2", "death"};
+        String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "attack2", "debast", "special2", "death"};
         plugin.getLogger().info("Testing core animations...");
         
         for (String anim : coreAnimations) {

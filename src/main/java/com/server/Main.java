@@ -14,6 +14,7 @@ import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
 import com.server.commands.ProfileCommand;
+import com.server.commands.SkillCommand;
 import com.server.commands.SpawnCustomMobCommand;
 import com.server.commands.StatsCommand;
 import com.server.cosmetics.CosmeticManager;
@@ -31,6 +32,12 @@ import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.core.SkillProgressionManager;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.display.SkillActionBarManager;
+import com.server.profiles.skills.events.SkillActionBarListener;
+import com.server.profiles.skills.events.SkillEventListener;
+import com.server.profiles.skills.gui.SkillGUIListener;
 import com.server.profiles.stats.StatScanManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
 import com.server.profiles.stats.health.HealthRegenerationManager;
@@ -77,6 +84,13 @@ public class Main extends JavaPlugin {
         // Initialize CosmeticManager
         CosmeticManager.initialize(this);
         AbilityManager.initialize(this);
+
+        // Initialize skills system
+        SkillRegistry.initialize(this);
+        SkillProgressionManager.initialize(this);
+        
+        // Initialize skill action bar manager
+        SkillActionBarManager.initialize(this);
         
         // Register commands and event listeners
         registerCommands();
@@ -123,8 +137,14 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new AutoRespawnListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CustomMobListener(this), this);
         this.getCommand("animdebug").setExecutor(new AnimationDebugCommand(this));
+        
+        // Register skill listeners
+        this.getServer().getPluginManager().registerEvents(new SkillEventListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new SkillGUIListener(), this);
+        
+        // Register skill action bar listener
+        this.getServer().getPluginManager().registerEvents(new SkillActionBarListener(), this);
     }
-
 
     public static Main getInstance() {
         return instance;
@@ -135,9 +155,7 @@ public class Main extends JavaPlugin {
     }
 
     public void setDebugMode(boolean enabled) {
-        // Update the value in the config
         getConfig().set("debug-mode", enabled);
-        // Save the config to persist the setting
         saveConfig();
     }
 
@@ -254,6 +272,13 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'spawnmob' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand skillsCommand = this.getCommand("skills");
+        if (skillsCommand != null) {
+            skillsCommand.setExecutor(new SkillCommand());
+        } else {
+            LOGGER.warning("Command 'skills' not registered in plugin.yml file!");
+        }
     }
 
     public ScoreboardManager getScoreboardManager() {
@@ -290,4 +315,12 @@ public class Main extends JavaPlugin {
         return customEntityManager;
     }
     
+    /**
+     * Get the ActionBarManager instance
+     * 
+     * @return The ActionBarManager instance
+     */
+    public ActionBarManager getActionBarManager() {
+        return actionBarManager;
+    }
 }

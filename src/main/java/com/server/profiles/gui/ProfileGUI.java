@@ -13,6 +13,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.utils.CurrencyFormatter;
 
 public class ProfileGUI {
     
@@ -73,4 +74,101 @@ public class ProfileGUI {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static void openMainMenu(Player player) {
+        Inventory menu = Bukkit.createInventory(null, 27, "Player Menu");
+
+        // Create Profile Selection button (Book)
+        ItemStack profileButton = new ItemStack(Material.BOOK);
+        ItemMeta profileMeta = profileButton.getItemMeta();
+        profileMeta.setDisplayName("§6§lProfile Selection");
+        profileMeta.setLore(Arrays.asList(
+            "§7Manage your player profiles",
+            "§7Current Profiles: §e0/3",
+            "",
+            "§eClick to open profile manager"
+        ));
+        profileButton.setItemMeta(profileMeta);
+
+        // Create Stats View button (Nether Star)
+        ItemStack statsButton = new ItemStack(Material.NETHER_STAR);
+        ItemMeta statsMeta = statsButton.getItemMeta();
+        statsMeta.setDisplayName("§b§lPlayer Stats");
+        statsMeta.setLore(Arrays.asList(
+            "§7View your current profile stats",
+            "§7Includes combat, defense and more",
+            "",
+            "§eClick to view stats"
+        ));
+        statsButton.setItemMeta(statsMeta);
+        
+        // Create Skills button (Experience Bottle)
+        ItemStack skillsButton = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta skillsMeta = skillsButton.getItemMeta();
+        skillsMeta.setDisplayName("§a§lSkills");
+        skillsMeta.setLore(Arrays.asList(
+            "§7View and manage your skills",
+            "§7Level up skills to earn rewards",
+            "",
+            "§eClick to view skills"
+        ));
+        skillsButton.setItemMeta(skillsMeta);
+        
+        // Create Currency Display button (Gold Ingot)
+        ItemStack currencyButton = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta currencyMeta = currencyButton.getItemMeta();
+        currencyMeta.setDisplayName("§e§lCurrency Balances");
+        
+        // Get profile currencies
+        int units = 0;
+        int premiumUnits = 0;
+        int essence = 0;
+        int bits = 0;
+        
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                units = profile.getUnits();
+                premiumUnits = profile.getPremiumUnits();
+                essence = profile.getEssence();
+                bits = profile.getBits();
+            }
+        }
+        
+        // Format currency values using the CurrencyFormatter
+        currencyMeta.setLore(Arrays.asList(
+            "§7Your current balances:",
+            "",
+            "§e§lUnits: §f" + CurrencyFormatter.formatUnits(units),
+            "§d§lPremium Units: §f" + CurrencyFormatter.formatPremiumUnits(premiumUnits),
+            "§b§lEssence: §f" + CurrencyFormatter.formatEssence(essence),
+            "§a§lBits: §f" + CurrencyFormatter.formatBits(bits),
+            "",
+            "§7Use /balance to check currencies",
+            "§7Use /pay to transfer Units/Premium"
+        ));
+        currencyButton.setItemMeta(currencyMeta);
+
+        // Fill empty slots with black glass panes
+        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta fillerMeta = filler.getItemMeta();
+        fillerMeta.setDisplayName(" ");
+        filler.setItemMeta(fillerMeta);
+
+        // Fill all slots with filler first
+        for (int i = 0; i < menu.getSize(); i++) {
+            menu.setItem(i, filler);
+        }
+
+        // Add buttons in specific slots (centered)
+        menu.setItem(10, profileButton);  // Left position
+        menu.setItem(12, skillsButton);   // Left-center position
+        menu.setItem(14, currencyButton); // Right-center position
+        menu.setItem(16, statsButton);    // Right position
+
+        player.openInventory(menu);
+    }
+
+    
 }

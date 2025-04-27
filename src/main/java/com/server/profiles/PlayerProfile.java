@@ -17,7 +17,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
 import com.server.items.ItemType;
-import com.server.profiles.skills.PlayerSkills;
+import com.server.profiles.skills.data.PlayerSkillData;
 import com.server.profiles.stats.PlayerStats;
 
 public class PlayerProfile {
@@ -25,7 +25,6 @@ public class PlayerProfile {
     private final int slot;
     private String name;
     private PlayerStats stats;
-    private PlayerSkills skills;
     private long created;
     private long lastPlayed;
     private ItemStack[] inventoryContents;
@@ -34,6 +33,8 @@ public class PlayerProfile {
     private String worldName;
     private double x, y, z;
     private float yaw, pitch;
+
+    private PlayerSkillData skillData;
 
     // Economy currencies
     private int units;          // Basic currency for trading and shops
@@ -48,7 +49,6 @@ public class PlayerProfile {
         this.slot = slot;
         this.name = name;
         this.stats = new PlayerStats();
-        this.skills = new PlayerSkills();
         this.created = System.currentTimeMillis();
         this.lastPlayed = System.currentTimeMillis();
         this.inventoryContents = new ItemStack[36]; // Main inventory
@@ -60,6 +60,8 @@ public class PlayerProfile {
         this.z = 0;
         this.yaw = 0;
         this.pitch = 0;
+
+        this.skillData = new PlayerSkillData();
         
         // Initialize currencies with default values
         this.units = 0;
@@ -181,7 +183,6 @@ public class PlayerProfile {
     public int getSlot() { return slot; }
     public String getName() { return name; }
     public PlayerStats getStats() { return stats; }
-    public PlayerSkills getSkills() { return skills; }
     public long getCreated() { return created; }
     public long getLastPlayed() { return lastPlayed; }
     public String getWorldName() { return worldName; }
@@ -352,6 +353,10 @@ public class PlayerProfile {
      */
     public void setBits(int bits) {
         this.bits = Math.max(0, bits); // Prevent negative balance
+    }
+
+    public PlayerSkillData getSkillData() {
+        return skillData;
     }
     
     /**

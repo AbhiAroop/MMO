@@ -8,6 +8,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.gui.ProfileGUI;
 import com.server.profiles.gui.StatsGUI;
+import com.server.profiles.skills.gui.SkillsGUI;
 
 public class GUIListener implements Listener {
     
@@ -45,6 +46,15 @@ public class GUIListener implements Listener {
         else if (itemName.equals("§b§lPlayer Stats")) {
             player.closeInventory();
             StatsGUI.openStatsMenu(player);
+        }
+        else if (itemName.equals("§a§lSkills")) {
+            player.closeInventory();
+            SkillsGUI.openSkillsMenu(player);
+        }
+        else if (itemName.equals("§e§lCurrency Balances")) {
+            // Optional: Handle currency button click if needed
+            player.sendMessage("§eUse /balance to check your balances");
+            player.closeInventory();
         }
     }
 

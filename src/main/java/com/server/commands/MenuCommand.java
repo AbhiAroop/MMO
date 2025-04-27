@@ -61,6 +61,18 @@ public class MenuCommand implements CommandExecutor {
         ));
         statsButton.setItemMeta(statsMeta);
         
+        // Create Skills button (Experience Bottle)
+        ItemStack skillsButton = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta skillsMeta = skillsButton.getItemMeta();
+        skillsMeta.setDisplayName("§a§lSkills");
+        skillsMeta.setLore(Arrays.asList(
+            "§7View and manage your skills",
+            "§7Level up skills to earn rewards",
+            "",
+            "§eClick to view skills"
+        ));
+        skillsButton.setItemMeta(skillsMeta);
+
         // Create Currency Display button (Gold Ingot)
         ItemStack currencyButton = new ItemStack(Material.GOLD_INGOT);
         ItemMeta currencyMeta = currencyButton.getItemMeta();
@@ -110,8 +122,9 @@ public class MenuCommand implements CommandExecutor {
 
         // Add buttons in specific slots (centered)
         menu.setItem(11, profileButton);  // Left position
-        menu.setItem(13, currencyButton); // Center position
+        menu.setItem(13, skillsButton);   // Center position
         menu.setItem(15, statsButton);    // Right position
+        menu.setItem(22, currencyButton); // Bottom center
 
         player.openInventory(menu);
     }

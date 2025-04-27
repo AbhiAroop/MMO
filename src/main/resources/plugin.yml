@@ -65,6 +65,10 @@ commands:
     description: Debug custom mob animations
     usage: /animdebug <animation> [entityType]
     permission: mmo.admin
+  skills:
+    description: Opens the skills menu
+    usage: /skills
+    aliases: [skill, mmoskills]
 
 permissions:
   mmo.admin:
