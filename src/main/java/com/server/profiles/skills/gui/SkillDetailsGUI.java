@@ -18,6 +18,8 @@ import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.skills.tokens.SkillToken;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
 
 /**
  * GUI for displaying detailed information about a skill
@@ -57,6 +59,10 @@ public class SkillDetailsGUI {
         // Add rewards item
         ItemStack rewardsItem = createRewardsItem(skill, level);
         gui.setItem(31, rewardsItem);
+
+        // Add skill tree button
+        ItemStack skillTreeItem = createSkillTreeItem(skill, profile);
+        gui.setItem(32, skillTreeItem); // Place it next to rewards button
         
         // Add subskills button if this is a main skill
         if (skill.isMainSkill() && !skill.getSubskills().isEmpty()) {
@@ -65,43 +71,20 @@ public class SkillDetailsGUI {
             subskillsMeta.setDisplayName(ChatColor.AQUA + "View Subskills");
             
             List<String> subskillsLore = new ArrayList<>();
-            subskillsLore.add(ChatColor.GRAY + "View and manage the subskills for " + skill.getDisplayName());
-            subskillsLore.add("");
+            subskillsLore.add(ChatColor.GRAY + "This skill has " + skill.getSubskills().size() + " subskills:");
             
-            // Add specific information for each subskill
             for (Skill subskill : skill.getSubskills()) {
-                SkillLevel subLevel = profile.getSkillData().getSkillLevel(subskill);
-                subskillsLore.add(ChatColor.YELLOW + subskill.getDisplayName() + 
-                                ChatColor.GRAY + " (Level " + subLevel.getLevel() + ")");
-                
-                // Add specialized description for mining subskills
-                if (subskill instanceof OreExtractionSubskill) {
-                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
-                    double speedMultiplier = oreSkill.getMiningSpeedMultiplier(subLevel.getLevel());
-                    double dropChance = oreSkill.getBonusDropChance(subLevel.getLevel()) * 100;
-                    subskillsLore.add(ChatColor.GRAY + "  • Mining Speed: " + 
-                                    ChatColor.AQUA + String.format("%.2fx", speedMultiplier));
-                    subskillsLore.add(ChatColor.GRAY + "  • Bonus Drop Chance: " + 
-                                    ChatColor.AQUA + String.format("%.1f%%", dropChance));
-                }
-                else if (subskill instanceof GemCarvingSubskill) {
-                    GemCarvingSubskill gemSkill = (GemCarvingSubskill) subskill;
-                    double findChance = gemSkill.getGemFindChance(subLevel.getLevel()) * 100;
-                    double successRate = gemSkill.getExtractionSuccessChance(subLevel.getLevel()) * 100;
-                    subskillsLore.add(ChatColor.GRAY + "  • Gem Find Chance: " + 
-                                    ChatColor.AQUA + String.format("%.1f%%", findChance));
-                    subskillsLore.add(ChatColor.GRAY + "  • Extraction Success: " + 
-                                    ChatColor.AQUA + String.format("%.1f%%", successRate));
-                }
-                
-                subskillsLore.add("");
+                SkillLevel subskillLevel = profile.getSkillData().getSkillLevel(subskill);
+                subskillsLore.add(ChatColor.GRAY + "• " + ChatColor.YELLOW + subskill.getDisplayName() + 
+                            ChatColor.GRAY + " [Lvl " + subskillLevel.getLevel() + "]");
             }
             
-            subskillsLore.add(ChatColor.YELLOW + "Click to view all subskills");
+            subskillsLore.add("");
+            subskillsLore.add(ChatColor.YELLOW + "Click to view subskills");
             
             subskillsMeta.setLore(subskillsLore);
             subskillsItem.setItemMeta(subskillsMeta);
-            gui.setItem(40, subskillsItem);
+            gui.setItem(30, subskillsItem);
         }
         
         // Add back button
@@ -378,4 +361,36 @@ public class SkillDetailsGUI {
         
         return bar.toString();
     }
+
+    /**
+     * Create a button for accessing the skill tree
+     */
+    private static ItemStack createSkillTreeItem(Skill skill, PlayerProfile profile) {
+        // Get skill tree data
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        int tokenCount = treeData.getTokenCount(skill.getId());
+        
+        // Get token display information
+        SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(skill);
+        
+        // Create item
+        ItemStack item = new ItemStack(tokenInfo.material);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.AQUA + "Skill Tree");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Unlock special abilities and");
+        lore.add(ChatColor.GRAY + "bonuses for " + ChatColor.YELLOW + skill.getDisplayName());
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "You have " + tokenInfo.color + tokenCount + " " + 
+            tokenInfo.displayName + " Token" + (tokenCount != 1 ? "s" : ""));
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Click to view Skill Tree");
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        
+        return item;
+    }
+    
 }

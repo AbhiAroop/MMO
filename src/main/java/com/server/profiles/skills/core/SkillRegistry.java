@@ -73,9 +73,19 @@ public class SkillRegistry {
         registerSkill(farmingSkill);
         registerSkill(combatSkill);
         
-        // Initialize subskills (will be created by each main skill class)
+        // Now register all subskills - FIXED: Create a copy of skills to avoid concurrent modification
+        List<Skill> mainSkills = new ArrayList<>(this.skills.values());
+        for (Skill mainSkill : mainSkills) {
+            if (mainSkill.isMainSkill()) {
+                // Create a copy of subskills to avoid potential concurrent modification
+                List<Skill> subskills = new ArrayList<>(mainSkill.getSubskills());
+                for (Skill subskill : subskills) {
+                    registerSkill(subskill);
+                }
+            }
+        }
     }
-    
+
     /**
      * Register a skill in the registry
      */

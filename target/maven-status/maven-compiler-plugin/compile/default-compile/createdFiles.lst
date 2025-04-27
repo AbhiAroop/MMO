@@ -1,7 +1,9 @@
 com\server\abilities\AbilityManager.class
+com\server\profiles\skills\gui\SkillTreeGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
 com\server\events\CustomMobListener.class
 com\server\entities\mobs\CustomMob$1.class
+com\server\profiles\skills\tokens\SkillToken$TokenInfo.class
 com\server\events\PlayerListener$2.class
 com\server\profiles\skills\display\SkillActionBarManager$1.class
 com\server\display\DamageIndicatorManager$1.class
@@ -24,6 +26,7 @@ com\server\profiles\skills\events\SkillEventListener$1.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\commands\ProfileCommand.class
+com\server\profiles\skills\core\SkillLevelupListener.class
 com\server\profiles\skills\display\SkillActionBarManager.class
 com\server\events\AutoRespawnListener$2.class
 com\server\profiles\skills\rewards\RewardManager.class
@@ -53,6 +56,7 @@ com\server\profiles\skills\gui\SkillsGUI.class
 com\server\entities\MobType.class
 com\server\abilities\AbilityManager$3.class
 com\server\profiles\skills\gui\RewardsGUI.class
+com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\MenuCommand.class
@@ -66,6 +70,7 @@ com\server\commands\DebugCommand.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
 com\server\cosmetics\CosmeticManager.class
+com\server\profiles\skills\trees\SkillTreeRegistry.class
 com\server\commands\CosmeticCommand.class
 com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.class
 com\server\profiles\skills\data\SkillReward.class
@@ -73,7 +78,9 @@ com\server\profiles\skills\gui\SkillGUIListener.class
 com\server\events\CombatListener$1.class
 com\server\profiles\skills\skills\combat\CombatSkill.class
 com\server\events\PlayerListener$6.class
+com\server\profiles\skills\trees\TreeGridPosition.class
 com\server\entities\mobs\duskhollow\DuskhollowFang$1.class
+com\server\profiles\skills\gui\SkillTreeGUI.class
 com\server\abilities\AbilityManager$1.class
 com\server\events\CustomMobListener$2.class
 com\server\events\RangedCombatManager.class
@@ -92,9 +99,12 @@ com\server\profiles\gui\ProfileGUI.class
 com\server\profiles\skills\rewards\SkillRewardType.class
 com\server\events\AutoRespawnListener.class
 com\server\profiles\PlayerProfile.class
+com\server\profiles\skills\trees\PlayerSkillTreeData.class
 com\server\profiles\skills\core\SkillProgressionManager.class
 com\server\profiles\skills\gui\SubskillsGUI.class
+com\server\profiles\skills\trees\SkillTree.class
 com\server\profiles\skills\skills\fishing\FishingSkill.class
+com\server\profiles\skills\trees\SkillTreeNode.class
 com\server\display\ScoreboardManager.class
 com\server\display\ActionBarManager.class
 com\server\profiles\skills\rewards\rewards\CurrencyReward.class

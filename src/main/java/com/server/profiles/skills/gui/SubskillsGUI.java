@@ -17,6 +17,7 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.data.SkillLevel;
+import com.server.profiles.skills.trees.SkillTreeRegistry;
 
 /**
  * GUI for displaying subskills for a main skill
@@ -190,14 +191,18 @@ public class SubskillsGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         
-        // Set display name
-        meta.setDisplayName(ChatColor.AQUA + subskill.getDisplayName() + ChatColor.GRAY + " [Level " + level.getLevel() + "]");
+        // Set display name with level indicator
+        meta.setDisplayName(ChatColor.GOLD + subskill.getDisplayName() + ChatColor.GRAY + " [Lvl " + level.getLevel() + "]");
         
         // Create lore
         List<String> lore = new ArrayList<>();
+        // Add skill ID at the beginning for easy extraction
+        lore.add(ChatColor.BLACK + "SKILL_ID:" + subskill.getId());
+        
         lore.add(ChatColor.GRAY + subskill.getDescription());
         lore.add("");
         
+        // Progress to next level or max level reached
         double xpForNextLevel = subskill.getXpForLevel(level.getLevel() + 1);
         double progress = level.getProgressPercentage(xpForNextLevel);
         
@@ -217,19 +222,34 @@ public class SubskillsGUI {
         // Show next milestone level
         String nextMilestone = getNextMilestone(subskill, level.getLevel());
         if (nextMilestone != null) {
-            lore.add(ChatColor.YELLOW + "Next Milestone: " + nextMilestone);
+            lore.add(ChatColor.AQUA + "Next Milestone: " + ChatColor.YELLOW + nextMilestone);
         } else {
-            lore.add(ChatColor.GREEN + "All Milestones Achieved!");
+            lore.add(ChatColor.AQUA + "All Milestones Completed!");
         }
         
+        // Add new line to separate milestone from skill tree info
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to view details");
+        
+        // Check if skill tree exists for this subskill
+        boolean hasSkillTree = SkillTreeRegistry.getInstance().getSkillTree(subskill) != null;
+        
+        // Add explicit instructions for accessing skill tree - make it very clear
+        lore.add(ChatColor.GOLD + "───────────────────");
+        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "LEFT-CLICK: " + ChatColor.YELLOW + "View Details");
+        
+        if (hasSkillTree) {
+            lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "RIGHT-CLICK: " + ChatColor.YELLOW + "Open Skill Tree");
+        } else {
+            lore.add(ChatColor.GRAY + "• " + ChatColor.GRAY + "Skill Tree unavailable");
+        }
+        
+        lore.add(ChatColor.GOLD + "───────────────────");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
     }
-    
+        
     /**
      * Get the next milestone level for a skill
      */

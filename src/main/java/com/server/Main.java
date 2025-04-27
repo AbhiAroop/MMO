@@ -32,12 +32,16 @@ import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillLevelupListener;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.display.SkillActionBarManager;
 import com.server.profiles.skills.events.SkillActionBarListener;
 import com.server.profiles.skills.events.SkillEventListener;
 import com.server.profiles.skills.gui.SkillGUIListener;
+import com.server.profiles.skills.gui.SkillTreeGUIListener;
+import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.StatScanManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
 import com.server.profiles.stats.health.HealthRegenerationManager;
@@ -92,9 +96,38 @@ public class Main extends JavaPlugin {
         // Initialize skill action bar manager
         SkillActionBarManager.initialize(this);
         
+        // Initialize SkillTreeRegistry AFTER SkillRegistry to ensure all skills are available
+        SkillTreeRegistry.initialize(this);
+        
         // Register commands and event listeners
         registerCommands();
         registerListeners();
+        
+        // NEW: Verify all skills and subskills are properly registered
+        if (isDebugMode()) {
+            getLogger().info("====== Verifying Skill Registration ======");
+            
+            // Check for subskills
+            getLogger().info("Checking for ore_extraction subskill: " + 
+                        (SkillRegistry.getInstance().getSkill("ore_extraction") != null ? "FOUND" : "NOT FOUND"));
+            getLogger().info("Checking for gem_carving subskill: " + 
+                        (SkillRegistry.getInstance().getSkill("gem_carving") != null ? "FOUND" : "NOT FOUND"));
+            
+            // Log all registered skills
+            getLogger().info("All registered skills:");
+            for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
+                getLogger().info("  - " + skill.getId() + ": " + skill.getDisplayName() + 
+                            " (Main: " + skill.isMainSkill() + ")");
+            }
+            
+            // Verify skill trees
+            getLogger().info("Checking skill trees:");
+            for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
+                boolean hasTree = SkillTreeRegistry.getInstance().getSkillTree(skill) != null;
+                getLogger().info("  - " + skill.getId() + " has tree: " + hasTree);
+            }
+            getLogger().info("=========================================");
+        }
         
         getLogger().info("mmo enabled with ModelEngine integration");
     }
@@ -144,6 +177,8 @@ public class Main extends JavaPlugin {
         
         // Register skill action bar listener
         this.getServer().getPluginManager().registerEvents(new SkillActionBarListener(), this);
+        this.getServer().getPluginManager().registerEvents(new SkillTreeGUIListener(), this);
+        this.getServer().getPluginManager().registerEvents(new SkillLevelupListener(this), this);
     }
 
     public static Main getInstance() {

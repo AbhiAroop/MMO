@@ -16,6 +16,8 @@ import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.events.SkillExpGainEvent;
 import com.server.profiles.skills.events.SkillLevelUpEvent;
+import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 
 /**
  * Abstract base implementation of the Skill interface with common functionality
@@ -244,7 +246,26 @@ public abstract class AbstractSkill implements Skill {
         if (level <= 0 || level > maxLevel) return 0;
         return xpRequirements.getOrDefault(level, 100.0 * Math.pow(level, 1.5));
     }
-    
+
+    private void initializeSubskills() {
+        // Create the subskills
+        OreExtractionSubskill oreExtraction = new OreExtractionSubskill(this);
+        GemCarvingSubskill gemCarving = new GemCarvingSubskill(this);
+        
+        // Add them to the AbstractSkill's subskills list using the addSubskill method
+        addSubskill(oreExtraction);
+        addSubskill(gemCarving);
+        
+        // CRITICAL FIX: Explicitly register subskills with the SkillRegistry
+        SkillRegistry.getInstance().registerSkill(oreExtraction);
+        SkillRegistry.getInstance().registerSkill(gemCarving);
+        
+        // Future subskills
+        // addSubskill(new OreEfficiencySubskill(this));
+        // addSubskill(new RareFindsSubskill(this));
+        // addSubskill(new StoneBreakerSubskill(this));
+    }
+        
     /**
      * Add a subskill to this skill
      * Only works if this is a main skill

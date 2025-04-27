@@ -54,9 +54,9 @@ public class OreExtractionSubskill extends AbstractSkill {
     
     public OreExtractionSubskill(Skill parentSkill) {
         super(SubskillType.ORE_EXTRACTION.getId(), 
-              SubskillType.ORE_EXTRACTION.getDisplayName(), 
-              SubskillType.ORE_EXTRACTION.getDescription(), 
-              100); // Max level of 100
+            SubskillType.ORE_EXTRACTION.getDisplayName(), 
+            SubskillType.ORE_EXTRACTION.getDescription(), 
+            100); // Max level of 100
         
         this.parentSkill = parentSkill;
         

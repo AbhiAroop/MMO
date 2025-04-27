@@ -18,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import com.server.Main;
 import com.server.items.ItemType;
 import com.server.profiles.skills.data.PlayerSkillData;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.profiles.stats.PlayerStats;
 
 public class PlayerProfile {
@@ -35,6 +36,7 @@ public class PlayerProfile {
     private float yaw, pitch;
 
     private PlayerSkillData skillData;
+    private PlayerSkillTreeData skillTreeData;
 
     // Economy currencies
     private int units;          // Basic currency for trading and shops
@@ -62,6 +64,7 @@ public class PlayerProfile {
         this.pitch = 0;
 
         this.skillData = new PlayerSkillData();
+        this.skillTreeData = new PlayerSkillTreeData();
         
         // Initialize currencies with default values
         this.units = 0;
@@ -357,6 +360,13 @@ public class PlayerProfile {
 
     public PlayerSkillData getSkillData() {
         return skillData;
+    }
+    
+    /**
+     * Get the player's skill tree data
+     */
+    public PlayerSkillTreeData getSkillTreeData() {
+        return skillTreeData;
     }
     
     /**
