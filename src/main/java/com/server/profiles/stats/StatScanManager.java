@@ -52,6 +52,7 @@ public class StatScanManager {
 
     // Mining-specific patterns
     private static final Pattern MINING_FORTUNE_PATTERN = Pattern.compile("Mining Fortune: \\+(\\d+\\.?\\d*)");
+    private static final Pattern MINING_SPEED_PATTERN = Pattern.compile("Mining Speed: \\+(\\d+\\.?\\d*)");
 
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
@@ -59,6 +60,7 @@ public class StatScanManager {
     private static final String MMO_ATTACK_RANGE_MODIFIER = "mmo.attack_range";
     private static final String MMO_ATTACK_SPEED_MODIFIER = "mmo.attackspeed";
     private static final String MMO_MOVEMENT_SPEED_MODIFIER = "mmo.movementspeed";
+    private static final String MMO_MINING_SPEED_MODIFIER = "mmo.mining_speed";
     
     /**
      * Constructor
@@ -280,6 +282,13 @@ public class StatScanManager {
             if (attackSpeedAttribute != null) {
                 removeModifiersByName(attackSpeedAttribute, MMO_ATTACK_SPEED_MODIFIER);
                 attackSpeedAttribute.setBaseValue(0.5); // Vanilla default
+            }
+
+            // Reset mining speed attribute
+            AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttribute != null) {
+                removeModifiersByName(miningSpeedAttribute, MMO_MINING_SPEED_MODIFIER);
+                miningSpeedAttribute.setBaseValue(1.0); // Vanilla default
             }
             
             // Reset other attributes
@@ -593,6 +602,14 @@ public class StatScanManager {
                     plugin.getLogger().info("Added mining fortune: " + miningFortuneBonus);
                 }
             }
+
+            double miningSpeedBonus = extractDoubleStat(cleanLine, MINING_SPEED_PATTERN);
+            if (miningSpeedBonus > 0) {
+                bonuses.miningSpeed += miningSpeedBonus;
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Added mining speed: " + miningSpeedBonus);
+                }
+            }
         }
     }
 
@@ -693,6 +710,7 @@ public class StatScanManager {
 
         // Mining stats
         stats.setMiningFortune(stats.getDefaultMiningFortune() + bonuses.miningFortune);
+        stats.setMiningSpeed(stats.getDefaultMiningSpeed() + bonuses.miningSpeed);
     }
         
     /**
@@ -727,6 +745,9 @@ public class StatScanManager {
         
         // Maintain current mana as is, just cap at max mana if needed
         stats.setMana(Math.min(currentMana, stats.getTotalMana()));
+
+        stats.setMiningSpeed(stats.getDefaultMiningSpeed());
+        stats.setMiningFortune(stats.getMiningFortune());
     }
     /**
      * Apply stats to player's Minecraft attributes
@@ -747,6 +768,9 @@ public class StatScanManager {
             
             // Apply attack range
             applyAttackRangeAttribute(player, stats);
+
+            // Apply mining speed
+            applyMiningSpeedAttribute(player, stats);
             
             // Ensure health display is always 10 hearts
             player.setHealthScaled(true);
@@ -1002,6 +1026,43 @@ public class StatScanManager {
             }
         }
     }
+
+    private void applyMiningSpeedAttribute(Player player, PlayerStats stats) {
+        try {
+            AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttr != null) {
+                // Remove existing modifiers
+                removeModifiersByName(miningSpeedAttr, MMO_MINING_SPEED_MODIFIER);
+                
+                // Set base to vanilla default (1.0)
+                miningSpeedAttr.setBaseValue(1.0);
+                
+                // Apply bonus mining speed if needed
+                double totalMiningSpeed = stats.getMiningSpeed();
+                double miningSpeedBonus = totalMiningSpeed - 1.0;
+                
+                if (miningSpeedBonus != 0) {
+                    AttributeModifier miningSpeedMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        MMO_MINING_SPEED_MODIFIER,
+                        miningSpeedBonus,
+                        AttributeModifier.Operation.MULTIPLY_SCALAR_1
+                    );
+                    miningSpeedAttr.addModifier(miningSpeedMod);
+                }
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Applied mining speed attribute to " + player.getName() + 
+                                    ": " + totalMiningSpeed + "x (Final: " + miningSpeedAttr.getValue() + ")");
+                }
+            }
+        } catch (Exception e) {
+            // Mining speed attribute might not be available in older versions
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Error applying mining speed attribute: " + e.getMessage());
+            }
+        }
+    }
     
     /**
      * Helper method to log bonuses for debugging
@@ -1023,6 +1084,7 @@ public class StatScanManager {
         plugin.getLogger().info("  Omnivamp: +" + bonuses.omnivamp + "%");
         plugin.getLogger().info("  Crit Chance: +" + bonuses.critChance + "%");
         plugin.getLogger().info("  Crit Damage: +" + bonuses.critDamage + "x");
+        plugin.getLogger().info("  Mining Speed: +" + bonuses.miningSpeed + "x");
     }
     
     
@@ -1054,6 +1116,7 @@ public class StatScanManager {
         double critDamage = 0;
         double omnivamp = 0;
         double miningFortune = 0;
+        double miningSpeed = 0;
     }
 
 }

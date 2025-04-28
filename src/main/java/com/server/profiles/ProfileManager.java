@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
 
@@ -69,8 +70,45 @@ public class ProfileManager {
         playerProfiles[slot] = newProfile;
         
         player.sendMessage(ChatColor.GREEN + "Successfully created profile '" + 
-                         ChatColor.GOLD + name + ChatColor.GREEN + "' in slot #" + (slot + 1));
+                        ChatColor.GOLD + name + ChatColor.GREEN + "' in slot #" + (slot + 1));
+        
+        // Kill the player when a new profile is created to ensure fresh start
+        final boolean isFirstProfile = !hasAnyOtherProfile(player.getUniqueId(), slot);
+        
+        if (isFirstProfile) {
+            // Set as active profile
+            activeProfiles.put(player.getUniqueId(), slot);
+            
+            // Kill the player after a short delay to ensure profile is properly set
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (player.isOnline()) {
+                        player.setHealth(0); // Kill the player
+                        player.sendMessage(ChatColor.YELLOW + "Starting fresh with your new profile!");
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Killed " + player.getName() + " after creating first profile " + slot);
+                        }
+                    }
+                }
+            }.runTaskLater(plugin, 5L);
+        }
+        
         return true;
+    }
+
+    /**
+     * Check if a player has any other profiles besides the specified slot
+     */
+    private boolean hasAnyOtherProfile(UUID playerUUID, int excludedSlot) {
+        PlayerProfile[] profiles = getProfiles(playerUUID);
+        for (int i = 0; i < profiles.length; i++) {
+            if (i != excludedSlot && profiles[i] != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean selectProfile(Player player, int slot) {
@@ -95,15 +133,40 @@ public class ProfileManager {
             // Save full profile state
             playerProfiles[currentSlot].saveProfile(player);
         }
-
+            
         // Load the new profile (which will set correct health value)
         PlayerProfile newProfile = playerProfiles[slot];
+        
+        // Check if this is the player's first-ever profile selection
+        boolean isFirstEverSelection = !playerHasPlayedBefore(player.getUniqueId());
+        
+        // If not first ever, check if this is first time accessing this specific profile
+        boolean isFirstProfileAccess = !isFirstEverSelection && newProfile.getLastPlayed() == newProfile.getCreated();
         
         // Set profile as active before loading to ensure it's recognized
         activeProfiles.put(player.getUniqueId(), slot);
         
         // Load the profile (this will set proper health from profile)
         newProfile.loadProfile(player);
+        
+        // If this is the first-ever profile or first time accessing this profile, kill the player
+        // This ensures they spawn at the proper location with default stats
+        if (isFirstEverSelection || isFirstProfileAccess) {
+            // Kill the player with a delay to ensure the profile is fully loaded
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (player.isOnline()) {
+                        player.setHealth(0); // Kill the player
+                        player.sendMessage(ChatColor.YELLOW + "Starting fresh with your new profile!");
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Killed " + player.getName() + " for first access of profile " + slot);
+                        }
+                    }
+                }
+            }.runTaskLater(plugin, 5L); // Short delay to ensure profile is fully loaded
+        }
         
         // Update the scoreboard for the player
         if (plugin != null && plugin.getScoreboardManager() != null) {
@@ -113,6 +176,19 @@ public class ProfileManager {
         player.sendMessage(ChatColor.GREEN + "Selected profile '" + 
                         ChatColor.GOLD + newProfile.getName() + ChatColor.GREEN + "' from slot #" + (slot + 1));
         return true;
+    }
+
+    /**
+     * Check if a player has ever played before (accessed any profile)
+     */
+    private boolean playerHasPlayedBefore(UUID playerUUID) {
+        PlayerProfile[] profiles = getProfiles(playerUUID);
+        for (PlayerProfile profile : profiles) {
+            if (profile != null && profile.getLastPlayed() > profile.getCreated()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean deleteProfile(Player player, int slot) {

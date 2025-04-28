@@ -74,6 +74,16 @@ commands:
     usage: /<command> <player> <stat> <value|default> OR /<command> <reset|list> <player>
     permission: mmo.admin.stats
     aliases: [astats]
+  admintokens:
+    description: Admin command to manage player skill tokens
+    usage: /<command> <player> <skill> <amount> OR /<command> <reset|list> <player>
+    permission: mmo.admin.tokens
+    aliases: [atokens]
+  adminskills:
+    description: Admin command to manage player skill levels and XP
+    usage: /<command> <player> <skill> <level|xp> <value> OR /<command> <reset|list> <player>
+    permission: mmo.admin.skills
+    aliases: [askills, askill]
 
 permissions:
   mmo.admin:
@@ -93,4 +103,13 @@ permissions:
     default: op
   mmo.admin.stats:
     description: Allows managing player stats
+    default: op
+  mmo.admin.tokens:
+    description: Allows managing player skill tokens
+    default: op
+  mmo.admin.tokens.showempty:
+    description: Shows skills with 0 tokens in token listings
+    default: op
+  mmo.admin.skills:
+    description: Allows managing player skill levels and XP
     default: op

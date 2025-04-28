@@ -5,7 +5,9 @@ import java.util.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AdminSkillsCommand;
 import com.server.commands.AdminStatsCommand;
+import com.server.commands.AdminTokensCommand;
 import com.server.commands.AnimationDebugCommand;
 import com.server.commands.CosmeticCommand;
 import com.server.commands.CurrencyCommand;
@@ -329,6 +331,24 @@ public class Main extends JavaPlugin {
             LOGGER.warning("Command 'adminstats' not registered in plugin.yml file!");
         }
 
+        org.bukkit.command.PluginCommand adminTokensCommand = this.getCommand("admintokens");
+        if (adminTokensCommand != null) {
+            AdminTokensCommand adminTokensHandler = new AdminTokensCommand(this);
+            adminTokensCommand.setExecutor(adminTokensHandler);
+            adminTokensCommand.setTabCompleter(adminTokensHandler);
+        } else {
+            LOGGER.warning("Command 'admintokens' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand adminSkillsCommand = this.getCommand("adminskills");
+        if (adminSkillsCommand != null) {
+            AdminSkillsCommand adminSkillsHandler = new AdminSkillsCommand(this);
+            adminSkillsCommand.setExecutor(adminSkillsHandler);
+            adminSkillsCommand.setTabCompleter(adminSkillsHandler);
+        } else {
+            LOGGER.warning("Command 'adminskills' not registered in plugin.yml file!");
+        }
+
         
     }
 
@@ -342,7 +362,7 @@ public class Main extends JavaPlugin {
 
     /**
      * Get the ProfileManager instance
-     * 
+     * a
      * @return The ProfileManager instance
      */
     public ProfileManager getProfileManager() {

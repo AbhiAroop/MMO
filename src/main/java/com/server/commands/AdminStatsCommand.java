@@ -67,6 +67,9 @@ public class AdminStatsCommand implements TabExecutor {
         // Size and Range
         availableStats.put("attackrange", Double.class);
         availableStats.put("size", Double.class);
+
+        //Mining Stats
+        availableStats.put("miningspeed", Double.class);
     }
     
     public AdminStatsCommand(Main plugin) {
@@ -288,6 +291,10 @@ public class AdminStatsCommand implements TabExecutor {
                           String.format("%.2f", stats.getLootingFortune()) + "x");
         sender.sendMessage(ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + 
                           String.format("%.2f", stats.getFishingFortune()) + "x");
+
+        //Mining Stats
+        sender.sendMessage(ChatColor.GRAY + "Mining Speed: " + ChatColor.WHITE + 
+                          String.format("%.2f", stats.getMiningSpeed()) + "x");
         
         return true;
     }
@@ -383,6 +390,9 @@ public class AdminStatsCommand implements TabExecutor {
                 case "size":
                     stats.setSize(stats.getDefaultSize());
                     break;
+                case "miningspeed":
+                    stats.setMiningSpeed(stats.getDefaultMiningSpeed());
+                    break;
                 default:
                     sender.sendMessage(ChatColor.RED + "Unknown stat: " + statName);
                     return;
@@ -428,6 +438,7 @@ public class AdminStatsCommand implements TabExecutor {
             case "luck": return stats.getLuck();
             case "attackrange": return stats.getAttackRange();
             case "size": return stats.getSize();
+            case "miningspeed": return stats.getMiningSpeed();
             default: return null;
         }
     }
@@ -509,6 +520,9 @@ public class AdminStatsCommand implements TabExecutor {
                 break;
             case "size":
                 stats.setSize((Double) value);
+                break;
+            case "miningspeed":
+                stats.setMiningSpeed((Double) value);
                 break;
         }
     }

@@ -19,6 +19,7 @@ com\server\commands\GiveHatCommand.class
 com\server\profiles\stats\StatScanManager$1.class
 com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
+com\server\profiles\ProfileManager$1.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\skills\events\MiningListener$1.class
@@ -30,6 +31,7 @@ com\server\commands\ProfileCommand.class
 com\server\profiles\skills\core\SkillLevelupListener.class
 com\server\profiles\skills\display\SkillActionBarManager.class
 com\server\events\AutoRespawnListener$2.class
+com\server\commands\AdminTokensCommand.class
 com\server\profiles\skills\rewards\RewardManager.class
 com\server\commands\GiveItemCommand.class
 com\server\events\PlayerListener.class
@@ -37,6 +39,7 @@ com\server\entities\CustomEntityManager.class
 com\server\profiles\skills\skills\excavating\ExcavatingSkill.class
 com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
+com\server\profiles\ProfileManager$2.class
 com\server\display\DamageIndicatorManager$3.class
 com\server\profiles\gui\StatsGUI.class
 com\server\Main.class
@@ -123,6 +126,7 @@ com\server\entities\mobs\CustomMob$1$1.class
 com\server\entities\CustomMobStats.class
 com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.class
 com\server\entities\mobs\CustomMob$2.class
+com\server\commands\AdminSkillsCommand.class
 com\server\display\DamageIndicatorManager.class
 com\server\events\RangedCombatManager$1.class
 com\server\profiles\skills\rewards\rewards\ItemReward.class
@@ -132,5 +136,6 @@ com\server\events\AutoRespawnListener$1.class
 com\server\profiles\skills\core\SkillType.class
 com\server\profiles\ProfileManager.class
 com\server\profiles\skills\rewards\rewards\UnlockReward.class
+com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\events\AbilityListener.class
 com\server\items\ItemRarity.class

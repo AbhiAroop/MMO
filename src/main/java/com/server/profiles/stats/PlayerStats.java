@@ -49,6 +49,7 @@ public class PlayerStats {
     private float expProgress;
     private double attackRange;
     private double size;
+    private double miningSpeed;
 
     // Default Values
     private int defaultHealth = 100;
@@ -76,6 +77,7 @@ public class PlayerStats {
     private double defaultFishingFortune = 1.00;
     private double defaultAttackRange = 3.0;
     private double defaultSize = 1.0;
+    private double defaultMiningSpeed = 0.5;
 
     // Default Values for Minecraft Stats
     private double defaultCurrentHealth = 100.0; // 10 hearts
@@ -122,6 +124,7 @@ public class PlayerStats {
         this.expProgress = defaultExpProgress;
         this.attackRange = defaultAttackRange;
         this.size = defaultSize;
+        this.miningSpeed = defaultMiningSpeed;
     }
 
     // Getters and Setters for all stats
@@ -238,6 +241,10 @@ public class PlayerStats {
         this.size = Math.min(16.0, Math.max(0.0625, size)); 
     }
 
+    public double getMiningSpeed() { return miningSpeed; }
+    public void setMiningSpeed(double miningSpeed) { this.miningSpeed = Math.max(0.1, miningSpeed); }
+
+
     // Add getter and setter for healthRegen
     public double getHealthRegen() { return healthRegen; }
     public void setHealthRegen(double healthRegen) { this.healthRegen = Math.max(0, healthRegen); }
@@ -337,6 +344,10 @@ public class PlayerStats {
 
     public double getDefaultSize() {
         return defaultSize;
+    }
+
+    public double getDefaultMiningSpeed() {
+        return defaultMiningSpeed;
     }
 
     // Default Minecraft stats getters
@@ -461,6 +472,34 @@ public class PlayerStats {
             // Scale attribute might not be available in older versions
         }
 
+        try {
+            AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttr != null) {
+                // Remove any existing modifiers
+                Set<AttributeModifier> miningSpeedModifiers = new HashSet<>(miningSpeedAttr.getModifiers());
+                for (AttributeModifier mod : miningSpeedModifiers) {
+                    miningSpeedAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (1.0)
+                miningSpeedAttr.setBaseValue(1.0);
+                
+                // Add our custom modifier for the mining speed value
+                double miningSpeedBonus = miningSpeed - 1.0;
+                if (miningSpeedBonus != 0) {
+                    AttributeModifier miningSpeedMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        "mmo.mining_speed",
+                        miningSpeedBonus,
+                        AttributeModifier.Operation.ADD_NUMBER
+                    );
+                    miningSpeedAttr.addModifier(miningSpeedMod);
+                }
+            }
+        } catch (Exception e) {
+            // Mining speed attribute might not be available in older versions
+        }
+
         // Apply additional Minecraft stats
         player.setFoodLevel(foodLevel);
         player.setSaturation(saturation);
@@ -496,6 +535,15 @@ public class PlayerStats {
             }
         } catch (Exception e) {
             // Scale attribute might not be available in older versions
+        }
+
+        try {
+            AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttr != null) {
+                this.miningSpeed = miningSpeedAttr.getBaseValue();
+            }
+        } catch (Exception e) {
+            // Mining speed attribute might not be available in older versions
         }
 
         this.foodLevel = player.getFoodLevel();
@@ -615,6 +663,12 @@ public class PlayerStats {
         this.defaultMiningFortune += amount;
         // Also update the current mining fortune value to reflect the new default
         this.miningFortune += amount;
+    }
+
+    public void increaseDefaultMiningSpeed(double amount) {
+        this.defaultMiningSpeed += amount;
+        // Also update the current mining speed value to reflect the new default
+        this.miningSpeed += amount;
     }
 
 }
