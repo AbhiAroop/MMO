@@ -127,17 +127,14 @@ public class MiningListener implements Listener {
         }
         
         // Notify player about bonus drops
-        if (finalMultiplier > 1) {
+        if (gotExtraTier) {
             String message;
-            if (gotExtraTier && finalMultiplier > 2) {
+            if (finalMultiplier > 2) {
                 // Lucky bonus on top of guaranteed bonus
-                message = "§e⚒ §6Mining Fortune §eprovided §6" + finalMultiplier + "x §edrops! (§a+" + chanceForExtraTier * 100 + "% §eluck bonus)";
-            } else if (gotExtraTier) {
+                message = "§e⚒ §6Mining Fortune §eprovided a §abonus drop§e! (§a+" + String.format("%.1f", chanceForExtraTier * 100) + "% §eluck)";
+            } else {
                 // Just lucky bonus (fortune < 100)
                 message = "§e⚒ §6Mining Fortune §egenerated a §abonus drop§e! (§a+" + String.format("%.1f", chanceForExtraTier * 100) + "% §eluck)";
-            } else {
-                // Just guaranteed multiplier (no luck involved)
-                message = "§e⚒ §6Mining Fortune §eprovided §6" + finalMultiplier + "x §edrops!";
             }
             player.sendMessage(message);
         }
