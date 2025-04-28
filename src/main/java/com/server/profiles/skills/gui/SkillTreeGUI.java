@@ -32,7 +32,7 @@ import com.server.profiles.skills.trees.TreeGridPosition;
  */
 public class SkillTreeGUI {
     // Size of the grid and translation to inventory slots
-    private static final int GRID_SIZE = 5; // 5x5 visible grid
+    private static final int GRID_SIZE = 7; // 5x5 visible grid
     private static final int VIEW_RADIUS = GRID_SIZE / 2; // How many tiles in each direction from center
     
     // Title prefix for the GUI
@@ -116,7 +116,7 @@ public class SkillTreeGUI {
      * Fill the GUI with skill tree nodes based on current view position
      */
     private static void fillSkillTreeNodes(Inventory gui, SkillTree tree, Set<String> unlockedNodes, 
-                                          int centerX, int centerY) {
+                                        int centerX, int centerY) {
         // Convert grid positions to inventory slots for visible area
         Map<String, SkillTreeNode> allNodes = tree.getAllNodes();
         
@@ -131,6 +131,11 @@ public class SkillTreeGUI {
             for (int gridX = minX; gridX <= maxX; gridX++) {
                 // Translate grid position to inventory slot
                 int slot = translateGridToSlot(gridX - minX, gridY - minY);
+                
+                // Skip invalid slots
+                if (slot < 0 || slot >= 54) {
+                    continue;
+                }
                 
                 // Get node at this position
                 SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
@@ -201,13 +206,20 @@ public class SkillTreeGUI {
         int slot = translateGridToSlot(x - minX, y - minY);
         
         // Strict bounds checking
-        if (slot < 0 || slot >= 54) { // Hard-coded 54 as the maximum size of chest inventory
+        if (slot < 0 || slot >= 54) {
             return; // Skip if the slot is invalid
         }
         
         try {
             // Try to get the current item at the slot to verify it's accessible
-            gui.getItem(slot);
+            ItemStack currentItem = gui.getItem(slot);
+            
+            // Skip if there's already a node at this position (don't overwrite nodes with lines)
+            if (currentItem != null && currentItem.hasItemMeta() && 
+                currentItem.getItemMeta().hasLore() && 
+                currentItem.getItemMeta().getLore().stream().anyMatch(line -> line.startsWith(ChatColor.BLACK + "ID:"))) {
+                return;
+            }
             
             // Choose the right material for the connection line
             Material lineMaterial = unlocked ? Material.LIME_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE;
@@ -307,16 +319,24 @@ public class SkillTreeGUI {
                 gui.setItem(45 + i, borderPane);
             }
             
-            // Left and right columns
+            // Left and right columns (skip slots 10, 19, 28, 37 on left and 16, 25, 34, 43 on right)
             for (int row = 1; row < 5; row++) {
-                // Left column
-                if (gui.getItem(row * 9) == null) {
-                    gui.setItem(row * 9, borderPane);
+                // Skip these specific slots to make them available for the skill tree grid
+                int leftSlot = row * 9;
+                int rightSlot = row * 9 + 8;
+                
+                if (leftSlot != 10 && leftSlot != 19 && leftSlot != 28 && leftSlot != 37) {
+                    // Left column (not a grid slot)
+                    if (gui.getItem(leftSlot) == null) {
+                        gui.setItem(leftSlot, borderPane);
+                    }
                 }
                 
-                // Right column
-                if (gui.getItem(row * 9 + 8) == null) {
-                    gui.setItem(row * 9 + 8, borderPane);
+                if (rightSlot != 16 && rightSlot != 25 && rightSlot != 34 && rightSlot != 43) {
+                    // Right column (not a grid slot)
+                    if (gui.getItem(rightSlot) == null) {
+                        gui.setItem(rightSlot, borderPane);
+                    }
                 }
             }
         }
@@ -583,26 +603,36 @@ public class SkillTreeGUI {
         openSkillTreeAtPosition(player, skill, newX, newY);
     }
     
-    /**
+   /**
      * Translate a grid position to an inventory slot
      */
     private static int translateGridToSlot(int gridX, int gridY) {
-        // Grid is 5x5, centered in the inventory
-        
         // Ensure gridX and gridY are within valid ranges
         if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) {
             return -1; // Invalid grid position
         }
         
         // Calculate row and column in inventory
-        // Center row (middle of inventory) is 2,2
         int row = gridY + 1; // Add 1 to account for the top row of inventory
-        int col = gridX + 2; // Add 2 to account for left columns
+        int col = gridX + 1; // Add 1 to account for left column
+        
+        // Special case for edge positions
+        if (gridX == 0) {
+            // Left edge - use slots 10, 19, 28, 37
+            if (gridY >= 0 && gridY <= 3) {
+                return (gridY + 1) * 9 + 1;
+            }
+        } else if (gridX == GRID_SIZE - 1) {
+            // Right edge - use slots 16, 25, 34, 43
+            if (gridY >= 0 && gridY <= 3) {
+                return (gridY + 1) * 9 + 7;
+            }
+        }
         
         // Convert to inventory slot
         int slot = (row * 9) + col;
         
-        // Double-check the slot is within bounds
+        // Double-check the slot is within bounds (0 to 53 inclusive)
         if (slot < 0 || slot >= 54) {
             return -1;
         }
