@@ -9,7 +9,9 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.data.PlayerSkillData;
 import com.server.profiles.skills.data.SkillLevel;
-import com.server.profiles.skills.rewards.RewardManager;
+import com.server.profiles.skills.events.SkillLevelUpEvent;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * Manages progression of skills and subskills, including handling parent-child relationships
@@ -76,34 +78,38 @@ public class SkillProgressionManager {
         
         // If leveled up, check for milestones and parent skill updates
         if (leveledUp) {
-            // Get the new level
-            SkillLevel newLevel = skillData.getSkillLevel(skill);
-            int level = newLevel.getLevel();
+    SkillLevel newLevel = skillData.getSkillLevel(skill);
+    
+    // Apply mining fortune bonus for OreExtractionSubskill levels
+        if (skill instanceof OreExtractionSubskill) {
+            OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
+            PlayerStats stats = profile.getStats();
             
-            // Check for milestone (if this is a subskill)
-            if (!skill.isMainSkill() && skill.hasMilestoneAt(level)) {
-                Skill parentSkill = skill.getParentSkill();
-                if (parentSkill != null) {
-                    // Calculate bonus XP for the parent skill
-                    double bonusXp = calculateMilestoneBonus(level);
-                    
-                    // Add XP to parent skill
-                    addExperience(player, parentSkill, bonusXp);
-                    
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " reached milestone level " + level + 
-                                 " in " + skill.getDisplayName() + ", adding " + bonusXp + 
-                                 " bonus XP to " + parentSkill.getDisplayName());
-                    }
-                }
+            // Calculate the change in mining fortune from the level up
+            double previousBonus = oreSkill.getMiningFortuneBonus(newLevel.getLevel() - 1);
+            double newBonus = oreSkill.getMiningFortuneBonus(newLevel.getLevel());
+            double fortuneIncrease = newBonus - previousBonus;
+            
+            // Apply the increase to player's default mining fortune stats
+            stats.increaseDefaultMiningFortune(fortuneIncrease);
+            
+            // Apply the changes to the player
+            stats.applyToPlayer(player);
+            
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Added " + String.format("%.2f", fortuneIncrease) + 
+                    " to default mining fortune for " + player.getName() + " from " + 
+                    skill.getDisplayName() + " level up (now level " + newLevel.getLevel() + ")");
             }
-            
-            // Notify the player of level up - pass the actual new level
-            notifyLevelUp(player, skill, level);
-            
-            // Apply rewards for the new level
-            RewardManager.getInstance().grantRewards(player, skill, level);
         }
+        
+        // Fire levelup event and give rewards
+        SkillLevelUpEvent levelUpEvent = new SkillLevelUpEvent(player, skill, newLevel.getLevel());
+        plugin.getServer().getPluginManager().callEvent(levelUpEvent);
+        
+        // Notify the player
+        notifyLevelUp(player, skill, newLevel.getLevel());
+    }
         
         return leveledUp;
     }

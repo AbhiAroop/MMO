@@ -5,6 +5,7 @@ import java.util.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AdminStatsCommand;
 import com.server.commands.AnimationDebugCommand;
 import com.server.commands.CosmeticCommand;
 import com.server.commands.CurrencyCommand;
@@ -37,6 +38,7 @@ import com.server.profiles.skills.core.SkillLevelupListener;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.display.SkillActionBarManager;
+import com.server.profiles.skills.events.MiningListener;
 import com.server.profiles.skills.events.SkillActionBarListener;
 import com.server.profiles.skills.events.SkillEventListener;
 import com.server.profiles.skills.gui.SkillGUIListener;
@@ -179,6 +181,8 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new SkillActionBarListener(), this);
         this.getServer().getPluginManager().registerEvents(new SkillTreeGUIListener(), this);
         this.getServer().getPluginManager().registerEvents(new SkillLevelupListener(this), this);
+
+        this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
     }
 
     public static Main getInstance() {
@@ -314,6 +318,18 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'skills' not registered in plugin.yml file!");
         }
+
+        // Register AdminStatsCommand
+         org.bukkit.command.PluginCommand adminStatsCommand = this.getCommand("adminstats");
+        if (adminStatsCommand != null) {
+            AdminStatsCommand adminStatsHandler = new AdminStatsCommand(this);
+            adminStatsCommand.setExecutor(adminStatsHandler);
+            adminStatsCommand.setTabCompleter(adminStatsHandler);
+        } else {
+            LOGGER.warning("Command 'adminstats' not registered in plugin.yml file!");
+        }
+
+        
     }
 
     public ScoreboardManager getScoreboardManager() {

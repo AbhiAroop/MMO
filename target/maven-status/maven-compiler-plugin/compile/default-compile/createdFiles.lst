@@ -21,6 +21,7 @@ com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\cosmetics\CosmeticGUI.class
+com\server\profiles\skills\events\MiningListener$1.class
 com\server\events\CombatListener$2.class
 com\server\profiles\skills\events\SkillEventListener$1.class
 com\server\abilities\AbilityManager$2.class
@@ -49,6 +50,7 @@ com\server\events\PlayerListener$4.class
 com\server\cosmetics\CosmeticManager$1.class
 com\server\entities\CustomEntityManager$1.class
 com\server\commands\SkillCommand.class
+com\server\commands\AdminStatsCommand.class
 com\server\items\CustomItems.class
 com\server\commands\AnimationDebugCommand$1.class
 com\server\items\ItemManager.class
@@ -99,6 +101,7 @@ com\server\profiles\gui\ProfileGUI.class
 com\server\profiles\skills\rewards\SkillRewardType.class
 com\server\events\AutoRespawnListener.class
 com\server\profiles\PlayerProfile.class
+com\server\profiles\skills\events\MiningListener.class
 com\server\profiles\skills\trees\PlayerSkillTreeData.class
 com\server\profiles\skills\core\SkillProgressionManager.class
 com\server\profiles\skills\gui\SubskillsGUI.class

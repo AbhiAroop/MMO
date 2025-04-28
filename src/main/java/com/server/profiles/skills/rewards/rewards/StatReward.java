@@ -73,16 +73,34 @@ public class StatReward extends SkillReward {
                 
             // Fortune stats
             case SkillRewardType.MINING_FORTUNE:
-                stats.setMiningFortune(stats.getMiningFortune() + amount);
+                // Store the exact value without any rounding by using Java's BigDecimal for precision
+                double currentMiningFortune = stats.getMiningFortune();
+                // Use BigDecimal for precise calculation
+                java.math.BigDecimal preciseValue = new java.math.BigDecimal(Double.toString(currentMiningFortune))
+                    .add(new java.math.BigDecimal(Double.toString(amount)));
+                // Convert back to double at the last moment to maintain precision
+                stats.setMiningFortune(preciseValue.doubleValue());
                 break;
+                
             case SkillRewardType.FARMING_FORTUNE:
-                stats.setFarmingFortune(stats.getFarmingFortune() + amount);
+                double currentFarmingFortune = stats.getFarmingFortune();
+                java.math.BigDecimal preciseFarmingValue = new java.math.BigDecimal(Double.toString(currentFarmingFortune))
+                    .add(new java.math.BigDecimal(Double.toString(amount)));
+                stats.setFarmingFortune(preciseFarmingValue.doubleValue());
                 break;
+                
             case SkillRewardType.LOOTING_FORTUNE:
-                stats.setLootingFortune(stats.getLootingFortune() + amount);
+                double currentLootingFortune = stats.getLootingFortune();
+                java.math.BigDecimal preciseLootingValue = new java.math.BigDecimal(Double.toString(currentLootingFortune))
+                    .add(new java.math.BigDecimal(Double.toString(amount)));
+                stats.setLootingFortune(preciseLootingValue.doubleValue());
                 break;
+                
             case SkillRewardType.FISHING_FORTUNE:
-                stats.setFishingFortune(stats.getFishingFortune() + amount);
+                double currentFishingFortune = stats.getFishingFortune();
+                java.math.BigDecimal preciseFishingValue = new java.math.BigDecimal(Double.toString(currentFishingFortune))
+                    .add(new java.math.BigDecimal(Double.toString(amount)));
+                stats.setFishingFortune(preciseFishingValue.doubleValue());
                 break;
                 
             // Other stats

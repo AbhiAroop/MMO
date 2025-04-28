@@ -30,12 +30,11 @@ public class ItemManager {
                 double damage = getWeaponDamage(modifiedItem.getType());
                 lore.add(ChatColor.GRAY + "Physical Damage: " + ChatColor.RED + "+" + damage);
                 
-                // For vanilla weapons, set attack speed to 0
-                // This means they'll use the default player attack speed of 1.0
+                // For vanilla weapons, set attack speed to 0.5 (changed from 0)
                 AttributeModifier attackSpeed = new AttributeModifier(
                     UUID.randomUUID(),
                     "generic.attackSpeed",
-                    0.0, // No attack speed modifier for vanilla weapons
+                    0.5, // Changed from 0 to 0.5 for vanilla weapons
                     AttributeModifier.Operation.ADD_NUMBER
                 );
                 meta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, attackSpeed);

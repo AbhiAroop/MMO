@@ -69,6 +69,11 @@ commands:
     description: Opens the skills menu
     usage: /skills
     aliases: [skill, mmoskills]
+  adminstats:
+    description: Admin command to manage player stats
+    usage: /<command> <player> <stat> <value|default> OR /<command> <reset|list> <player>
+    permission: mmo.admin.stats
+    aliases: [astats]
 
 permissions:
   mmo.admin:
@@ -85,4 +90,7 @@ permissions:
     default: op
   mmo.animdebug:
     description: Grants access to animation debug commands
+    default: op
+  mmo.admin.stats:
+    description: Allows managing player stats
     default: op

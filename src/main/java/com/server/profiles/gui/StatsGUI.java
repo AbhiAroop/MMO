@@ -178,10 +178,14 @@ public class StatsGUI {
 
         // Fortune Stats (Gold Ingot)
         ItemStack fortuneItem = createGuiItem(Material.GOLD_INGOT, "§e§lFortune Stats",
-            "§7Mining Fortune: §f" + stats.getMiningFortune() + "x",
-            "§7Farming Fortune: §f" + stats.getFarmingFortune() + "x",
-            "§7Looting Fortune: §f" + stats.getLootingFortune() + "x",
-            "§7Fishing Fortune: §f" + stats.getFishingFortune() + "x",
+            "§7Mining Fortune: §f" + String.format("%.2f", stats.getMiningFortune()) + "x",
+            "§8 • Each 100 points guarantees +1 ore drops",
+            "§8 • Remaining points give chance for another drop",
+            "§8 • Current: §f" + getFortuneDescription(stats.getMiningFortune(), "ore"),
+            "",
+            "§7Farming Fortune: §f" + String.format("%.2f", stats.getFarmingFortune()) + "x",
+            "§7Looting Fortune: §f" + String.format("%.2f", stats.getLootingFortune()) + "x", 
+            "§7Fishing Fortune: §f" + String.format("%.2f", stats.getFishingFortune()) + "x",
             "§7Luck: §f" + stats.getLuck()
         );
 
@@ -361,5 +365,22 @@ public class StatsGUI {
         meta.setLore(loreList);
         item.setItemMeta(meta);
         return item;
+    }
+
+    /**
+     * Get a readable description of fortune effects
+     */
+    private static String getFortuneDescription(double fortune, String type) {
+        int guaranteedMultiplier = (int)(fortune / 100);
+        double chanceForNext = (fortune % 100);
+        
+        if (guaranteedMultiplier == 0) {
+            return String.format("%.1f%% chance for 2x %s drops", chanceForNext, type);
+        } else if (guaranteedMultiplier == 1) {
+            return String.format("2x %s drops + %.1f%% chance for 3x", type, chanceForNext);
+        } else {
+            return String.format("%dx %s drops + %.1f%% chance for %dx", 
+                guaranteedMultiplier + 1, type, chanceForNext, guaranteedMultiplier + 2);
+        }
     }
 }

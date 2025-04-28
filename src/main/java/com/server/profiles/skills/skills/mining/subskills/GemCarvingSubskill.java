@@ -65,14 +65,14 @@ public class GemCarvingSubskill extends AbstractSkill {
     }
     
     private void initializeRewards() {
-        // Level 5: Mining Fortune +0.1
+        // Level 5: Mining Fortune +0.10
         List<SkillReward> level5Rewards = new ArrayList<>();
-        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.1));
+        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.10));
         rewardsByLevel.put(5, level5Rewards);
         
-        // Level 10: Mining Fortune +0.1, Luck +1 (Milestone level)
+        // Level 10: Mining Fortune +0.10, Luck +1 (Milestone level)
         List<SkillReward> level10Rewards = new ArrayList<>();
-        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.1));
+        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.10));
         level10Rewards.add(new StatReward(SkillRewardType.LUCK, 1));
         rewardsByLevel.put(10, level10Rewards);
         
@@ -81,9 +81,9 @@ public class GemCarvingSubskill extends AbstractSkill {
         level25Rewards.add(new CurrencyReward(500));
         rewardsByLevel.put(25, level25Rewards);
         
-        // Level 50: Mining Fortune +0.3, Luck +2 (Milestone level)
+        // Level 50: Mining Fortune +0.30, Luck +2 (Milestone level)
         List<SkillReward> level50Rewards = new ArrayList<>();
-        level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.3));
+        level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.30));
         level50Rewards.add(new StatReward(SkillRewardType.LUCK, 2));
         rewardsByLevel.put(50, level50Rewards);
         
@@ -92,9 +92,9 @@ public class GemCarvingSubskill extends AbstractSkill {
         level75Rewards.add(new CurrencyReward(1500));
         rewardsByLevel.put(75, level75Rewards);
         
-        // Level 100: Mining Fortune +0.5, Luck +5 (Milestone level, max level)
+        // Level 100: Mining Fortune +0.50, Luck +5 (Milestone level, max level)
         List<SkillReward> level100Rewards = new ArrayList<>();
-        level100Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.5));
+        level100Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.50));
         level100Rewards.add(new StatReward(SkillRewardType.LUCK, 5));
         rewardsByLevel.put(100, level100Rewards);
     }

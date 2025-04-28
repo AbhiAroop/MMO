@@ -50,6 +50,9 @@ public class StatScanManager {
     private static final Pattern CRIT_DAMAGE_PATTERN = Pattern.compile("Critical Damage: \\+(\\d+\\.?\\d*)x");
     private static final Pattern OMNIVAMP_PATTERN = Pattern.compile("(?:Omnivamp|Omni Vamp): \\+(\\d+\\.?\\d*)%?");
 
+    // Mining-specific patterns
+    private static final Pattern MINING_FORTUNE_PATTERN = Pattern.compile("Mining Fortune: \\+(\\d+\\.?\\d*)");
+
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
     private static final String MMO_SIZE_MODIFIER = "mmo.size";
@@ -581,6 +584,15 @@ public class StatScanManager {
 
             bonuses.critChance += extractDoubleStat(cleanLine, CRIT_CHANCE_PATTERN);
             bonuses.critDamage += extractDoubleStat(cleanLine, CRIT_DAMAGE_PATTERN);
+
+            double miningFortuneBonus = extractDoubleStat(cleanLine, MINING_FORTUNE_PATTERN);
+            if (miningFortuneBonus > 0) {
+                // We'll add the mining fortune to a new field in ItemStatBonuses
+                bonuses.miningFortune += miningFortuneBonus;
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Added mining fortune: " + miningFortuneBonus);
+                }
+            }
         }
     }
 
@@ -678,6 +690,9 @@ public class StatScanManager {
         
         // Keep current mana as is, just cap it if needed
         stats.setMana(Math.min(currentMana, stats.getTotalMana()));
+
+        // Mining stats
+        stats.setMiningFortune(stats.getDefaultMiningFortune() + bonuses.miningFortune);
     }
         
     /**
@@ -1038,6 +1053,7 @@ public class StatScanManager {
         double critChance = 0;
         double critDamage = 0;
         double omnivamp = 0;
+        double miningFortune = 0;
     }
 
 }

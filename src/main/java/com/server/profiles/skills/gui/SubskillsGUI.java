@@ -1,5 +1,6 @@
 package com.server.profiles.skills.gui;
 
+import static java.lang.String.format;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.data.SkillLevel;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.trees.SkillTreeRegistry;
 
 /**
@@ -215,6 +217,18 @@ public class SubskillsGUI {
         } else {
             lore.add(ChatColor.GREEN + "MAXIMUM LEVEL REACHED!");
             lore.add(ChatColor.GRAY + "Total XP: " + String.format("%.1f", level.getTotalXp()));
+        }
+
+        if (subskill instanceof OreExtractionSubskill) {
+            OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
+            lore.add("");
+            lore.add(ChatColor.AQUA + "Bonuses at Current Level:");
+            lore.add(ChatColor.GRAY + "• Mining Speed: " + 
+                    ChatColor.YELLOW + String.format("%.2fx", oreSkill.getMiningSpeedMultiplier(level.getLevel())));
+            lore.add(ChatColor.GRAY + "• Mining Fortune: " + 
+                    ChatColor.YELLOW + String.format("+%.1f", oreSkill.getMiningFortuneBonus(level.getLevel())));
+            lore.add(ChatColor.GRAY + "• Bonus Drops: " + 
+                    ChatColor.YELLOW + format("%.1f%%", oreSkill.getBonusDropChance(level.getLevel()) * 100));
         }
         
         lore.add("");

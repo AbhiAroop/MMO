@@ -51,39 +51,39 @@ public class PlayerStats {
     private double size;
 
     // Default Values
-    private final int defaultHealth = 100;
-    private final int defaultArmor = 0;
-    private final int defaultMR = 0;
-    private final int defaultPhysicalDamage = 5;
-    private final int defaultMagicDamage = 5;
-    private final int defaultMana = 100;
-    private final double defaultSpeed = 0.1;
-    private final double defaultCritDmg = 1.5;
-    private final double defaultCritChance = 0.00;
-    private final double defaultBurstDmg = 2.0;
-    private final double defaultBurstChance = 0.01;
-    private final double defaultCDR = 0;
-    private final double defaultLifeSteal = 0;
-    private final int defaultRangedDamage = 5;
-    private final double defaultAttackSpeed = 0.5; // 0.5 attacks per second
-    private final double defaultOmnivamp = 0;
-    private final double defaultHealthRegen = 0.3;
-    private final int defaultManaRegen = 1;
-    private final int defaultLuck = 0;
-    private final double defaultMiningFortune = 1.0;
-    private final double defaultFarmingFortune = 1.0;
-    private final double defaultLootingFortune = 1.0;
-    private final double defaultFishingFortune = 1.0;
-    private final double defaultAttackRange = 3.0;
-    private final double defaultSize = 1.0;
+    private int defaultHealth = 100;
+    private int defaultArmor = 0;
+    private int defaultMR = 0;
+    private int defaultPhysicalDamage = 5;
+    private int defaultMagicDamage = 5;
+    private int defaultMana = 100;
+    private double defaultSpeed = 0.1;
+    private double defaultCritDmg = 1.5;
+    private double defaultCritChance = 0.00;
+    private double defaultBurstDmg = 2.0;
+    private double defaultBurstChance = 0.01;
+    private double defaultCDR = 0;
+    private double defaultLifeSteal = 0;
+    private int defaultRangedDamage = 5;
+    private double defaultAttackSpeed = 0.5; // 0.5 attacks per second
+    private double defaultOmnivamp = 0;
+    private double defaultHealthRegen = 0.3;
+    private int defaultManaRegen = 1;
+    private int defaultLuck = 0;
+    private double defaultMiningFortune = 1.00;
+    private double defaultFarmingFortune = 1.00;
+    private double defaultLootingFortune = 1.00;
+    private double defaultFishingFortune = 1.00;
+    private double defaultAttackRange = 3.0;
+    private double defaultSize = 1.0;
 
     // Default Values for Minecraft Stats
-    private final double defaultCurrentHealth = 100.0; // 10 hearts
-    private final int defaultFoodLevel = 20;          // Full food bar
-    private final float defaultSaturation = 5.0f;
-    private final float defaultExhaustion = 0.0f;
-    private final int defaultExpLevel = 0;
-    private final float defaultExpProgress = 0.0f;
+    private double defaultCurrentHealth = 100.0; // 10 hearts
+    private int defaultFoodLevel = 20;          // Full food bar
+    private float defaultSaturation = 5.0f;
+    private float defaultExhaustion = 0.0f;
+    private int defaultExpLevel = 0;
+    private float defaultExpProgress = 0.0f;
 
     public PlayerStats() {
         resetToDefaults();
@@ -609,6 +609,12 @@ public class PlayerStats {
         player.setExhaustion(exhaustion);
         player.setLevel(expLevel);
         player.setExp(expProgress);
+    }
+
+    public void increaseDefaultMiningFortune(double amount) {
+        this.defaultMiningFortune += amount;
+        // Also update the current mining fortune value to reflect the new default
+        this.miningFortune += amount;
     }
 
 }

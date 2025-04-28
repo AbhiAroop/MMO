@@ -226,6 +226,8 @@ public class SkillDetailsGUI {
             lore.add(ChatColor.AQUA + "Ore Extraction Bonuses:");
             lore.add(ChatColor.GRAY + "• Mining Speed: " + 
                     ChatColor.YELLOW + String.format("%.2fx", oreSkill.getMiningSpeedMultiplier(level.getLevel())));
+            lore.add(ChatColor.GRAY + "• Mining Fortune: " + 
+                    ChatColor.YELLOW + String.format("+%.1f", oreSkill.getMiningFortuneBonus(level.getLevel())));
             lore.add(ChatColor.GRAY + "• Bonus Drops: " + 
                     ChatColor.YELLOW + String.format("%.1f%%", oreSkill.getBonusDropChance(level.getLevel()) * 100));
             lore.add(ChatColor.GRAY + "• Cave-in Risk: " + 

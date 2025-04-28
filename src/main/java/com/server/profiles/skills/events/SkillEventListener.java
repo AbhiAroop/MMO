@@ -307,4 +307,61 @@ public class SkillEventListener implements Listener {
                 return 8.0;
         }
     }
+
+    /**
+     * Process OreExtraction XP directly (called from MiningListener)
+     */
+    public void processOreExtractionXP(Player player, Material material) {
+        // Get mining skill
+        Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+        if (miningSkill == null) return;
+        
+        // Find OreExtraction subskill
+        for (Skill subskill : miningSkill.getSubskills()) {
+            if (subskill instanceof OreExtractionSubskill) {
+                OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
+                
+                // Check if this material is affected by the subskill
+                if (oreSkill.affectsMaterial(material)) {
+                    // Calculate XP amount based on material
+                    double xpAmount = 0;
+                    
+                    // Scale XP based on ore value
+                    if (material.name().contains("DIAMOND")) {
+                        xpAmount = 20.0; // Fixed amount for diamond ore
+                    } else if (material.name().contains("EMERALD")) {
+                        xpAmount = 22.0; // Fixed amount for emerald ore
+                    } else if (material.name().contains("GOLD")) {
+                        xpAmount = 15.0; // Fixed amount for gold ore
+                    } else if (material.name().contains("IRON")) {
+                        xpAmount = 10.0; // Fixed amount for iron ore
+                    } else if (material.name().contains("REDSTONE")) {
+                        xpAmount = 8.0; // Fixed amount for redstone ore
+                    } else if (material.name().contains("LAPIS")) {
+                        xpAmount = 12.0; // Fixed amount for lapis ore
+                    } else if (material.name().contains("COAL")) {
+                        xpAmount = 5.0; // Fixed amount for coal ore
+                    } else if (material.name().contains("COPPER")) {
+                        xpAmount = 7.0; // Fixed amount for copper ore
+                    } else if (material.name().contains("ANCIENT_DEBRIS")) {
+                        xpAmount = 35.0; // Fixed amount for ancient debris
+                    } else if (material.name().contains("NETHER_QUARTZ")) {
+                        xpAmount = 8.0; // Fixed amount for nether quartz
+                    } else {
+                        xpAmount = getMiningXp(material) * 0.75; // Default for other materials
+                    }
+                    
+                    // Award the subskill XP
+                    SkillProgressionManager.getInstance().addExperience(player, subskill, xpAmount);
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                                            " XP in " + subskill.getDisplayName() + 
+                                            " for breaking " + material.name());
+                    }
+                    break; // Only award XP once
+                }
+            }
+        }
+    }
 }

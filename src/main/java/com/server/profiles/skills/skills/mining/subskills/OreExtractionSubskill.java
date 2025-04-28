@@ -65,36 +65,37 @@ public class OreExtractionSubskill extends AbstractSkill {
     }
     
     private void initializeRewards() {
-        // Level 5: Mining Fortune +0.1
+        // Level 5: Mining Fortune +0.10
         List<SkillReward> level5Rewards = new ArrayList<>();
-        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.1));
+        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 1.00));
         rewardsByLevel.put(5, level5Rewards);
         
-        // Level 10: Mining Fortune +0.2 (Milestone level)
+        // Level 10: Mining Fortune +0.20 (Milestone level)
         List<SkillReward> level10Rewards = new ArrayList<>();
-        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.2));
+        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 2.00));
         rewardsByLevel.put(10, level10Rewards);
         
-        // Level 25: Mining Fortune +0.3 (Milestone level)
+        // Level 25: Mining Fortune +0.30 (Milestone level)
         List<SkillReward> level25Rewards = new ArrayList<>();
-        level25Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.3));
+        level25Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 3.00));
         rewardsByLevel.put(25, level25Rewards);
         
-        // Level 50: Mining Fortune +0.4 (Milestone level)
+        // Level 50: Mining Fortune +0.40 (Milestone level)
         List<SkillReward> level50Rewards = new ArrayList<>();
-        level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.4));
+        level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 4.00));
         rewardsByLevel.put(50, level50Rewards);
         
-        // Level 75: Mining Fortune +0.5 (Milestone level)
+        // Level 75: Mining Fortune +0.50 (Milestone level)
         List<SkillReward> level75Rewards = new ArrayList<>();
-        level75Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.5));
+        level75Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 5.00));
         rewardsByLevel.put(75, level75Rewards);
         
-        // Level 100: Mining Fortune +1.0 (Milestone level, max level)
+        // Level 100: Mining Fortune +1.00 (Milestone level, max level)
         List<SkillReward> level100Rewards = new ArrayList<>();
-        level100Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 1.0));
+        level100Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 10.00));
         rewardsByLevel.put(100, level100Rewards);
     }
+
     
     @Override
     public boolean isMainSkill() {
@@ -150,7 +151,7 @@ public class OreExtractionSubskill extends AbstractSkill {
      */
     public double getMiningSpeedMultiplier(int level) {
         // Formula: 1.0 (normal speed) + 0.01 per level (up to +100% at level 100)
-        return 1.0 + (level * 0.01);
+        return 1.0;
     }
     
     /**
@@ -171,5 +172,15 @@ public class OreExtractionSubskill extends AbstractSkill {
     public double getCaveInChance(int level) {
         // Formula: Starts at 25% at level 1, decreases by 0.24% per level, down to 1% at level 100
         return Math.max(0.01, 0.25 - (level * 0.0024));
+    }
+
+    /**
+     * Calculate mining fortune bonus based on skill level
+     * @param level The current level of this skill
+     * @return The mining fortune bonus (0.5 per level)
+     */
+    public double getMiningFortuneBonus(int level) {
+        // Provide 0.5 mining fortune per level
+        return level * 0.5;
     }
 }
