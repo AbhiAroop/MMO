@@ -92,6 +92,13 @@ public class SkillTree {
         
         return false;
     }
+
+    /**
+     * Get all connections in the tree
+     */
+    public Map<String, Set<String>> getAllConnections() {
+        return new HashMap<>(connections);
+    }
     
     /**
      * Calculate node position in a grid (for GUI display)

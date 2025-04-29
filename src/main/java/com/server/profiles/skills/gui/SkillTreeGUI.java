@@ -111,98 +111,22 @@ public class SkillTreeGUI {
         // Open the inventory
         player.openInventory(gui);
     }
-    
-    /**
-     * Fill the GUI with skill tree nodes based on current view position
-     */
-    private static void fillSkillTreeNodes(Inventory gui, SkillTree tree, Set<String> unlockedNodes, 
-                                        int centerX, int centerY) {
-        // Convert grid positions to inventory slots for visible area
-        Map<String, SkillTreeNode> allNodes = tree.getAllNodes();
-        
-        // Determine visible grid area
-        int minX = centerX - VIEW_RADIUS;
-        int maxX = centerX + VIEW_RADIUS;
-        int minY = centerY - VIEW_RADIUS;
-        int maxY = centerY + VIEW_RADIUS;
-        
-        // Check each position in the visible grid
-        for (int gridY = minY; gridY <= maxY; gridY++) {
-            for (int gridX = minX; gridX <= maxX; gridX++) {
-                // Translate grid position to inventory slot
-                int slot = translateGridToSlot(gridX - minX, gridY - minY);
-                
-                // Skip invalid slots
-                if (slot < 0 || slot >= 54) {
-                    continue;
-                }
-                
-                // Get node at this position
-                SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
-                
-                if (node != null) {
-                    // Create item for this node
-                    boolean unlocked = unlockedNodes.contains(node.getId());
-                    ItemStack nodeItem = createNodeItem(node, unlocked, tree, unlockedNodes);
-                    gui.setItem(slot, nodeItem);
-                    
-                    // Add connection lines to adjacent nodes if they exist and are connected
-                    addConnectionLines(gui, tree, node, unlockedNodes, gridX, gridY, minX, minY);
-                }
-            }
-        }
-    }
-    
-    /**
-     * Add connection lines between nodes
-     */
-    private static void addConnectionLines(Inventory gui, SkillTree tree, SkillTreeNode node, 
-                                          Set<String> unlockedNodes, int gridX, int gridY, 
-                                          int minX, int minY) {
-        // Get connections from this node
-        Set<String> connections = tree.getConnections(node.getId());
-        boolean sourceUnlocked = unlockedNodes.contains(node.getId());
-        
-        for (String targetId : connections) {
-            SkillTreeNode targetNode = tree.getNode(targetId);
-            if (targetNode == null) continue;
-            
-            TreeGridPosition targetPos = targetNode.getGridPosition();
-            int targetX = targetPos.getX();
-            int targetY = targetPos.getY();
-            
-            // Check if target is in visible area
-            if (targetX >= minX && targetX <= minX + 2 * VIEW_RADIUS && 
-                targetY >= minY && targetY <= minY + 2 * VIEW_RADIUS) {
-                
-                // Calculate direction and add line
-                int dx = Integer.compare(targetX, gridX);
-                int dy = Integer.compare(targetY, gridY);
-                
-                // Only support straight lines for simplicity
-                if (dx == 0 || dy == 0) {
-                    boolean targetUnlocked = unlockedNodes.contains(targetId);
-                    addConnectionLine(gui, gridX, gridY, dx, dy, minX, minY, sourceUnlocked && targetUnlocked);
-                }
-            }
-        }
-    }
-    
+
     /**
      * Add a connection line between nodes
      */
     private static void addConnectionLine(Inventory gui, int startX, int startY, int dx, int dy, 
-                                        int minX, int minY, boolean unlocked) {
+                                        int minX, int minY, boolean sourceUnlocked, boolean targetUnlocked) {
         // Calculate absolute coordinates
         int x = startX + dx;
         int y = startY + dy;
         
         // Check if the coordinates are within the visible grid
-        if (x < minX || x >= minX + GRID_SIZE || y < minY || y >= minY + GRID_SIZE) {
+        if (x < minX || x > minX + (GRID_SIZE - 1) || y < minY || y > minY + (GRID_SIZE - 1)) {
             return; // Outside the visible area
         }
         
-        // Calculate inventory slot
+        // Calculate inventory slot - this handles the special edge slots
         int slot = translateGridToSlot(x - minX, y - minY);
         
         // Strict bounds checking
@@ -221,24 +145,51 @@ public class SkillTreeGUI {
                 return;
             }
             
-            // Choose the right material for the connection line
-            Material lineMaterial = unlocked ? Material.LIME_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE;
+            // Choose the right material for the connection line based on state
+            Material lineMaterial;
+            ChatColor glassColor;
+            
+            if (sourceUnlocked && targetUnlocked) {
+                // Both nodes are unlocked - fully unlocked path
+                lineMaterial = Material.LIME_STAINED_GLASS_PANE;
+                glassColor = ChatColor.GREEN;
+            } else if (sourceUnlocked || targetUnlocked) {
+                // Only one node is unlocked - path leading to an available node
+                lineMaterial = Material.YELLOW_STAINED_GLASS_PANE;
+                glassColor = ChatColor.YELLOW;
+            } else {
+                // Neither node is unlocked - locked path
+                lineMaterial = Material.GRAY_STAINED_GLASS_PANE;
+                glassColor = ChatColor.GRAY;
+            }
             
             // Create the item
             ItemStack lineItem = new ItemStack(lineMaterial);
             ItemMeta meta = lineItem.getItemMeta();
-            meta.setDisplayName(" ");
+            meta.setDisplayName(glassColor + "Path");
+            
+            // Set lore to identify this as a connection line
+            List<String> lore = new ArrayList<>();
+            if (sourceUnlocked && targetUnlocked) {
+                lore.add(ChatColor.GREEN + "Unlocked path");
+            } else if (sourceUnlocked || targetUnlocked) {
+                lore.add(ChatColor.YELLOW + "Path to next available node");
+            } else {
+                lore.add(ChatColor.GRAY + "Locked path");
+            }
+            lore.add(ChatColor.BLACK + "CONNECTION_LINE"); // Hidden lore for identification
+            meta.setLore(lore);
+            
             lineItem.setItemMeta(meta);
             
             // Set the item in the inventory
             gui.setItem(slot, lineItem);
         } catch (Exception e) {
-            // If any exception occurs, log it and continue
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().warning("Failed to add connection line at slot " + slot + ": " + e.getMessage());
-            }
+            // Log the error but continue
+            Main.getInstance().getLogger().warning("Error adding connection line at slot " + slot + ": " + e.getMessage());
         }
     }
+    
     
     /**
      * Add navigation buttons to the GUI
@@ -307,14 +258,14 @@ public class SkillTreeGUI {
         gui.setItem(45, gui.getItem(45) != null ? gui.getItem(45) : cornerPane); // Preserve back button if it exists
         gui.setItem(53, cornerPane);
         
-        // Create the border pattern (top and bottom rows + side columns)
+        // Create the border pattern, excluding all potential skill tree slots
         for (int i = 0; i < 9; i++) {
-            // Top row (skipping corners)
-            if (i > 0 && i < 8 && gui.getItem(i) == null) {
+            // Top row (excluding slots 11-15 and corners)
+            if ((i > 0 && i < 8) && !(i >= 2 && i <= 6) && gui.getItem(i) == null) {
                 gui.setItem(i, borderPane);
             }
             
-            // Bottom row (skipping corners)
+            // Bottom row (skipping corners and back button)
             if (i > 0 && i < 8 && i != 4 && gui.getItem(45 + i) == null) {
                 gui.setItem(45 + i, borderPane);
             }
@@ -325,14 +276,18 @@ public class SkillTreeGUI {
                 int leftSlot = row * 9;
                 int rightSlot = row * 9 + 8;
                 
-                if (leftSlot != 10 && leftSlot != 19 && leftSlot != 28 && leftSlot != 37) {
+                // Don't fill these edge slots with border - we'll use them for the skill tree
+                boolean isSpecialLeftSlot = (leftSlot == 10 || leftSlot == 19 || leftSlot == 28 || leftSlot == 37);
+                boolean isSpecialRightSlot = (rightSlot == 16 || rightSlot == 25 || rightSlot == 34 || rightSlot == 43);
+                
+                if (!isSpecialLeftSlot) {
                     // Left column (not a grid slot)
                     if (gui.getItem(leftSlot) == null) {
                         gui.setItem(leftSlot, borderPane);
                     }
                 }
                 
-                if (rightSlot != 16 && rightSlot != 25 && rightSlot != 34 && rightSlot != 43) {
+                if (!isSpecialRightSlot) {
                     // Right column (not a grid slot)
                     if (gui.getItem(rightSlot) == null) {
                         gui.setItem(rightSlot, borderPane);
@@ -377,7 +332,7 @@ public class SkillTreeGUI {
      * Create an item for a node in the skill tree
      */
     private static ItemStack createNodeItem(SkillTreeNode node, boolean unlocked, 
-                                          SkillTree tree, Set<String> unlockedNodes) {
+                                        SkillTree tree, Set<String> unlockedNodes) {
         Material icon = node.getIcon();
         
         // Change appearance based on node state
@@ -424,10 +379,20 @@ public class SkillTreeGUI {
                 lore.add(ChatColor.GREEN + "Unlocked!");
             } else if (tree.isNodeAvailable(node.getId(), unlockedNodes)) {
                 lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " Token" + 
-                       (node.getTokenCost() > 1 ? "s" : ""));
+                    (node.getTokenCost() > 1 ? "s" : ""));
                 lore.add(ChatColor.YELLOW + "Click to unlock!");
             } else {
                 lore.add(ChatColor.RED + "Locked - Unlock connected nodes first");
+                
+                // Add prerequisite nodes information
+                List<String> prerequisites = getPrerequisiteNodes(tree, node.getId(), unlockedNodes);
+                if (!prerequisites.isEmpty()) {
+                    lore.add("");
+                    lore.add(ChatColor.RED + "Required nodes:");
+                    for (String prereq : prerequisites) {
+                        lore.add(ChatColor.RED + "• " + ChatColor.GRAY + prereq);
+                    }
+                }
             }
         } else {
             // Root node
@@ -442,6 +407,30 @@ public class SkillTreeGUI {
         
         return item;
     }
+
+    /**
+     * Get prerequisite nodes that need to be unlocked first
+     */
+    private static List<String> getPrerequisiteNodes(SkillTree tree, String nodeId, Set<String> unlockedNodes) {
+        List<String> prerequisites = new ArrayList<>();
+        
+        // Find all nodes that connect to this node
+        for (Map.Entry<String, Set<String>> entry : tree.getAllConnections().entrySet()) {
+            String fromNodeId = entry.getKey();
+            Set<String> targetNodes = entry.getValue();
+            
+            if (targetNodes.contains(nodeId) && !unlockedNodes.contains(fromNodeId)) {
+                // This is a prerequisite node that's not unlocked
+                SkillTreeNode prereqNode = tree.getNode(fromNodeId);
+                if (prereqNode != null) {
+                    prerequisites.add(prereqNode.getName());
+                }
+            }
+        }
+        
+        return prerequisites;
+    }
+
     
     /**
      * Create a navigation button
@@ -612,32 +601,301 @@ public class SkillTreeGUI {
             return -1; // Invalid grid position
         }
         
-        // Calculate row and column in inventory
-        int row = gridY + 1; // Add 1 to account for the top row of inventory
-        int col = gridX + 1; // Add 1 to account for left column
-        
-        // Special case for edge positions
+        // Handle special edge slots
         if (gridX == 0) {
-            // Left edge - use slots 10, 19, 28, 37
+            // Left edge - slots 10, 19, 28, 37
             if (gridY >= 0 && gridY <= 3) {
-                return (gridY + 1) * 9 + 1;
+                return 10 + (gridY * 9);
             }
-        } else if (gridX == GRID_SIZE - 1) {
-            // Right edge - use slots 16, 25, 34, 43
+        } else if (gridX == 6) {
+            // Right edge - slots 16, 25, 34, 43
             if (gridY >= 0 && gridY <= 3) {
-                return (gridY + 1) * 9 + 7;
+                return 16 + (gridY * 9);
             }
         }
+        
+        // Top row slots handling (11-15)
+        if (gridY == 0 && gridX >= 1 && gridX <= 5) {
+            return 11 + (gridX - 1); // Maps to slots 11, 12, 13, 14, 15
+        }
+        
+        // Standard grid slots (middle columns)
+        int row = gridY + 1; // Add 1 to account for the top row
+        int col = gridX + 1; // Add 1 to account for the left column
         
         // Convert to inventory slot
         int slot = (row * 9) + col;
         
-        // Double-check the slot is within bounds (0 to 53 inclusive)
+        // Validate slot is in bounds
         if (slot < 0 || slot >= 54) {
             return -1;
         }
         
         return slot;
+    }
+    /**
+     * Fill the GUI with skill tree nodes based on current view position
+     */
+    private static void fillSkillTreeNodes(Inventory gui, SkillTree tree, Set<String> unlockedNodes, 
+                                        int centerX, int centerY) {
+        // Convert grid positions to inventory slots for visible area
+        Map<String, SkillTreeNode> allNodes = tree.getAllNodes();
+        
+        // Determine visible grid area
+        int minX = centerX - VIEW_RADIUS;
+        int maxX = centerX + VIEW_RADIUS;
+        int minY = centerY - VIEW_RADIUS;
+        int maxY = centerY + VIEW_RADIUS;
+        
+        // First, add all visible nodes
+        for (int gridY = minY; gridY <= maxY; gridY++) {
+            for (int gridX = minX; gridX <= maxX; gridX++) {
+                // Translate grid position to inventory slot
+                int slot = translateGridToSlot(gridX - minX, gridY - minY);
+                
+                // Skip invalid slots
+                if (slot < 0 || slot >= 54) {
+                    continue;
+                }
+                
+                // Get node at this position
+                SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
+                
+                if (node != null) {
+                    // Create item for this node
+                    boolean unlocked = unlockedNodes.contains(node.getId());
+                    ItemStack nodeItem = createNodeItem(node, unlocked, tree, unlockedNodes);
+                    gui.setItem(slot, nodeItem);
+                }
+            }
+        }
+        
+        // Now add connection lines between visible nodes
+        for (int gridY = minY; gridY <= maxY; gridY++) {
+            for (int gridX = minX; gridX <= maxX; gridX++) {
+                SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
+                
+                if (node != null) {
+                    // Add connection lines to adjacent nodes if they exist and are connected
+                    addConnectionLines(gui, tree, node, unlockedNodes, gridX, gridY, minX, minY);
+                }
+            }
+        }
+        
+        // Finally, check edge slots for connections to off-screen nodes
+        checkEdgeConnections(gui, tree, unlockedNodes, minX, minY, maxX, maxY);
+    }
+
+    /**
+     * Check edge slots for connections to off-screen nodes
+     */
+    private static void checkEdgeConnections(Inventory gui, SkillTree tree, Set<String> unlockedNodes,
+                                        int minX, int minY, int maxX, int maxY) {
+        // Define all edge slot coordinates that need checking
+        int[][] edgeSlots = {
+            // Left edge: 10, 19, 28, 37
+            {0, 0}, {0, 1}, {0, 2}, {0, 3},
+            // Right edge: 16, 25, 34, 43
+            {6, 0}, {6, 1}, {6, 2}, {6, 3},
+            // Top edge: 11, 12, 13, 14, 15 (excluding corners already checked)
+            {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}
+        };
+        
+        // Check each edge slot for potential connections to off-screen nodes
+        for (int[] edgeCoord : edgeSlots) {
+            int gridX = minX + edgeCoord[0];
+            int gridY = minY + edgeCoord[1];
+            
+            // Find all nodes that connect to or from this position (on-screen or off-screen)
+            boolean hasYellowConnection = checkForOffScreenConnections(tree, unlockedNodes, gridX, gridY);
+            
+            // If there's a potential connection but no node at this position, add a path indicator
+            SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
+            if (hasYellowConnection && node == null) {
+                int slot = translateGridToSlot(edgeCoord[0], edgeCoord[1]);
+                if (slot >= 0 && slot < 54 && (gui.getItem(slot) == null || 
+                    (gui.getItem(slot).getType() == Material.BLACK_STAINED_GLASS_PANE))) {
+                    
+                    // Create a yellow path indicator for this edge position
+                    ItemStack pathItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
+                    ItemMeta meta = pathItem.getItemMeta();
+                    meta.setDisplayName(ChatColor.YELLOW + "Path to Node");
+                    List<String> lore = new ArrayList<>();
+                    lore.add(ChatColor.YELLOW + "Path to an available node");
+                    lore.add(ChatColor.GRAY + "Continue in this direction");
+                    lore.add(ChatColor.BLACK + "CONNECTION_LINE");
+                    meta.setLore(lore);
+                    pathItem.setItemMeta(meta);
+                    
+                    gui.setItem(slot, pathItem);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a position has connections to unlocked nodes that might be off-screen
+     */
+    private static boolean checkForOffScreenConnections(SkillTree tree, Set<String> unlockedNodes, 
+                                                    int gridX, int gridY) {
+        // First, check all connections from nodes to this position
+        for (Map.Entry<String, Set<String>> entry : tree.getAllConnections().entrySet()) {
+            String sourceId = entry.getKey();
+            SkillTreeNode sourceNode = tree.getNode(sourceId);
+            
+            if (sourceNode != null && unlockedNodes.contains(sourceId)) {
+                TreeGridPosition sourcePos = sourceNode.getGridPosition();
+                
+                // For any target ID in this node's connections
+                for (String targetId : entry.getValue()) {
+                    SkillTreeNode targetNode = tree.getNode(targetId);
+                    
+                    if (targetNode != null) {
+                        TreeGridPosition targetPos = targetNode.getGridPosition();
+                        
+                        // Check if this connection passes through our edge position
+                        if (isOnPath(sourcePos.getX(), sourcePos.getY(), 
+                                targetPos.getX(), targetPos.getY(), 
+                                gridX, gridY)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if a point is on the path between two other points (for straight horizontal/vertical lines only)
+     */
+    private static boolean isOnPath(int x1, int y1, int x2, int y2, int checkX, int checkY) {
+        // Only handle straight lines (horizontal or vertical)
+        if (x1 == x2) { // Vertical line
+            return (checkX == x1) && (Math.min(y1, y2) <= checkY) && (checkY <= Math.max(y1, y2));
+        } else if (y1 == y2) { // Horizontal line
+            return (checkY == y1) && (Math.min(x1, x2) <= checkX) && (checkX <= Math.max(x1, x2));
+        }
+        
+        return false; // Not on a straight line path
+    }
+
+    /**
+     * Add connection lines between nodes
+     */
+    private static void addConnectionLines(Inventory gui, SkillTree tree, SkillTreeNode node, 
+                                        Set<String> unlockedNodes, int gridX, int gridY, 
+                                        int minX, int minY) {
+        // Get connections from this node
+        Set<String> connections = tree.getConnections(node.getId());
+        boolean sourceUnlocked = unlockedNodes.contains(node.getId());
+        
+        for (String targetId : connections) {
+            SkillTreeNode targetNode = tree.getNode(targetId);
+            if (targetNode == null) continue;
+            
+            TreeGridPosition targetPos = targetNode.getGridPosition();
+            int targetX = targetPos.getX();
+            int targetY = targetPos.getY();
+            
+            // Check if target is in visible area
+            if (targetX >= minX && targetX <= minX + 2 * VIEW_RADIUS && 
+                targetY >= minY && targetY <= minY + 2 * VIEW_RADIUS) {
+                
+                // Calculate direction
+                int dx = targetX - gridX;
+                int dy = targetY - gridY;
+                
+                // Only create horizontal or vertical connections (no diagonals)
+                if (dx == 0 || dy == 0) {
+                    boolean targetUnlocked = unlockedNodes.contains(targetId);
+                    
+                    // For horizontal lines
+                    if (dy == 0 && dx != 0) {
+                        int steps = Math.abs(dx);
+                        int stepDirection = Integer.signum(dx);
+                        
+                        // Add each path segment
+                        for (int i = 1; i < steps; i++) {
+                            addConnectionLine(gui, gridX, gridY, i * stepDirection, 0, 
+                                            minX, minY, sourceUnlocked, targetUnlocked);
+                        }
+                    }
+                    // For vertical lines
+                    else if (dx == 0 && dy != 0) {
+                        int steps = Math.abs(dy);
+                        int stepDirection = Integer.signum(dy);
+                        
+                        // Add each path segment
+                        for (int i = 1; i < steps; i++) {
+                            addConnectionLine(gui, gridX, gridY, 0, i * stepDirection, 
+                                            minX, minY, sourceUnlocked, targetUnlocked);
+                        }
+                    }
+                }
+            } else {
+                // For off-screen target nodes, add a path indicator at the edge
+                handleOffScreenConnection(gui, tree, node, targetNode, unlockedNodes, 
+                                        gridX, gridY, targetX, targetY, minX, minY);
+            }
+        }
+    }
+
+    /**
+     * Handle connections to nodes that are off-screen
+     */
+    private static void handleOffScreenConnection(Inventory gui, SkillTree tree, 
+                                            SkillTreeNode sourceNode, SkillTreeNode targetNode,
+                                            Set<String> unlockedNodes, 
+                                            int gridX, int gridY, int targetX, int targetY,
+                                            int minX, int minY) {
+        boolean sourceUnlocked = unlockedNodes.contains(sourceNode.getId());
+        boolean targetUnlocked = unlockedNodes.contains(targetNode.getId());
+        
+        // Only handle straight lines (horizontal or vertical)
+        if (gridX == targetX || gridY == targetY) {
+            int dx = targetX - gridX;
+            int dy = targetY - gridY;
+            
+            // Calculate how far to draw the path within the visible area
+            int visibleMaxX = minX + GRID_SIZE - 1;
+            int visibleMaxY = minY + GRID_SIZE - 1;
+            
+            // Direction vectors
+            int stepX = Integer.signum(dx);
+            int stepY = Integer.signum(dy);
+            
+            // Maximum steps in each direction
+            int stepsX = 0;
+            int stepsY = 0;
+            
+            // Calculate how many steps we can take before hitting the edge
+            if (stepX > 0) {
+                stepsX = Math.min(visibleMaxX - gridX, Math.abs(dx));
+            } else if (stepX < 0) {
+                stepsX = Math.min(gridX - minX, Math.abs(dx));
+            }
+            
+            if (stepY > 0) {
+                stepsY = Math.min(visibleMaxY - gridY, Math.abs(dy));
+            } else if (stepY < 0) {
+                stepsY = Math.min(gridY - minY, Math.abs(dy));
+            }
+            
+            // Draw the path to the edge
+            if (dx != 0) { // Horizontal path
+                for (int i = 1; i <= stepsX; i++) {
+                    addConnectionLine(gui, gridX, gridY, i * stepX, 0, 
+                                minX, minY, sourceUnlocked, targetUnlocked);
+                }
+            } else if (dy != 0) { // Vertical path
+                for (int i = 1; i <= stepsY; i++) {
+                    addConnectionLine(gui, gridX, gridY, 0, i * stepY, 
+                                minX, minY, sourceUnlocked, targetUnlocked);
+                }
+            }
+        }
     }
     
     /**
