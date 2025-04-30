@@ -19,6 +19,10 @@ import org.bukkit.inventory.ItemStack;
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.abilities.AbilityRegistry;
+import com.server.profiles.skills.abilities.passive.mining.VeinMinerAbility;
+import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
 
 /**
  * Handles mining-related events including mining fortune calculations
@@ -32,16 +36,13 @@ public class MiningListener implements Listener {
         this.plugin = plugin;
     }
     
-   @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Block block = event.getBlock();
         
         // Skip if in creative mode
         if (player.getGameMode() == GameMode.CREATIVE) return;
-        
-        // Skip if not an ore block
-        if (!isOre(block.getType())) return;
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -50,9 +51,61 @@ public class MiningListener implements Listener {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Get mining fortune value
-        double miningFortune = profile.getStats().getMiningFortune();
+        // Skip if not an ore block for fortune calculation
+        if (!isOre(block.getType())) return;
         
+        // Check if this is a vein miner block
+        boolean isVeinMinerBlock = block.hasMetadata("veinminer_processed");
+        int fortuneMultiplier;
+        
+        if (isVeinMinerBlock) {
+            // Get the mining fortune multiplier passed from the vein miner ability
+            fortuneMultiplier = 1;
+            if (block.hasMetadata("veinminer_fortune")) {
+                fortuneMultiplier = block.getMetadata("veinminer_fortune").get(0).asInt();
+                block.removeMetadata("veinminer_fortune", plugin);
+            }
+            
+            // Remove the processed metadata
+            block.removeMetadata("veinminer_processed", plugin);
+            
+            // Debug logging
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info(player.getName() + " broke vein miner block " + block.getType() + 
+                    " with fortune multiplier: " + fortuneMultiplier);
+            }
+        } else {
+            // Regular block - Process vein miner ability if enabled
+            PlayerSkillTreeData treeData = profile.getSkillTreeData();
+            int veinMinerLevel = treeData.getNodeLevel(SubskillType.ORE_EXTRACTION.getId(), "vein_miner");
+            
+            if (veinMinerLevel > 0) {
+                // The player has unlocked the vein miner ability through skill tree
+                AbilityRegistry abilityRegistry = AbilityRegistry.getInstance();
+                VeinMinerAbility veinMinerAbility = (VeinMinerAbility) abilityRegistry.getAbility("vein_miner");
+                
+                if (veinMinerAbility != null && veinMinerAbility.isEnabled(player)) {
+                    // Handle the ability - this will process connected blocks
+                    veinMinerAbility.handleBlockBreak(player, block);
+                }
+            }
+            
+            // Get mining fortune value directly from player stats
+            double miningFortune = profile.getStats().getMiningFortune();
+            
+            // Calculate fortune multiplier for regular blocks
+            fortuneMultiplier = calculateFortuneMultiplier(miningFortune);
+        }
+        
+        // At this point, we have the correct fortune multiplier for both regular and vein miner blocks
+        // Process the block with the determined fortune multiplier
+        processBlockWithFortune(event, player, block, fortuneMultiplier);
+    }
+
+    /**
+     * Process a block with fortune multiplier
+     */
+    private void processBlockWithFortune(BlockBreakEvent event, Player player, Block block, int fortuneMultiplier) {
         // Save the drops before we cancel the event
         Collection<ItemStack> normalDrops = new ArrayList<>();
         
@@ -70,85 +123,66 @@ public class MiningListener implements Listener {
         
         // If we still have no drops, let the vanilla event happen
         if (normalDrops.isEmpty()) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Could not determine drops for " + block.getType() + " - using vanilla behavior");
-            }
-            return; // Let vanilla handle it
-        }
-        
-        // CRITICAL FIX: Store the block's material and location before cancelling
-        Material blockMaterial = block.getType();
-        Location blockLocation = block.getLocation().clone();
-        
-        // Now we can safely cancel the event since we have drops to give
-        event.setCancelled(true);
-        
-        // Break the block without dropping items
-        block.setType(Material.AIR);
-        
-        // Calculate drop multiplier based on mining fortune
-        // For 0-99 mining fortune: 1x guaranteed + (0-99)% chance for 2x
-        // For 100-199 mining fortune: 2x guaranteed + (0-99)% chance for 3x
-        // And so on...
-        int guaranteedMultiplier = (int)(miningFortune / 100) + 1; // Always at least 1x drop
-        double chanceForExtraTier = (miningFortune % 100) / 100.0;
-        
-        // Final multiplier is guaranteed + potential extra tier based on chance
-        int finalMultiplier = guaranteedMultiplier;
-        
-        // Check for extra tier based on remaining chance
-        boolean gotExtraTier = false;
-        if (random.nextDouble() < chanceForExtraTier) {
-            finalMultiplier++;
-            gotExtraTier = true;
+            return;
         }
         
         // Debug output
         if (plugin.isDebugMode()) {
-            plugin.getLogger().info(player.getName() + " broke " + blockMaterial + 
-                " with Mining Fortune: " + miningFortune + 
-                " (Guaranteed: " + guaranteedMultiplier + 
-                "x, Extra Chance: " + String.format("%.1f%%", chanceForExtraTier * 100) + 
-                ") = " + finalMultiplier + "x drops");
+            plugin.getLogger().info(player.getName() + " broke " + block.getType() + 
+                " with Mining Fortune multiplier: " + fortuneMultiplier);
         }
+        
+        // Cancel the default drop behavior
+        event.setCancelled(true);
         
         // Create multiplied drops
         List<ItemStack> multipliedDrops = new ArrayList<>();
         for (ItemStack normalDrop : normalDrops) {
+            // Create a copy of each drop with the appropriate amount
             ItemStack multipliedDrop = normalDrop.clone();
-            multipliedDrop.setAmount(normalDrop.getAmount() * finalMultiplier);
+            multipliedDrop.setAmount(normalDrop.getAmount() * fortuneMultiplier);
             multipliedDrops.add(multipliedDrop);
         }
         
-        // Drop the items at the block location
-        Location dropLocation = blockLocation.add(0.5, 0.5, 0.5);
+        // Break the block - replace with air so it looks broken
+        block.setType(Material.AIR);
+        
+        // Drop the items in the world
+        Location dropLocation = block.getLocation().add(0.5, 0.5, 0.5);
         for (ItemStack drop : multipliedDrops) {
             block.getWorld().dropItemNaturally(dropLocation, drop);
         }
         
-        // Notify player about bonus drops
-        if (gotExtraTier) {
-            String message;
-            if (finalMultiplier > 2) {
-                // Lucky bonus on top of guaranteed bonus
-                message = "§e⚒ §6Mining Fortune §eprovided a §abonus drop§e! (§a+" + String.format("%.1f", chanceForExtraTier * 100) + "% §eluck)";
-            } else {
-                // Just lucky bonus (fortune < 100)
-                message = "§e⚒ §6Mining Fortune §egenerated a §abonus drop§e! (§a+" + String.format("%.1f", chanceForExtraTier * 100) + "% §eluck)";
-            }
-            player.sendMessage(message);
+        // Award XP if it's an ore
+        int blockXP = getBlockXP(block.getType());
+        if (blockXP > 0) {
+            player.giveExp(blockXP);
+        }
+    }
+
+    /**
+     * Calculate fortune multiplier - MUST MATCH the calculation in VeinMinerAbility
+     */
+    private int calculateFortuneMultiplier(double miningFortune) {
+        // Mining fortune is a percentage-based system:
+        // 100 mining fortune = 2x drops (guaranteed)
+        // 150 mining fortune = 2x drops + 50% chance for 3x drops
+        
+        // Calculate guaranteed multiplier (divide by 100 and add 1)
+        int guaranteedMultiplier = (int) Math.floor(miningFortune / 100) + 1;
+        
+        // Calculate chance for an extra drop (remainder percentage)
+        double chanceForExtraDrop = (miningFortune % 100);
+        
+        // Default multiplier is the guaranteed portion
+        int fortuneMultiplier = guaranteedMultiplier;
+        
+        // Check for chance-based extra drop
+        if (random.nextDouble() * 100 < chanceForExtraDrop) {
+            fortuneMultiplier++;
         }
         
-        // Ensure XP is still dropped
-        int xpAmount = getBlockXP(blockMaterial);
-        if (xpAmount > 0) {
-            block.getWorld().spawn(dropLocation, org.bukkit.entity.ExperienceOrb.class).setExperience(xpAmount);
-        }
-        
-        // CRITICAL FIX: Instead of creating a new event, directly call the SkillEventListener
-        // This ensures that the correct subskill XP is awarded
-        SkillEventListener skillListener = new SkillEventListener(plugin);
-        skillListener.processOreExtractionXP(player, blockMaterial);
+        return fortuneMultiplier;
     }
 
     /**
@@ -165,25 +199,25 @@ public class MiningListener implements Listener {
             case GOLD_ORE:
             case DEEPSLATE_GOLD_ORE:
                 return Material.RAW_GOLD;
+            case COPPER_ORE:
+            case DEEPSLATE_COPPER_ORE:
+                return Material.RAW_COPPER;
             case DIAMOND_ORE:
             case DEEPSLATE_DIAMOND_ORE:
                 return Material.DIAMOND;
-            case EMERALD_ORE:
-            case DEEPSLATE_EMERALD_ORE:
-                return Material.EMERALD;
             case LAPIS_ORE:
             case DEEPSLATE_LAPIS_ORE:
                 return Material.LAPIS_LAZULI;
             case REDSTONE_ORE:
             case DEEPSLATE_REDSTONE_ORE:
                 return Material.REDSTONE;
-            case COPPER_ORE:
-            case DEEPSLATE_COPPER_ORE:
-                return Material.RAW_COPPER;
-            case NETHER_GOLD_ORE:
-                return Material.GOLD_NUGGET;
+            case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
+                return Material.EMERALD;
             case NETHER_QUARTZ_ORE:
                 return Material.QUARTZ;
+            case NETHER_GOLD_ORE:
+                return Material.GOLD_NUGGET;
             case ANCIENT_DEBRIS:
                 return Material.ANCIENT_DEBRIS;
             default:
@@ -195,10 +229,30 @@ public class MiningListener implements Listener {
      * Check if a material is an ore
      */
     private boolean isOre(Material material) {
-        return material.name().contains("_ORE") || 
-               material == Material.ANCIENT_DEBRIS ||
-               material == Material.NETHER_GOLD_ORE ||
-               material == Material.NETHER_QUARTZ_ORE;
+        switch (material) {
+            case COAL_ORE:
+            case DEEPSLATE_COAL_ORE:
+            case IRON_ORE:
+            case DEEPSLATE_IRON_ORE:
+            case COPPER_ORE:
+            case DEEPSLATE_COPPER_ORE:
+            case GOLD_ORE:
+            case DEEPSLATE_GOLD_ORE:
+            case REDSTONE_ORE:
+            case DEEPSLATE_REDSTONE_ORE:
+            case LAPIS_ORE:
+            case DEEPSLATE_LAPIS_ORE:
+            case DIAMOND_ORE:
+            case DEEPSLATE_DIAMOND_ORE:
+            case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
+            case NETHER_GOLD_ORE:
+            case NETHER_QUARTZ_ORE:
+            case ANCIENT_DEBRIS:
+                return true;
+            default:
+                return false;
+        }
     }
     
     /**

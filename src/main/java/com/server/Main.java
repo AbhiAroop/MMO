@@ -35,6 +35,8 @@ import com.server.events.ItemListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.abilities.AbilityRegistry;
+import com.server.profiles.skills.abilities.gui.AbilityGUIListener;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillLevelupListener;
 import com.server.profiles.skills.core.SkillProgressionManager;
@@ -61,6 +63,7 @@ public class Main extends JavaPlugin {
     private RangedCombatManager rangedCombatManager;
     private StatScanManager statScanManager;
     private CustomEntityManager customEntityManager;
+    private AbilityRegistry abilityRegistry;
 
     // Update the onEnable method
     @Override
@@ -102,6 +105,9 @@ public class Main extends JavaPlugin {
         
         // Initialize SkillTreeRegistry AFTER SkillRegistry to ensure all skills are available
         SkillTreeRegistry.initialize(this);
+
+        // Initialize ability registry
+        AbilityRegistry.initialize(this);
         
         // Register commands and event listeners
         registerCommands();
@@ -185,6 +191,7 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new SkillLevelupListener(this), this);
 
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
     }
 
     public static Main getInstance() {
@@ -393,5 +400,9 @@ public class Main extends JavaPlugin {
      */
     public ActionBarManager getActionBarManager() {
         return actionBarManager;
+    }
+
+    public AbilityRegistry getAbilityRegistry() {
+        return AbilityRegistry.getInstance();
     }
 }

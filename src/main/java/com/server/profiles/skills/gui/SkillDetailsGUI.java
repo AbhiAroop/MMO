@@ -13,6 +13,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.data.SkillReward;
@@ -33,7 +34,7 @@ public class SkillDetailsGUI {
      */
     public static void openSkillDetailsMenu(Player player, Skill skill) {
         // Create inventory
-        Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE_PREFIX + skill.getDisplayName());
+        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE_PREFIX + skill.getDisplayName());
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -46,45 +47,44 @@ public class SkillDetailsGUI {
         if (profile == null) return;
         
         // Get skill level
-        SkillLevel level = profile.getSkillData().getSkillLevel(skill);
+        SkillLevel level = skill.getSkillLevel(player);
         
-        // Create skill info item
-        ItemStack skillInfoItem = createSkillInfoItem(skill, level);
-        gui.setItem(13, skillInfoItem);
+        // Add skill info
+        ItemStack infoItem = createSkillInfoItem(skill, level);
+        gui.setItem(4, infoItem);
         
-        // Add progress item
+        // Add progress bar
         ItemStack progressItem = createProgressItem(skill, level);
-        gui.setItem(22, progressItem);
+        gui.setItem(13, progressItem);
         
-        // Add rewards item
+        // Add rewards button
         ItemStack rewardsItem = createRewardsItem(skill, level);
-        gui.setItem(31, rewardsItem);
-
+        gui.setItem(11, rewardsItem);
+        
         // Add skill tree button
         ItemStack skillTreeItem = createSkillTreeItem(skill, profile);
-        gui.setItem(32, skillTreeItem); // Place it next to rewards button
+        gui.setItem(15, skillTreeItem);
         
-        // Add subskills button if this is a main skill
+        // Add abilities button
+        ItemStack abilitiesItem = createAbilitiesItem(skill, player);
+        gui.setItem(22, abilitiesItem);
+        
+        // If this is a main skill with subskills, add subskills button
         if (skill.isMainSkill() && !skill.getSubskills().isEmpty()) {
-            ItemStack subskillsItem = new ItemStack(Material.MAP);
+            ItemStack subskillsItem = new ItemStack(Material.BOOK);
             ItemMeta subskillsMeta = subskillsItem.getItemMeta();
             subskillsMeta.setDisplayName(ChatColor.AQUA + "View Subskills");
             
             List<String> subskillsLore = new ArrayList<>();
-            subskillsLore.add(ChatColor.GRAY + "This skill has " + skill.getSubskills().size() + " subskills:");
-            
-            for (Skill subskill : skill.getSubskills()) {
-                SkillLevel subskillLevel = profile.getSkillData().getSkillLevel(subskill);
-                subskillsLore.add(ChatColor.GRAY + "• " + ChatColor.YELLOW + subskill.getDisplayName() + 
-                            ChatColor.GRAY + " [Lvl " + subskillLevel.getLevel() + "]");
-            }
-            
+            subskillsLore.add(ChatColor.GRAY + "Click to view subskills for");
+            subskillsLore.add(ChatColor.GRAY + "this skill.");
             subskillsLore.add("");
-            subskillsLore.add(ChatColor.YELLOW + "Click to view subskills");
+            subskillsLore.add(ChatColor.YELLOW + "Subskills: " + skill.getSubskills().size());
             
             subskillsMeta.setLore(subskillsLore);
             subskillsItem.setItemMeta(subskillsMeta);
-            gui.setItem(30, subskillsItem);
+            
+            gui.setItem(22 - 9, subskillsItem); // Place above abilities button
         }
         
         // Add back button
@@ -92,19 +92,7 @@ public class SkillDetailsGUI {
         ItemMeta backMeta = backButton.getItemMeta();
         backMeta.setDisplayName(ChatColor.RED + "Back to Skills");
         backButton.setItemMeta(backMeta);
-        gui.setItem(45, backButton);
-        
-        // Fill empty slots with glass panes
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
-        filler.setItemMeta(fillerMeta);
-        
-        for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, filler);
-            }
-        }
+        gui.setItem(18, backButton);
         
         // Open inventory
         player.openInventory(gui);
@@ -388,6 +376,39 @@ public class SkillDetailsGUI {
             tokenInfo.displayName + " Token" + (tokenCount != 1 ? "s" : ""));
         lore.add("");
         lore.add(ChatColor.YELLOW + "Click to view Skill Tree");
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        
+        return item;
+    }
+    
+    /**
+     * Create a button for accessing abilities
+     */
+    private static ItemStack createAbilitiesItem(Skill skill, Player player) {
+        ItemStack item = new ItemStack(Material.BLAZE_POWDER);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Skill Abilities");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "View and manage abilities for");
+        lore.add(ChatColor.GRAY + "this skill.");
+        lore.add("");
+        
+        // Add ability counts
+        AbilityRegistry registry = AbilityRegistry.getInstance();
+        int unlockedPassive = registry.getUnlockedPassiveAbilities(player, skill.getId()).size();
+        int totalPassive = registry.getPassiveAbilities(skill.getId()).size();
+        int unlockedActive = registry.getUnlockedActiveAbilities(player, skill.getId()).size();
+        int totalActive = registry.getActiveAbilities(skill.getId()).size();
+        
+        lore.add(ChatColor.YELLOW + "Passive Abilities: " + 
+                ChatColor.GREEN + unlockedPassive + "/" + totalPassive);
+        lore.add(ChatColor.YELLOW + "Active Abilities: " + 
+                ChatColor.GREEN + unlockedActive + "/" + totalActive);
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Click to view abilities");
         
         meta.setLore(lore);
         item.setItemMeta(meta);

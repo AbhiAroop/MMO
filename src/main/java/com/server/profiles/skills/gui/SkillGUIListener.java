@@ -14,6 +14,7 @@ import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.gui.ProfileGUI;
+import com.server.profiles.skills.abilities.gui.AbilitiesGUI;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SkillType;
@@ -134,6 +135,19 @@ public class SkillGUIListener implements Listener {
         if (itemName.equals(ChatColor.AQUA + "Skill Tree")) {
             player.closeInventory();
             SkillTreeGUI.openSkillTreeGUI(player, skill);
+            return;
+        }
+
+        // Handle abilities button
+        if (clickedItem.getItemMeta().getDisplayName().equals(ChatColor.LIGHT_PURPLE + "Skill Abilities")) {
+            if (skill != null) {
+                player.closeInventory();
+                
+                // Force a short delay
+                Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                    AbilitiesGUI.openAbilitiesMenu(player, skill);
+                }, 2L);
+            }
             return;
         }
     }

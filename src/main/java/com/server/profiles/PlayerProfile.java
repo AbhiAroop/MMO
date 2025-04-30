@@ -3,6 +3,7 @@ package com.server.profiles;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -45,6 +46,8 @@ public class PlayerProfile {
     private int bits;           // Premium currency from store, for cosmetics
 
     private final Map<ItemType, ItemStack> cosmetics = new HashMap<>();
+    private final Set<String> unlockedAbilities = new HashSet<>();
+    private final Set<String> enabledAbilities = new HashSet<>();
 
     public PlayerProfile(UUID playerUUID, int slot, String name) {
         this.playerUUID = playerUUID;
@@ -394,5 +397,61 @@ public class PlayerProfile {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Check if an ability is unlocked
+     */
+    public boolean hasUnlockedAbility(String abilityId) {
+        return unlockedAbilities.contains(abilityId);
+    }
+
+    /**
+     * Unlock an ability
+     */
+    public void unlockAbility(String abilityId) {
+        unlockedAbilities.add(abilityId);
+        // By default, passive abilities are enabled when unlocked
+        enabledAbilities.add(abilityId);
+    }
+
+    /**
+     * Lock an ability
+     */
+    public void lockAbility(String abilityId) {
+        unlockedAbilities.remove(abilityId);
+        enabledAbilities.remove(abilityId);
+    }
+
+    /**
+     * Check if an ability is enabled
+     */
+    public boolean isAbilityEnabled(String abilityId) {
+        return enabledAbilities.contains(abilityId);
+    }
+
+    /**
+     * Set whether an ability is enabled
+     */
+    public void setAbilityEnabled(String abilityId, boolean enabled) {
+        if (enabled) {
+            enabledAbilities.add(abilityId);
+        } else {
+            enabledAbilities.remove(abilityId);
+        }
+    }
+
+    /**
+     * Get all unlocked abilities
+     */
+    public Set<String> getUnlockedAbilities() {
+        return new HashSet<>(unlockedAbilities);
+    }
+
+    /**
+     * Get all enabled abilities
+     */
+    public Set<String> getEnabledAbilities() {
+        return new HashSet<>(enabledAbilities);
     }
 }

@@ -371,9 +371,13 @@ public class StatsGUI {
      * Get a readable description of fortune effects
      */
     private static String getFortuneDescription(double fortune, String type) {
-        int guaranteedMultiplier = (int)(fortune / 100);
-        double chanceForNext = (fortune % 100);
+        // Calculate guaranteed multiplier (whole number part)
+        int guaranteedMultiplier = (int) Math.floor(fortune);
         
+        // Calculate chance for an extra drop (decimal part)
+        double chanceForNext = (fortune - guaranteedMultiplier) * 100.0;
+        
+        // Format the description based on the guaranteed multiplier
         if (guaranteedMultiplier == 0) {
             return String.format("%.1f%% chance for 2x %s drops", chanceForNext, type);
         } else if (guaranteedMultiplier == 1) {
