@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -22,6 +21,7 @@ import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * Ore Extraction Subskill - Focused on fast, efficient mining of ores (bulk harvests)
@@ -238,6 +238,8 @@ public class OreExtractionSubskill extends AbstractSkill {
         benefits.put("vein_miner_size", 0.0);
         benefits.put("smelting_chance", 0.0);
         benefits.put("ore_radar_range", 0.0);
+        benefits.put("deepslate_speed", 0.0);
+        benefits.put("nether_speed", 0.0);
         benefits.put("xp_boost", 0.0);
         benefits.put("token_yield", 0.0);
         benefits.put("hunger_reduction", 0.0);
@@ -251,163 +253,41 @@ public class OreExtractionSubskill extends AbstractSkill {
         if (profile == null) return benefits;
         
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        Set<String> unlockedNodes = treeData.getUnlockedNodes(this.getId());
         Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
         
         // Apply benefits from nodes
         
-        // Mining Fortune nodes
+        // Mining Fortune node - Add 0.5 mining fortune per level
         if (nodeLevels.containsKey("mining_fortune")) {
             int level = nodeLevels.get("mining_fortune");
-            double fortune = 0.0;
-            
-            switch (level) {
-                case 1: fortune = 0.5; break;
-                case 2: fortune = 1.0; break;
-                case 3: fortune = 1.5; break;
-                case 4: fortune = 2.0; break;
-                case 5: fortune = 3.0; break;
-            }
-            
+            double fortune = level * 0.5;
             benefits.put("mining_fortune", fortune);
-        }
-        
-        // Master Fortune node (single level)
-        if (unlockedNodes.contains("master_fortune")) {
-            benefits.put("mining_fortune", benefits.get("mining_fortune") + 5.0);
-        }
-        
-        // Mining Speed nodes
-        if (nodeLevels.containsKey("mining_speed")) {
-            int level = nodeLevels.get("mining_speed");
-            double speedBoost = 0.0;
             
-            switch (level) {
-                case 1: speedBoost = 0.05; break; // 5%
-                case 2: speedBoost = 0.10; break; // 10%
-                case 3: speedBoost = 0.15; break; // 15%
-                case 4: speedBoost = 0.20; break; // 20%
-                case 5: speedBoost = 0.30; break; // 30%
+            // Apply the mining fortune directly to the player's stats
+            // Use the increaseDefaultMiningFortune method which properly updates both default and current values
+            PlayerStats stats = profile.getStats();
+            
+            // Store the current mining fortune to calculate the difference
+            double oldFortune = stats.getMiningFortune();
+            
+            // Use the dedicated method to increase the mining fortune value
+            stats.increaseDefaultMiningFortune(fortune);
+            
+            // Log the change for debugging
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Updated mining fortune for " + player.getName() + 
+                    " from skill tree node: " + oldFortune + " -> " + stats.getMiningFortune());
             }
-            
-            benefits.put("mining_speed", speedBoost);
         }
         
-        // Deepslate Efficiency nodes
-        if (nodeLevels.containsKey("deepslate_efficiency")) {
-            int level = nodeLevels.get("deepslate_efficiency");
-            double deepslateBoost = 0.0;
-            
-            switch (level) {
-                case 1: deepslateBoost = 0.10; break; // 10%
-                case 2: deepslateBoost = 0.20; break; // 20%
-                case 3: deepslateBoost = 0.30; break; // 30%
-            }
-            
-            benefits.put("deepslate_speed", deepslateBoost);
+        // XP Boost node - Add 0.5% XP boost per level
+        if (nodeLevels.containsKey("ore_extraction_xp")) {
+            int level = nodeLevels.get("ore_extraction_xp");
+            double xpBoost = level * 0.5 / 100.0; // Convert percentage to decimal
+            benefits.put("xp_boost", xpBoost);
         }
         
-        // Vein Miner nodes
-        if (nodeLevels.containsKey("vein_miner")) {
-            int level = nodeLevels.get("vein_miner");
-            int size = 0;
-            
-            switch (level) {
-                case 1: size = 3; break;
-                case 2: size = 5; break;
-                case 3: size = 8; break;
-            }
-            
-            benefits.put("vein_miner_size", (double) size);
-        }
-        
-        // Smelting Touch nodes
-        if (nodeLevels.containsKey("smelting_touch")) {
-            int level = nodeLevels.get("smelting_touch");
-            double chance = 0.0;
-            
-            switch (level) {
-                case 1: chance = 0.20; break; // 20%
-                case 2: chance = 0.40; break; // 40%
-                case 3: chance = 0.60; break; // 60%
-                case 4: chance = 0.80; break; // 80%
-                case 5: chance = 1.00; break; // 100%
-            }
-            
-            benefits.put("smelting_chance", chance);
-        }
-        
-        // Ore Radar nodes
-        if (nodeLevels.containsKey("ore_radar")) {
-            int level = nodeLevels.get("ore_radar");
-            int range = 0;
-            
-            switch (level) {
-                case 1: range = 5; break;
-                case 2: range = 8; break;
-                case 3: range = 12; break;
-            }
-            
-            benefits.put("ore_radar_range", (double) range);
-        }
-        
-        // XP Boost nodes
-        if (nodeLevels.containsKey("xp_boost")) {
-            int level = nodeLevels.get("xp_boost");
-            double boost = 0.0;
-            
-            switch (level) {
-                case 1: boost = 0.10; break; // 10%
-                case 2: boost = 0.20; break; // 20%
-                case 3: boost = 0.30; break; // 30%
-                case 4: boost = 0.50; break; // 50%
-            }
-            
-            benefits.put("xp_boost", boost);
-        }
-        
-        // Token Yield nodes
-        if (nodeLevels.containsKey("token_yield")) {
-            int level = nodeLevels.get("token_yield");
-            double chance = 0.0;
-            
-            switch (level) {
-                case 1: chance = 0.10; break; // 10%
-                case 2: chance = 0.20; break; // 20%
-                case 3: chance = 0.30; break; // 30%
-                case 4: chance = 0.50; break; // 50%
-            }
-            
-            benefits.put("token_yield", chance);
-        }
-        
-        // Mining Stamina nodes
-        if (nodeLevels.containsKey("mining_stamina")) {
-            int level = nodeLevels.get("mining_stamina");
-            double reduction = 0.0;
-            
-            switch (level) {
-                case 1: reduction = 0.10; break; // 10%
-                case 2: reduction = 0.20; break; // 20%
-                case 3: reduction = 0.30; break; // 30%
-            }
-            
-            benefits.put("hunger_reduction", reduction);
-        }
-        
-        // Mining Regeneration nodes
-        if (nodeLevels.containsKey("mining_regeneration")) {
-            int level = nodeLevels.get("mining_regeneration");
-            double regen = 0.0;
-            
-            switch (level) {
-                case 1: regen = 0.2; break; // 0.2 health/sec
-                case 2: regen = 0.4; break; // 0.4 health/sec
-                case 3: regen = 0.6; break; // 0.6 health/sec
-            }
-            
-            benefits.put("health_regen", regen);
-        }
+        // Note: The item_unlocker and ability_unlocker nodes don't provide any direct stats
         
         return benefits;
     }
@@ -442,6 +322,41 @@ public class OreExtractionSubskill extends AbstractSkill {
         if (radarRange > 0) {
             // Implement ore radar logic
             highlightNearbyOres(player, radarRange);
+        }
+    }
+
+    /**
+     * Apply skill tree benefits to a player when a node is upgraded
+     * This should be called when a node is unlocked or upgraded
+     * 
+     * @param player The player to apply benefits to
+     * @param nodeId The ID of the node being upgraded
+     * @param oldLevel The previous level of the node
+     * @param newLevel The new level of the node
+     */
+    public void applyNodeUpgrade(Player player, String nodeId, int oldLevel, int newLevel) {
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return;
+        
+        PlayerStats stats = profile.getStats();
+        
+        // Calculate the incremental benefit
+        int levelDifference = newLevel - oldLevel;
+        
+        if (nodeId.equals("mining_fortune")) {
+            // Add 0.5 mining fortune per level
+            double fortuneBonus = levelDifference * 0.5;
+            stats.increaseDefaultMiningFortune(fortuneBonus);
+            
+            // Log for debugging
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
+                    player.getName() + " (now " + stats.getMiningFortune() + ") from skill tree node upgrade");
+            }
         }
     }
 

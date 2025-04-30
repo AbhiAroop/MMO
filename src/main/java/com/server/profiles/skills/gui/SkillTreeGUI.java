@@ -379,12 +379,24 @@ public class SkillTreeGUI {
             if (node.isUpgradable()) {
                 if (fullyUpgraded) {
                     displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓ (MAX)";
+                    
+                    // Add enchant glow effect for maxed out nodes
+                    meta.addEnchant(org.bukkit.enchantments.Enchantment.AQUA_AFFINITY, 1, true);
+                    // Hide the enchantments from the lore
+                    meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+
                 } else {
                     displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓ " + 
                                 ChatColor.YELLOW + "[" + currentLevel + "/" + node.getMaxLevel() + "]";
                 }
             } else {
+                // Non-upgradable node that's fully unlocked - also add glow
                 displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓";
+                
+                // Add enchant glow effect for non-upgradable but unlocked nodes
+                meta.addEnchant(org.bukkit.enchantments.Enchantment.AQUA_AFFINITY, 1, true);
+                // Hide the enchantments from the lore
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
             }
         } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
             displayName = node.getColor() + node.getName() + ChatColor.YELLOW + " (Available)";
@@ -416,8 +428,10 @@ public class SkillTreeGUI {
                         (upgradeCost > 1 ? "s" : ""));
                     lore.add(ChatColor.YELLOW + "Click to upgrade!");
                 } else if (fullyUpgraded) {
-                    lore.add(ChatColor.GREEN + "MAXED OUT!");
+                    // Show maxed out status with special formatting
+                    lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "MAXED OUT!" + ChatColor.GOLD + " ✦");
                 } else {
+                    // Non-upgradable node that's fully unlocked
                     lore.add(ChatColor.GREEN + "Unlocked!");
                 }
             } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {

@@ -1,5 +1,7 @@
 package com.server.profiles.skills.events;
 
+import java.util.Map;
+
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
@@ -14,7 +16,7 @@ import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SkillType;
-import com.server.profiles.skills.skills.mining.MiningSkill;
+import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 
@@ -81,54 +83,25 @@ public class SkillEventListener implements Listener {
      * Process subskills for mining
      */
     private void processSubskills(Player player, Skill mainSkill, Material material, double baseXpAmount) {
-        if (!(mainSkill instanceof MiningSkill)) return;
+        SkillRegistry registry = SkillRegistry.getInstance();
         
-        // Only process OreExtractionSubskill - GemCarvingSubskill will be implemented separately later
-        for (Skill subskill : mainSkill.getSubskills()) {
-            if (subskill instanceof OreExtractionSubskill) {
-                OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
-                
-                // Check if this material is affected by the subskill
-                if (oreSkill.affectsMaterial(material)) {
-                    // Use a more balanced XP scaling for ores
-                    double subskillXp = 0;
+        // For Mining, we want to award XP to Ore Extraction or Gem Carving based on the block
+        if (mainSkill.getId().equals(SkillType.MINING.getId())) {
+            // Check for ore extraction - handles ore blocks
+            if (isOreBlock(material)) {
+                OreExtractionSubskill oreSkill = (OreExtractionSubskill) registry.getSubskill(SubskillType.ORE_EXTRACTION);
+                if (oreSkill != null) {
+                    // Get the skill tree benefits to apply XP boost
+                    Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
+                    double xpBoost = benefits.get("xp_boost"); // This is a decimal multiplier (0.01 = 1%)
                     
-                    // Scale XP based on ore value
-                    if (material.name().contains("DIAMOND")) {
-                        subskillXp = 20.0; // Fixed amount for diamond ore
-                    } else if (material.name().contains("EMERALD")) {
-                        subskillXp = 22.0; // Fixed amount for emerald ore
-                    } else if (material.name().contains("GOLD")) {
-                        subskillXp = 15.0; // Fixed amount for gold ore
-                    } else if (material.name().contains("IRON")) {
-                        subskillXp = 10.0; // Fixed amount for iron ore
-                    } else if (material.name().contains("REDSTONE")) {
-                        subskillXp = 8.0; // Fixed amount for redstone ore
-                    } else if (material.name().contains("LAPIS")) {
-                        subskillXp = 12.0; // Fixed amount for lapis ore
-                    } else if (material.name().contains("COAL")) {
-                        subskillXp = 5.0; // Fixed amount for coal ore
-                    } else if (material.name().contains("COPPER")) {
-                        subskillXp = 7.0; // Fixed amount for copper ore
-                    } else if (material.name().contains("ANCIENT_DEBRIS")) {
-                        subskillXp = 35.0; // Fixed amount for ancient debris
-                    } else if (material.name().contains("NETHER_QUARTZ")) {
-                        subskillXp = 8.0; // Fixed amount for nether quartz
-                    } else {
-                        subskillXp = baseXpAmount * 0.75; // Default for other materials
-                    }
+                    // Calculate the modified XP amount with the boost
+                    double modifiedXpAmount = baseXpAmount * (1.0 + xpBoost);
                     
-                    // Award the subskill XP
-                    SkillProgressionManager.getInstance().addExperience(player, subskill, subskillXp);
-                    
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " gained " + subskillXp + 
-                                            " XP in " + subskill.getDisplayName() + 
-                                            " for breaking " + material.name());
-                    }
+                    // Award XP to the ore extraction subskill with the boost applied
+                    SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
                 }
             }
-            // GemCarvingSubskill is NOT processed here - it will be implemented separately later
         }
     }
     
@@ -306,6 +279,23 @@ public class SkillEventListener implements Listener {
             default:
                 return 8.0;
         }
+    }
+    
+    /**
+     * Check if a material is an ore block
+     */
+    private boolean isOreBlock(Material material) {
+        return material.name().contains("DIAMOND") ||
+               material.name().contains("EMERALD") ||
+               material.name().contains("GOLD") ||
+               material.name().contains("IRON") ||
+               material.name().contains("REDSTONE") ||
+               material.name().contains("LAPIS") ||
+               material.name().contains("COAL") ||
+               material.name().contains("COPPER") ||
+               material.name().contains("ANCIENT_DEBRIS") ||
+               material.name().contains("NETHER_QUARTZ") ||
+               material.name().contains("AMETHYST");
     }
 
     /**

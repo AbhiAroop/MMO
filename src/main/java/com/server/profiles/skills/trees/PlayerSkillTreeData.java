@@ -5,6 +5,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+
 /**
  * Stores a player's progress in skill trees
  */
@@ -73,8 +83,54 @@ public class PlayerSkillTreeData {
         }
         
         int currentLevel = getNodeLevel(skillId, nodeId);
-        unlockNodeAtLevel(skillId, nodeId, currentLevel + 1);
-        return currentLevel + 1;
+        int newLevel = currentLevel + 1;
+        
+        // Store the old level for benefit calculation
+        int oldLevel = currentLevel;
+        
+        // Unlock the new level
+        unlockNodeAtLevel(skillId, nodeId, newLevel);
+        
+        // Apply benefits if this is the OreExtraction skill tree
+        if (skillId.equals("ore_extraction")) {
+            // Get the player this belongs to
+            Player player = findPlayerForSkillTree();
+            if (player != null) {
+                // Get the OreExtraction skill
+                Skill skill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+                if (skill instanceof OreExtractionSubskill) {
+                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
+                    // Apply the benefits from the upgrade
+                    oreSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
+                }
+            }
+        }
+        
+        return newLevel;
+    }
+
+    /**
+     * Find the player that owns this skill tree data
+     * This is a helper method for applying benefits
+     */
+    private Player findPlayerForSkillTree() {
+        // This might need to be implemented based on your system architecture
+        // You'll need a way to get the player from the skill tree data
+        // This could involve searching through online players and checking their profiles
+        
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+            if (activeSlot == null) continue;
+            
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile == null) continue;
+            
+            if (profile.getSkillTreeData() == this) {
+                return player;
+            }
+        }
+        
+        return null;
     }
     
     /**

@@ -671,4 +671,14 @@ public class PlayerStats {
         this.miningSpeed += amount;
     }
 
+    /**
+     * Add mining fortune from skill tree nodes
+     * This will properly update both the default value and current value
+     * @param amount The amount of mining fortune to add
+     */
+    public void addMiningFortune(double amount) {
+        // Update both the current and default values
+        this.miningFortune += amount;
+    }
+
 }
