@@ -14,11 +14,13 @@ public class SkillTree {
     private final Skill skill;
     private final Map<String, SkillTreeNode> nodes;
     private final Map<String, Set<String>> connections;
+    private final Map<String, Integer> minLevelRequirements; // Minimum level required to unlock connected nodes
     
     public SkillTree(Skill skill) {
         this.skill = skill;
         this.nodes = new HashMap<>();
         this.connections = new HashMap<>();
+        this.minLevelRequirements = new HashMap<>();
     }
     
     /**
@@ -40,8 +42,17 @@ public class SkillTree {
     
     /**
      * Add a connection between two nodes
+     * By default, any level of the source node will unlock the connection
      */
     public void addConnection(String fromNodeId, String toNodeId) {
+        addConnection(fromNodeId, toNodeId, 1);
+    }
+    
+    /**
+     * Add a connection between two nodes with a minimum level requirement
+     * The source node must be at least the specified level to unlock the connection
+     */
+    public void addConnection(String fromNodeId, String toNodeId, int minLevel) {
         if (!nodes.containsKey(fromNodeId) || !nodes.containsKey(toNodeId)) {
             throw new IllegalArgumentException("Both nodes must exist in the tree");
         }
@@ -51,6 +62,10 @@ public class SkillTree {
         }
         
         connections.get(fromNodeId).add(toNodeId);
+        
+        // Store the minimum level requirement for this connection
+        String connectionKey = fromNodeId + ":" + toNodeId;
+        minLevelRequirements.put(connectionKey, minLevel);
     }
     
     /**
@@ -76,21 +91,44 @@ public class SkillTree {
     
     /**
      * Check if a node is connected to at least one unlocked node
+     * Takes into account minimum level requirements
      */
-    public boolean isNodeAvailable(String nodeId, Set<String> unlockedNodes) {
-        // Root node is always available
+    public boolean isNodeAvailable(String nodeId, Set<String> unlockedNodes, Map<String, Integer> nodeLevels) {
+        // Root node is always available, even if not yet unlocked
         if (nodeId.equals("root")) {
             return true;
         }
         
         // Check if any of the nodes that connect to this one are unlocked
         for (Map.Entry<String, Set<String>> entry : connections.entrySet()) {
-            if (entry.getValue().contains(nodeId) && unlockedNodes.contains(entry.getKey())) {
-                return true;
+            String fromNodeId = entry.getKey();
+            Set<String> toNodeIds = entry.getValue();
+            
+            if (toNodeIds.contains(nodeId) && unlockedNodes.contains(fromNodeId)) {
+                // Check if the source node is at the required level
+                String connectionKey = fromNodeId + ":" + nodeId;
+                int requiredLevel = minLevelRequirements.getOrDefault(connectionKey, 1);
+                int currentLevel = nodeLevels.getOrDefault(fromNodeId, 0);
+                
+                if (currentLevel >= requiredLevel) {
+                    return true;
+                }
             }
         }
         
         return false;
+    }
+    
+    /**
+     * Check if a node is connected to at least one unlocked node
+     * Simplified version that uses default level 1 requirement
+     */
+    public boolean isNodeAvailable(String nodeId, Set<String> unlockedNodes) {
+        Map<String, Integer> defaultLevels = new HashMap<>();
+        for (String node : unlockedNodes) {
+            defaultLevels.put(node, 1);
+        }
+        return isNodeAvailable(nodeId, unlockedNodes, defaultLevels);
     }
 
     /**
@@ -98,6 +136,14 @@ public class SkillTree {
      */
     public Map<String, Set<String>> getAllConnections() {
         return new HashMap<>(connections);
+    }
+    
+    /**
+     * Get the minimum level requirement for a connection
+     */
+    public int getMinLevelRequirement(String fromNodeId, String toNodeId) {
+        String connectionKey = fromNodeId + ":" + toNodeId;
+        return minLevelRequirements.getOrDefault(connectionKey, 1);
     }
     
     /**

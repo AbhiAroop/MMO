@@ -3,13 +3,16 @@ package com.server.profiles.skills.gui;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -45,29 +48,16 @@ public class SkillTreeGUI {
      * Open the skill tree GUI for a skill
      */
     public static void openSkillTreeGUI(Player player, Skill skill) {
-        if (skill == null) {
-            player.sendMessage(ChatColor.RED + "Invalid skill!");
-            return;
+        // Clear any previous view position after tree resets
+        if (skill != null && player.hasMetadata("skill_tree_reset") && 
+            player.getMetadata("skill_tree_reset").size() > 0 && 
+            player.getMetadata("skill_tree_reset").get(0).asString().startsWith(skill.getId())) {
+            
+            clearPlayerViewPosition(player);
+            player.removeMetadata("skill_tree_reset", Main.getInstance());
         }
         
-        // Safety check - make sure the SkillTreeRegistry is initialized
-        if (SkillTreeRegistry.getInstance() == null) {
-            player.sendMessage(ChatColor.RED + "Skill tree system not available yet. Please try again later.");
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().severe("SkillTreeRegistry is null! This should never happen.");
-            }
-            return;
-        }
-        
-        // Reset view position for this player to be centered on the root node
-        playerViewPositions.put(player, new TreeGridPosition(0, 0));
-        
-        // Debug message
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("Opening skill tree for " + player.getName() + ": " + skill.getDisplayName());
-        }
-        
-        // Open the GUI at the current view position
+        // Default to showing the root node
         openSkillTreeAtPosition(player, skill, 0, 0);
     }
     
@@ -75,29 +65,37 @@ public class SkillTreeGUI {
      * Open the skill tree GUI at a specific position
      */
     public static void openSkillTreeAtPosition(Player player, Skill skill, int centerX, int centerY) {
-        // Get the skill tree
-        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
-        if (tree == null) {
-            player.sendMessage(ChatColor.RED + "No skill tree found for " + skill.getDisplayName());
+        // Create inventory
+        Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE_PREFIX + skill.getDisplayName());
+        
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) {
+            player.sendMessage(ChatColor.RED + "You need to select a profile first!");
             return;
         }
         
-        // Set player's current view position
-        playerViewPositions.put(player, new TreeGridPosition(centerX, centerY));
-        
-        // Get player profile and skill tree data
-        PlayerProfile profile = getPlayerProfile(player);
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
-        int tokenCount = treeData.getTokenCount(skill.getId());
+        // Store current view position
+        playerViewPositions.put(player, new TreeGridPosition(centerX, centerY));
         
-        // Create the inventory
-        Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE_PREFIX + skill.getDisplayName());
+        // Get tokens
+        int tokenCount = profile.getSkillTreeData().getTokenCount(skill.getId());
         
-        // Add skill tree nodes
-        fillSkillTreeNodes(gui, tree, unlockedNodes, centerX, centerY);
+        // Get unlocked nodes and their levels
+        Set<String> unlockedNodes = profile.getSkillTreeData().getUnlockedNodes(skill.getId());
+        Map<String, Integer> nodeLevels = profile.getSkillTreeData().getNodeLevels(skill.getId());
+        
+        // Get the skill tree for this skill
+        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
+        
+        // REMOVED: No longer auto-unlock the root node
+        // We want the player to click on it to unlock it first
+        
+        // Fill with skill tree nodes
+        fillSkillTreeNodes(gui, tree, unlockedNodes, nodeLevels, centerX, centerY);
         
         // Add navigation buttons
         addNavigationButtons(gui, skill, tokenCount);
@@ -228,6 +226,22 @@ public class SkillTreeGUI {
         tokenMeta.setLore(tokenLore);
         tokenDisplay.setItemMeta(tokenMeta);
         gui.setItem(49, tokenDisplay);
+        
+        // Add reset button - NEW ADDITION
+        ItemStack resetButton = new ItemStack(Material.BARRIER);
+        ItemMeta resetMeta = resetButton.getItemMeta();
+        resetMeta.setDisplayName(ChatColor.RED + "Reset Skill Tree");
+        List<String> resetLore = new ArrayList<>();
+        resetLore.add(ChatColor.GRAY + "Reset all unlocked nodes and");
+        resetLore.add(ChatColor.GRAY + "refund all spent tokens.");
+        resetLore.add("");
+        resetLore.add(ChatColor.RED + "Warning: This action cannot be undone!");
+        resetLore.add("");
+        resetLore.add(ChatColor.YELLOW + "Click to reset this skill tree");
+        resetLore.add(ChatColor.BLACK + "RESET_BUTTON");
+        resetMeta.setLore(resetLore);
+        resetButton.setItemMeta(resetMeta);
+        gui.setItem(52, resetButton);
     }
 
     /**
@@ -332,13 +346,20 @@ public class SkillTreeGUI {
      * Create an item for a node in the skill tree
      */
     private static ItemStack createNodeItem(SkillTreeNode node, boolean unlocked, 
-                                        SkillTree tree, Set<String> unlockedNodes) {
+                                        SkillTree tree, Set<String> unlockedNodes, Map<String, Integer> nodeLevels) {
         Material icon = node.getIcon();
+        
+        // Current node level
+        int currentLevel = nodeLevels.getOrDefault(node.getId(), 0);
+        boolean fullyUpgraded = currentLevel >= node.getMaxLevel();
+        
+        // Special handling for root node if not unlocked
+        boolean isRootNode = node.getId().equals("root");
         
         // Change appearance based on node state
         if (unlocked) {
             // Unlocked node - use actual icon
-        } else if (tree.isNodeAvailable(node.getId(), unlockedNodes)) {
+        } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
             // Available but not unlocked - use glowing effect or different color
             if (icon == Material.DIAMOND_PICKAXE) icon = Material.IRON_PICKAXE;
             else if (icon == Material.GOLDEN_PICKAXE) icon = Material.WOODEN_PICKAXE;
@@ -355,8 +376,17 @@ public class SkillTreeGUI {
         // Set display name
         String displayName;
         if (unlocked) {
-            displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓";
-        } else if (tree.isNodeAvailable(node.getId(), unlockedNodes)) {
+            if (node.isUpgradable()) {
+                if (fullyUpgraded) {
+                    displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓ (MAX)";
+                } else {
+                    displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓ " + 
+                                ChatColor.YELLOW + "[" + currentLevel + "/" + node.getMaxLevel() + "]";
+                }
+            } else {
+                displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓";
+            }
+        } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
             displayName = node.getColor() + node.getName() + ChatColor.YELLOW + " (Available)";
         } else {
             displayName = ChatColor.GRAY + node.getName() + ChatColor.RED + " (Locked)";
@@ -366,8 +396,9 @@ public class SkillTreeGUI {
         // Create lore
         List<String> lore = new ArrayList<>();
         
-        // Add description
-        for (String line : node.getDescription().split("\n")) {
+        // Add description - use level-specific description if available
+        String description = unlocked ? node.getDescription(currentLevel) : node.getDescription();
+        for (String line : description.split("\n")) {
             lore.add(ChatColor.GRAY + line);
         }
         
@@ -376,16 +407,34 @@ public class SkillTreeGUI {
         // Add token cost
         if (node.getTokenCost() > 0) {
             if (unlocked) {
-                lore.add(ChatColor.GREEN + "Unlocked!");
-            } else if (tree.isNodeAvailable(node.getId(), unlockedNodes)) {
-                lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " Token" + 
-                    (node.getTokenCost() > 1 ? "s" : ""));
-                lore.add(ChatColor.YELLOW + "Click to unlock!");
+                if (node.isUpgradable() && !fullyUpgraded) {
+                    // Show upgrade information
+                    int nextLevel = currentLevel + 1;
+                    int upgradeCost = node.getTokenCost(nextLevel);
+                    lore.add(ChatColor.GREEN + "Level " + currentLevel + "/" + node.getMaxLevel());
+                    lore.add(ChatColor.YELLOW + "Upgrade Cost: " + upgradeCost + " Token" + 
+                        (upgradeCost > 1 ? "s" : ""));
+                    lore.add(ChatColor.YELLOW + "Click to upgrade!");
+                } else if (fullyUpgraded) {
+                    lore.add(ChatColor.GREEN + "MAXED OUT!");
+                } else {
+                    lore.add(ChatColor.GREEN + "Unlocked!");
+                }
+            } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
+                // Root node or available nodes
+                if (isRootNode) {
+                    lore.add(ChatColor.YELLOW + "Cost: 0 Tokens");
+                    lore.add(ChatColor.YELLOW + "Click to unlock! (Starting point)");
+                } else {
+                    lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " Token" + 
+                        (node.getTokenCost() > 1 ? "s" : ""));
+                    lore.add(ChatColor.YELLOW + "Click to unlock!");
+                }
             } else {
                 lore.add(ChatColor.RED + "Locked - Unlock connected nodes first");
                 
                 // Add prerequisite nodes information
-                List<String> prerequisites = getPrerequisiteNodes(tree, node.getId(), unlockedNodes);
+                List<String> prerequisites = getPrerequisiteNodes(tree, node.getId(), unlockedNodes, nodeLevels);
                 if (!prerequisites.isEmpty()) {
                     lore.add("");
                     lore.add(ChatColor.RED + "Required nodes:");
@@ -395,8 +444,13 @@ public class SkillTreeGUI {
                 }
             }
         } else {
-            // Root node
-            lore.add(ChatColor.GREEN + "Core Node (Free)");
+            // Special case for root node with zero cost
+            if (isRootNode && !unlocked) {
+                lore.add(ChatColor.YELLOW + "Starting Node (Free)");
+                lore.add(ChatColor.YELLOW + "Click to unlock!");
+            } else {
+                lore.add(ChatColor.GREEN + "Core Node (Free)");
+            }
         }
         
         // Add ID for later retrieval
@@ -411,7 +465,8 @@ public class SkillTreeGUI {
     /**
      * Get prerequisite nodes that need to be unlocked first
      */
-    private static List<String> getPrerequisiteNodes(SkillTree tree, String nodeId, Set<String> unlockedNodes) {
+    private static List<String> getPrerequisiteNodes(SkillTree tree, String nodeId, 
+                                                Set<String> unlockedNodes, Map<String, Integer> nodeLevels) {
         List<String> prerequisites = new ArrayList<>();
         
         // Find all nodes that connect to this node
@@ -419,11 +474,21 @@ public class SkillTreeGUI {
             String fromNodeId = entry.getKey();
             Set<String> targetNodes = entry.getValue();
             
-            if (targetNodes.contains(nodeId) && !unlockedNodes.contains(fromNodeId)) {
-                // This is a prerequisite node that's not unlocked
+            if (targetNodes.contains(nodeId)) {
+                // This is a connecting node
                 SkillTreeNode prereqNode = tree.getNode(fromNodeId);
                 if (prereqNode != null) {
-                    prerequisites.add(prereqNode.getName());
+                    boolean isUnlocked = unlockedNodes.contains(fromNodeId);
+                    int currentLevel = nodeLevels.getOrDefault(fromNodeId, 0);
+                    int requiredLevel = tree.getMinLevelRequirement(fromNodeId, nodeId);
+                    
+                    if (!isUnlocked) {
+                        // Node is not unlocked at all
+                        prerequisites.add(prereqNode.getName() + " (Not Unlocked)");
+                    } else if (currentLevel < requiredLevel) {
+                        // Node is not at required level
+                        prerequisites.add(prereqNode.getName() + " (Level " + currentLevel + "/" + requiredLevel + ")");
+                    }
                 }
             }
         }
@@ -493,46 +558,70 @@ public class SkillTreeGUI {
         
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
+        SkillTreeNode node = tree.getNode(nodeId);
         
-        // Check if already unlocked
-        if (treeData.isNodeUnlocked(skill.getId(), nodeId)) {
-            player.sendMessage(ChatColor.YELLOW + "This node is already unlocked.");
+        if (node == null) {
+            player.sendMessage(ChatColor.RED + "Error finding node: " + nodeId);
             return;
         }
         
-        // Check if available to unlock
+        // Get node level information
         Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
-        if (!tree.isNodeAvailable(nodeId, unlockedNodes)) {
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
+        int currentLevel = nodeLevels.getOrDefault(nodeId, 0);
+        boolean isUnlocked = currentLevel > 0;
+        boolean isMaxLevel = currentLevel >= node.getMaxLevel();
+        
+        // Check if already unlocked at max level
+        if (isUnlocked && isMaxLevel) {
+            player.sendMessage(ChatColor.YELLOW + "This node is already at maximum level.");
+            return;
+        }
+        
+        // Check if available to unlock or upgrade
+        if (!isUnlocked && !tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
             player.sendMessage(ChatColor.RED + "You need to unlock connected nodes first.");
             return;
         }
         
-        // Get the node and check token cost
-        SkillTreeNode node = tree.getNode(nodeId);
-        int tokenCost = node.getTokenCost();
-        int tokenCount = treeData.getTokenCount(skill.getId());
+        // Get the token cost for unlocking or upgrading
+        int tokenCost;
+        if (isUnlocked) {
+            // Upgrading - get cost for next level
+            tokenCost = node.getTokenCost(currentLevel + 1);
+        } else {
+            // Initial unlock - get cost for level 1
+            tokenCost = node.getTokenCost();
+        }
         
+        // Check if player has enough tokens
+        int tokenCount = treeData.getTokenCount(skill.getId());
         if (tokenCount < tokenCost) {
             player.sendMessage(ChatColor.RED + "You don't have enough tokens. Required: " + tokenCost);
             return;
         }
         
-        // Unlock the node
-        treeData.unlockNode(skill.getId(), nodeId);
+        // Unlock or upgrade the node
+        if (isUnlocked) {
+            // Upgrade
+            treeData.upgradeNode(skill.getId(), nodeId);
+            player.sendMessage(ChatColor.GREEN + "Upgraded " + node.getColor() + node.getName() + 
+                            ChatColor.GREEN + " to level " + (currentLevel + 1) + "!");
+        } else {
+            // Initial unlock
+            treeData.unlockNode(skill.getId(), nodeId);
+            player.sendMessage(ChatColor.GREEN + "Unlocked " + node.getColor() + node.getName() + "!");
+        }
+        
+        // Use tokens
         treeData.useTokens(skill.getId(), tokenCost);
         
-        // Send message
-        SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(skill);
-        player.sendMessage(ChatColor.GREEN + "Unlocked " + node.getColor() + node.getName() + 
-                        ChatColor.GREEN + " for " + tokenCost + " " + tokenInfo.color + 
-                        tokenInfo.displayName + (tokenCost > 1 ? "s" : "") + ChatColor.GREEN + "!");
-        
         // Play sound
-        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f);
         
         // Refresh the GUI
-        TreeGridPosition currentView = playerViewPositions.get(player);
-        openSkillTreeAtPosition(player, skill, currentView.getX(), currentView.getY());
+        TreeGridPosition centerPos = getCurrentViewPosition(player);
+        openSkillTreeAtPosition(player, skill, centerPos.getX(), centerPos.getY());
     }
     
     /**
@@ -619,25 +708,26 @@ public class SkillTreeGUI {
             return 11 + (gridX - 1); // Maps to slots 11, 12, 13, 14, 15
         }
         
-        // Standard grid slots (middle columns)
+        // Calculate normal grid slot
         int row = gridY + 1; // Add 1 to account for the top row
         int col = gridX + 1; // Add 1 to account for the left column
         
-        // Convert to inventory slot
+        // Translate to inventory slot number
         int slot = (row * 9) + col;
         
-        // Validate slot is in bounds
-        if (slot < 0 || slot >= 54) {
-            return -1;
+        // Special case: Always exclude slot 46 (bottom-left corner, coordinates 1,4)
+        if (slot == 46) {
+            return -1; // Slot 46 is reserved for border
         }
         
         return slot;
     }
+
     /**
      * Fill the GUI with skill tree nodes based on current view position
      */
     private static void fillSkillTreeNodes(Inventory gui, SkillTree tree, Set<String> unlockedNodes, 
-                                        int centerX, int centerY) {
+                                        Map<String, Integer> nodeLevels, int centerX, int centerY) {
         // Convert grid positions to inventory slots for visible area
         Map<String, SkillTreeNode> allNodes = tree.getAllNodes();
         
@@ -664,7 +754,7 @@ public class SkillTreeGUI {
                 if (node != null) {
                     // Create item for this node
                     boolean unlocked = unlockedNodes.contains(node.getId());
-                    ItemStack nodeItem = createNodeItem(node, unlocked, tree, unlockedNodes);
+                    ItemStack nodeItem = createNodeItem(node, unlocked, tree, unlockedNodes, nodeLevels);
                     gui.setItem(slot, nodeItem);
                 }
             }
@@ -677,20 +767,20 @@ public class SkillTreeGUI {
                 
                 if (node != null) {
                     // Add connection lines to adjacent nodes if they exist and are connected
-                    addConnectionLines(gui, tree, node, unlockedNodes, gridX, gridY, minX, minY);
+                        addConnectionLines(gui, tree, node, unlockedNodes, gridX, gridY, minX, minY);
                 }
             }
         }
         
         // Finally, check edge slots for connections to off-screen nodes
-        checkEdgeConnections(gui, tree, unlockedNodes, minX, minY, maxX, maxY);
+        checkEdgeConnections(gui, tree, unlockedNodes, nodeLevels, minX, minY, maxX, maxY);
     }
 
     /**
      * Check edge slots for connections to off-screen nodes
      */
     private static void checkEdgeConnections(Inventory gui, SkillTree tree, Set<String> unlockedNodes,
-                                        int minX, int minY, int maxX, int maxY) {
+                                        Map<String, Integer> nodeLevels, int minX, int minY, int maxX, int maxY) {
         // Define all edge slot coordinates that need checking
         int[][] edgeSlots = {
             // Left edge: 10, 19, 28, 37
@@ -706,22 +796,38 @@ public class SkillTreeGUI {
             int gridX = minX + edgeCoord[0];
             int gridY = minY + edgeCoord[1];
             
-            // Find all nodes that connect to or from this position (on-screen or off-screen)
-            boolean hasYellowConnection = checkForOffScreenConnections(tree, unlockedNodes, gridX, gridY);
+            // Find all connected nodes and determine the connection status
+            ConnectionState connectionState = checkForOffScreenConnections(tree, unlockedNodes, nodeLevels, gridX, gridY);
             
             // If there's a potential connection but no node at this position, add a path indicator
             SkillTreeNode node = tree.getNodeAtPosition(gridX, gridY);
-            if (hasYellowConnection && node == null) {
+            if (connectionState != ConnectionState.NONE && node == null) {
                 int slot = translateGridToSlot(edgeCoord[0], edgeCoord[1]);
                 if (slot >= 0 && slot < 54 && (gui.getItem(slot) == null || 
                     (gui.getItem(slot).getType() == Material.BLACK_STAINED_GLASS_PANE))) {
                     
-                    // Create a yellow path indicator for this edge position
-                    ItemStack pathItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
+                    // Create a path indicator based on connection state
+                    Material pathMaterial;
+                    ChatColor pathColor;
+                    String pathText;
+                    
+                    if (connectionState == ConnectionState.FULL) {
+                        // Both connected nodes are unlocked
+                        pathMaterial = Material.LIME_STAINED_GLASS_PANE;
+                        pathColor = ChatColor.GREEN;
+                        pathText = "Path to unlocked node";
+                    } else {
+                        // At least one connected node is available but not unlocked
+                        pathMaterial = Material.YELLOW_STAINED_GLASS_PANE;
+                        pathColor = ChatColor.YELLOW;
+                        pathText = "Path to available node";
+                    }
+                    
+                    ItemStack pathItem = new ItemStack(pathMaterial);
                     ItemMeta meta = pathItem.getItemMeta();
-                    meta.setDisplayName(ChatColor.YELLOW + "Path to Node");
+                    meta.setDisplayName(pathColor + "Path to Node");
                     List<String> lore = new ArrayList<>();
-                    lore.add(ChatColor.YELLOW + "Path to an available node");
+                    lore.add(pathColor + pathText);
                     lore.add(ChatColor.GRAY + "Continue in this direction");
                     lore.add(ChatColor.BLACK + "CONNECTION_LINE");
                     meta.setLore(lore);
@@ -899,6 +1005,158 @@ public class SkillTreeGUI {
     }
     
     /**
+     * Get the current view position for a player
+     */
+    private static TreeGridPosition getCurrentViewPosition(Player player) {
+        return playerViewPositions.getOrDefault(player, new TreeGridPosition(0, 0));
+    }
+
+    /**
+     * Enum to represent the state of a connection
+     */
+    private enum ConnectionState {
+        NONE,      // No connection
+        PARTIAL,   // Connection exists but not all nodes are unlocked
+        FULL       // Connection exists and all nodes are unlocked
+    }
+
+    /**
+     * Check if a position has connections to unlocked nodes that might be off-screen
+     */
+    private static ConnectionState checkForOffScreenConnections(SkillTree tree, Set<String> unlockedNodes, 
+                                                        Map<String, Integer> nodeLevels, int gridX, int gridY) {
+        boolean hasConnection = false;
+        boolean allUnlocked = true;
+        
+        // First check connections FROM THIS position TO off-screen nodes
+        // This handles the case where parent nodes are on-screen and child nodes are off-screen
+        SkillTreeNode sourceNode = tree.getNodeAtPosition(gridX, gridY);
+        
+        if (sourceNode != null) {
+            boolean sourceUnlocked = unlockedNodes.contains(sourceNode.getId());
+            
+            // If the source node itself isn't unlocked, then all connections must be partial at best
+            if (!sourceUnlocked) {
+                Set<String> connections = tree.getConnections(sourceNode.getId());
+                if (!connections.isEmpty()) {
+                    for (String targetId : connections) {
+                        SkillTreeNode targetNode = tree.getNode(targetId);
+                        if (targetNode != null) {
+                            TreeGridPosition targetPos = targetNode.getGridPosition();
+                            // Check if this connection is to an off-screen node
+                            if (isOffScreen(targetPos.getX(), targetPos.getY(), gridX, gridY)) {
+                                hasConnection = true;
+                                return ConnectionState.PARTIAL; // Source not unlocked = partial at best
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Source node is unlocked, check connections to off-screen nodes
+            if (sourceUnlocked) {
+                Set<String> connections = tree.getConnections(sourceNode.getId());
+                if (!connections.isEmpty()) {
+                    for (String targetId : connections) {
+                        SkillTreeNode targetNode = tree.getNode(targetId);
+                        if (targetNode != null) {
+                            TreeGridPosition targetPos = targetNode.getGridPosition();
+                            // Check if this connection is to an off-screen node
+                            if (isOffScreen(targetPos.getX(), targetPos.getY(), gridX, gridY)) {
+                                hasConnection = true;
+                                boolean targetUnlocked = unlockedNodes.contains(targetId);
+                                if (!targetUnlocked) {
+                                    allUnlocked = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Second, check connections TO this position FROM off-screen nodes
+        // This handles the case where child nodes are on-screen and parent nodes are off-screen
+        for (Map.Entry<String, Set<String>> entry : tree.getAllConnections().entrySet()) {
+            String fromNodeId = entry.getKey();
+            Set<String> toNodeIds = entry.getValue();
+            
+            SkillTreeNode fromNode = tree.getNode(fromNodeId);
+            if (fromNode != null) {
+                TreeGridPosition fromPos = fromNode.getGridPosition();
+                
+                // For any node that connects to this position
+                for (String toNodeId : toNodeIds) {
+                    SkillTreeNode toNode = tree.getNode(toNodeId);
+                    if (toNode != null) {
+                        TreeGridPosition toPos = toNode.getGridPosition();
+                        
+                        // Check if this is a connection that passes through our edge position
+                        if (isOnPath(fromPos.getX(), fromPos.getY(), toPos.getX(), toPos.getY(), gridX, gridY)) {
+                            hasConnection = true;
+                            
+                            boolean fromUnlocked = unlockedNodes.contains(fromNodeId);
+                            boolean toUnlocked = unlockedNodes.contains(toNodeId);
+                            
+                            // Check connection level requirements
+                            String connectionKey = fromNodeId + ":" + toNodeId;
+                            int requiredLevel = tree.getMinLevelRequirement(fromNodeId, toNodeId);
+                            int sourceLevel = nodeLevels.getOrDefault(fromNodeId, 0);
+                            
+                            boolean meetsLevelReq = fromUnlocked && (sourceLevel >= requiredLevel);
+                            
+                            // If either node is not unlocked or the connection doesn't meet level requirements,
+                            // we can return early since it's a partial connection at best
+                            if (!fromUnlocked || !toUnlocked || !meetsLevelReq) {
+                                allUnlocked = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (hasConnection) {
+            return allUnlocked ? ConnectionState.FULL : ConnectionState.PARTIAL;
+        } else {
+            return ConnectionState.NONE;
+        }
+    }
+
+    /**
+     * Helper method to check if a position is off-screen relative to a center position
+     */
+    private static boolean isOffScreen(int x, int y, int centerX, int centerY) {
+        // Define the screen bounds based on VIEW_RADIUS
+        int minX = centerX - VIEW_RADIUS;
+        int maxX = centerX + VIEW_RADIUS;
+        int minY = centerY - VIEW_RADIUS;
+        int maxY = centerY + VIEW_RADIUS;
+        
+        // Check if the position is outside these bounds
+        return x < minX || x > maxX || y < minY || y > maxY;
+    }
+
+    /**
+     * Handle a reset button click in the skill tree
+     */
+    public static void handleResetClick(Player player) {
+        // Get the skill from the GUI title
+        String title = player.getOpenInventory().getTitle();
+        String skillName = title.substring(GUI_TITLE_PREFIX.length());
+        Skill skill = findSkillByDisplayName(skillName);
+        
+        if (skill == null) {
+            player.sendMessage(ChatColor.RED + "Error finding skill: " + skillName);
+            return;
+        }
+        
+        // Close the current inventory and open the confirmation GUI
+        player.closeInventory();
+        ConfirmationGUI.openResetConfirmationGUI(player, skill);
+    }
+
+    /**
      * Find a skill by its display name
      */
     private static Skill findSkillByDisplayName(String displayName) {
@@ -908,5 +1166,145 @@ public class SkillTreeGUI {
             }
         }
         return null;
+    }
+
+    /**
+     * Calculate how many tokens to refund for resetting a skill tree
+     */
+    private static int calculateTokensToRefund(SkillTree tree, Set<String> unlockedNodes, Map<String, Integer> nodeLevels) {
+        int totalTokens = 0;
+        
+        for (String nodeId : unlockedNodes) {
+            SkillTreeNode node = tree.getNode(nodeId);
+            if (node == null) continue;
+            
+            // Skip the root node if it's unlocked
+            if (nodeId.equals("root")) continue;
+            
+            int level = nodeLevels.getOrDefault(nodeId, 0);
+            
+            if (node.isUpgradable()) {
+                // For upgradable nodes, add the cost of each level
+                for (int i = 1; i <= level; i++) {
+                    totalTokens += node.getTokenCost(i);
+                }
+            } else {
+                // For non-upgradable nodes, just add the token cost
+                totalTokens += node.getTokenCost();
+            }
+        }
+        
+        return totalTokens;
+    }
+
+    // Store data for skill tree reset confirmations
+    private static final Map<UUID, Map<String, ResetData>> resetConfirmations = new HashMap<>();
+
+    /**
+     * Class to store data for skill tree reset
+     */
+    private static class ResetData {
+        private final String skillId;
+        private final int tokensToRefund;
+        
+        public ResetData(String skillId, int tokensToRefund) {
+            this.skillId = skillId;
+            this.tokensToRefund = tokensToRefund;
+        }
+        
+        public String getSkillId() {
+            return skillId;
+        }
+        
+        public int getTokensToRefund() {
+            return tokensToRefund;
+        }
+    }
+
+    /**
+     * Handle the confirmation of a skill tree reset
+     */
+    public static boolean handleResetConfirmation(Player player) {
+        if (!resetConfirmations.containsKey(player.getUniqueId()) || 
+            !resetConfirmations.get(player.getUniqueId()).containsKey("skill_tree_reset")) {
+            player.sendMessage(ChatColor.RED + "No pending skill tree reset confirmation.");
+            return false;
+        }
+        
+        ResetData resetData = resetConfirmations.get(player.getUniqueId()).get("skill_tree_reset");
+        resetConfirmations.get(player.getUniqueId()).remove("skill_tree_reset");
+        if (resetConfirmations.get(player.getUniqueId()).isEmpty()) {
+            resetConfirmations.remove(player.getUniqueId());
+        }
+        
+        // Get the skill and player profile
+        Skill skill = SkillRegistry.getInstance().getSkill(resetData.getSkillId());
+        if (skill == null) {
+            player.sendMessage(ChatColor.RED + "Error: Skill not found.");
+            return false;
+        }
+        
+        PlayerProfile profile = getPlayerProfile(player);
+        if (profile == null) {
+            player.sendMessage(ChatColor.RED + "Error: Profile not found.");
+            return false;
+        }
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        
+        // Get current token count
+        int currentTokens = treeData.getTokenCount(skill.getId());
+        
+        // Reset all unlocked nodes
+        Set<String> unlockedNodes = new HashSet<>(treeData.getUnlockedNodes(skill.getId()));
+        for (String nodeId : unlockedNodes) {
+            // Remove the node from unlocked nodes - this ensures the root node is also locked
+            if (treeData.isNodeUnlocked(skill.getId(), nodeId)) {
+                // Manually remove the node by setting its level to 0 or removing it from the map
+                treeData.unlockNodeAtLevel(skill.getId(), nodeId, 0);
+            }
+        }
+        
+        // Add refunded tokens
+        treeData.addTokens(skill.getId(), resetData.getTokensToRefund());
+        
+        // Notify the player
+        player.sendMessage(ChatColor.GREEN + "Your " + ChatColor.GOLD + skill.getDisplayName() + 
+                        ChatColor.GREEN + " skill tree has been reset.");
+        player.sendMessage(ChatColor.GREEN + "You have been refunded " + ChatColor.YELLOW + 
+                        resetData.getTokensToRefund() + ChatColor.GREEN + " tokens.");
+        
+        // Open the skill tree again
+        openSkillTreeGUI(player, skill);
+        
+        return true;
+    }
+
+    /**
+     * Handle the cancellation of a skill tree reset
+     */
+    public static boolean handleResetCancellation(Player player) {
+        if (!resetConfirmations.containsKey(player.getUniqueId()) || 
+            !resetConfirmations.get(player.getUniqueId()).containsKey("skill_tree_reset")) {
+            player.sendMessage(ChatColor.RED + "No pending skill tree reset confirmation.");
+            return false;
+        }
+        
+        resetConfirmations.get(player.getUniqueId()).remove("skill_tree_reset");
+        if (resetConfirmations.get(player.getUniqueId()).isEmpty()) {
+            resetConfirmations.remove(player.getUniqueId());
+        }
+        
+        player.sendMessage(ChatColor.GREEN + "Skill tree reset cancelled.");
+        
+        return true;
+    }
+
+    /**
+     * Remove cached view positions for a player
+     * Should be called when a player logs out or when skill trees are reset
+     */
+    public static void clearPlayerViewPosition(Player player) {
+        playerViewPositions.remove(player);
     }
 }

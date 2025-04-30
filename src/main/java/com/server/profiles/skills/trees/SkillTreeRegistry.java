@@ -235,7 +235,7 @@ public class SkillTreeRegistry {
     }
     
     /**
-     * Setup the Ore Extraction skill tree with horizontal and vertical connections only
+     * Setup the Ore Extraction skill tree with upgradable nodes for stats and abilities
      */
     private void setupOreExtractionSkillTree(SkillTree tree) {
         // Root node (automatically added by skill tree creation)
@@ -252,7 +252,7 @@ public class SkillTreeRegistry {
             "Unlocks the ability to mine Coal Ore",
             Material.COAL_ORE,
             ChatColor.GRAY,
-            2, 0, // 2 tiles right of root (with 1 tile space between)
+            2, 0, // 2 tiles right of root
             1
         ));
         tree.addConnection("root", "basic_mining");
@@ -269,101 +269,110 @@ public class SkillTreeRegistry {
         ));
         tree.addConnection("basic_mining", "coal_refining");
         
-        // Iron Mining - Right of Coal Refining
+        // Iron Mining - Right of Coal Refining - Upgradable (3 levels)
+        Map<Integer, String> ironDescriptions = new HashMap<>();
+        ironDescriptions.put(1, "Unlocks the ability to mine Iron Ore");
+        ironDescriptions.put(2, "Improves iron mining speed by 10%");
+        ironDescriptions.put(3, "Chance to find extra iron nuggets");
+        
+        Map<Integer, Integer> ironCosts = new HashMap<>();
+        ironCosts.put(1, 2);
+        ironCosts.put(2, 2);
+        ironCosts.put(3, 3);
+        
         tree.addNode(new SkillTreeNode(
             "iron_mining",
             "Iron Mining",
-            "Unlocks the ability to mine Iron Ore",
             Material.IRON_ORE,
             ChatColor.WHITE,
             6, 0, // 2 tiles right of coal_refining
-            2
+            ironDescriptions,
+            ironCosts
         ));
         tree.addConnection("coal_refining", "iron_mining");
         
-        // Copper Mining - Below Iron Mining
-        tree.addNode(new SkillTreeNode(
-            "copper_mining",
-            "Copper Mining",
-            "Unlocks the ability to mine Copper Ore",
-            Material.COPPER_ORE,
-            ChatColor.GOLD,
-            6, 2, // 2 tiles below iron_mining
-            2
-        ));
-        tree.addConnection("iron_mining", "copper_mining");
+        // =====================================================================
+        // BRANCH 3: MINING FORTUNE - Left of root - UPGRADABLE NODES
+        // =====================================================================
         
-        // Gold Mining - Right of Copper Mining
+        // Mining Techniques
         tree.addNode(new SkillTreeNode(
-            "gold_mining",
-            "Gold Mining",
-            "Unlocks the ability to mine Gold Ore",
-            Material.GOLD_ORE,
-            ChatColor.YELLOW,
-            8, 2, // 2 tiles right of copper_mining
-            3
+            "mining_techniques",
+            "Mining Techniques",
+            "Learn fundamental techniques to improve mining yield",
+            Material.STONE_PICKAXE,
+            ChatColor.GRAY,
+            -2, 0, // 2 tiles left of root
+            1
         ));
-        tree.addConnection("copper_mining", "gold_mining");
+        tree.addConnection("root", "mining_techniques");
         
-        // Redstone Mining - Below Gold Mining
-        tree.addNode(new SkillTreeNode(
-            "redstone_mining",
-            "Redstone Mining",
-            "Unlocks the ability to mine Redstone Ore",
-            Material.REDSTONE_ORE,
-            ChatColor.RED,
-            8, 4, // 2 tiles below gold_mining
-            3
-        ));
-        tree.addConnection("gold_mining", "redstone_mining");
+        // Create upgradable node for Fortune with custom descriptions and costs
+        Map<Integer, String> fortuneDescriptions = new HashMap<>();
+        Map<Integer, Integer> fortuneCosts = new HashMap<>();
         
-        // Lapis Mining - Right of Redstone Mining
-        tree.addNode(new SkillTreeNode(
-            "lapis_mining",
-            "Lapis Mining",
-            "Unlocks the ability to mine Lapis Ore",
-            Material.LAPIS_ORE,
-            ChatColor.BLUE,
-            10, 4, // 2 tiles right of redstone_mining
-            4
-        ));
-        tree.addConnection("redstone_mining", "lapis_mining");
+        fortuneDescriptions.put(1, "Gain +0.5 Mining Fortune");
+        fortuneDescriptions.put(2, "Gain +1.0 Mining Fortune");
+        fortuneDescriptions.put(3, "Gain +1.5 Mining Fortune");
+        fortuneDescriptions.put(4, "Gain +2.0 Mining Fortune");
+        fortuneDescriptions.put(5, "Gain +3.0 Mining Fortune");
         
-        // Diamond Mining - Below Lapis Mining
+        fortuneCosts.put(1, 2);  // Level 1 costs 2 tokens
+        fortuneCosts.put(2, 3);  // Level 2 costs 3 more tokens
+        fortuneCosts.put(3, 4);  // Level 3 costs 4 more tokens
+        fortuneCosts.put(4, 5);  // Level 4 costs 5 more tokens
+        fortuneCosts.put(5, 8);  // Level 5 costs 8 more tokens
+        
+        // Fortune Node (Upgradable)
         tree.addNode(new SkillTreeNode(
-            "diamond_mining",
-            "Diamond Mining",
-            "Unlocks the ability to mine Diamond Ore",
-            Material.DIAMOND_ORE,
+            "mining_fortune",
+            "Mining Fortune",
+            Material.DIAMOND_PICKAXE,
             ChatColor.AQUA,
-            10, 6, // 2 tiles below lapis_mining
-            5
+            -4, 0, // 2 tiles left of mining_techniques
+            fortuneDescriptions,
+            fortuneCosts
         ));
-        tree.addConnection("lapis_mining", "diamond_mining");
+        tree.addConnection("mining_techniques", "mining_fortune");
         
-        // Emerald Mining - Right of Diamond Mining
+        // Mining Speed (Upgradable)
+        Map<Integer, String> speedDescriptions = new HashMap<>();
+        Map<Integer, Integer> speedCosts = new HashMap<>();
+        
+        speedDescriptions.put(1, "Increase mining speed by 5%");
+        speedDescriptions.put(2, "Increase mining speed by 10%");
+        speedDescriptions.put(3, "Increase mining speed by 15%");
+        speedDescriptions.put(4, "Increase mining speed by 20%");
+        speedDescriptions.put(5, "Increase mining speed by 30%");
+        
+        speedCosts.put(1, 2);
+        speedCosts.put(2, 2);
+        speedCosts.put(3, 3);
+        speedCosts.put(4, 4);
+        speedCosts.put(5, 6);
+        
         tree.addNode(new SkillTreeNode(
-            "emerald_mining",
-            "Emerald Mining",
-            "Unlocks the ability to mine Emerald Ore",
-            Material.EMERALD_ORE,
-            ChatColor.GREEN,
-            12, 6, // 2 tiles right of diamond_mining
-            6
+            "mining_speed",
+            "Mining Speed",
+            Material.GOLDEN_PICKAXE,
+            ChatColor.YELLOW,
+            -6, 0, // 2 tiles left of mining_fortune
+            speedDescriptions,
+            speedCosts
         ));
-        tree.addConnection("diamond_mining", "emerald_mining");
+        tree.addConnection("mining_fortune", "mining_speed", 3); // Requires Fortune level 3
         
-        // Ancient Debris Mining - Below Emerald Mining
+        // Master Fortune (advanced node, requires Mining Speed level 5)
         tree.addNode(new SkillTreeNode(
-            "ancient_debris_mining",
-            "Ancient Debris Mining",
-            "Unlocks the ability to mine Ancient Debris",
-            Material.ANCIENT_DEBRIS,
-            ChatColor.DARK_PURPLE,
-            12, 8, // 2 tiles below emerald_mining
+            "master_fortune",
+            "Master Fortune",
+            "Gain +5.0 Mining Fortune permanently",
+            Material.NETHERITE_PICKAXE,
+            ChatColor.LIGHT_PURPLE,
+            -6, -2, // 2 tiles above mining_speed
             8
         ));
-        tree.addConnection("emerald_mining", "ancient_debris_mining");
+        tree.addConnection("mining_speed", "master_fortune", 5); // Requires Mining Speed level 5
         
         // =====================================================================
         // BRANCH 2: DEEPSLATE PATH - Below the root
@@ -381,197 +390,28 @@ public class SkillTreeRegistry {
         ));
         tree.addConnection("root", "deepslate_discovery");
         
-        // Deepslate Coal Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_coal_mining",
-            "Deepslate Coal Mining",
-            "Unlocks the ability to mine Deepslate Coal Ore",
-            Material.DEEPSLATE_COAL_ORE,
-            ChatColor.GRAY,
-            2, 2, // 2 tiles right of deepslate_discovery
-            2
-        ));
-        tree.addConnection("deepslate_discovery", "deepslate_coal_mining");
-        tree.addConnection("basic_mining", "deepslate_coal_mining"); // Cross-connection
+        // Deepslate Efficiency (Upgradable)
+        Map<Integer, String> deepslateEfficiency = new HashMap<>();
+        Map<Integer, Integer> deepslateCosts = new HashMap<>();
         
-        // Deepslate Iron Mining
+        deepslateEfficiency.put(1, "Increase mining speed for deepslate blocks by 10%");
+        deepslateEfficiency.put(2, "Increase mining speed for deepslate blocks by 20%");
+        deepslateEfficiency.put(3, "Increase mining speed for deepslate blocks by 30%");
+        
+        deepslateCosts.put(1, 2);
+        deepslateCosts.put(2, 3);
+        deepslateCosts.put(3, 4);
+        
         tree.addNode(new SkillTreeNode(
-            "deepslate_iron_mining",
-            "Deepslate Iron Mining",
-            "Unlocks the ability to mine Deepslate Iron Ore",
+            "deepslate_efficiency",
+            "Deepslate Efficiency",
             Material.DEEPSLATE_IRON_ORE,
-            ChatColor.WHITE,
-            2, 4, // 2 tiles below deepslate_coal_mining
-            3
+            ChatColor.DARK_GRAY,
+            0, 4, // 2 tiles below deepslate_discovery
+            deepslateEfficiency,
+            deepslateCosts
         ));
-        tree.addConnection("deepslate_coal_mining", "deepslate_iron_mining");
-        tree.addConnection("iron_mining", "deepslate_iron_mining"); // Cross-connection
-        
-        // Deepslate Copper Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_copper_mining",
-            "Deepslate Copper Mining",
-            "Unlocks the ability to mine Deepslate Copper Ore",
-            Material.DEEPSLATE_COPPER_ORE,
-            ChatColor.GOLD,
-            4, 4, // 2 tiles right of deepslate_iron_mining
-            3
-        ));
-        tree.addConnection("deepslate_iron_mining", "deepslate_copper_mining");
-        tree.addConnection("copper_mining", "deepslate_copper_mining"); // Cross-connection
-        
-        // Deepslate Gold Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_gold_mining",
-            "Deepslate Gold Mining",
-            "Unlocks the ability to mine Deepslate Gold Ore",
-            Material.DEEPSLATE_GOLD_ORE,
-            ChatColor.YELLOW,
-            4, 6, // 2 tiles below deepslate_copper_mining
-            4
-        ));
-        tree.addConnection("deepslate_copper_mining", "deepslate_gold_mining");
-        tree.addConnection("gold_mining", "deepslate_gold_mining"); // Cross-connection
-        
-        // Deepslate Redstone Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_redstone_mining",
-            "Deepslate Redstone Mining",
-            "Unlocks the ability to mine Deepslate Redstone Ore",
-            Material.DEEPSLATE_REDSTONE_ORE,
-            ChatColor.RED,
-            6, 6, // 2 tiles right of deepslate_gold_mining
-            4
-        ));
-        tree.addConnection("deepslate_gold_mining", "deepslate_redstone_mining");
-        tree.addConnection("redstone_mining", "deepslate_redstone_mining"); // Cross-connection
-        
-        // Deepslate Lapis Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_lapis_mining",
-            "Deepslate Lapis Mining",
-            "Unlocks the ability to mine Deepslate Lapis Ore",
-            Material.DEEPSLATE_LAPIS_ORE,
-            ChatColor.BLUE,
-            6, 8, // 2 tiles below deepslate_redstone_mining
-            5
-        ));
-        tree.addConnection("deepslate_redstone_mining", "deepslate_lapis_mining");
-        tree.addConnection("lapis_mining", "deepslate_lapis_mining"); // Cross-connection
-        
-        // Deepslate Diamond Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_diamond_mining",
-            "Deepslate Diamond Mining",
-            "Unlocks the ability to mine Deepslate Diamond Ore",
-            Material.DEEPSLATE_DIAMOND_ORE,
-            ChatColor.AQUA,
-            8, 8, // 2 tiles right of deepslate_lapis_mining
-            6
-        ));
-        tree.addConnection("deepslate_lapis_mining", "deepslate_diamond_mining");
-        tree.addConnection("diamond_mining", "deepslate_diamond_mining"); // Cross-connection
-        
-        // Deepslate Emerald Mining
-        tree.addNode(new SkillTreeNode(
-            "deepslate_emerald_mining",
-            "Deepslate Emerald Mining",
-            "Unlocks the ability to mine Deepslate Emerald Ore",
-            Material.DEEPSLATE_EMERALD_ORE,
-            ChatColor.GREEN,
-            8, 10, // 2 tiles below deepslate_diamond_mining
-            7
-        ));
-        tree.addConnection("deepslate_diamond_mining", "deepslate_emerald_mining");
-        tree.addConnection("emerald_mining", "deepslate_emerald_mining"); // Cross-connection
-        
-        // =====================================================================
-        // BRANCH 3: MINING FORTUNE - Left of root
-        // =====================================================================
-        
-        // Mining Techniques
-        tree.addNode(new SkillTreeNode(
-            "mining_techniques",
-            "Mining Techniques",
-            "Learn fundamental techniques to improve mining yield",
-            Material.STONE_PICKAXE,
-            ChatColor.GRAY,
-            -2, 0, // 2 tiles left of root
-            1
-        ));
-        tree.addConnection("root", "mining_techniques");
-        
-        // Fortune I
-        tree.addNode(new SkillTreeNode(
-            "fortune_i",
-            "Mining Fortune I",
-            "Gain +0.5 Mining Fortune permanently",
-            Material.IRON_PICKAXE,
-            ChatColor.WHITE,
-            -4, 0, // 2 tiles left of mining_techniques
-            2
-        ));
-        tree.addConnection("mining_techniques", "fortune_i");
-        
-        // Fortune II
-        tree.addNode(new SkillTreeNode(
-            "fortune_ii",
-            "Mining Fortune II",
-            "Gain +1.0 Mining Fortune permanently",
-            Material.IRON_PICKAXE,
-            ChatColor.WHITE,
-            -6, 0, // 2 tiles left of fortune_i
-            3
-        ));
-        tree.addConnection("fortune_i", "fortune_ii");
-        
-        // Fortune III
-        tree.addNode(new SkillTreeNode(
-            "fortune_iii",
-            "Mining Fortune III",
-            "Gain +1.5 Mining Fortune permanently",
-            Material.GOLDEN_PICKAXE,
-            ChatColor.YELLOW,
-            -8, 0, // 2 tiles left of fortune_ii
-            4
-        ));
-        tree.addConnection("fortune_ii", "fortune_iii");
-        
-        // Fortune IV
-        tree.addNode(new SkillTreeNode(
-            "fortune_iv",
-            "Mining Fortune IV",
-            "Gain +2.0 Mining Fortune permanently",
-            Material.GOLDEN_PICKAXE,
-            ChatColor.YELLOW,
-            -10, 0, // 2 tiles left of fortune_iii
-            5
-        ));
-        tree.addConnection("fortune_iii", "fortune_iv");
-        
-        // Fortune V
-        tree.addNode(new SkillTreeNode(
-            "fortune_v",
-            "Mining Fortune V",
-            "Gain +3.0 Mining Fortune permanently",
-            Material.DIAMOND_PICKAXE,
-            ChatColor.AQUA,
-            -12, 0, // 2 tiles left of fortune_iv
-            6
-        ));
-        tree.addConnection("fortune_iv", "fortune_v");
-        
-        // Master Fortune
-        tree.addNode(new SkillTreeNode(
-            "master_fortune",
-            "Master Fortune",
-            "Gain +5.0 Mining Fortune permanently",
-            Material.DIAMOND_PICKAXE,
-            ChatColor.AQUA,
-            -12, -2, // 2 tiles above master_fortune
-            8
-        ));
-        tree.addConnection("fortune_v", "master_fortune");
+        tree.addConnection("deepslate_discovery", "deepslate_efficiency");
         
         // =====================================================================
         // BRANCH 4: NETHER ORES - Above the root
@@ -589,30 +429,30 @@ public class SkillTreeRegistry {
         ));
         tree.addConnection("root", "nether_exploration");
         
-        // Nether Gold Mining
+        // Nether Mining (Upgradable)
+        Map<Integer, String> netherMiningDesc = new HashMap<>();
+        Map<Integer, Integer> netherMiningCosts = new HashMap<>();
+        
+        netherMiningDesc.put(1, "Mine Nether ores 10% faster");
+        netherMiningDesc.put(2, "Mine Nether ores 20% faster");
+        netherMiningDesc.put(3, "Mine Nether ores 30% faster");
+        netherMiningDesc.put(4, "Mine Nether ores 50% faster");
+        
+        netherMiningCosts.put(1, 2);
+        netherMiningCosts.put(2, 3);
+        netherMiningCosts.put(3, 4);
+        netherMiningCosts.put(4, 5);
+        
         tree.addNode(new SkillTreeNode(
-            "nether_gold_mining",
-            "Nether Gold Mining",
-            "Unlocks the ability to mine Nether Gold Ore",
+            "nether_mining",
+            "Nether Mining",
             Material.NETHER_GOLD_ORE,
             ChatColor.GOLD,
             2, -2, // 2 tiles right of nether_exploration
-            3
+            netherMiningDesc,
+            netherMiningCosts
         ));
-        tree.addConnection("nether_exploration", "nether_gold_mining");
-        tree.addConnection("gold_mining", "nether_gold_mining"); // Cross-connection
-        
-        // Nether Quartz Mining
-        tree.addNode(new SkillTreeNode(
-            "nether_quartz_mining",
-            "Nether Quartz Mining",
-            "Unlocks the ability to mine Nether Quartz Ore",
-            Material.NETHER_QUARTZ_ORE,
-            ChatColor.WHITE,
-            2, -4, // 2 tiles above nether_gold_mining
-            4
-        ));
-        tree.addConnection("nether_gold_mining", "nether_quartz_mining");
+        tree.addConnection("nether_exploration", "nether_mining");
         
         // Ancient Debris Seeking
         tree.addNode(new SkillTreeNode(
@@ -621,61 +461,97 @@ public class SkillTreeRegistry {
             "Learn techniques to locate Ancient Debris",
             Material.GILDED_BLACKSTONE,
             ChatColor.GOLD,
-            4, -4, // 2 tiles right of nether_quartz_mining
+            4, -2, // 2 tiles right of nether_mining
             6
         ));
-        tree.addConnection("nether_quartz_mining", "ancient_debris_seeking");
-        tree.addConnection("ancient_debris_mining", "ancient_debris_seeking"); // Cross-connection
+        tree.addConnection("nether_mining", "ancient_debris_seeking", 3); // Requires Nether Mining level 3
         
         // =====================================================================
         // BRANCH 5: SPECIAL ABILITIES - Center branch below root
         // =====================================================================
         
-        // Mining Abilities
+        // Mining Abilities Hub
         tree.addNode(new SkillTreeNode(
             "mining_abilities",
             "Mining Abilities",
             "Discover special mining abilities",
             Material.ENCHANTED_BOOK,
             ChatColor.LIGHT_PURPLE,
-            0, 4, // 2 tiles below deepslate_discovery (4 below root)
+            0, 6, // 2 tiles below deepslate_efficiency
             3
         ));
-        tree.addConnection("deepslate_discovery", "mining_abilities");
+        tree.addConnection("deepslate_efficiency", "mining_abilities", 2); // Requires level 2
         
-        // Vein Miner Branch - Left of Mining Abilities
+        // Vein Miner (Upgradable)
+        Map<Integer, String> veinMinerDesc = new HashMap<>();
+        Map<Integer, Integer> veinMinerCosts = new HashMap<>();
+        
+        veinMinerDesc.put(1, "Break up to 3 connected ore blocks at once");
+        veinMinerDesc.put(2, "Break up to 5 connected ore blocks at once");
+        veinMinerDesc.put(3, "Break up to 8 connected ore blocks at once");
+        
+        veinMinerCosts.put(1, 6);
+        veinMinerCosts.put(2, 8);
+        veinMinerCosts.put(3, 12);
+        
         tree.addNode(new SkillTreeNode(
             "vein_miner",
             "Vein Miner",
-            "Special Ability: Mine connected ore veins with a single block break",
             Material.IRON_PICKAXE,
             ChatColor.GOLD,
-            -2, 4, // 2 tiles left of mining_abilities
-            6
+            -2, 6, // 2 tiles left of mining_abilities
+            veinMinerDesc,
+            veinMinerCosts
         ));
         tree.addConnection("mining_abilities", "vein_miner");
         
-        // Smelting Touch Branch - Below Mining Abilities
+        // Smelting Touch (Upgradable)
+        Map<Integer, String> smeltingDesc = new HashMap<>();
+        Map<Integer, Integer> smeltingCosts = new HashMap<>();
+        
+        smeltingDesc.put(1, "20% chance to automatically smelt ore drops");
+        smeltingDesc.put(2, "40% chance to automatically smelt ore drops");
+        smeltingDesc.put(3, "60% chance to automatically smelt ore drops");
+        smeltingDesc.put(4, "80% chance to automatically smelt ore drops");
+        smeltingDesc.put(5, "100% chance to automatically smelt ore drops");
+        
+        smeltingCosts.put(1, 4);
+        smeltingCosts.put(2, 5);
+        smeltingCosts.put(3, 6);
+        smeltingCosts.put(4, 7);
+        smeltingCosts.put(5, 8);
+        
         tree.addNode(new SkillTreeNode(
             "smelting_touch",
             "Smelting Touch",
-            "Special Ability: Chance to automatically smelt ore drops",
             Material.FURNACE,
             ChatColor.RED,
-            0, 6, // 2 tiles below mining_abilities
-            6
+            0, 8, // 2 tiles below mining_abilities
+            smeltingDesc,
+            smeltingCosts
         ));
         tree.addConnection("mining_abilities", "smelting_touch");
         
-        // Ore Radar Branch - Right of Mining Abilities
+        // Ore Radar (Upgradable)
+        Map<Integer, String> radarDesc = new HashMap<>();
+        Map<Integer, Integer> radarCosts = new HashMap<>();
+        
+        radarDesc.put(1, "Nearby valuable ores glow within 5 blocks");
+        radarDesc.put(2, "Nearby valuable ores glow within 8 blocks");
+        radarDesc.put(3, "Nearby valuable ores glow within 12 blocks");
+        
+        radarCosts.put(1, 7);
+        radarCosts.put(2, 9);
+        radarCosts.put(3, 12);
+        
         tree.addNode(new SkillTreeNode(
             "ore_radar",
             "Ore Radar",
-            "Special Ability: Nearby valuable ores glow through walls",
             Material.CONDUIT,
             ChatColor.AQUA,
-            2, 4, // 2 tiles right of mining_abilities
-            7
+            2, 6, // 2 tiles right of mining_abilities
+            radarDesc,
+            radarCosts
         ));
         tree.addConnection("mining_abilities", "ore_radar");
         
@@ -695,41 +571,30 @@ public class SkillTreeRegistry {
         ));
         tree.addConnection("root", "mining_knowledge");
         
-        // Minor XP Boost
+        // XP Boost (Upgradable)
+        Map<Integer, String> xpBoostDesc = new HashMap<>();
+        Map<Integer, Integer> xpBoostCosts = new HashMap<>();
+        
+        xpBoostDesc.put(1, "Gain +10% mining XP from all sources");
+        xpBoostDesc.put(2, "Gain +20% mining XP from all sources");
+        xpBoostDesc.put(3, "Gain +30% mining XP from all sources");
+        xpBoostDesc.put(4, "Gain +50% mining XP from all sources");
+        
+        xpBoostCosts.put(1, 3);
+        xpBoostCosts.put(2, 4);
+        xpBoostCosts.put(3, 5);
+        xpBoostCosts.put(4, 8);
+        
         tree.addNode(new SkillTreeNode(
-            "minor_xp_boost",
-            "Minor XP Boost",
-            "Grants +25 Mining Skill XP",
+            "xp_boost",
+            "XP Boost",
             Material.EXPERIENCE_BOTTLE,
             ChatColor.GREEN,
             -4, -2, // 2 tiles left of mining_knowledge
-            1
+            xpBoostDesc,
+            xpBoostCosts
         ));
-        tree.addConnection("mining_knowledge", "minor_xp_boost");
-        
-        // Medium XP Boost
-        tree.addNode(new SkillTreeNode(
-            "medium_xp_boost",
-            "Medium XP Boost",
-            "Grants +100 Mining Skill XP",
-            Material.EXPERIENCE_BOTTLE,
-            ChatColor.GREEN,
-            -4, -4, // 2 tiles above minor_xp_boost
-            2
-        ));
-        tree.addConnection("minor_xp_boost", "medium_xp_boost");
-        
-        // Major XP Boost
-        tree.addNode(new SkillTreeNode(
-            "major_xp_boost",
-            "Major XP Boost",
-            "Grants +250 Mining Skill XP",
-            Material.EXPERIENCE_BOTTLE,
-            ChatColor.GREEN,
-            -6, -4, // 2 tiles left of medium_xp_boost
-            3
-        ));
-        tree.addConnection("medium_xp_boost", "major_xp_boost");
+        tree.addConnection("mining_knowledge", "xp_boost");
         
         // =====================================================================
         // BRANCH 7: TOKEN REWARDS - Below-left of root
@@ -747,93 +612,92 @@ public class SkillTreeRegistry {
         ));
         tree.addConnection("root", "token_discovery");
         
-        // Token Reward I
+        // Token Yield (Upgradable)
+        Map<Integer, String> tokenYieldDesc = new HashMap<>();
+        Map<Integer, Integer> tokenYieldCosts = new HashMap<>();
+        
+        tokenYieldDesc.put(1, "10% chance to get an extra token when earning tokens");
+        tokenYieldDesc.put(2, "20% chance to get an extra token when earning tokens");
+        tokenYieldDesc.put(3, "30% chance to get an extra token when earning tokens");
+        tokenYieldDesc.put(4, "50% chance to get an extra token when earning tokens");
+        
+        tokenYieldCosts.put(1, 5);
+        tokenYieldCosts.put(2, 6);
+        tokenYieldCosts.put(3, 8);
+        tokenYieldCosts.put(4, 12);
+        
         tree.addNode(new SkillTreeNode(
-            "token_reward_i",
-            "Token Reward I",
-            "Grants +1 Ore Extraction Token",
+            "token_yield",
+            "Token Yield",
             Material.EMERALD,
             ChatColor.GREEN,
             -4, 2, // 2 tiles left of token_discovery
-            1
+            tokenYieldDesc,
+            tokenYieldCosts
         ));
-        tree.addConnection("token_discovery", "token_reward_i");
-        
-        // Token Reward II
-        tree.addNode(new SkillTreeNode(
-            "token_reward_ii",
-            "Token Reward II",
-            "Grants +2 Ore Extraction Tokens",
-            Material.EMERALD,
-            ChatColor.GREEN,
-            -4, 4, // 2 tiles below token_reward_i
-            2
-        ));
-        tree.addConnection("token_reward_i", "token_reward_ii");
-        
-        // Token Reward III
-        tree.addNode(new SkillTreeNode(
-            "token_reward_iii",
-            "Token Reward III",
-            "Grants +3 Ore Extraction Tokens",
-            Material.EMERALD,
-            ChatColor.GREEN,
-            -6, 4, // 2 tiles left of token_reward_ii
-            3
-        ));
-        tree.addConnection("token_reward_ii", "token_reward_iii");
+        tree.addConnection("token_discovery", "token_yield");
         
         // =====================================================================
-        // BRANCH 8: CRAFTING RECIPES - Upper-right of root
+        // BRANCH 8: PASSIVE BUFFS - Top-left of root
         // =====================================================================
         
-        // Mining Crafting
+        // Passive Buff Connection
         tree.addNode(new SkillTreeNode(
-            "mining_crafting",
-            "Mining Crafting",
-            "Learn to craft specialized mining tools",
-            Material.CRAFTING_TABLE,
-            ChatColor.GOLD,
-            2, -4, // 2 tiles diagonal from nether_exploration (right)
-            3
-        ));
-        tree.addConnection("nether_exploration", "mining_crafting");
-        
-        // Basic Pickaxe Recipe
-        tree.addNode(new SkillTreeNode(
-            "basic_pickaxe_recipe",
-            "Basic Pickaxe Recipe",
-            "Unlocks crafting recipe for a specialized mining pickaxe",
-            Material.STONE_PICKAXE,
-            ChatColor.GRAY,
-            4, -2, // 2 tiles diagonal from mining_crafting (right and down)
-            2
-        ));
-        tree.addConnection("mining_crafting", "basic_pickaxe_recipe");
-        
-        // Advanced Pickaxe Recipe
-        tree.addNode(new SkillTreeNode(
-            "advanced_pickaxe_recipe",
-            "Advanced Pickaxe Recipe",
-            "Unlocks crafting recipe for an advanced mining pickaxe",
-            Material.IRON_PICKAXE,
-            ChatColor.WHITE,
-            6, -2, // 2 tiles right of basic_pickaxe_recipe
-            4
-        ));
-        tree.addConnection("basic_pickaxe_recipe", "advanced_pickaxe_recipe");
-        
-        // Expert Pickaxe Recipe
-        tree.addNode(new SkillTreeNode(
-            "expert_pickaxe_recipe",
-            "Expert Pickaxe Recipe",
-            "Unlocks crafting recipe for an expert mining pickaxe",
-            Material.DIAMOND_PICKAXE,
+            "passive_buffs",
+            "Passive Mining Buffs",
+            "Unlock passive buffs to help with mining",
+            Material.BEACON,
             ChatColor.AQUA,
-            6, 0, // 2 tiles below advanced_pickaxe_recipe
-            6
+            -3, -3, // Diagonal from mining_knowledge
+            3
         ));
-        tree.addConnection("advanced_pickaxe_recipe", "expert_pickaxe_recipe");
+        tree.addConnection("mining_knowledge", "passive_buffs");
+        
+        // Mining Stamina (Upgradable)
+        Map<Integer, String> staminaDesc = new HashMap<>();
+        Map<Integer, Integer> staminaCosts = new HashMap<>();
+        
+        staminaDesc.put(1, "Mining consumes 10% less hunger");
+        staminaDesc.put(2, "Mining consumes 20% less hunger");
+        staminaDesc.put(3, "Mining consumes 30% less hunger");
+        
+        staminaCosts.put(1, 2);
+        staminaCosts.put(2, 3);
+        staminaCosts.put(3, 4);
+        
+        tree.addNode(new SkillTreeNode(
+            "mining_stamina",
+            "Mining Stamina",
+            Material.COOKED_BEEF,
+            ChatColor.RED,
+            -5, -3, // 2 tiles left of passive_buffs
+            staminaDesc,
+            staminaCosts
+        ));
+        tree.addConnection("passive_buffs", "mining_stamina");
+        
+        // Regeneration (Upgradable)
+        Map<Integer, String> regenDesc = new HashMap<>();
+        Map<Integer, Integer> regenCosts = new HashMap<>();
+        
+        regenDesc.put(1, "Regenerate 0.2 health per second while mining");
+        regenDesc.put(2, "Regenerate 0.4 health per second while mining");
+        regenDesc.put(3, "Regenerate 0.6 health per second while mining");
+        
+        regenCosts.put(1, 3);
+        regenCosts.put(2, 5);
+        regenCosts.put(3, 7);
+        
+        tree.addNode(new SkillTreeNode(
+            "mining_regeneration",
+            "Mining Regeneration",
+            Material.GOLDEN_APPLE,
+            ChatColor.GOLD,
+            -3, -5, // 2 tiles above passive_buffs
+            regenDesc,
+            regenCosts
+        ));
+        tree.addConnection("passive_buffs", "mining_regeneration");
     }
 
     /**

@@ -1,4 +1,5 @@
 com\server\abilities\AbilityManager.class
+com\server\profiles\skills\gui\ConfirmationGUI.class
 com\server\profiles\skills\gui\SkillTreeGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
 com\server\events\CustomMobListener.class
@@ -83,6 +84,7 @@ com\server\profiles\skills\gui\SkillGUIListener.class
 com\server\events\CombatListener$1.class
 com\server\profiles\skills\skills\combat\CombatSkill.class
 com\server\events\PlayerListener$6.class
+com\server\profiles\skills\gui\SkillTreeGUI$ConnectionState.class
 com\server\profiles\skills\trees\TreeGridPosition.class
 com\server\entities\mobs\duskhollow\DuskhollowFang$1.class
 com\server\profiles\skills\gui\SkillTreeGUI.class
@@ -122,6 +124,7 @@ com\server\events\PlayerListener$1.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\display\MobDisplayManager.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
+com\server\profiles\skills\gui\SkillTreeGUI$ResetData.class
 com\server\entities\mobs\CustomMob$1$1.class
 com\server\entities\CustomMobStats.class
 com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.class
