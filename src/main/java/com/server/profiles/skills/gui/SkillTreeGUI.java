@@ -356,11 +356,23 @@ public class SkillTreeGUI {
         // Special handling for root node if not unlocked
         boolean isRootNode = node.getId().equals("root");
         
+        // Special handling for special nodes with preserved levels
+        boolean isSpecialReunlock = false;
+        int savedLevel = 0;
+        
+        if (!unlocked && node.isSpecialNode()) {
+            savedLevel = nodeLevels.getOrDefault(node.getId(), 0);
+            if (savedLevel > 0) {
+                isSpecialReunlock = true;
+            }
+        }
+        
         // Change appearance based on node state
         if (unlocked) {
             // Unlocked node - use actual icon
         } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
             // Available but not unlocked - use glowing effect or different color
+            // For certain icons, use a different material to make them more visible
             if (icon == Material.DIAMOND_PICKAXE) icon = Material.IRON_PICKAXE;
             else if (icon == Material.GOLDEN_PICKAXE) icon = Material.WOODEN_PICKAXE;
             else if (icon == Material.NETHERITE_PICKAXE) icon = Material.STONE_PICKAXE;
@@ -416,6 +428,38 @@ public class SkillTreeGUI {
         
         lore.add("");
         
+        // Add level/upgrade information if this is an upgradable node
+        if (node.isUpgradable()) {
+            lore.add(ChatColor.GRAY + "Level: " + ChatColor.YELLOW + currentLevel + "/" + node.getMaxLevel());
+            
+            if (unlocked) {
+                if (fullyUpgraded) {
+                    // At max level
+                    lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "MAX LEVEL" + ChatColor.GOLD + " ✦");
+                } else {
+                    // Can be upgraded further
+                    lore.add(ChatColor.YELLOW + "Next upgrade costs: " + node.getTokenCost(currentLevel + 1) + " tokens");
+                    lore.add(ChatColor.GRAY + "Click to upgrade");
+                }
+            } else if (isSpecialReunlock) {
+                // Re-unlocking a special node that was previously acquired
+                lore.add(ChatColor.YELLOW + "Special node with saved level: " + savedLevel);
+                lore.add(ChatColor.GREEN + "Click to restore (no cost)");
+            } else {
+                // Regular unlockable node
+                lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " tokens");
+                lore.add(ChatColor.YELLOW + "Click to unlock!");
+            }
+            
+            // If this is a special node that maintains progress through resets, indicate this clearly
+            if (node.isSpecialNode()) {
+                lore.add("");
+                lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "PERMANENT UPGRADE" + ChatColor.GOLD + " ✦");
+                lore.add(ChatColor.RED + "This node maintains its level when resetting");
+                lore.add(ChatColor.RED + "the skill tree and does not refund tokens.");
+            }
+        }
+        
         // Add token cost
         if (node.getTokenCost() > 0) {
             if (unlocked) {
@@ -427,53 +471,52 @@ public class SkillTreeGUI {
                     lore.add(ChatColor.YELLOW + "Upgrade Cost: " + upgradeCost + " Token" + 
                         (upgradeCost > 1 ? "s" : ""));
                     lore.add(ChatColor.YELLOW + "Click to upgrade!");
-                } else if (fullyUpgraded) {
-                    // Show maxed out status with special formatting
-                    lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "MAXED OUT!" + ChatColor.GOLD + " ✦");
+                    } else if (fullyUpgraded) {
+                        // Show maxed out status with special formatting
+                        lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "MAXED OUT!" + ChatColor.GOLD + " ✦");
+                    } else {
+                        // Non-upgradable node that's fully unlocked
+                        lore.add(ChatColor.GREEN + "Unlocked!");
+                    }
+                } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
+                    // Root node or available nodes
+                    if (isRootNode) {
+                        lore.add(ChatColor.YELLOW + "Click to unlock! (Starting point)");
+                    } else {
+                        lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " Token" + 
+                            (node.getTokenCost() > 1 ? "s" : ""));
+                        lore.add(ChatColor.YELLOW + "Click to unlock!");
+                    }
                 } else {
-                    // Non-upgradable node that's fully unlocked
-                    lore.add(ChatColor.GREEN + "Unlocked!");
-                }
-            } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
-                // Root node or available nodes
-                if (isRootNode) {
-                    lore.add(ChatColor.YELLOW + "Cost: 0 Tokens");
-                    lore.add(ChatColor.YELLOW + "Click to unlock! (Starting point)");
-                } else {
-                    lore.add(ChatColor.YELLOW + "Cost: " + node.getTokenCost() + " Token" + 
-                        (node.getTokenCost() > 1 ? "s" : ""));
-                    lore.add(ChatColor.YELLOW + "Click to unlock!");
-                }
-            } else {
-                lore.add(ChatColor.RED + "Locked - Unlock connected nodes first");
-                
-                // Add prerequisite nodes information
-                List<String> prerequisites = getPrerequisiteNodes(tree, node.getId(), unlockedNodes, nodeLevels);
-                if (!prerequisites.isEmpty()) {
-                    lore.add("");
-                    lore.add(ChatColor.RED + "Required nodes:");
-                    for (String prereq : prerequisites) {
-                        lore.add(ChatColor.RED + "• " + ChatColor.GRAY + prereq);
+                    lore.add(ChatColor.RED + "Locked - Unlock connected nodes first");
+                    
+                    // Add prerequisite nodes information
+                    List<String> prerequisites = getPrerequisiteNodes(tree, node.getId(), unlockedNodes, nodeLevels);
+                    if (!prerequisites.isEmpty()) {
+                        lore.add("");
+                        lore.add(ChatColor.RED + "Required nodes:");
+                        for (String prereq : prerequisites) {
+                            lore.add(ChatColor.RED + "• " + ChatColor.GRAY + prereq);
+                        }
                     }
                 }
-            }
-        } else {
-            // Special case for root node with zero cost
-            if (isRootNode && !unlocked) {
-                lore.add(ChatColor.YELLOW + "Starting Node (Free)");
-                lore.add(ChatColor.YELLOW + "Click to unlock!");
             } else {
-                lore.add(ChatColor.GREEN + "Core Node (Free)");
+                // Special case for root node with zero cost
+                if (isRootNode && !unlocked) {
+                    lore.add(ChatColor.YELLOW + "Starting Node (Free)");
+                    lore.add(ChatColor.YELLOW + "Click to unlock!");
+                } else {
+                    lore.add(ChatColor.GREEN + "Core Node (Free)");
+                }
             }
-        }
-        
-        // Add ID for later retrieval
-        lore.add(ChatColor.BLACK + "ID:" + node.getId());
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        
-        return item;
+            
+            // Add ID for later retrieval
+            lore.add(ChatColor.BLACK + "ID:" + node.getId());
+            
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+            
+            return item;
     }
 
     /**
@@ -579,30 +622,45 @@ public class SkillTreeGUI {
             return;
         }
         
-        // Get node level information
+       // Get node level information
         Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
         Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
         int currentLevel = nodeLevels.getOrDefault(nodeId, 0);
         boolean isUnlocked = currentLevel > 0;
         boolean isMaxLevel = currentLevel >= node.getMaxLevel();
         
-        // Check if already unlocked at max level
-        if (isUnlocked && isMaxLevel) {
-            player.sendMessage(ChatColor.YELLOW + "This node is already at maximum level.");
-            return;
-        }
-        
         // Check if available to unlock or upgrade
-        if (!isUnlocked && !tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
+        if (!isUnlocked && !treeData.canUnlockNode(skill.getId(), nodeId)) {
             player.sendMessage(ChatColor.RED + "You need to unlock connected nodes first.");
             return;
         }
         
+        // Special handling for special nodes that were reset but still have levels
+        boolean isSpecialReunlock = false;
+        int savedLevel = 0;
+        
+        // Check if this is a special node with preserved level
+        if (!isUnlocked && node.isSpecialNode()) {
+            savedLevel = treeData.getNodeLevel(skill.getId(), nodeId);
+            if (savedLevel > 0) {
+                isSpecialReunlock = true;
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("[SkillTreeGUI] Found special node to re-unlock: " + 
+                                                    nodeId + " at level " + savedLevel);
+                }
+            }
+        }
+        
         // Get the token cost for unlocking or upgrading
         int tokenCost;
+        
         if (isUnlocked) {
             // Upgrading - get cost for next level
             tokenCost = node.getTokenCost(currentLevel + 1);
+        } else if (isSpecialReunlock) {
+            // Re-unlocking a special node - no cost required
+            tokenCost = 0;
         } else {
             // Initial unlock - get cost for level 1
             tokenCost = node.getTokenCost();
@@ -617,25 +675,58 @@ public class SkillTreeGUI {
         
         // Unlock or upgrade the node
         if (isUnlocked) {
+            // Check if already at max level
+            if (isMaxLevel) {
+                player.sendMessage(ChatColor.GOLD + "✦ " + node.getColor() + node.getName() + 
+                                ChatColor.GOLD + " ✦ " + ChatColor.GREEN + "is already at maximum level! " + 
+                                ChatColor.YELLOW + "(" + currentLevel + "/" + node.getMaxLevel() + ")");
+                // Play a different sound for max level
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 2.0f);
+                return;
+            }
+            
             // Upgrade
             treeData.upgradeNode(skill.getId(), nodeId);
             player.sendMessage(ChatColor.GREEN + "Upgraded " + node.getColor() + node.getName() + 
                             ChatColor.GREEN + " to level " + (currentLevel + 1) + "!");
+        } else if (isSpecialReunlock) {
+            // CRITICAL FIX: Re-unlock special node at its saved level and make it "unlocked" again
+            treeData.unlockNode(skill.getId(), nodeId);
+            player.sendMessage(ChatColor.GREEN + "Re-unlocked " + node.getColor() + node.getName() + 
+                            ChatColor.GREEN + " at level " + savedLevel + "!");
+            
+            // IMPORTANT FIX: Refresh the GUI but maintain the current view position
+            // Get current view position before refreshing
+            TreeGridPosition viewPos = playerViewPositions.get(player);
+            if (viewPos != null) {
+                // Use the current view position when refreshing
+                openSkillTreeAtPosition(player, skill, viewPos.getX(), viewPos.getY());
+            } else {
+                // Fallback to default view if position not found
+                openSkillTreeGUI(player, skill);
+            }
+            return;
         } else {
-            // Initial unlock
+            // Normal unlock at level 1
             treeData.unlockNode(skill.getId(), nodeId);
             player.sendMessage(ChatColor.GREEN + "Unlocked " + node.getColor() + node.getName() + "!");
         }
         
-        // Use tokens
-        treeData.useTokens(skill.getId(), tokenCost);
+        // Use tokens (only for normal unlocks and upgrades, not special node re-unlocks)
+        if (!isSpecialReunlock) {
+            treeData.useTokens(skill.getId(), tokenCost);
+        }
         
         // Play sound
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f);
         
         // Refresh the GUI
-        TreeGridPosition centerPos = getCurrentViewPosition(player);
-        openSkillTreeAtPosition(player, skill, centerPos.getX(), centerPos.getY());
+        TreeGridPosition viewPos = playerViewPositions.get(player);
+        if (viewPos != null) {
+            openSkillTreeAtPosition(player, skill, viewPos.getX(), viewPos.getY());
+        } else {
+            openSkillTreeGUI(player, skill);
+        }
     }
     
     /**

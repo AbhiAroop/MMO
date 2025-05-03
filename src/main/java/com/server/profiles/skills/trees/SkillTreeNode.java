@@ -20,6 +20,7 @@ public class SkillTreeNode {
     private final int maxLevel; // Maximum upgrade level for this node
     private final Map<Integer, String> levelDescriptions; // Descriptions for each level
     private final Map<Integer, Integer> levelCosts; // Token costs for each level
+    private boolean isSpecialNode;
     
     /**
      * Create a simple non-upgradable node
@@ -163,5 +164,19 @@ public class SkillTreeNode {
      */
     public boolean isUpgradable() {
         return maxLevel > 1;
+    }
+
+    /**
+     * Mark this node as a special node (doesn't refund tokens on reset and keeps progress)
+     */
+    public void setSpecialNode(boolean isSpecialNode) {
+        this.isSpecialNode = isSpecialNode;
+    }
+    
+    /**
+     * Check if this node is a special node
+     */
+    public boolean isSpecialNode() {
+        return isSpecialNode;
     }
 }

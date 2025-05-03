@@ -143,31 +143,25 @@ public class ConfirmationGUI {
     
     /**
      * Calculate how many tokens to refund for resetting a skill tree
+     * This excludes special nodes that don't refund tokens
      */
     private static int calculateTokensToRefund(SkillTree tree, Set<String> unlockedNodes, Map<String, Integer> nodeLevels) {
-        int totalTokens = 0;
+        int tokensToRefund = 0;
         
         for (String nodeId : unlockedNodes) {
             SkillTreeNode node = tree.getNode(nodeId);
             if (node == null) continue;
             
-            // Skip the root node
-            if (nodeId.equals("root")) continue;
+            // Skip special nodes in the refund calculation
+            if (node.isSpecialNode()) continue;
             
             int level = nodeLevels.getOrDefault(nodeId, 0);
-            
-            if (node.isUpgradable()) {
-                // For upgradable nodes, add the cost of each level
-                for (int i = 1; i <= level; i++) {
-                    totalTokens += node.getTokenCost(i);
-                }
-            } else {
-                // For non-upgradable nodes, just add the token cost
-                totalTokens += node.getTokenCost();
+            for (int i = 1; i <= level; i++) {
+                tokensToRefund += node.getTokenCost(i);
             }
         }
         
-        return totalTokens;
+        return tokensToRefund;
     }
     
     /**

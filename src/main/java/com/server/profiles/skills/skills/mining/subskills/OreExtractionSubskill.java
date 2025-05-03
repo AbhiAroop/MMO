@@ -6,7 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -16,11 +18,16 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.AbstractSkill;
 import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SkillType;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
+import com.server.profiles.skills.trees.SkillTree;
+import com.server.profiles.skills.trees.SkillTreeNode;
+import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.PlayerStats;
 
 /**
@@ -357,7 +364,54 @@ public class OreExtractionSubskill extends AbstractSkill {
                 Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
                     player.getName() + " (now " + stats.getMiningFortune() + ") from skill tree node upgrade");
             }
+        } else if (nodeId.equals("mining_xp_boost")) {
+            // Calculate XP to award - 100 XP per level
+            int xpAmount = levelDifference * 100;
+            
+            // Get the Mining parent skill
+            Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+            
+            if (miningSkill != null) {
+                // Log before giving XP (for debugging)
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Awarding " + xpAmount + " Mining XP from mining_xp_boost to " + 
+                        player.getName() + " (level diff: " + levelDifference + ")");
+                }
+            
+                // Add XP to the Mining skill directly
+                boolean leveledUp = miningSkill.addExperience(player, xpAmount);
+                
+                // Notify the player
+                player.sendMessage(ChatColor.GREEN + "You gained " + xpAmount + " Mining XP from your Mining Knowledge!");
+                
+                // Play sound effect
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                
+                // Log for debugging
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Added " + xpAmount + " Mining XP to " + 
+                        player.getName() + " from mining_xp_boost node upgrade");
+                }
+                
+                // Also ensure this node is marked as special for preservation during resets
+                PlayerSkillTreeData treeData = profile.getSkillTreeData();
+                SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(getId());
+                if (tree != null) {
+                    SkillTreeNode node = tree.getNode("mining_xp_boost");
+                    if (node != null) {
+                        // Always mark it as special, just to be sure
+                        if (!node.isSpecialNode()) {
+                            node.setSpecialNode(true);
+                            
+                            if (Main.getInstance().isDebugMode()) {
+                                Main.getInstance().getLogger().info("Marked mining_xp_boost node as special for " + player.getName());
+                            }
+                        }
+                    }
+                }
+            }
         }
+        // Add other node types here as needed
     }
 
     /**
