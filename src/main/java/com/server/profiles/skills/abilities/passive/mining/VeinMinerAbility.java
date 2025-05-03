@@ -22,6 +22,7 @@ import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.passive.AbstractPassiveAbility;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * Vein Miner ability - automatically mines connected ore blocks
@@ -66,20 +67,6 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         
         // The player has unlocked the ability if they have at least level 1 in the vein_miner node
         return treeData.getNodeLevel(SubskillType.ORE_EXTRACTION.getId(), "vein_miner") > 0;
-    }
-
-    @Override
-    protected void addPassiveDetailsToLore(List<String> lore) {
-        lore.add("");
-        lore.add(ChatColor.GRAY + "When enabled, this ability will");
-        lore.add(ChatColor.GRAY + "automatically mine connected ore blocks");
-        lore.add(ChatColor.GRAY + "when you mine an ore.");
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "Maximum blocks: " + ChatColor.WHITE + MAX_BLOCKS);
-        lore.add(ChatColor.YELLOW + "Works with: " + ChatColor.WHITE + "Coal, Iron, Gold,");
-        lore.add(ChatColor.WHITE + "Diamond, Redstone, Lapis, Emerald, Copper");
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Mining Fortune will apply to all blocks mined.");
     }
     
     /**
@@ -138,21 +125,52 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         // Remove the source block from the set (it's already being broken by the event)
         blocksToMine.remove(block);
         
-        // If no additional blocks found, just return
+        // If no additional blocks found, just return (single block doesn't cost mana)
         if (blocksToMine.isEmpty()) return;
         
-        // Get player profile for mining fortune
+        // Get player profile for mining fortune & mana check
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
         
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Get mining fortune directly from the player's stats
-        double miningFortune = profile.getStats().getMiningFortune();
+        // MANA SYSTEM: Calculate how much mana this will cost
+        int blocksCount = blocksToMine.size();
+        int manaCost = calculateManaCost(blocksCount);
         
-        // Calculate the fortune multiplier that will be applied to the primary block
-        // This calculation should exactly match what's in MiningListener
+        // Get current player mana
+        PlayerStats stats = profile.getStats();
+        int currentMana = stats.getMana();
+        
+        // Check if player has enough mana
+        if (currentMana < manaCost) {
+            // Not enough mana - limit blocks to what the player can afford
+            int affordableBlocks = Math.max(0, currentMana / 10);
+            
+            if (affordableBlocks == 0) {
+                player.sendMessage(ChatColor.RED + "Not enough mana to use Vein Miner!");
+                return;
+            }
+            
+            // Limit blocks to what player can afford
+            if (blocksToMine.size() > affordableBlocks) {
+                // We need to reduce the blocks to mine - take only the closest ones
+                List<Block> sortedBlocks = sortBlocksByDistance(blocksToMine, block);
+                blocksToMine = new HashSet<>(sortedBlocks.subList(0, affordableBlocks));
+                
+                // Recalculate mana cost
+                manaCost = calculateManaCost(affordableBlocks);
+            }
+        }
+        
+        // Deduct mana
+        stats.setMana(currentMana - manaCost);
+        
+        // Get mining fortune directly from the player's stats
+        double miningFortune = stats.getMiningFortune();
+        
+        // Calculate the fortune multiplier that will be applied
         int fortuneMultiplier = calculateFortuneMultiplier(miningFortune);
         
         // Mine the additional blocks
@@ -217,15 +235,70 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
             blocksMinedCount++;
         }
         
-        // Only show messages and play sounds if we actually mined blocks
-        if (blocksMinedCount > 0) {
+        // Only show messages and play sounds if we actually mined MORE THAN 1 additional block
+        if (blocksMinedCount > 1) {
             // Play sound effect to indicate vein miner worked
             player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_BREAK, 0.5f, 1.0f);
             
-            // Send message
+            // Send message with mana cost information
             player.sendMessage(ChatColor.GREEN + "Vein Miner: " + ChatColor.YELLOW + 
-                            "Mined " + blocksMinedCount + " additional blocks!");
+                            "Mined " + blocksMinedCount + " additional blocks! " + 
+                            ChatColor.BLUE + "(" + manaCost + " mana)");
+        } 
+        // Just play a subtle sound for a single additional block, but no message
+        else if (blocksMinedCount == 1) {
+            player.playSound(player.getLocation(), Sound.BLOCK_STONE_BREAK, 0.3f, 1.2f);
         }
+    }
+
+    /**
+     * Calculate mana cost for vein mining
+     * Base cost is 10 mana per block
+     */
+    private int calculateManaCost(int blockCount) {
+        // Single blocks don't cost mana
+        if (blockCount <= 0) return 0;
+        
+        // 10 mana per block
+        return blockCount * 10;
+    }
+
+    /**
+     * Sort blocks by distance from the source block
+     */
+    private List<Block> sortBlocksByDistance(Set<Block> blocks, Block sourceBlock) {
+        List<Block> sortedBlocks = new ArrayList<>(blocks);
+        
+        // Sort blocks by distance from source
+        sortedBlocks.sort((b1, b2) -> {
+            double d1 = getBlockDistance(sourceBlock, b1);
+            double d2 = getBlockDistance(sourceBlock, b2);
+            return Double.compare(d1, d2);
+        });
+        
+        return sortedBlocks;
+    }
+
+    /**
+     * Calculate distance between blocks
+     */
+    private double getBlockDistance(Block source, Block target) {
+        return source.getLocation().distance(target.getLocation());
+    }
+
+    @Override
+    protected void addPassiveDetailsToLore(List<String> lore) {
+        lore.add("");
+        lore.add(ChatColor.GRAY + "When enabled, this ability will");
+        lore.add(ChatColor.GRAY + "automatically mine connected ore blocks");
+        lore.add(ChatColor.GRAY + "when you mine an ore.");
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Maximum blocks: " + ChatColor.WHITE + MAX_BLOCKS);
+        lore.add(ChatColor.BLUE + "Mana cost: " + ChatColor.WHITE + "10 per block");
+        lore.add(ChatColor.YELLOW + "Works with: " + ChatColor.WHITE + "Coal, Iron, Gold,");
+        lore.add(ChatColor.WHITE + "Diamond, Redstone, Lapis, Emerald, Copper");
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Mining Fortune will apply to all blocks mined.");
     }
 
     /**
