@@ -263,5 +263,33 @@ public class CustomItems {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static ItemStack createShatteredShellPickaxe() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 13000 base for pickaxes)
+        meta.setCustomModelData(213001); // 2 for functional item, 13 for pickaxe, 001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§7§lShattered Shell Pickaxe");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"Forged from the fragments of ancient sea creatures,",
+            "§7this pickaxe cuts through stone with surprising ease.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+3",
+            "§9Mining Speed: §9+0.1",
+            "",
+            "§8Its jagged edges, once part of a creature's",
+            "§8protective shell, now slice through rock and ore",
+            "§8with preternatural sharpness.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
     
 }

@@ -256,7 +256,7 @@ public class OreExtractionTreeBuilder implements SkillTreeBuilder {
         tree.addConnection("ore_extraction_xp", "ore_extraction_path_lower");
 
         // =====================================================================
-        // IRON ORE UNLOCK NODE - Connected to the Upper Extraction Path
+        // ORE UNLOCK NODES - Connected to the Upper Extraction Path
         // =====================================================================
         
         // Iron Ore Unlock Node
@@ -270,6 +270,17 @@ public class OreExtractionTreeBuilder implements SkillTreeBuilder {
             3 // Token cost
         ));
         tree.addConnection("ore_extraction_path_upper", "unlock_iron_ore");
+
+        tree.addNode(new SkillTreeNode(
+            "unlock_deepslate_mining",
+            "Deepslate Mining",
+            "Unlocks the ability to mine deepslate variants of ores,\nwhich provide 2x more XP than regular variants",
+            Material.DEEPSLATE,
+            ChatColor.DARK_GRAY,
+            4, -2, // 2 tiles to the right of ore_extraction_path_upper
+            4 // Token cost
+        ));
+        tree.addConnection("ore_extraction_path_upper", "unlock_deepslate_mining");
 
         // =====================================================================
         // MINING XP NODE - Connected to Extraction Expertise Mystery Path

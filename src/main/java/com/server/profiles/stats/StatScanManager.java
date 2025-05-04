@@ -288,7 +288,7 @@ public class StatScanManager {
             AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
             if (miningSpeedAttribute != null) {
                 removeModifiersByName(miningSpeedAttribute, MMO_MINING_SPEED_MODIFIER);
-                miningSpeedAttribute.setBaseValue(1.0); // Vanilla default
+                miningSpeedAttribute.setBaseValue(0.5); // Vanilla default
             }
             
             // Reset other attributes
@@ -634,16 +634,13 @@ public class StatScanManager {
         return 0;
     }
 
-    /**
-     * Helper method to extract double stat from lore line
-     */
     private double extractDoubleStat(String loreLine, Pattern pattern) {
         Matcher matcher = pattern.matcher(loreLine);
         if (matcher.find()) {
             try {
                 String valuePart = matcher.group(1);
                 if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Extracted value: " + valuePart + " from line: " + loreLine);
+                    plugin.getLogger().info("Extracted double value: " + valuePart + " from line: " + loreLine);
                 }
                 return Double.parseDouble(valuePart);
             } catch (NumberFormatException e) {
@@ -651,8 +648,12 @@ public class StatScanManager {
                     plugin.getLogger().warning("Failed to parse double value from: " + loreLine);
                 }
             }
+        } else {
+            if (plugin.isDebugMode() && loreLine.toLowerCase().contains("mining speed")) {
+                plugin.getLogger().warning("Mining speed pattern didn't match: " + loreLine);
+            }
         }
-        return 0.0;
+        return 0;
     }
 
     /**
@@ -1027,39 +1028,55 @@ public class StatScanManager {
         }
     }
 
+    /**
+     * Apply mining speed attribute
+     */
     private void applyMiningSpeedAttribute(Player player, PlayerStats stats) {
         try {
             AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
             if (miningSpeedAttr != null) {
-                // Remove existing modifiers
-                removeModifiersByName(miningSpeedAttr, MMO_MINING_SPEED_MODIFIER);
+                // Debug the current state before modification
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Mining speed attribute before update for " + player.getName() + 
+                                ": base=" + miningSpeedAttr.getBaseValue() + 
+                                ", total=" + miningSpeedAttr.getValue());
+                }
                 
-                // Set base to vanilla default (1.0)
-                miningSpeedAttr.setBaseValue(1.0);
+                // Remove existing modifiers
+                for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
+                    if (mod.getName().equals(MMO_MINING_SPEED_MODIFIER) || 
+                        mod.getName().equals("mmo.temp_mining_speed_fix")) {
+                        miningSpeedAttr.removeModifier(mod);
+                    }
+                }
+                
+                // Set base to our default (0.5)
+                miningSpeedAttr.setBaseValue(0.5);
                 
                 // Apply bonus mining speed if needed
                 double totalMiningSpeed = stats.getMiningSpeed();
-                double miningSpeedBonus = totalMiningSpeed - 1.0;
+                double miningSpeedBonus = totalMiningSpeed - 0.5; // Adjust based on default
                 
-                if (miningSpeedBonus != 0) {
+                if (miningSpeedBonus > 0) {
                     AttributeModifier miningSpeedMod = new AttributeModifier(
                         UUID.randomUUID(),
                         MMO_MINING_SPEED_MODIFIER,
                         miningSpeedBonus,
-                        AttributeModifier.Operation.MULTIPLY_SCALAR_1
+                        AttributeModifier.Operation.ADD_NUMBER
                     );
                     miningSpeedAttr.addModifier(miningSpeedMod);
                 }
                 
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info("Applied mining speed attribute to " + player.getName() + 
-                                    ": " + totalMiningSpeed + "x (Final: " + miningSpeedAttr.getValue() + ")");
+                                    ": " + totalMiningSpeed + " (Final: " + miningSpeedAttr.getValue() + ")");
                 }
             }
         } catch (Exception e) {
             // Mining speed attribute might not be available in older versions
             if (plugin.isDebugMode()) {
                 plugin.getLogger().warning("Error applying mining speed attribute: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }

@@ -119,6 +119,7 @@ com\server\profiles\gui\ProfileGUI.class
 com\server\profiles\skills\rewards\SkillRewardType.class
 com\server\events\AutoRespawnListener.class
 com\server\profiles\PlayerProfile.class
+com\server\events\PlayerListener$AttributeInitData.class
 com\server\profiles\skills\events\MiningListener.class
 com\server\profiles\skills\trees\PlayerSkillTreeData.class
 com\server\profiles\skills\core\SkillProgressionManager.class

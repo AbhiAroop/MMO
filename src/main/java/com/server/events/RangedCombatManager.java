@@ -149,6 +149,16 @@ public class RangedCombatManager implements Listener {
                 }
                 attackDamageAttribute.setBaseValue(1.0); // Vanilla default
             }
+
+            // Reset attack speed attribute
+            AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttribute != null) {
+                Set<AttributeModifier> damageModifiers = new HashSet<>(miningSpeedAttribute.getModifiers());
+                for (AttributeModifier modifier : damageModifiers) {
+                    miningSpeedAttribute.removeModifier(modifier);
+                }
+                miningSpeedAttribute.setBaseValue(0.5); // Vanilla default
+            }
             
         } catch (Exception e) {
             plugin.getLogger().warning("Error resetting attributes: " + e.getMessage());

@@ -1,10 +1,14 @@
 package com.server.profiles;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.ChatColor;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -35,6 +39,9 @@ public class ProfileManager {
 
     public boolean createProfile(Player player, int slot, String name) {
         if (slot < 0 || slot >= 3) return false;
+
+        // Before creating a profile, initialize attributes
+        initializePlayerAttributes(player);
         
         PlayerProfile[] playerProfiles = getProfiles(player.getUniqueId());
         if (playerProfiles[slot] != null) {
@@ -118,6 +125,9 @@ public class ProfileManager {
             return false;
         }
 
+        // Before selecting a profile, initialize attributes
+        initializePlayerAttributes(player);
+
         // CRITICAL: Save current profile's health if one exists
         Integer currentSlot = activeProfiles.get(player.getUniqueId());
         if (currentSlot != null && playerProfiles[currentSlot] != null) {
@@ -142,6 +152,37 @@ public class ProfileManager {
         
         // If not first ever, check if this is first time accessing this specific profile
         boolean isFirstProfileAccess = !isFirstEverSelection && newProfile.getLastPlayed() == newProfile.getCreated();
+        
+        // IMPORTANT FIX: Initialize mining speed attribute properly before loading profile
+        if (isFirstProfileAccess) {
+            try {
+                AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+                if (miningSpeedAttr != null) {
+                    // Remove any existing modifiers
+                    for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
+                        miningSpeedAttr.removeModifier(mod);
+                    }
+                    
+                    // Set base value to our default (0.5)
+                    miningSpeedAttr.setBaseValue(0.5);
+                    
+                    // Extra debug logging
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("Initialized mining speed attribute to 0.5 for first profile access: " + player.getName());
+                    }
+                }
+            } catch (Exception e) {
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().warning("Error initializing mining speed attribute: " + e.getMessage());
+                }
+            }
+        }
+    
+    // Set profile as active before loading to ensure it's recognized
+    activeProfiles.put(player.getUniqueId(), slot);
+    
+    // Load the profile (this will set proper health from profile)
+    newProfile.loadProfile(player);
         
         // Set profile as active before loading to ensure it's recognized
         activeProfiles.put(player.getUniqueId(), slot);
@@ -227,5 +268,64 @@ public class ProfileManager {
 
     public Integer getActiveProfile(UUID playerUUID) {
         return activeProfiles.get(playerUUID);
+    }
+
+    /**
+     * Initialize all custom attributes for a player
+     */
+    private void initializePlayerAttributes(Player player) {
+        try {
+            // Initialize mining speed attribute
+            AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
+                    miningSpeedAttr.removeModifier(mod);
+                }
+                
+                // Set base value to our default (0.5)
+                miningSpeedAttr.setBaseValue(0.5);
+            }
+            
+            // Initialize scale attribute
+            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(scaleAttr.getModifiers())) {
+                    scaleAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (1.0)
+                scaleAttr.setBaseValue(1.0);
+            }
+            
+            // Initialize attack range attribute
+            AttributeInstance rangeAttr = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
+            if (rangeAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(rangeAttr.getModifiers())) {
+                    rangeAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (3.0)
+                rangeAttr.setBaseValue(3.0);
+            }
+            
+            // Initialize attack speed attribute
+            AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
+            if (attackSpeedAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(attackSpeedAttr.getModifiers())) {
+                    attackSpeedAttr.removeModifier(mod);
+                }
+                
+                // Set base value to our default (0.5)
+                attackSpeedAttr.setBaseValue(0.5);
+            }
+        } catch (Exception e) {
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Error initializing attributes: " + e.getMessage());
+            }
+        }
     }
 }

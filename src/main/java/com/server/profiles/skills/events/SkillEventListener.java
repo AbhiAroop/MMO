@@ -195,30 +195,45 @@ public class SkillEventListener implements Listener {
      * Calculate XP for ore blocks
      */
     private double calculateOreXp(Material material) {
-        // Scale XP based on ore value
-        if (material.name().contains("DIAMOND")) {
-            return 20.0; // Diamond ore
-        } else if (material.name().contains("EMERALD")) {
-            return 22.0; // Emerald ore
-        } else if (material.name().contains("GOLD")) {
-            return 15.0; // Gold ore
-        } else if (material.name().contains("IRON")) {
-            return 10.0; // Iron ore
-        } else if (material.name().contains("REDSTONE")) {
-            return 8.0; // Redstone ore
-        } else if (material.name().contains("LAPIS")) {
-            return 12.0; // Lapis ore
-        } else if (material.name().contains("COAL")) {
-            return 5.0; // Coal ore
-        } else if (material.name().contains("COPPER")) {
-            return 7.0; // Copper ore
-        } else if (material.name().contains("ANCIENT_DEBRIS")) {
-            return 35.0; // Ancient debris
-        } else if (material.name().contains("NETHER_QUARTZ")) {
-            return 8.0; // Nether quartz
-        } else {
-            return 0.0; // Default to base XP amount
+        // Base XP values
+        double baseXp = 0;
+        
+        // First, determine the base ore type by removing DEEPSLATE_ prefix if present
+        String materialName = material.name();
+        boolean isDeepslate = materialName.contains("DEEPSLATE_");
+        
+        // Extract the core ore type by removing DEEPSLATE_ prefix
+        String coreType = isDeepslate ? materialName.replace("DEEPSLATE_", "") : materialName;
+        
+        // Determine base XP for the core ore type
+        if (coreType.contains("COAL_ORE")) {
+            baseXp = 5.0;
+        } else if (coreType.contains("COPPER_ORE")) {
+            baseXp = 7.0;
+        } else if (coreType.contains("IRON_ORE")) {
+            baseXp = 10.0;
+        } else if (coreType.contains("GOLD_ORE") || coreType.equals("NETHER_GOLD_ORE")) {
+            baseXp = 15.0;
+        } else if (coreType.contains("REDSTONE_ORE")) {
+            baseXp = 8.0;
+        } else if (coreType.contains("LAPIS_ORE")) {
+            baseXp = 12.0;
+        } else if (coreType.contains("DIAMOND_ORE")) {
+            baseXp = 20.0;
+        } else if (coreType.contains("EMERALD_ORE")) {
+            baseXp = 22.0;
+        } else if (coreType.equals("NETHER_QUARTZ_ORE")) {
+            baseXp = 8.0;
+        } else if (coreType.equals("ANCIENT_DEBRIS")) {
+            baseXp = 35.0;
         }
+        
+        // Apply 2x multiplier for deepslate variants
+        if (isDeepslate) {
+            baseXp *= 2.0;
+        }
+        
+        return baseXp;
     }
 
     /**

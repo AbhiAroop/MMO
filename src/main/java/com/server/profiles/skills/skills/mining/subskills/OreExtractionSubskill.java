@@ -484,12 +484,12 @@ public class OreExtractionSubskill extends AbstractSkill {
      * @return True if the player can mine this material, false otherwise
      */
     public boolean canMineOre(Player player, Material material) {
-        // Only regular coal ore is available by default, not deepslate variant
+        // Coal ore is always unlocked by default
         if (material == Material.COAL_ORE) {
             return true;
         }
         
-        // Get the player's skill tree data
+        // Get player's skill tree data
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return false;
         
@@ -498,21 +498,33 @@ public class OreExtractionSubskill extends AbstractSkill {
         
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         
-        // Check specific ore types that need unlocks
-        if (material == Material.DEEPSLATE_COAL_ORE) {
-            return treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        // Check for deepslate variants - require deepslate mining unlock
+        if (material.name().contains("DEEPSLATE_")) {
+            if (!treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining")) {
+                return false; // Player hasn't unlocked deepslate mining yet
+            }
+            
+            // For deepslate coal, only need deepslate unlock (coal itself is always allowed)
+            if (material == Material.DEEPSLATE_COAL_ORE) {
+                return true;
+            }
+            
+            // For other deepslate variants, need both deepslate unlock and the specific ore unlock
         }
         
+        // Check for specific ore types
         if (material == Material.IRON_ORE || material == Material.DEEPSLATE_IRON_ORE) {
             return treeData.isNodeUnlocked(this.getId(), "unlock_iron_ore");
         }
         
         // For now, all other ores are locked until we add their specific unlock nodes
-        if (affectsMaterial(material) && material != Material.COAL_ORE) {
-            return false;
+        
+        // Debug logging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Player " + player.getName() + " tried to mine " + material + 
+                                    " but doesn't have the required unlocks");
         }
         
-        // Non-ore materials are always mineable
-        return true;
+        return false;
     }
 }
