@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -20,7 +21,11 @@ import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.passive.AbstractPassiveAbility;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillProgressionManager;
+import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.profiles.stats.PlayerStats;
 
@@ -109,6 +114,16 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         
         if (!isOre(block.getType())) return;
         
+        // Check if player can mine this ore type
+        Skill oreExtractionSkill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+        if (oreExtractionSkill instanceof OreExtractionSubskill) {
+            OreExtractionSubskill oreExtraction = (OreExtractionSubskill) oreExtractionSkill;
+            if (!oreExtraction.canMineOre(player, block.getType())) {
+                // Player can't mine this ore, don't use vein miner
+                return;
+            }
+        }
+        
         // Get max vein size based on node level
         int maxVeinSize = getMaxVeinSize(player);
         if (maxVeinSize <= 0) return;
@@ -175,6 +190,8 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         
         // Mine the additional blocks
         int blocksMinedCount = 0;
+        double totalOreXp = 0; // Track total XP for OreExtraction subskill
+        
         for (Block oreBlock : blocksToMine) {
             // Skip if block was removed or changed since we found it
             if (oreBlock.getType() != sourceType) continue;
@@ -231,8 +248,33 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
             if (blockXP > 0) {
                 player.giveExp(blockXP);
             }
+
+            // Calculate OreExtraction subskill XP for this ore block
+            double oreXp = calculateOreXp(sourceType); // Use sourceType instead of oreBlock.getType() which is now AIR
+            totalOreXp += oreXp;
             
             blocksMinedCount++;
+        }
+        
+        // Award total OreExtraction XP at once after mining all blocks
+        if (totalOreXp > 0) {
+            OreExtractionSubskill oreSkill = (OreExtractionSubskill) SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+            if (oreSkill != null) {
+                // Apply any XP bonuses from skill tree
+                Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
+                double xpBoost = benefits.getOrDefault("xp_boost", 0.0); // This is a decimal multiplier (0.01 = 1%)
+                
+                // Calculate the modified XP amount with the boost
+                double modifiedXpAmount = totalOreXp * (1.0 + xpBoost);
+                
+                // Award XP to the ore extraction subskill with the boost applied
+                SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info(player.getName() + " gained " + modifiedXpAmount + 
+                                    " OreExtraction XP from VeinMiner for mining " + blocksMinedCount + " blocks");
+                }
+            }
         }
         
         // Only show messages and play sounds if we actually mined MORE THAN 1 additional block
@@ -248,6 +290,36 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         // Just play a subtle sound for a single additional block, but no message
         else if (blocksMinedCount == 1) {
             player.playSound(player.getLocation(), Sound.BLOCK_STONE_BREAK, 0.3f, 1.2f);
+        }
+    }
+
+    /**
+     * Calculate XP for ore blocks
+     */
+    private double calculateOreXp(Material material) {
+        // Scale XP based on ore value
+        if (material.name().contains("DIAMOND")) {
+            return 20.0; // Diamond ore
+        } else if (material.name().contains("EMERALD")) {
+            return 22.0; // Emerald ore
+        } else if (material.name().contains("GOLD")) {
+            return 15.0; // Gold ore
+        } else if (material.name().contains("IRON")) {
+            return 10.0; // Iron ore
+        } else if (material.name().contains("REDSTONE")) {
+            return 8.0; // Redstone ore
+        } else if (material.name().contains("LAPIS")) {
+            return 12.0; // Lapis ore
+        } else if (material.name().contains("COAL")) {
+            return 5.0; // Coal ore
+        } else if (material.name().contains("COPPER")) {
+            return 7.0; // Copper ore
+        } else if (material.name().contains("ANCIENT_DEBRIS")) {
+            return 35.0; // Ancient debris
+        } else if (material.name().contains("NETHER_QUARTZ")) {
+            return 8.0; // Nether quartz
+        } else {
+            return 0.0; // Default XP amount
         }
     }
 

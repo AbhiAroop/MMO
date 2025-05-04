@@ -256,6 +256,22 @@ public class OreExtractionTreeBuilder implements SkillTreeBuilder {
         tree.addConnection("ore_extraction_xp", "ore_extraction_path_lower");
 
         // =====================================================================
+        // IRON ORE UNLOCK NODE - Connected to the Upper Extraction Path
+        // =====================================================================
+        
+        // Iron Ore Unlock Node
+        tree.addNode(new SkillTreeNode(
+            "unlock_iron_ore",
+            "Iron Mining",
+            "Unlocks the ability to mine iron ore",
+            Material.IRON_ORE,
+            ChatColor.WHITE,
+            2, -4, // 2 tiles above ore_extraction_path_upper
+            3 // Token cost
+        ));
+        tree.addConnection("ore_extraction_path_upper", "unlock_iron_ore");
+
+        // =====================================================================
         // MINING XP NODE - Connected to Extraction Expertise Mystery Path
         // =====================================================================
 

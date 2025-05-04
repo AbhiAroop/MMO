@@ -476,4 +476,43 @@ public class OreExtractionSubskill extends AbstractSkill {
         // This is a placeholder for the ore radar logic
         // You would typically use a particle effect to highlight ores
     }
+
+    /**
+     * Check if a player can mine a specific ore type
+     * @param player The player to check
+     * @param material The material to check
+     * @return True if the player can mine this material, false otherwise
+     */
+    public boolean canMineOre(Player player, Material material) {
+        // Only regular coal ore is available by default, not deepslate variant
+        if (material == Material.COAL_ORE) {
+            return true;
+        }
+        
+        // Get the player's skill tree data
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        
+        // Check specific ore types that need unlocks
+        if (material == Material.DEEPSLATE_COAL_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        if (material == Material.IRON_ORE || material == Material.DEEPSLATE_IRON_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_iron_ore");
+        }
+        
+        // For now, all other ores are locked until we add their specific unlock nodes
+        if (affectsMaterial(material) && material != Material.COAL_ORE) {
+            return false;
+        }
+        
+        // Non-ore materials are always mineable
+        return true;
+    }
 }

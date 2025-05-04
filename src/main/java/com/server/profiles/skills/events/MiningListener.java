@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -21,7 +22,10 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.abilities.passive.mining.VeinMinerAbility;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
 
 /**
@@ -51,8 +55,29 @@ public class MiningListener implements Listener {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
+        // Check if this is an ore that might be locked
+        Material blockType = block.getType();
+        if (isOre(blockType)) {
+            // Get the OreExtraction subskill
+            Skill oreExtractionSkill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+            if (oreExtractionSkill instanceof OreExtractionSubskill) {
+                OreExtractionSubskill oreExtraction = (OreExtractionSubskill) oreExtractionSkill;
+                
+                // Check if player can mine this ore
+                if (!oreExtraction.canMineOre(player, blockType)) {
+                    // Cancel event and send message
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "You need to unlock the ability to mine this ore first.");
+                    return;
+                }
+            }
+        }
+        
+        // Store the original block type before continuing
+        Material originalBlockType = block.getType();
+        
         // Skip if not an ore block for fortune calculation
-        if (!isOre(block.getType())) return;
+        if (!isOre(originalBlockType)) return;
         
         // Check if this is a vein miner block
         boolean isVeinMinerBlock = block.hasMetadata("veinminer_processed");
@@ -96,10 +121,12 @@ public class MiningListener implements Listener {
             // Calculate fortune multiplier for regular blocks
             fortuneMultiplier = calculateFortuneMultiplier(miningFortune);
         }
-        
         // At this point, we have the correct fortune multiplier for both regular and vein miner blocks
         // Process the block with the determined fortune multiplier
         processBlockWithFortune(event, player, block, fortuneMultiplier);
+        SkillEventListener skillEventListener = new SkillEventListener(plugin);
+        skillEventListener.processBlockBreakDirectly(player, block, originalBlockType);
+        
     }
 
     /**

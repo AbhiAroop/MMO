@@ -33,11 +33,16 @@ public class SkillEventListener implements Listener {
     /**
      * Handle block breaking for Mining and Excavating skills
      */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Block block = event.getBlock();
         Material material = block.getType();
+        
+        // Debug output to track block breaks
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("[SkillEventListener] Processing block break: " + material.name() + " by " + player.getName());
+        }
         
         // Determine which skill should get XP
         SkillType skillType = null;
@@ -47,20 +52,28 @@ public class SkillEventListener implements Listener {
             skillType = SkillType.MINING;
             xpAmount = getMiningXp(material);
             
-            // Get main mining skill
-            Skill miningSkill = SkillRegistry.getInstance().getSkill(skillType);
-            if (miningSkill != null) {
-                // CHANGE: Don't award XP to main skill directly anymore
-                // SkillProgressionManager.getInstance().addExperience(player, miningSkill, xpAmount);
-                
-                // Process subskills - they will be the ones getting XP directly now
-                processSubskills(player, miningSkill, material, xpAmount);
-                
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info(player.getName() + " mining " + material.name() + 
-                                        " - XP directed to subskills only");
+            // IMPORTANT: Only non-ore mining blocks should give regular Mining XP
+            if (!isOreBlock(material)) {
+                // Get main mining skill
+                Skill miningSkill = SkillRegistry.getInstance().getSkill(skillType);
+                if (miningSkill != null) {
+                    // Award XP to main mining skill for non-ore blocks only
+                    SkillProgressionManager.getInstance().addExperience(player, miningSkill, xpAmount);
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                                            " XP in " + skillType.getDisplayName() + 
+                                            " for breaking " + material.name());
+                    }
                 }
             }
+            
+            // Process subskills separately, even for ore blocks that don't give main skill XP
+            Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+            if (miningSkill != null) {
+                processSubskills(player, miningSkill, material, xpAmount);
+            }
+            
         } else if (isExcavatingBlock(material)) {
             skillType = SkillType.EXCAVATING;
             xpAmount = getExcavatingXp(material);
@@ -80,29 +93,167 @@ public class SkillEventListener implements Listener {
     }
 
     /**
+     * Process block breaks directly when called from MiningListener
+     * This bypasses event cancellation issues
+     */
+    public void processBlockBreakDirectly(Player player, Block block, Material originalMaterial) {
+        // Debug output to track direct processing
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("[SkillEventListener] Direct processing block: " + originalMaterial.name() + " by " + player.getName());
+        }
+        
+        // Determine which skill should get XP
+        double xpAmount = 0;
+        
+        if (isMiningBlock(originalMaterial)) {
+            xpAmount = getMiningXp(originalMaterial);
+            
+            // IMPORTANT: Only non-ore mining blocks should give regular Mining XP
+            if (!isOreBlock(originalMaterial)) {
+                // Get main mining skill
+                Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+                if (miningSkill != null) {
+                    // Award XP to main mining skill for non-ore blocks only
+                    SkillProgressionManager.getInstance().addExperience(player, miningSkill, xpAmount);
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                                            " XP in " + miningSkill.getDisplayName() + 
+                                            " for breaking " + originalMaterial.name());
+                    }
+                }
+            }
+            
+            // Process subskills separately, even for ore blocks that don't give main skill XP
+            Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+            if (miningSkill != null) {
+                processSubskills(player, miningSkill, originalMaterial, xpAmount);
+            }
+        } else if (isExcavatingBlock(originalMaterial)) {
+            // Handle excavating blocks...
+        }
+    }
+
+    /**
      * Process subskills for mining
      */
     private void processSubskills(Player player, Skill mainSkill, Material material, double baseXpAmount) {
+        // Debug output
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("[SkillEventListener] Processing subskills for " + player.getName() + " - Material: " + material.name());
+        }
+        
         SkillRegistry registry = SkillRegistry.getInstance();
         
         // For Mining, we want to award XP to Ore Extraction or Gem Carving based on the block
         if (mainSkill.getId().equals(SkillType.MINING.getId())) {
             // Check for ore extraction - handles ore blocks
             if (isOreBlock(material)) {
-                OreExtractionSubskill oreSkill = (OreExtractionSubskill) registry.getSubskill(SubskillType.ORE_EXTRACTION);
-                if (oreSkill != null) {
-                    // Get the skill tree benefits to apply XP boost
-                    Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
-                    double xpBoost = benefits.get("xp_boost"); // This is a decimal multiplier (0.01 = 1%)
+                // Apply ore extraction specific XP logic
+                Skill oreExtractionSkill = registry.getSubskill(SubskillType.ORE_EXTRACTION);
+                if (oreExtractionSkill instanceof OreExtractionSubskill) {
+                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) oreExtractionSkill;
                     
-                    // Calculate the modified XP amount with the boost
-                    double modifiedXpAmount = baseXpAmount * (1.0 + xpBoost);
+                    // CRITICAL FIX: Only give XP if the player can mine this ore type
+                    boolean canMineOre = oreSkill.canMineOre(player, material);
                     
-                    // Award XP to the ore extraction subskill with the boost applied
-                    SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
+                    if (canMineOre) {
+                        // Calculate special XP amount for specific ore types
+                        double xpAmount = calculateOreXp(material);
+                        
+                        // Apply any XP bonuses from skill tree
+                        Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
+                        double xpBoost = benefits.getOrDefault("xp_boost", 0.0); // This is a decimal multiplier (0.01 = 1%)
+                        
+                        // Calculate the modified XP amount with the boost
+                        double modifiedXpAmount = xpAmount * (1.0 + xpBoost);
+                        
+                        // Award XP to the ore extraction subskill with the boost applied
+                        SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info(player.getName() + " gained " + modifiedXpAmount + 
+                                                " OreExtraction XP for mining " + material.name());
+                        }
+                    } else {
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info(player.getName() + " cannot mine " + material.name() + 
+                                                " yet. No OreExtraction XP awarded.");
+                        }
+                    }
                 }
             }
+            
+            // Check for gem carving - handles blocks that might contain gems
+            if (containsGems(material)) {
+                // Handle gem carving...
+            }
         }
+    }
+
+    /**
+     * Calculate XP for ore blocks
+     */
+    private double calculateOreXp(Material material) {
+        // Scale XP based on ore value
+        if (material.name().contains("DIAMOND")) {
+            return 20.0; // Diamond ore
+        } else if (material.name().contains("EMERALD")) {
+            return 22.0; // Emerald ore
+        } else if (material.name().contains("GOLD")) {
+            return 15.0; // Gold ore
+        } else if (material.name().contains("IRON")) {
+            return 10.0; // Iron ore
+        } else if (material.name().contains("REDSTONE")) {
+            return 8.0; // Redstone ore
+        } else if (material.name().contains("LAPIS")) {
+            return 12.0; // Lapis ore
+        } else if (material.name().contains("COAL")) {
+            return 5.0; // Coal ore
+        } else if (material.name().contains("COPPER")) {
+            return 7.0; // Copper ore
+        } else if (material.name().contains("ANCIENT_DEBRIS")) {
+            return 35.0; // Ancient debris
+        } else if (material.name().contains("NETHER_QUARTZ")) {
+            return 8.0; // Nether quartz
+        } else {
+            return 0.0; // Default to base XP amount
+        }
+    }
+
+    /**
+     * Check if a material is an ore block
+     */
+    private boolean isOreBlock(Material material) {
+        return material == Material.COAL_ORE || material == Material.DEEPSLATE_COAL_ORE ||
+            material == Material.IRON_ORE || material == Material.DEEPSLATE_IRON_ORE ||
+            material == Material.COPPER_ORE || material == Material.DEEPSLATE_COPPER_ORE ||
+            material == Material.GOLD_ORE || material == Material.DEEPSLATE_GOLD_ORE ||
+            material == Material.REDSTONE_ORE || material == Material.DEEPSLATE_REDSTONE_ORE ||
+            material == Material.LAPIS_ORE || material == Material.DEEPSLATE_LAPIS_ORE ||
+            material == Material.DIAMOND_ORE || material == Material.DEEPSLATE_DIAMOND_ORE ||
+            material == Material.EMERALD_ORE || material == Material.DEEPSLATE_EMERALD_ORE ||
+            material == Material.NETHER_GOLD_ORE || material == Material.NETHER_QUARTZ_ORE ||
+            material == Material.ANCIENT_DEBRIS;
+    }
+
+    /**
+     * Check if a material potentially contains gems
+     */
+    private boolean containsGems(Material material) {
+        return material == Material.STONE || 
+            material == Material.GRANITE || 
+            material == Material.DIORITE || 
+            material == Material.ANDESITE ||
+            material == Material.DEEPSLATE || 
+            material == Material.TUFF || 
+            material == Material.BASALT || 
+            material == Material.BLACKSTONE ||
+            material == Material.AMETHYST_CLUSTER || 
+            material == Material.EMERALD_ORE || 
+            material == Material.DEEPSLATE_EMERALD_ORE ||
+            material == Material.DIAMOND_ORE || 
+            material == Material.DEEPSLATE_DIAMOND_ORE;
     }
     
     /**
@@ -281,23 +432,6 @@ public class SkillEventListener implements Listener {
         }
     }
     
-    /**
-     * Check if a material is an ore block
-     */
-    private boolean isOreBlock(Material material) {
-        return material.name().contains("DIAMOND") ||
-               material.name().contains("EMERALD") ||
-               material.name().contains("GOLD") ||
-               material.name().contains("IRON") ||
-               material.name().contains("REDSTONE") ||
-               material.name().contains("LAPIS") ||
-               material.name().contains("COAL") ||
-               material.name().contains("COPPER") ||
-               material.name().contains("ANCIENT_DEBRIS") ||
-               material.name().contains("NETHER_QUARTZ") ||
-               material.name().contains("AMETHYST");
-    }
-
     /**
      * Process OreExtraction XP directly (called from MiningListener)
      */
