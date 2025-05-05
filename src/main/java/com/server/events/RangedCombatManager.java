@@ -100,34 +100,64 @@ public class RangedCombatManager implements Listener {
      */
     public void resetAttributes(Player player) {
         try {
+            // Reset health attribute
+            AttributeInstance healthAttribute = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+            if (healthAttribute != null) {
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(healthAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.health.baseline")) {
+                        healthAttribute.removeModifier(modifier);
+                    }
+                }
+                // Don't change the base value once initialized
+            }
+            
             // Reset attack range attribute
             AttributeInstance attackRangeAttribute = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
             if (attackRangeAttribute != null) {
-                Set<AttributeModifier> allModifiers = new HashSet<>(attackRangeAttribute.getModifiers());
-                for (AttributeModifier modifier : allModifiers) {
-                    attackRangeAttribute.removeModifier(modifier);
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(attackRangeAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.attack_range.baseline")) {
+                        attackRangeAttribute.removeModifier(modifier);
+                    }
                 }
-                attackRangeAttribute.setBaseValue(3.0); // Vanilla default
+                // Don't change the base value once initialized
             }
             
             // Reset scale attribute
             AttributeInstance scaleAttribute = player.getAttribute(Attribute.GENERIC_SCALE);
             if (scaleAttribute != null) {
-                Set<AttributeModifier> allModifiers = new HashSet<>(scaleAttribute.getModifiers());
-                for (AttributeModifier modifier : allModifiers) {
-                    scaleAttribute.removeModifier(modifier);
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(scaleAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.size.baseline")) {
+                        scaleAttribute.removeModifier(modifier);
+                    }
                 }
-                scaleAttribute.setBaseValue(1.0); // Vanilla default
+                // Don't change the base value once initialized
+            }
+            
+            // Reset mining speed attribute
+            AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttribute != null) {
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(miningSpeedAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.mining_speed.baseline")) {
+                        miningSpeedAttribute.removeModifier(modifier);
+                    }
+                }
+                // Don't change the base value once initialized
             }
             
             // Reset attack speed attribute
             AttributeInstance attackSpeedAttribute = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
             if (attackSpeedAttribute != null) {
-                Set<AttributeModifier> speedModifiers = new HashSet<>(attackSpeedAttribute.getModifiers());
-                for (AttributeModifier modifier : speedModifiers) {
-                    attackSpeedAttribute.removeModifier(modifier);
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(attackSpeedAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.attack_speed.baseline")) {
+                        attackSpeedAttribute.removeModifier(modifier);
+                    }
                 }
-                attackSpeedAttribute.setBaseValue(0.5); // Changed from vanilla 4.0 to our default
+                // Don't change the base value once initialized
             }
             
             // Reset movement speed attribute
@@ -149,17 +179,6 @@ public class RangedCombatManager implements Listener {
                 }
                 attackDamageAttribute.setBaseValue(1.0); // Vanilla default
             }
-
-            // Reset attack speed attribute
-            AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
-            if (miningSpeedAttribute != null) {
-                Set<AttributeModifier> damageModifiers = new HashSet<>(miningSpeedAttribute.getModifiers());
-                for (AttributeModifier modifier : damageModifiers) {
-                    miningSpeedAttribute.removeModifier(modifier);
-                }
-                miningSpeedAttribute.setBaseValue(0.5); // Vanilla default
-            }
-            
         } catch (Exception e) {
             plugin.getLogger().warning("Error resetting attributes: " + e.getMessage());
         }

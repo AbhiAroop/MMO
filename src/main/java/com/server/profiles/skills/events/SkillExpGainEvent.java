@@ -1,5 +1,8 @@
 package com.server.profiles.skills.events;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -16,6 +19,7 @@ public class SkillExpGainEvent extends Event implements Cancellable {
     private final Skill skill;
     private double amount;
     private boolean cancelled;
+    private final Map<String, Object> metadata = new HashMap<>();
     
     public SkillExpGainEvent(Player player, Skill skill, double amount) {
         this.player = player;
@@ -50,6 +54,27 @@ public class SkillExpGainEvent extends Event implements Cancellable {
      */
     public void setAmount(double amount) {
         this.amount = amount;
+    }
+    
+    /**
+     * Add metadata to this event
+     */
+    public void setMetadata(String key, Object value) {
+        metadata.put(key, value);
+    }
+    
+    /**
+     * Get metadata from this event
+     */
+    public Object getMetadata(String key) {
+        return metadata.get(key);
+    }
+    
+    /**
+     * Check if this event has specific metadata
+     */
+    public boolean hasMetadata(String key) {
+        return metadata.containsKey(key);
     }
     
     @Override

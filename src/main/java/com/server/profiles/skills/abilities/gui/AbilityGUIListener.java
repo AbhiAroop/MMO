@@ -16,11 +16,10 @@ import org.bukkit.inventory.ItemStack;
 import com.server.Main;
 import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.abilities.SkillAbility;
+import com.server.profiles.skills.abilities.active.ActiveAbility;
 import com.server.profiles.skills.abilities.passive.PassiveAbility;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
-import com.server.profiles.skills.gui.SkillDetailsGUI;
-import com.server.profiles.skills.gui.SkillsGUI;
 
 /**
  * Listener for ability GUI interactions
@@ -108,8 +107,8 @@ public class AbilityGUIListener implements Listener {
         }
         
         // Handle active abilities button
-        if (clickedItem.getType() == Material.BLAZE_POWDER && 
-            displayName.equals(ChatColor.GOLD + "Active Abilities")) {
+        else if (clickedItem.getType() == Material.BLAZE_POWDER && 
+                displayName.equals(ChatColor.GOLD + "Active Abilities")) {
             
             // Extract skill ID from lore
             String skillId = extractValueFromLore(clickedItem, "SKILL:");
@@ -142,34 +141,37 @@ public class AbilityGUIListener implements Listener {
         }
         
         // Handle back button
-        if (clickedItem.getType() == Material.ARROW && 
-            displayName.equals(ChatColor.RED + "Back to Skill Details")) {
+        else if (clickedItem.getType() == Material.ARROW && 
+                displayName.equals(ChatColor.RED + "Back to Skill Details")) {
             player.closeInventory();
             
-            // Get skill name from title
-            if (title != null && title.startsWith("Abilities: ") && title.length() > "Abilities: ".length()) {
+            // Get skill ID from button lore
+            String skillId = extractValueFromLore(clickedItem, "SKILL:");
+            
+            // If no direct ID, try from title
+            if (skillId == null && title != null && title.startsWith("Abilities: ")) {
                 String skillName = title.substring("Abilities: ".length());
                 Skill skill = findSkillByName(skillName);
-                
+                if (skill != null) {
+                    skillId = skill.getId();
+                }
+            }
+            
+            if (skillId != null) {
+                final Skill skill = SkillRegistry.getInstance().getSkill(skillId);
                 if (skill != null) {
                     // Short delay to prevent inventory conflicts
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        SkillDetailsGUI.openSkillDetailsMenu(player, skill);
+                        com.server.profiles.skills.gui.SkillDetailsGUI.openSkillDetailsMenu(player, skill);
                     }, 1L);
-                } else {
-                    // Fallback - return to main skills menu if we can't determine the skill
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        SkillsGUI.openSkillsMenu(player);
-                    }, 1L);
+                    return;
                 }
-            } else {
-                // Fallback - return to main skills menu
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    SkillsGUI.openSkillsMenu(player);
-                }, 1L);
             }
             
-            return;
+            // Fallback if we couldn't determine the skill
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                com.server.profiles.skills.gui.SkillsGUI.openSkillsMenu(player);
+            }, 1L);
         }
     }
 
@@ -178,7 +180,7 @@ public class AbilityGUIListener implements Listener {
      */
     private Skill findSkillByName(String name) {
         for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
-            if (skill.getDisplayName().equals(name)) {
+            if (skill.getDisplayName().equalsIgnoreCase(name)) {
                 return skill;
             }
         }
@@ -189,73 +191,114 @@ public class AbilityGUIListener implements Listener {
      * Handle clicks in the ability list GUI
      */
     private void handleAbilityListClick(Player player, ItemStack clickedItem, String title) {
-        // Handle toggle button click
-        String toggleShowAll = extractValueFromLore(clickedItem, "TOGGLE_SHOW_ALL:");
-        if (toggleShowAll != null) {
-            String skillId = extractValueFromLore(clickedItem, "SKILL:");
-            String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
-            
-            if (skillId != null && abilityType != null) {
-                player.closeInventory();
+        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+            return;
+        }
+        
+        // Check if this is an ability item
+        String abilityId = extractValueFromLore(clickedItem, "ABILITY:");
+        if (abilityId == null) {
+            // Handle other types of clicks
+            String toggleShowAll = extractValueFromLore(clickedItem, "TOGGLE_SHOW_ALL:");
+            if (toggleShowAll != null) {
+                String skillId = extractValueFromLore(clickedItem, "SKILL:");
+                String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
                 
-                // Short delay to prevent inventory conflicts
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (skillId != null && abilityType != null) {
                     boolean showAll = Boolean.parseBoolean(toggleShowAll);
                     AbilityListGUI.openAbilityList(player, skillId, abilityType, showAll);
-                }, 1L);
+                }
+                return;
             }
-            return;
-        }
-        
-        // Handle back button click
-        if (clickedItem.getType() == org.bukkit.Material.ARROW && 
-            clickedItem.getItemMeta().getDisplayName().equals(ChatColor.RED + "Back to Abilities")) {
-            player.closeInventory();
             
-            // Extract skill name from title
-            String skillName = extractSkillNameFromTitle(title);
-            Skill skill = findSkillByName(skillName);
-            
-            if (skill != null) {
-                // Short delay to prevent inventory conflicts
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    AbilitiesGUI.openAbilitiesMenu(player, skill);
-                }, 1L);
-            }
-            return;
-        }
-        
-        // Handle ability item click
-        String abilityId = extractValueFromLore(clickedItem, "ABILITY:");
-        String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
-        
-        if (abilityId != null && "PASSIVE".equals(abilityType)) {
-            // Toggle passive ability
-            AbilityRegistry registry = AbilityRegistry.getInstance();
-            SkillAbility ability = registry.getAbility(abilityId);
-            
-            if (ability instanceof PassiveAbility && ability.isUnlocked(player)) {
-                PassiveAbility passiveAbility = (PassiveAbility) ability;
-                boolean newState = passiveAbility.toggleEnabled(player);
+            // Handle back button
+            if (clickedItem.getType() == Material.ARROW && 
+                clickedItem.getItemMeta().getDisplayName().equals(ChatColor.RED + "Back to Abilities")) {
+                player.closeInventory();
                 
-                // Play sound
-                player.playSound(player.getLocation(), 
-                                newState ? Sound.BLOCK_WOODEN_BUTTON_CLICK_ON : Sound.BLOCK_WOODEN_BUTTON_CLICK_OFF, 
-                                0.5f, newState ? 1.2f : 0.8f);
-                
-                // Update the GUI
-                boolean showAll = title.startsWith("All ");
+                // Extract skill ID from lore
                 String skillId = extractValueFromLore(clickedItem, "SKILL:");
                 
-                if (skillId != null) {
-                    player.closeInventory();
-                    
-                    // Short delay to prevent inventory conflicts
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        AbilityListGUI.openAbilityList(player, skillId, "PASSIVE", showAll);
-                    }, 1L);
+                // If no ID in lore, try to extract from title
+                if (skillId == null) {
+                    // Extract skill name from title
+                    String skillName = extractSkillNameFromTitle(title);
+                    if (skillName != null) {
+                        Skill skill = findSkillByName(skillName);
+                        if (skill != null) {
+                            skillId = skill.getId();
+                        }
+                    }
                 }
+                
+                if (skillId != null) {
+                    final Skill skill = SkillRegistry.getInstance().getSkill(skillId);
+                    if (skill != null) {
+                        // Short delay to prevent inventory conflicts
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            AbilitiesGUI.openAbilitiesMenu(player, skill);
+                        }, 1L);
+                        return;
+                    }
+                }
+                
+                // Fallback if we couldn't determine the skill
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    com.server.profiles.skills.gui.SkillsGUI.openSkillsMenu(player);
+                }, 1L);
+                return;
             }
+            return;
+        }
+        
+        // Get the ability
+        SkillAbility ability = AbilityRegistry.getInstance().getAbility(abilityId);
+        if (ability == null) {
+            return;
+        }
+        
+        // If it's a passive ability, toggle it
+        if (ability instanceof PassiveAbility) {
+            PassiveAbility passiveAbility = (PassiveAbility) ability;
+            
+            // Check if the ability is unlocked
+            if (passiveAbility.isUnlocked(player)) {
+                boolean newState = passiveAbility.toggleEnabled(player);
+                
+                // Play sound based on the new state
+                player.playSound(player.getLocation(), 
+                    newState ? Sound.BLOCK_NOTE_BLOCK_PLING : Sound.BLOCK_NOTE_BLOCK_BASS, 
+                    0.5f, newState ? 1.5f : 0.8f);
+                
+                // Update the GUI to show the new state
+                String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
+                String skillId = extractValueFromLore(clickedItem, "SKILL:");
+                if (skillId != null && abilityType != null) {
+                    // Reopen the ability list with the updated state
+                    boolean showAll = title.startsWith(AbilityListGUI.GUI_TITLE_PREFIX_ALL);
+                    AbilityListGUI.openAbilityList(player, skillId, abilityType, showAll);
+                }
+            } else {
+                // Tell the player how to unlock this ability
+                player.sendMessage(ChatColor.RED + "You haven't unlocked this ability yet!");
+                player.sendMessage(ChatColor.YELLOW + "To unlock: " + ChatColor.WHITE + passiveAbility.getUnlockRequirement());
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.5f);
+            }
+        } else if (ability instanceof ActiveAbility) {
+            // Handle active abilities info display
+            ActiveAbility activeAbility = (ActiveAbility) ability;
+            player.sendMessage(ChatColor.AQUA + "===== " + ChatColor.GOLD + activeAbility.getDisplayName() + ChatColor.AQUA + " =====");
+            player.sendMessage(ChatColor.GREEN + "This is an active ability!");
+            player.sendMessage(ChatColor.YELLOW + "Activation: " + ChatColor.WHITE + activeAbility.getActivationMethod());
+            player.sendMessage(ChatColor.YELLOW + "Cooldown: " + ChatColor.WHITE + activeAbility.getCooldownSeconds() + " seconds");
+            
+            // Show cooldown if on cooldown
+            if (activeAbility.isOnCooldown(player)) {
+                long remaining = activeAbility.getCooldownRemaining(player) / 1000; // Convert to seconds
+                player.sendMessage(ChatColor.RED + "On cooldown: " + remaining + " seconds remaining");
+            }
+            
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.0f);
         }
     }
     
@@ -263,10 +306,19 @@ public class AbilityGUIListener implements Listener {
      * Extract a skill name from a GUI title
      */
     private String extractSkillNameFromTitle(String title) {
-        // Title format: "Unlocked/All Passive/Active Abilities: [skill name]"
-        int colonIndex = title.indexOf(":");
-        if (colonIndex != -1 && colonIndex < title.length() - 2) {
-            return title.substring(colonIndex + 2);
+        if (title.startsWith(AbilityListGUI.GUI_TITLE_PREFIX_UNLOCKED)) {
+            // Format: "Unlocked [Type] Abilities: [Skill]"
+            int colonIndex = title.indexOf(": ");
+            if (colonIndex >= 0 && colonIndex + 2 < title.length()) {
+                return title.substring(colonIndex + 2);
+            }
+        }
+        else if (title.startsWith(AbilityListGUI.GUI_TITLE_PREFIX_ALL)) {
+            // Format: "All [Type] Abilities: [Skill]"
+            int colonIndex = title.indexOf(": ");
+            if (colonIndex >= 0 && colonIndex + 2 < title.length()) {
+                return title.substring(colonIndex + 2);
+            }
         }
         return null;
     }

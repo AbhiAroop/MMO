@@ -61,6 +61,12 @@ public class AbilitiesGUI {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta backMeta = backButton.getItemMeta();
         backMeta.setDisplayName(ChatColor.RED + "Back to Skill Details");
+        
+        // Add hidden data to identify which skill to go back to
+        List<String> backLore = new ArrayList<>();
+        backLore.add(ChatColor.BLACK + "SKILL:" + skill.getId());
+        backMeta.setLore(backLore);
+        
         backButton.setItemMeta(backMeta);
         gui.setItem(18, backButton);
         
@@ -183,4 +189,6 @@ public class AbilitiesGUI {
         
         return item;
     }
+
+    
 }

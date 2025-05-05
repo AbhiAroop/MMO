@@ -955,11 +955,17 @@ public class StatScanManager {
         try {
             AttributeInstance scaleAttribute = player.getAttribute(Attribute.GENERIC_SCALE);
             if (scaleAttribute != null) {
-                // Remove existing modifiers
-                removeModifiersByName(scaleAttribute, MMO_SIZE_MODIFIER);
+                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                for (AttributeModifier mod : new HashSet<>(scaleAttribute.getModifiers())) {
+                    if (mod.getName().equals(MMO_SIZE_MODIFIER) || 
+                        mod.getName().equals("mmo.temp_size_fix") ||
+                        mod.getName().equals("mmo.size.fixed")) {
+                        scaleAttribute.removeModifier(mod);
+                    }
+                }
                 
-                // Set base to vanilla default (1.0)
-                scaleAttribute.setBaseValue(1.0);
+                // CRITICAL CHANGE: Don't change base value once initialized
+                // scaleAttribute.setBaseValue(1.0); - REMOVE THIS LINE
                 
                 // Apply bonus size if needed
                 double totalSize = stats.getSize();
@@ -995,11 +1001,16 @@ public class StatScanManager {
         try {
             AttributeInstance rangeAttribute = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
             if (rangeAttribute != null) {
-                // Remove existing modifiers
-                removeModifiersByName(rangeAttribute, MMO_ATTACK_RANGE_MODIFIER);
+                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                for (AttributeModifier mod : new HashSet<>(rangeAttribute.getModifiers())) {
+                    if (mod.getName().equals(MMO_ATTACK_RANGE_MODIFIER) || 
+                        mod.getName().equals("mmo.temp_range_fix")) {
+                        rangeAttribute.removeModifier(mod);
+                    }
+                }
                 
-                // Set base to vanilla default
-                rangeAttribute.setBaseValue(3.0);
+                // CRITICAL CHANGE: Don't change base value once initialized
+                // rangeAttribute.setBaseValue(3.0); - REMOVE THIS LINE
                 
                 // Apply bonus range if needed
                 double totalRange = stats.getAttackRange();
@@ -1042,7 +1053,7 @@ public class StatScanManager {
                                 ", total=" + miningSpeedAttr.getValue());
                 }
                 
-                // Remove existing modifiers
+                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
                 for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
                     if (mod.getName().equals(MMO_MINING_SPEED_MODIFIER) || 
                         mod.getName().equals("mmo.temp_mining_speed_fix")) {
@@ -1050,8 +1061,8 @@ public class StatScanManager {
                     }
                 }
                 
-                // Set base to our default (0.5)
-                miningSpeedAttr.setBaseValue(0.5);
+                // CRITICAL CHANGE: Don't change base value once initialized
+                // miningSpeedAttr.setBaseValue(0.5); - REMOVE THIS LINE
                 
                 // Apply bonus mining speed if needed
                 double totalMiningSpeed = stats.getMiningSpeed();
@@ -1069,7 +1080,7 @@ public class StatScanManager {
                 
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info("Applied mining speed attribute to " + player.getName() + 
-                                    ": " + totalMiningSpeed + " (Final: " + miningSpeedAttr.getValue() + ")");
+                                ": " + totalMiningSpeed + " (Final: " + miningSpeedAttr.getValue() + ")");
                 }
             }
         } catch (Exception e) {

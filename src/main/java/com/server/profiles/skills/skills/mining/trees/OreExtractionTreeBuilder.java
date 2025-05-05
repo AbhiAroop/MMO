@@ -6,7 +6,6 @@ import java.util.Map;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
-import com.server.Main;
 import com.server.profiles.skills.trees.SkillTree;
 import com.server.profiles.skills.trees.SkillTreeNode;
 import com.server.profiles.skills.trees.builders.SkillTreeBuilder;
@@ -325,9 +324,37 @@ public class OreExtractionTreeBuilder implements SkillTreeBuilder {
         tree.addNode(miningXpNode);
         tree.addConnection("ore_extraction_path_lower", "mining_xp_boost");
 
-        // Debug confirmation of special node status
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("[OreExtractionTreeBuilder] Created mining_xp_boost node with special status: " + miningXpNode.isSpecialNode());
+        // =====================================================================
+        // ORE CONDUIT NODE - Below vein_miner_path_bottom
+        // =====================================================================
+        
+        // Create upgradable node for Ore Conduit with custom descriptions and costs
+        Map<Integer, String> oreConduitDescriptions = new HashMap<>();
+        Map<Integer, Integer> oreConduitCosts = new HashMap<>();
+        
+        // Set descriptions for all 100 levels - Each level gives +0.5% XP split to Mining skill
+        for (int i = 1; i <= 100; i++) {
+            double splitPercentage = i * 0.5; // 0.5% per level, up to 50% at level 100
+            oreConduitDescriptions.put(i, "Split " + splitPercentage + "% of OreExtraction XP to Mining skill");
         }
-    }
+        
+        // Set increasing costs for all 100 levels
+        // Cost formula: 1 + (level / 10) rounded down
+        for (int i = 1; i <= 100; i++) {
+            int baseCost = 1 + (i / 10);
+            oreConduitCosts.put(i, baseCost);
+        }
+        
+        // Ore Conduit Node (Upgradable up to 100 levels)
+        tree.addNode(new SkillTreeNode(
+            "ore_conduit",
+            "Ore Conduit",
+            Material.CONDUIT,
+            ChatColor.AQUA,
+            0, 8, // 2 tiles below vein_miner_path_bottom
+            oreConduitDescriptions,
+            oreConduitCosts
+        ));
+        tree.addConnection("vein_miner_path_bottom", "ore_conduit");
+        }
 }

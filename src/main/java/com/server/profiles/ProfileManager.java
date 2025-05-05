@@ -37,6 +37,9 @@ public class ProfileManager {
         return profiles.computeIfAbsent(uuid, k -> new PlayerProfile[3]);
     }
 
+    /**
+     * Create a new profile for a player
+     */
     public boolean createProfile(Player player, int slot, String name) {
         if (slot < 0 || slot >= 3) return false;
 
@@ -68,10 +71,34 @@ public class ProfileManager {
             
             // Save the reset state to new profile
             newProfile.saveProfile(player);
+            
+            // CRITICAL: Set as active profile BEFORE starting scan to ensure item stats are captured
             activeProfiles.put(player.getUniqueId(), slot);
+            
+            // CRITICAL FIX: Start scanning immediately with the new profile
+            // This ensures equipment stats are processed correctly on first profile creation
+            plugin.getStatScanManager().startScanning(player);
+            
+            // Give a brief moment for stats to apply before forcing a full scan
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (player.isOnline()) {
+                        // Force an immediate scan to update all stats from equipment
+                        plugin.getStatScanManager().scanAndUpdatePlayerStats(player);
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Applied immediate item scan for new profile creation: " + player.getName());
+                        }
+                    }
+                }
+            }.runTaskLater(plugin, 5L);
         } else {
             // Don't reset current player state, just initialize with defaults
             newProfile.getStats().resetToDefaults();
+            
+            // CRITICAL: Set as active profile
+            activeProfiles.put(player.getUniqueId(), slot);
         }
         
         playerProfiles[slot] = newProfile;
@@ -83,9 +110,6 @@ public class ProfileManager {
         final boolean isFirstProfile = !hasAnyOtherProfile(player.getUniqueId(), slot);
         
         if (isFirstProfile) {
-            // Set as active profile
-            activeProfiles.put(player.getUniqueId(), slot);
-            
             // Kill the player after a short delay to ensure profile is properly set
             new BukkitRunnable() {
                 @Override
@@ -275,6 +299,10 @@ public class ProfileManager {
      */
     private void initializePlayerAttributes(Player player) {
         try {
+            // CRITICAL FIX: Add baseline modifiers for all attributes
+            // These baseline modifiers ensure the attributes are properly registered 
+            // in the game and recognized for equipment bonuses
+
             // Initialize mining speed attribute
             AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
             if (miningSpeedAttr != null) {
@@ -285,6 +313,15 @@ public class ProfileManager {
                 
                 // Set base value to our default (0.5)
                 miningSpeedAttr.setBaseValue(0.5);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.mining_speed.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                miningSpeedAttr.addModifier(baselineMod);
             }
             
             // Initialize scale attribute
@@ -297,6 +334,15 @@ public class ProfileManager {
                 
                 // Set base value to default (1.0)
                 scaleAttr.setBaseValue(1.0);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.size.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                scaleAttr.addModifier(baselineMod);
             }
             
             // Initialize attack range attribute
@@ -309,6 +355,15 @@ public class ProfileManager {
                 
                 // Set base value to default (3.0)
                 rangeAttr.setBaseValue(3.0);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.attack_range.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                rangeAttr.addModifier(baselineMod);
             }
             
             // Initialize attack speed attribute
@@ -321,6 +376,15 @@ public class ProfileManager {
                 
                 // Set base value to our default (0.5)
                 attackSpeedAttr.setBaseValue(0.5);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.attack_speed.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                attackSpeedAttr.addModifier(baselineMod);
             }
         } catch (Exception e) {
             if (plugin.isDebugMode()) {

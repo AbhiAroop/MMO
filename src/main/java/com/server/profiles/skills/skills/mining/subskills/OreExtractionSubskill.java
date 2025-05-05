@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -16,6 +17,8 @@ import org.bukkit.metadata.FixedMetadataValue;
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.abilities.AbilityRegistry;
+import com.server.profiles.skills.abilities.passive.mining.OreConduitAbility;
 import com.server.profiles.skills.core.AbstractSkill;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
@@ -251,6 +254,7 @@ public class OreExtractionSubskill extends AbstractSkill {
         benefits.put("token_yield", 0.0);
         benefits.put("hunger_reduction", 0.0);
         benefits.put("health_regen", 0.0);
+        benefits.put("mining_xp_split", 0.0);
         
         // Get player's skill tree data
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -292,6 +296,30 @@ public class OreExtractionSubskill extends AbstractSkill {
             int level = nodeLevels.get("ore_extraction_xp");
             double xpBoost = level * 0.5 / 100.0; // Convert percentage to decimal
             benefits.put("xp_boost", xpBoost);
+        }
+
+        // Check if Ore Conduit is unlocked and ENABLED - If so, apply the split
+        AbilityRegistry abilityRegistry = AbilityRegistry.getInstance();
+        OreConduitAbility oreConduitAbility = (OreConduitAbility) abilityRegistry.getAbility("ore_conduit");
+        
+        if (oreConduitAbility != null && 
+            oreConduitAbility.isUnlocked(player) && 
+            oreConduitAbility.isEnabled(player)) {  // CRITICAL: Must check isEnabled
+            
+            double splitPercentage = oreConduitAbility.getSplitPercentage(player);
+            benefits.put("mining_xp_split", splitPercentage);
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().log(Level.INFO, "Applied Ore Conduit benefit for {0}: {1}% XP split", 
+                    new Object[]{player.getName(), splitPercentage * 100});
+            }
+        } else {
+            // Important: Ensure mining_xp_split is 0.0 when ability is disabled
+            benefits.put("mining_xp_split", 0.0);
+            
+            if (Main.getInstance().isDebugMode() && oreConduitAbility != null && oreConduitAbility.isUnlocked(player)) {
+                Main.getInstance().getLogger().info("Ore Conduit is disabled for " + player.getName());
+            }
         }
         
         // Note: The item_unlocker and ability_unlocker nodes don't provide any direct stats

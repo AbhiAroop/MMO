@@ -189,6 +189,12 @@ public class AbilityListGUI {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta backMeta = backButton.getItemMeta();
         backMeta.setDisplayName(ChatColor.RED + "Back to Abilities");
+        
+        // Add skill ID to lore for back navigation
+        List<String> backLore = new ArrayList<>();
+        backLore.add(ChatColor.BLACK + "SKILL:" + skillId);
+        backMeta.setLore(backLore);
+        
         backButton.setItemMeta(backMeta);
         gui.setItem(45, backButton);
         
@@ -255,6 +261,29 @@ public class AbilityListGUI {
         lore.add(ChatColor.GRAY + "for " + skill.getDisplayName() + ".");
         lore.add("");
         lore.add(ChatColor.YELLOW + "Total abilities: " + ChatColor.WHITE + abilityCount);
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        
+        return item;
+    }
+
+    /**
+     * Create an item representation of an ability for the GUI
+     */
+    private static ItemStack createAbilityItem(SkillAbility ability, Player player) {
+        ItemStack item = ability.createDisplayItem(player);
+        ItemMeta meta = item.getItemMeta();
+        
+        List<String> lore = meta.getLore();
+        if (lore == null) {
+            lore = new ArrayList<>();
+        }
+        
+        // Add the ability ID for tracking
+        lore.add(ChatColor.BLACK + "ABILITY:" + ability.getId());
+        lore.add(ChatColor.BLACK + "ABILITY_TYPE:" + (ability instanceof PassiveAbility ? "PASSIVE" : "ACTIVE"));
+        lore.add(ChatColor.BLACK + "SKILL:" + ability.getSkillId());
         
         meta.setLore(lore);
         item.setItemMeta(meta);

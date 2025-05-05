@@ -154,40 +154,70 @@ public class SkillEventListener implements Listener {
                 if (oreExtractionSkill instanceof OreExtractionSubskill) {
                     OreExtractionSubskill oreSkill = (OreExtractionSubskill) oreExtractionSkill;
                     
-                    // CRITICAL FIX: Only give XP if the player can mine this ore type
-                    boolean canMineOre = oreSkill.canMineOre(player, material);
-                    
-                    if (canMineOre) {
-                        // Calculate special XP amount for specific ore types
+                    // Check if player can mine this ore type
+                    if (oreSkill.canMineOre(player, material)) {
+                        // Calculate XP amount based on material
                         double xpAmount = calculateOreXp(material);
                         
                         // Apply any XP bonuses from skill tree
                         Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
                         double xpBoost = benefits.getOrDefault("xp_boost", 0.0); // This is a decimal multiplier (0.01 = 1%)
-                        
+                        double miningXpSplit = benefits.getOrDefault("mining_xp_split", 0.0); // XP split percentage (0.0-0.5)
+
                         // Calculate the modified XP amount with the boost
                         double modifiedXpAmount = xpAmount * (1.0 + xpBoost);
+
+                        // Calculate XP split if Ore Conduit is active
+                        double subskillXpAmount = modifiedXpAmount;
+                        double mainSkillXpAmount = 0.0;
+
+                        if (miningXpSplit > 0.0) {
+                            mainSkillXpAmount = modifiedXpAmount * miningXpSplit;
+                            subskillXpAmount = modifiedXpAmount * (1.0 - miningXpSplit);
+                            
+                            // Create and fire the skill XP gain event for the main skill first
+                            SkillExpGainEvent mainSkillEvent = new SkillExpGainEvent(player, mainSkill, mainSkillXpAmount);
+                            plugin.getServer().getPluginManager().callEvent(mainSkillEvent);
+                            
+                            // Award XP to the main Mining skill only if the event wasn't cancelled
+                            if (!mainSkillEvent.isCancelled()) {
+                                SkillProgressionManager.getInstance().addExperience(player, mainSkill, mainSkillEvent.getAmount());
+                            }
+                            
+                            if (plugin.isDebugMode()) {
+                                plugin.getLogger().info(player.getName() + " gained " + mainSkillXpAmount + 
+                                    " Mining XP from Ore Conduit (" + (miningXpSplit * 100) + "% split)");
+                            }
+                        }
                         
-                        // Award XP to the ore extraction subskill with the boost applied
-                        SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
+                        // Create and fire the skill XP gain event for the ore extraction subskill
+                        // Add metadata to the event to indicate it's part of a split
+                        SkillExpGainEvent oreEvent = new SkillExpGainEvent(player, oreSkill, subskillXpAmount);
+                        if (miningXpSplit > 0.0) {
+                            oreEvent.setMetadata("split_percentage", miningXpSplit);
+                            oreEvent.setMetadata("main_skill_amount", mainSkillXpAmount);
+                        }
+                        plugin.getServer().getPluginManager().callEvent(oreEvent);
+                        
+                        // Award XP to the ore extraction subskill only if the event wasn't cancelled
+                        if (!oreEvent.isCancelled()) {
+                            SkillProgressionManager.getInstance().addExperience(player, oreSkill, oreEvent.getAmount());
+                        }
                         
                         if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(player.getName() + " gained " + modifiedXpAmount + 
-                                                " OreExtraction XP for mining " + material.name());
+                            plugin.getLogger().info(player.getName() + " gained " + subskillXpAmount + 
+                                    " OreExtraction XP for mining " + material.name() +
+                                    (miningXpSplit > 0.0 ? " (with " + (miningXpSplit * 100) + "% split to Mining)" : ""));
                         }
                     } else {
                         if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(player.getName() + " cannot mine " + material.name() + 
-                                                " yet. No OreExtraction XP awarded.");
+                            plugin.getLogger().info(player.getName() + " cannot mine " + material.name() + " yet. No XP awarded.");
                         }
                     }
                 }
             }
             
             // Check for gem carving - handles blocks that might contain gems
-            if (containsGems(material)) {
-                // Handle gem carving...
-            }
         }
     }
 

@@ -1,8 +1,6 @@
 package com.server.events;
 
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.ChatColor;
@@ -75,10 +73,15 @@ public class PlayerListener implements Listener {
                     // Store the player's saved health from the profile
                     final double storedHealth = activeProfile.getStats().getCurrentHealth();
                     final double storedMiningSpeed = activeProfile.getStats().getMiningSpeed();
+                    final double storedSize = activeProfile.getStats().getSize();
+                    final double storedAttackRange = activeProfile.getStats().getAttackRange();
 
                     if (plugin.isDebugMode()) {
                         plugin.getLogger().info("JOIN: " + player.getName() + "'s stored health: " + storedHealth + 
-                                    ", current: " + player.getHealth() + ", stored mining speed: " + storedMiningSpeed);
+                                    ", current: " + player.getHealth() + 
+                                    ", stored mining speed: " + storedMiningSpeed +
+                                    ", stored size: " + storedSize +
+                                    ", stored attack range: " + storedAttackRange);
                     }
 
                     // Apply temporary attribute fixes BEFORE stat scanning
@@ -111,7 +114,8 @@ public class PlayerListener implements Listener {
                         
                         // Apply temporary mining speed fix - crucial for first join
                         AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
-                        if (miningSpeedAttr != null && Math.abs(miningSpeedAttr.getValue() - 1.0) < 0.1 && storedMiningSpeed > 0.0) {
+                        if (miningSpeedAttr != null) {
+                            // Always apply, regardless of current value
                             // Remove any existing modifiers first
                             for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
                                 miningSpeedAttr.removeModifier(mod);
@@ -137,8 +141,71 @@ public class PlayerListener implements Listener {
                                 }
                             }
                         }
+                        
+                        // Apply temporary size fix - crucial for first join
+                        AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+                        if (scaleAttr != null) {
+                            // Always apply, regardless of current value
+                            // Remove any existing modifiers first
+                            for (AttributeModifier mod : new HashSet<>(scaleAttr.getModifiers())) {
+                                scaleAttr.removeModifier(mod);
+                            }
+                            
+                            // Set base value to default (1.0)
+                            scaleAttr.setBaseValue(1.0);
+                            
+                            // Apply temp modifier with the size bonus
+                            double sizeBonus = storedSize - 1.0;
+                            if (sizeBonus != 0) {
+                                AttributeModifier tempMod = new AttributeModifier(
+                                    UUID.randomUUID(),
+                                    "mmo.temp_size_fix",
+                                    sizeBonus,
+                                    AttributeModifier.Operation.ADD_NUMBER
+                                );
+                                scaleAttr.addModifier(tempMod);
+                                
+                                if (plugin.isDebugMode()) {
+                                    plugin.getLogger().info("Applied temporary size fix for " + player.getName() + 
+                                                ": " + storedSize);
+                                }
+                            }
+                        }
+                        
+                        // Apply temporary attack range fix - crucial for first join
+                        AttributeInstance rangeAttr = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
+                        if (rangeAttr != null) {
+                            // Always apply, regardless of current value
+                            // Remove any existing modifiers first
+                            for (AttributeModifier mod : new HashSet<>(rangeAttr.getModifiers())) {
+                                rangeAttr.removeModifier(mod);
+                            }
+                            
+                            // Set base value to default (3.0)
+                            rangeAttr.setBaseValue(3.0);
+                            
+                            // Apply temp modifier with the range bonus
+                            double rangeBonus = storedAttackRange - 3.0;
+                            if (rangeBonus != 0) {
+                                AttributeModifier tempMod = new AttributeModifier(
+                                    UUID.randomUUID(),
+                                    "mmo.temp_range_fix",
+                                    rangeBonus,
+                                    AttributeModifier.Operation.ADD_NUMBER
+                                );
+                                rangeAttr.addModifier(tempMod);
+                                
+                                if (plugin.isDebugMode()) {
+                                    plugin.getLogger().info("Applied temporary attack range fix for " + player.getName() + 
+                                                ": " + storedAttackRange);
+                                }
+                            }
+                        }
                     } catch (Exception e) {
                         plugin.getLogger().warning("Error fixing attributes on join: " + e.getMessage());
+                        if (plugin.isDebugMode()) {
+                            e.printStackTrace();
+                        }
                     }
 
                     // Start stat scanning to apply proper attribute values
@@ -261,8 +328,9 @@ public class PlayerListener implements Listener {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    ProfileGUI.openProfileSelector(player);
-                    player.sendMessage(ChatColor.RED + "You must create at least one profile!");
+                    if (player.isOnline()) {
+                        ProfileGUI.openProfileSelector(player);
+                    }
                 }
             }.runTaskLater(plugin, 1L);
         } else {
@@ -270,41 +338,50 @@ public class PlayerListener implements Listener {
             if (activeSlot != null) {
                 PlayerProfile activeProfile = profiles[activeSlot];
                 
-                // If this is a newly created profile, apply default stats
+                // If this is a newly created profile, apply default stats and START STAT SCANNING
                 if (activeProfile.getLastPlayed() == activeProfile.getCreated()) {
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Setting up new profile for " + player.getName());
-                    }
+                    // CRITICAL ADDITION: First, explicitly initialize all attributes
+                    initializeAttributes(player);
                     
-                    // Create a final copy of activeSlot for use in the inner class
-                    final Integer finalActiveSlot = activeSlot;
+                    // Stop any existing scanning (clean slate)
+                    plugin.getStatScanManager().stopScanning(player);
                     
-                    // Initialize profile with a short delay
+                    // Start scanning with a slight delay to ensure profile is fully loaded
                     new BukkitRunnable() {
                         @Override
                         public void run() {
                             if (player.isOnline()) {
-                                // Set profile as active if it's not already
-                                if (pm.getActiveProfile(player.getUniqueId()) == null) {
-                                    pm.selectProfile(player, finalActiveSlot);
-                                }
+                                player.sendMessage(ChatColor.GREEN + "Setting up your character...");
                                 
-                                // Start the stat scanning system to set default values
+                                // Start stat scanning to apply equipment bonuses
                                 plugin.getStatScanManager().startScanning(player);
                                 
-                                // Start health regeneration
-                                plugin.getHealthRegenerationManager().startTracking(player);
-                                
-                                // Update scoreboard
-                                if (plugin.getScoreboardManager() != null) {
-                                    plugin.getScoreboardManager().startTracking(player);
-                                }
-                                
-                                // Notify player
-                                player.sendMessage(ChatColor.GREEN + "Profile created with default stats!");
+                                // Force an immediate scan after starting scanning
+                                new BukkitRunnable() {
+                                    @Override
+                                    public void run() {
+                                        if (player.isOnline()) {
+                                            plugin.getStatScanManager().scanAndUpdatePlayerStats(player);
+                                            player.sendMessage(ChatColor.GREEN + "Your equipment has been properly initialized!");
+                                            
+                                            // Add debug logging
+                                            if (plugin.isDebugMode()) {
+                                                plugin.getLogger().info("Forced equipment scan for " + player.getName() + " after profile creation");
+                                                
+                                                // Log mining speed attribute status
+                                                AttributeInstance miningSpeed = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+                                                if (miningSpeed != null) {
+                                                    plugin.getLogger().info("Mining speed attribute: base=" + miningSpeed.getBaseValue() + 
+                                                        ", value=" + miningSpeed.getValue() + 
+                                                        ", modifiers=" + miningSpeed.getModifiers().size());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }.runTaskLater(plugin, 5L);
                             }
                         }
-                    }.runTaskLater(plugin, 5L); // Short delay to ensure everything is ready
+                    }.runTaskLater(plugin, 5L);
                 }
             }
         }
@@ -386,40 +463,152 @@ public class PlayerListener implements Listener {
      * This must happen BEFORE a profile is created to ensure proper initialization
      */
     private void initializeAttributes(Player player) {
-        // Create a list of all custom attributes we need to initialize
-        List<AttributeInitData> attributes = Arrays.asList(
-            // Format: Attribute, base value, modifier name
-            new AttributeInitData(Attribute.PLAYER_BLOCK_BREAK_SPEED, 0.5, "mmo.mining_speed"),
-            new AttributeInitData(Attribute.GENERIC_SCALE, 1.0, "mmo.size"),
-            new AttributeInitData(Attribute.PLAYER_ENTITY_INTERACTION_RANGE, 3.0, "mmo.attack_range"),
-            new AttributeInitData(Attribute.GENERIC_ATTACK_SPEED, 0.5, "mmo.attackspeed")
-        );
-        
-        // Initialize each attribute
-        for (AttributeInitData attrData : attributes) {
-            try {
-                AttributeInstance attr = player.getAttribute(attrData.attribute);
-                if (attr != null) {
-                    // First remove any existing modifiers
-                    for (AttributeModifier mod : new HashSet<>(attr.getModifiers())) {
-                        if (mod.getName().contains("mmo.")) {
-                            attr.removeModifier(mod);
-                        }
-                    }
-                    
-                    // Set base value to our custom default
-                    attr.setBaseValue(attrData.baseValue);
-                    
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Initialized attribute " + attrData.attribute.name() + 
-                            " to " + attrData.baseValue + " for new player: " + player.getName());
-                    }
+        try {
+            // CRITICAL: Initialize all attributes with baseline modifiers
+            // These baseline modifiers ensure the attributes are properly registered in the game
+
+            // HEALTH - Set base value and apply baseline
+            AttributeInstance healthAttr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+            if (healthAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(healthAttr.getModifiers())) {
+                    healthAttr.removeModifier(mod);
                 }
-            } catch (Exception e) {
+                
+                // Set base value to vanilla default
+                healthAttr.setBaseValue(20.0);
+                
+                // Apply baseline modifier for health
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.health.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                healthAttr.addModifier(baselineMod);
+                
+                // Apply health bonus for 100 health instead of 20
+                AttributeModifier healthMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.initial_health",
+                    80.0, // +80 to reach 100 total
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                healthAttr.addModifier(healthMod);
+                
                 if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Error initializing " + attrData.attribute.name() + 
-                        " attribute: " + e.getMessage());
+                    plugin.getLogger().info("Initialized health attribute for " + player.getName() + 
+                        " to 100.0 (base 20.0 + modifier 80.0)");
                 }
+            }
+            
+            // MINING SPEED attribute
+            AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
+            if (miningSpeedAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
+                    miningSpeedAttr.removeModifier(mod);
+                }
+                
+                // Set base value to our default (0.5)
+                miningSpeedAttr.setBaseValue(0.5);
+                
+                // Apply a permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.mining_speed.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                miningSpeedAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Initialized mining speed attribute for " + player.getName() + 
+                        " to 0.5 (default value)");
+                }
+            }
+            
+            // SCALE attribute
+            AttributeInstance scaleAttr = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(scaleAttr.getModifiers())) {
+                    scaleAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (1.0)
+                scaleAttr.setBaseValue(1.0);
+                
+                // Apply a permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.size.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                scaleAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Initialized scale attribute for " + player.getName() + 
+                        " to 1.0 (default value)");
+                }
+            }
+            
+            // ATTACK RANGE attribute
+            AttributeInstance rangeAttr = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
+            if (rangeAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(rangeAttr.getModifiers())) {
+                    rangeAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (3.0)
+                rangeAttr.setBaseValue(3.0);
+                
+                // Apply a permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.attack_range.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                rangeAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Initialized attack range attribute for " + player.getName() + 
+                        " to 3.0 (default value)");
+                }
+            }
+            
+            // ATTACK SPEED attribute
+            AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
+            if (attackSpeedAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(attackSpeedAttr.getModifiers())) {
+                    attackSpeedAttr.removeModifier(mod);
+                }
+                
+                // Set base value to our default (0.5)
+                attackSpeedAttr.setBaseValue(0.5);
+                
+                // Apply a permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.attack_speed.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                attackSpeedAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Initialized attack speed attribute for " + player.getName() + 
+                        " to 0.5 (default value)");
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error initializing attributes: " + e.getMessage());
+            if (plugin.isDebugMode()) {
+                e.printStackTrace();
             }
         }
     }

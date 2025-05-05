@@ -11,6 +11,7 @@ import com.server.Main;
 import com.server.profiles.skills.abilities.active.ActiveAbility;
 import com.server.profiles.skills.abilities.active.mining.MiningSpeedBoostAbility;
 import com.server.profiles.skills.abilities.passive.PassiveAbility;
+import com.server.profiles.skills.abilities.passive.mining.OreConduitAbility;
 import com.server.profiles.skills.abilities.passive.mining.VeinMinerAbility;
 import com.server.profiles.skills.core.SubskillType;
 
@@ -85,6 +86,13 @@ public class AbilityRegistry {
         // This ensures it shows up when browsing the Mining skill abilities
         mapSubskillAbilityToParent(veinMiner);
         
+        // Register the Ore Conduit ability
+        PassiveAbility oreConduit = new OreConduitAbility();
+        registerAbility(oreConduit);
+        
+        // CRITICAL: Map Ore Conduit to parent skill as well
+        mapSubskillAbilityToParent(oreConduit);
+        
         // Register active abilities
         ActiveAbility miningSpeedBoost = new MiningSpeedBoostAbility();
         registerAbility(miningSpeedBoost);
@@ -93,6 +101,7 @@ public class AbilityRegistry {
         if (plugin.isDebugMode()) {
             plugin.getLogger().info("Registered mining abilities:");
             plugin.getLogger().info("  - Passive: " + veinMiner.getDisplayName() + " (" + veinMiner.getId() + ") for skill: " + veinMiner.getSkillId());
+            plugin.getLogger().info("  - Passive: " + oreConduit.getDisplayName() + " (" + oreConduit.getId() + ") for skill: " + oreConduit.getSkillId());
             plugin.getLogger().info("  - Active: " + miningSpeedBoost.getDisplayName() + " (" + miningSpeedBoost.getId() + ") for skill: " + miningSpeedBoost.getSkillId());
         }
     }

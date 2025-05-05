@@ -21,6 +21,7 @@ com\server\commands\GiveHatCommand.class
 com\server\profiles\stats\StatScanManager$1.class
 com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
+com\server\events\PlayerListener$5$1.class
 com\server\profiles\ProfileManager$1.class
 com\server\profiles\skills\abilities\AbilityRegistry.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
@@ -31,6 +32,7 @@ com\server\profiles\skills\events\SkillEventListener$1.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\commands\ProfileCommand.class
+com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.class
 com\server\profiles\skills\abilities\SkillAbility.class
 com\server\profiles\skills\core\SkillLevelupListener.class
 com\server\profiles\skills\display\SkillActionBarManager.class
@@ -67,6 +69,7 @@ com\server\commands\AnimationDebugCommand$1.class
 com\server\items\ItemManager.class
 com\server\profiles\skills\gui\SkillsGUI.class
 com\server\entities\MobType.class
+com\server\profiles\ProfileManager$3.class
 com\server\abilities\AbilityManager$3.class
 com\server\profiles\skills\gui\RewardsGUI.class
 com\server\profiles\skills\tokens\SkillToken.class

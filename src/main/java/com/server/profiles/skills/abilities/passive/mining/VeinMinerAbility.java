@@ -24,7 +24,9 @@ import com.server.profiles.skills.abilities.passive.AbstractPassiveAbility;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SkillType;
 import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.events.SkillExpGainEvent;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.profiles.stats.PlayerStats;
@@ -150,7 +152,7 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // MANA SYSTEM: Calculate how much mana this will cost
+        // Calculate how much mana this will cost
         int blocksCount = blocksToMine.size();
         int manaCost = calculateManaCost(blocksCount);
         
@@ -188,10 +190,11 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         // Calculate the fortune multiplier that will be applied
         int fortuneMultiplier = calculateFortuneMultiplier(miningFortune);
         
-        // Mine the additional blocks
+        // Variable to track total XP for OreExtraction subskill
+        double totalOreXp = 0;
         int blocksMinedCount = 0;
-        double totalOreXp = 0; // Track total XP for OreExtraction subskill
         
+        // Mine the additional blocks
         for (Block oreBlock : blocksToMine) {
             // Skip if block was removed or changed since we found it
             if (oreBlock.getType() != sourceType) continue;
@@ -263,16 +266,59 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
                 // Apply any XP bonuses from skill tree
                 Map<String, Double> benefits = oreSkill.getSkillTreeBenefits(player);
                 double xpBoost = benefits.getOrDefault("xp_boost", 0.0); // This is a decimal multiplier (0.01 = 1%)
+                double miningXpSplit = benefits.getOrDefault("mining_xp_split", 0.0); // XP split percentage (0.0-0.5)
                 
                 // Calculate the modified XP amount with the boost
                 double modifiedXpAmount = totalOreXp * (1.0 + xpBoost);
                 
-                // Award XP to the ore extraction subskill with the boost applied
-                SkillProgressionManager.getInstance().addExperience(player, oreSkill, modifiedXpAmount);
+                // New logic for Ore Conduit integration with Vein Miner
+                // Calculate XP split if Ore Conduit is active
+                double subskillXpAmount = modifiedXpAmount;
+                double mainSkillXpAmount = 0.0;
+                
+                if (miningXpSplit > 0.0) {
+                    mainSkillXpAmount = modifiedXpAmount * miningXpSplit;
+                    subskillXpAmount = modifiedXpAmount * (1.0 - miningXpSplit);
+                    
+                    // Award XP to the main Mining skill
+                    Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
+                    
+                    // Create and fire the skill XP gain event for the main skill first
+                    SkillExpGainEvent mainSkillEvent = new SkillExpGainEvent(player, miningSkill, mainSkillXpAmount);
+                    // Add metadata to track that this is part of a vein miner operation
+                    mainSkillEvent.setMetadata("vein_miner_count", blocksMinedCount);
+                    Main.getInstance().getServer().getPluginManager().callEvent(mainSkillEvent);
+                    
+                    // Award XP to the main Mining skill only if the event wasn't cancelled
+                    if (!mainSkillEvent.isCancelled()) {
+                        SkillProgressionManager.getInstance().addExperience(player, miningSkill, mainSkillEvent.getAmount());
+                    }
+                    
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info(player.getName() + " gained " + mainSkillXpAmount + 
+                                " Mining XP from Ore Conduit with Vein Miner (" + (miningXpSplit * 100) + "% split)");
+                    }
+                }
+                
+                // Create and fire the skill XP gain event for OreExtraction with metadata
+                SkillExpGainEvent oreEvent = new SkillExpGainEvent(player, oreSkill, subskillXpAmount);
+                // Add metadata to track the vein miner operation
+                oreEvent.setMetadata("vein_miner_count", blocksMinedCount);
+                if (miningXpSplit > 0.0) {
+                    oreEvent.setMetadata("split_percentage", miningXpSplit);
+                    oreEvent.setMetadata("main_skill_amount", mainSkillXpAmount);
+                }
+                Main.getInstance().getServer().getPluginManager().callEvent(oreEvent);
+                
+                // Award XP to the ore extraction subskill only if the event wasn't cancelled
+                if (!oreEvent.isCancelled()) {
+                    SkillProgressionManager.getInstance().addExperience(player, oreSkill, oreEvent.getAmount());
+                }
                 
                 if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info(player.getName() + " gained " + modifiedXpAmount + 
-                                    " OreExtraction XP from VeinMiner for mining " + blocksMinedCount + " blocks");
+                    Main.getInstance().getLogger().info(player.getName() + " gained " + subskillXpAmount + 
+                            " OreExtraction XP from VeinMiner for mining " + blocksMinedCount + " blocks" +
+                            (miningXpSplit > 0.0 ? " (with " + (miningXpSplit * 100) + "% split to Mining)" : ""));
                 }
             }
         }
