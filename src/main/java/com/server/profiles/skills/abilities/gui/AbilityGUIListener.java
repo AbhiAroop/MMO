@@ -819,13 +819,13 @@ public class AbilityGUIListener implements Listener {
         String maxPercentageStr = String.format("%.1f", maxPercentage);
         String defaultPercentageStr = String.format("%.1f", defaultPercentage);
         
-        // Create the inventory
+        // Create the inventory with a cleaner 3x9 layout (27 slots)
         String title = "OreConduit Config";
-        int rows = 5;
+        int rows = 3;
         Inventory inv = Bukkit.createInventory(null, rows * 9, title);
         
-        // Fill background with glass panes for a cleaner look
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        // Fill background with glass panes
+        ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta fillerMeta = filler.getItemMeta();
         fillerMeta.setDisplayName(" ");
         filler.setItemMeta(fillerMeta);
@@ -836,163 +836,145 @@ public class AbilityGUIListener implements Listener {
         }
         
         // Add decorative border
-        ItemStack borderPane = new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        ItemStack borderPane = new ItemStack(Material.BLUE_STAINED_GLASS_PANE);
         ItemMeta borderMeta = borderPane.getItemMeta();
         borderMeta.setDisplayName(" ");
         borderPane.setItemMeta(borderMeta);
         
-        // Top and bottom rows border
+        // Top and bottom row borders
         for (int i = 0; i < 9; i++) {
-            inv.setItem(i, borderPane); // Top row
-            inv.setItem(36 + i, borderPane); // Bottom row
+            if (i != 4) { // Skip center of top row for main display
+                inv.setItem(i, borderPane);
+            }
+            if (i != 0 && i != 8) { // Skip bottom corners for save/cancel buttons
+                inv.setItem(18 + i, borderPane);
+            }
         }
         
-        // Side borders (excluding the corners which are already set)
-        for (int row = 1; row < 4; row++) {
-            inv.setItem(row * 9, borderPane); // Left side
-            inv.setItem(row * 9 + 8, borderPane); // Right side
-        }
-        
-        // Info item
+        // Info item - This is the central display now
         ItemStack infoItem = new ItemStack(Material.CONDUIT);
         ItemMeta infoMeta = infoItem.getItemMeta();
-        infoMeta.setDisplayName(ChatColor.AQUA + "✧ OreConduit Configuration ✧");
+        infoMeta.setDisplayName(ChatColor.AQUA + "✧ OreConduit Setting: " + ChatColor.GREEN + currentPercentageStr + "%" + ChatColor.AQUA + " ✧");
         List<String> infoLore = new ArrayList<>();
         infoLore.add("");
-        infoLore.add(ChatColor.GRAY + "Configure the percentage of XP");
-        infoLore.add(ChatColor.GRAY + "to split from OreExtraction to Mining.");
-        infoLore.add("");
         infoLore.add(ChatColor.YELLOW + "Node Level: " + ChatColor.WHITE + nodeLevel);
-        infoLore.add(ChatColor.YELLOW + "Default split: " + ChatColor.WHITE + defaultPercentageStr + "%");
-        infoLore.add(ChatColor.YELLOW + "Maximum allowed: " + ChatColor.WHITE + maxPercentageStr + "%");
-        infoLore.add(ChatColor.YELLOW + "Current split: " + ChatColor.GREEN + currentPercentageStr + "%");
+        infoLore.add(ChatColor.YELLOW + "Default: " + ChatColor.WHITE + defaultPercentageStr + "%");
+        infoLore.add(ChatColor.YELLOW + "Maximum: " + ChatColor.WHITE + maxPercentageStr + "%");
         infoLore.add("");
-        infoLore.add(ChatColor.GRAY + "Use the adjustment buttons below to");
-        infoLore.add(ChatColor.GRAY + "set your preferred split percentage.");
+        
+        if (currentPercentage == 0.0) {
+            infoLore.add(ChatColor.GRAY + "No XP will be split to Mining");
+            infoLore.add(ChatColor.GRAY + "All XP stays with OreExtraction");
+        } else {
+            infoLore.add(ChatColor.GRAY + "Split " + ChatColor.AQUA + currentPercentageStr + "%" + 
+                    ChatColor.GRAY + " of OreExtraction XP");
+            infoLore.add(ChatColor.GRAY + "to your Mining skill");
+        }
+        
+        infoLore.add("");
+        infoLore.add(ChatColor.GRAY + "Use the buttons to adjust the percentage");
+        infoLore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + currentPercentage);
         infoMeta.setLore(infoLore);
         infoItem.setItemMeta(infoMeta);
         inv.setItem(4, infoItem);
+
+        // Increment buttons - cleaner layout on left side
+        addControlButton(inv, 12, Material.LIME_CONCRETE, "+1.0%", 1.0, currentPercentage, maxPercentage);
+        addControlButton(inv, 3, Material.LIME_TERRACOTTA, "+0.1%", 0.1, currentPercentage, maxPercentage);
         
-        // Add explanation item
-        ItemStack explainItem = new ItemStack(Material.EXPERIENCE_BOTTLE);
-        ItemMeta explainMeta = explainItem.getItemMeta();
-        explainMeta.setDisplayName(ChatColor.LIGHT_PURPLE + "How It Works");
-        List<String> explainLore = new ArrayList<>();
-        explainLore.add("");
-        explainLore.add(ChatColor.GRAY + "When you earn OreExtraction XP,");
-        explainLore.add(ChatColor.GRAY + "this ability will send a portion of");
-        explainLore.add(ChatColor.GRAY + "that XP to your Mining skill.");
-        explainLore.add("");
-        explainLore.add(ChatColor.GRAY + "Setting a higher split percentage");
-        explainLore.add(ChatColor.GRAY + "means less XP for OreExtraction");
-        explainLore.add(ChatColor.GRAY + "but more for your main Mining skill.");
-        explainLore.add("");
-        explainLore.add(ChatColor.GOLD + "Your node level determines the");
-        explainLore.add(ChatColor.GOLD + "maximum percentage you can set.");
-        explainMeta.setLore(explainLore);
-        explainItem.setItemMeta(explainMeta);
-        inv.setItem(13, explainItem);
+        // Decrement buttons - cleaner layout on right side
+        addControlButton(inv, 14, Material.RED_CONCRETE, "-1.0%", -1.0, currentPercentage, maxPercentage);
+        addControlButton(inv, 5, Material.RED_TERRACOTTA, "-0.1%", -0.1, currentPercentage, maxPercentage);
         
-        // Current value display - center of the GUI
-        ItemStack currentValueItem = new ItemStack(Material.LIME_CONCRETE);
-        ItemMeta currentValueMeta = currentValueItem.getItemMeta();
-        currentValueMeta.setDisplayName(ChatColor.GREEN + "Current Setting: " + currentPercentageStr + "%");
-        List<String> currentValueLore = new ArrayList<>();
-        currentValueLore.add("");
-        currentValueLore.add(ChatColor.GRAY + "XP Split Percentage");
-        currentValueLore.add("");
-        if (currentPercentage == 0.0) {
-            currentValueLore.add(ChatColor.GRAY + "No XP will be split to Mining");
-            currentValueLore.add(ChatColor.GRAY + "All XP stays with OreExtraction");
-        } else {
-            currentValueLore.add(ChatColor.GRAY + "Split " + ChatColor.AQUA + currentPercentageStr + "%" + 
-                    ChatColor.GRAY + " of OreExtraction XP");
-            currentValueLore.add(ChatColor.GRAY + "to your Mining skill");
-        }
-        currentValueLore.add("");
-        currentValueLore.add(ChatColor.GRAY + "Use the buttons around this display");
-        currentValueLore.add(ChatColor.GRAY + "to adjust the percentage.");
-        currentValueLore.add("");
-        currentValueLore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + currentPercentage);
-        currentValueMeta.setLore(currentValueLore);
-        currentValueItem.setItemMeta(currentValueMeta);
-        inv.setItem(22, currentValueItem);
+        // Common presets in a clean row
+        addPresetButton(inv, 10, 0.0, "None", currentPercentage, maxPercentage);
+        addPresetButton(inv, 11, 10.0, "Low", currentPercentage, maxPercentage);
+        addPresetButton(inv, 15, 25.0, "Medium", currentPercentage, maxPercentage);
+        addPresetButton(inv, 16, 40.0, "High", currentPercentage, maxPercentage);
         
-        // Add increment/decrement buttons
-        
-        // Large increment (10%)
-        addIncrementButton(inv, 14, currentPercentage, maxPercentage, 10.0);
-        
-        // Medium increment (1.0%)
-        addIncrementButton(inv, 15, currentPercentage, maxPercentage, 1.0);
-        
-        // Small increment (0.5%)
-        addIncrementButton(inv, 16, currentPercentage, maxPercentage, 0.5);
-        
-        // Tiny increment (0.1%)
-        addIncrementButton(inv, 25, currentPercentage, maxPercentage, 0.1);
-        
-        // Tiny decrement (-0.1%)
-        addDecrementButton(inv, 19, currentPercentage, -0.1);
-        
-        // Small decrement (-0.5%)
-        addDecrementButton(inv, 28, currentPercentage, -0.5);
-        
-        // Medium decrement (-1.0%)
-        addDecrementButton(inv, 29, currentPercentage, -1.0);
-        
-        // Large decrement (-10%)
-        addDecrementButton(inv, 30, currentPercentage, -10.0);
-        
-        // Add preset buttons
-        addPresetButton(inv, 11, 0.0, currentPercentage, maxPercentage, "No Split");
-        addPresetButton(inv, 20, 5.0, currentPercentage, maxPercentage, "Low");
-        addPresetButton(inv, 24, 15.0, currentPercentage, maxPercentage, "Medium");
-        addPresetButton(inv, 33, 25.0, currentPercentage, maxPercentage, "High");
-        
-        // Add a button for using the default percentage
-        ItemStack defaultButton = new ItemStack(Material.EMERALD);
+        // Default value button - centered below main display
+        ItemStack defaultButton = new ItemStack(Material.GOLD_INGOT);
         ItemMeta defaultMeta = defaultButton.getItemMeta();
-        defaultMeta.setDisplayName(ChatColor.GOLD + "Use Default Value");
+        defaultMeta.setDisplayName(ChatColor.GOLD + "Use Default Value (" + defaultPercentageStr + "%)");
+        
         List<String> defaultLore = new ArrayList<>();
         defaultLore.add("");
-        defaultLore.add(ChatColor.GRAY + "Set the split percentage to");
-        defaultLore.add(ChatColor.GREEN + defaultPercentageStr + "%" + ChatColor.GRAY + ", the default value");
-        defaultLore.add(ChatColor.GRAY + "for your current node level.");
-        defaultLore.add("");
-        defaultLore.add(ChatColor.GRAY + "Click to select this option.");
+        defaultLore.add(ChatColor.GRAY + "Reset to the default percentage");
+        defaultLore.add(ChatColor.GRAY + "for your current node level");
         defaultLore.add("");
         defaultLore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + defaultPercentage);
         defaultMeta.setLore(defaultLore);
         defaultButton.setItemMeta(defaultMeta);
-        inv.setItem(31, defaultButton);
+        inv.setItem(13, defaultButton);
         
-        // Save button - bottom right corner
-        ItemStack saveButton = new ItemStack(Material.EMERALD_BLOCK);
+        // Save button - bottom left corner
+        ItemStack saveButton = new ItemStack(Material.EMERALD);
         ItemMeta saveMeta = saveButton.getItemMeta();
         saveMeta.setDisplayName(ChatColor.GREEN + "Save & Close");
         List<String> saveLore = new ArrayList<>();
         saveLore.add("");
-        saveLore.add(ChatColor.GRAY + "Click to save your selection");
-        saveLore.add(ChatColor.GRAY + "and close this menu.");
+        saveLore.add(ChatColor.GRAY + "Click to save your setting");
         saveMeta.setLore(saveLore);
         saveButton.setItemMeta(saveMeta);
-        inv.setItem(44, saveButton);
+        inv.setItem(18, saveButton);
         
-        // Cancel button - bottom left corner
-        ItemStack cancelButton = new ItemStack(Material.REDSTONE_BLOCK);
+        // Cancel button - bottom right corner
+        ItemStack cancelButton = new ItemStack(Material.BARRIER);
         ItemMeta cancelMeta = cancelButton.getItemMeta();
         cancelMeta.setDisplayName(ChatColor.RED + "Cancel");
         List<String> cancelLore = new ArrayList<>();
         cancelLore.add("");
-        cancelLore.add(ChatColor.GRAY + "Click to exit without saving");
-        cancelLore.add(ChatColor.GRAY + "any changes.");
+        cancelLore.add(ChatColor.GRAY + "Exit without saving changes");
         cancelMeta.setLore(cancelLore);
         cancelButton.setItemMeta(cancelMeta);
-        inv.setItem(36, cancelButton);
+        inv.setItem(26, cancelButton);
         
         // Open the inventory
         player.openInventory(inv);
+    }
+
+    /**
+     * Create a unified control button (increment/decrement) for the OreConduit GUI
+     */
+    private void addControlButton(Inventory inv, int slot, Material material, String label, double adjustment, 
+                                double currentPercentage, double maxPercentage) {
+        boolean isPositive = adjustment > 0;
+        ChatColor valueColor = isPositive ? ChatColor.GREEN : ChatColor.RED;
+        double newValue = currentPercentage + adjustment;
+        boolean isDisabled = (isPositive && newValue > maxPercentage) || (!isPositive && newValue < 0);
+        
+        if (isDisabled) {
+            material = Material.BARRIER;
+        }
+        
+        ItemStack button = new ItemStack(material);
+        ItemMeta meta = button.getItemMeta();
+        meta.setDisplayName(valueColor + label);
+        
+        List<String> lore = new ArrayList<>();
+        lore.add("");
+        
+        if (isDisabled) {
+            lore.add(ChatColor.RED + (isPositive ? 
+                    "Cannot exceed " + String.format("%.1f", maxPercentage) + "%" : 
+                    "Cannot go below 0.0%"));
+        } else {
+            String action = isPositive ? "Add" : "Subtract";
+            String amountStr = String.format("%.1f", Math.abs(adjustment));
+            
+            lore.add(ChatColor.GRAY + action + " " + valueColor + amountStr + "%" + 
+                    ChatColor.GRAY + " to the current value");
+            lore.add("");
+            lore.add(ChatColor.GRAY + "New value: " + ChatColor.YELLOW + 
+                    String.format("%.1f", Math.max(0, Math.min(maxPercentage, newValue))) + "%");
+        }
+        
+        // Add hidden data for event handling
+        lore.add(ChatColor.BLACK + "CONDUIT_ADJUST:" + adjustment);
+        
+        meta.setLore(lore);
+        button.setItemMeta(meta);
+        inv.setItem(slot, button);
     }
 
     /**
@@ -1127,9 +1109,9 @@ public class AbilityGUIListener implements Listener {
         
         String displayName = clickedItem.getItemMeta().getDisplayName();
         
-        // Handle save button
-        if (clickedItem.getType() == Material.EMERALD_BLOCK && 
-            displayName.equals(ChatColor.GREEN + "Save & Close")) {
+        // Handle save button - now using EMERALD
+        if (clickedItem.getType() == Material.EMERALD && 
+            displayName.contains("Save & Close")) {
             
             // Get the currently selected percentage from the inventory
             double selectedPercentage = getSelectedPercentageFromInventory(player.getOpenInventory().getTopInventory());
@@ -1153,8 +1135,8 @@ public class AbilityGUIListener implements Listener {
             return;
         }
         
-        // Handle cancel button
-        if (clickedItem.getType() == Material.REDSTONE_BLOCK && 
+        // Handle cancel button - now using BARRIER
+        if (clickedItem.getType() == Material.BARRIER && 
             displayName.equals(ChatColor.RED + "Cancel")) {
             
             player.closeInventory();
@@ -1214,11 +1196,9 @@ public class AbilityGUIListener implements Listener {
                 if (newPercentage < 0) {
                     newPercentage = 0;
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 0.8f);
-                    player.sendMessage(ChatColor.RED + "Cannot go below 0.0%");
                 } else if (newPercentage > maxPercentage) {
                     newPercentage = maxPercentage;
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 0.8f);
-                    player.sendMessage(ChatColor.RED + "Cannot exceed " + String.format("%.1f", maxPercentage) + "%");
                 } else {
                     // Round to one decimal place
                     newPercentage = Math.round(newPercentage * 10) / 10.0;
@@ -1250,7 +1230,7 @@ public class AbilityGUIListener implements Listener {
      */
     private double getSelectedPercentageFromInventory(Inventory inventory) {
         // Get it from the main center display item
-        ItemStack item = inventory.getItem(22);
+        ItemStack item = inventory.getItem(4);  // New slot for the main display
         if (item != null && item.hasItemMeta()) {
             String percentStr = extractValueFromLore(item, "CONDUIT_PERCENT:");
             if (percentStr != null) {
@@ -1277,17 +1257,39 @@ public class AbilityGUIListener implements Listener {
         // Format for display
         String newPercentageStr = String.format("%.1f", newPercentage);
         
-        // Update the info item
+        // Update the info item (central display)
         ItemStack infoItem = inv.getItem(4);
         if (infoItem != null) {
             ItemMeta meta = infoItem.getItemMeta();
+            meta.setDisplayName(ChatColor.AQUA + "✧ OreConduit Setting: " + ChatColor.GREEN + newPercentageStr + "%" + ChatColor.AQUA + " ✧");
+            
             List<String> lore = meta.getLore();
             
-            // Update the "Current split" line
+            // Update the display content
             for (int i = 0; i < lore.size(); i++) {
-                if (lore.get(i).startsWith(ChatColor.YELLOW + "Current split:")) {
-                    lore.set(i, ChatColor.YELLOW + "Current split: " + 
-                        ChatColor.GREEN + newPercentageStr + "%");
+                // Find the XP split lines and update them
+                if (i >= 4 && i <= 6) {
+                    if (newPercentage == 0.0) {
+                        lore.set(4, ChatColor.GRAY + "No XP will be split to Mining");
+                        lore.set(5, ChatColor.GRAY + "All XP stays with OreExtraction");
+                        // Remove any third line from previous state if it exists
+                        if (lore.size() > 6 && !lore.get(6).isEmpty() && 
+                            !lore.get(6).contains("Use the buttons")) {
+                            lore.remove(6);
+                        }
+                    } else {
+                        lore.set(4, ChatColor.GRAY + "Split " + ChatColor.AQUA + newPercentageStr + "%" + 
+                                ChatColor.GRAY + " of OreExtraction XP");
+                        lore.set(5, ChatColor.GRAY + "to your Mining skill");
+                    }
+                    break;
+                }
+            }
+            
+            // Update the hidden value
+            for (int i = 0; i < lore.size(); i++) {
+                if (lore.get(i).startsWith(ChatColor.BLACK + "CONDUIT_PERCENT:")) {
+                    lore.set(i, ChatColor.BLACK + "CONDUIT_PERCENT:" + newPercentage);
                     break;
                 }
             }
@@ -1297,70 +1299,57 @@ public class AbilityGUIListener implements Listener {
             inv.setItem(4, infoItem);
         }
         
-        // Update the current value display
-        ItemStack currentValueItem = inv.getItem(22);
-        if (currentValueItem != null) {
-            ItemMeta meta = currentValueItem.getItemMeta();
-            meta.setDisplayName(ChatColor.GREEN + "Current Setting: " + newPercentageStr + "%");
-            
-            List<String> lore = new ArrayList<>();
-            lore.add("");
-            lore.add(ChatColor.GRAY + "XP Split Percentage");
-            lore.add("");
-            if (newPercentage == 0.0) {
-                lore.add(ChatColor.GRAY + "No XP will be split to Mining");
-                lore.add(ChatColor.GRAY + "All XP stays with OreExtraction");
-            } else {
-                lore.add(ChatColor.GRAY + "Split " + ChatColor.AQUA + newPercentageStr + "%" + 
-                        ChatColor.GRAY + " of OreExtraction XP");
-                lore.add(ChatColor.GRAY + "to your Mining skill");
-            }
-            lore.add("");
-            lore.add(ChatColor.GRAY + "Use the buttons around this display");
-            lore.add(ChatColor.GRAY + "to adjust the percentage.");
-            lore.add("");
-            lore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + newPercentage);
-            
-            meta.setLore(lore);
-            currentValueItem.setItemMeta(meta);
-            inv.setItem(22, currentValueItem);
-        }
+        // Update the control buttons
+        updateControlButtons(inv, newPercentage, maxPercentage);
         
         // Update preset buttons
-        updatePresetButton(inv, 11, 0.0, newPercentage);
-        updatePresetButton(inv, 20, 5.0, newPercentage);
-        updatePresetButton(inv, 24, 15.0, newPercentage);
-        updatePresetButton(inv, 33, 25.0, newPercentage);
+        updatePresetButton(inv, 10, 0.0, "None", newPercentage, maxPercentage);
+        updatePresetButton(inv, 11, 10.0, "Low", newPercentage, maxPercentage);
+        updatePresetButton(inv, 15, 25.0, "Medium", newPercentage, maxPercentage);
+        updatePresetButton(inv, 16, 40.0, "High", newPercentage, maxPercentage);
+    }
+
+    /**
+     * Update all control buttons based on the new percentage
+     */
+    private void updateControlButtons(Inventory inv, double currentPercentage, double maxPercentage) {
+        // Update the increment/decrement buttons
+        updateControlButton(inv, 12, 1.0, currentPercentage, maxPercentage);
+        updateControlButton(inv, 3, 0.1, currentPercentage, maxPercentage);
+        updateControlButton(inv, 14, -1.0, currentPercentage, maxPercentage);
+        updateControlButton(inv, 5, -0.1, currentPercentage, maxPercentage);
         
-        // Update the default button
-        ItemStack defaultButton = inv.getItem(31);
+        // Update the default button highlight state
+        ItemStack defaultButton = inv.getItem(13);
         if (defaultButton != null) {
             ItemMeta meta = defaultButton.getItemMeta();
             List<String> lore = meta.getLore();
             
-            // Find the percentage in this button
+            // Get the default percentage from the button
             String percentStr = extractValueFromLore(defaultButton, "CONDUIT_PERCENT:");
             if (percentStr != null) {
                 try {
-                    double buttonPercentage = Double.parseDouble(percentStr);
-                    boolean isSelected = Math.abs(buttonPercentage - newPercentage) < 0.01;
+                    double defaultPercentage = Double.parseDouble(percentStr);
+                    boolean isSelected = Math.abs(defaultPercentage - currentPercentage) < 0.01;
                     
-                    // If this is the selected button now, update its appearance
                     if (isSelected) {
-                        meta.setDisplayName(ChatColor.GREEN + "» " + ChatColor.BOLD + "Use Default Value" + ChatColor.GREEN + " «");
+                        // Highlight if selected
+                        defaultButton.setType(Material.ENCHANTED_BOOK);
+                        meta.setDisplayName(ChatColor.GREEN + "» Default Value (" + 
+                                        String.format("%.1f", defaultPercentage) + "%) «");
                         
-                        // Add selection indicator
-                        boolean hasSelectionIndicator = false;
+                        // Add selection indicator if not present
+                        boolean hasIndicator = false;
                         for (int i = 0; i < lore.size(); i++) {
                             if (lore.get(i).contains("CURRENTLY SELECTED")) {
-                                hasSelectionIndicator = true;
+                                hasIndicator = true;
                                 break;
                             }
                         }
                         
-                        if (!hasSelectionIndicator) {
-                            // Insert selection indicator before the hidden data
-                            for (int i = 0; i < lore.size(); i++) {
+                        if (!hasIndicator) {
+                            // Add indicator before the hidden data
+                            for (int i = lore.size() - 1; i >= 0; i--) {
                                 if (lore.get(i).contains("CONDUIT_PERCENT:")) {
                                     lore.add(i, ChatColor.GREEN + "✓ CURRENTLY SELECTED");
                                     lore.add(i, "");
@@ -1369,13 +1358,16 @@ public class AbilityGUIListener implements Listener {
                             }
                         }
                     } else {
-                        meta.setDisplayName(ChatColor.GOLD + "Use Default Value");
+                        // Normal appearance if not selected
+                        defaultButton.setType(Material.GOLD_INGOT);
+                        meta.setDisplayName(ChatColor.GOLD + "Use Default Value (" + 
+                                        String.format("%.1f", defaultPercentage) + "%)");
                         
                         // Remove selection indicator if present
                         for (int i = 0; i < lore.size(); i++) {
                             if (lore.get(i).contains("CURRENTLY SELECTED")) {
                                 lore.remove(i);
-                                if (i > 0 && lore.get(i-1).isEmpty()) {
+                                if (i > 0 && i < lore.size() && lore.get(i-1).isEmpty()) {
                                     lore.remove(i-1);
                                 }
                                 break;
@@ -1385,54 +1377,114 @@ public class AbilityGUIListener implements Listener {
                     
                     meta.setLore(lore);
                     defaultButton.setItemMeta(meta);
-                } catch (NumberFormatException e) {
-                    // Invalid format
-                }
+                } catch (NumberFormatException ignored) {}
             }
         }
-        
-        // Update all increment/decrement buttons
-        updateIncrementButton(inv, 14, newPercentage, maxPercentage, 10.0);
-        updateIncrementButton(inv, 15, newPercentage, maxPercentage, 1.0);
-        updateIncrementButton(inv, 16, newPercentage, maxPercentage, 0.5);
-        updateIncrementButton(inv, 25, newPercentage, maxPercentage, 0.1);
-        
-        updateDecrementButton(inv, 19, newPercentage, -0.1);
-        updateDecrementButton(inv, 28, newPercentage, -0.5);
-        updateDecrementButton(inv, 29, newPercentage, -1.0);
-        updateDecrementButton(inv, 30, newPercentage, -10.0);
     }
-
+    
     /**
-     * Helper method to update an increment button's state based on the current value
+     * Update a preset button based on the new percentage
      */
-    private void updateIncrementButton(Inventory inv, int slot, double currentPercentage, double maxPercentage, double amount) {
+    private void updatePresetButton(Inventory inv, int slot, double value, String label, double currentPercentage, double maxPercentage) {
         ItemStack button = inv.getItem(slot);
         if (button == null) return;
         
-        ItemMeta meta = button.getItemMeta();
-        List<String> lore = meta.getLore();
+        boolean isSelected = Math.abs(value - currentPercentage) < 0.01;
+        boolean isAvailable = value <= maxPercentage;
+        String valueStr = String.format("%.1f", value);
         
-        // Clear the old lore from the non-static portion
-        while (lore.size() > 3) {
-            lore.remove(3);
-        }
-        
-        // Indicate if adding this amount would exceed the maximum
-        boolean wouldExceedMax = (currentPercentage + amount) > maxPercentage;
-        if (wouldExceedMax) {
-            lore.add(ChatColor.RED + "Cannot exceed maximum of " + String.format("%.1f", maxPercentage) + "%");
-            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+        // Update material based on state
+        Material material;
+        if (isSelected) {
+            material = Material.LIME_CONCRETE;
+        } else if (!isAvailable) {
+            material = Material.BARRIER;
         } else {
-            lore.add(ChatColor.GRAY + "Click to add " + ChatColor.GREEN + String.format("%.1f", amount) + "%" + 
-                    ChatColor.GRAY + " to the current setting");
-            lore.add(ChatColor.GRAY + "New value would be: " + 
-                    ChatColor.GREEN + String.format("%.1f", Math.min(maxPercentage, currentPercentage + amount)) + "%");
+            material = Material.LIGHT_GRAY_CONCRETE;
+        }
+        button.setType(material);
+        
+        ItemMeta meta = button.getItemMeta();
+        
+        // Update display name
+        meta.setDisplayName((isSelected ? ChatColor.GREEN + "» " : "") + 
+                        ChatColor.YELLOW + valueStr + "%" + 
+                        (label != null ? " - " + label : "") + 
+                        (isSelected ? ChatColor.GREEN + " «" : ""));
+        
+        List<String> lore = new ArrayList<>();
+        lore.add("");
+        
+        if (!isAvailable) {
+            lore.add(ChatColor.RED + "Requires higher node level");
+            lore.add(ChatColor.RED + "Current max: " + String.format("%.1f", maxPercentage) + "%");
+        } else {
+            if (value == 0.0) {
+                lore.add(ChatColor.GRAY + "Keep all XP in OreExtraction");
+            } else {
+                lore.add(ChatColor.GRAY + "Send " + ChatColor.AQUA + valueStr + "%" + 
+                        ChatColor.GRAY + " to Mining skill");
+            }
+            
+            if (isSelected) {
+                lore.add("");
+                lore.add(ChatColor.GREEN + "✓ CURRENTLY SELECTED");
+            }
         }
         
-        // Add hidden data for event handling
+        // Keep the hidden data
+        lore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + value);
+        
+        meta.setLore(lore);
+        button.setItemMeta(meta);
+    }
+
+    /**
+     * Update a control button based on the new percentage
+     */
+    private void updateControlButton(Inventory inv, int slot, double adjustment, double currentPercentage, double maxPercentage) {
+        ItemStack button = inv.getItem(slot);
+        if (button == null) return;
+        
+        boolean isPositive = adjustment > 0;
+        ChatColor valueColor = isPositive ? ChatColor.GREEN : ChatColor.RED;
+        double newValue = currentPercentage + adjustment;
+        boolean isDisabled = (isPositive && newValue > maxPercentage) || (!isPositive && newValue < 0);
+        
+        // Update material based on state
+        Material material;
+        if (isDisabled) {
+            material = Material.BARRIER;
+        } else if (isPositive) {
+            material = adjustment >= 1.0 ? Material.LIME_CONCRETE : Material.LIME_TERRACOTTA;
+        } else {
+            material = Math.abs(adjustment) >= 1.0 ? Material.RED_CONCRETE : Material.RED_TERRACOTTA;
+        }
+        button.setType(material);
+        
+        ItemMeta meta = button.getItemMeta();
+        
+        // Keep the same display name, only update the lore
+        List<String> lore = new ArrayList<>();
         lore.add("");
-        lore.add(ChatColor.BLACK + "CONDUIT_ADJUST:" + amount);
+        
+        if (isDisabled) {
+            lore.add(ChatColor.RED + (isPositive ? 
+                    "Cannot exceed " + String.format("%.1f", maxPercentage) + "%" : 
+                    "Cannot go below 0.0%"));
+        } else {
+            String action = isPositive ? "Add" : "Subtract";
+            String amountStr = String.format("%.1f", Math.abs(adjustment));
+            
+            lore.add(ChatColor.GRAY + action + " " + valueColor + amountStr + "%" + 
+                    ChatColor.GRAY + " to the current value");
+            lore.add("");
+            lore.add(ChatColor.GRAY + "New value: " + ChatColor.YELLOW + 
+                    String.format("%.1f", Math.max(0, Math.min(maxPercentage, newValue))) + "%");
+        }
+        
+        // Keep the hidden data
+        lore.add(ChatColor.BLACK + "CONDUIT_ADJUST:" + adjustment);
         
         meta.setLore(lore);
         button.setItemMeta(meta);
@@ -1528,66 +1580,53 @@ public class AbilityGUIListener implements Listener {
     }
 
     /**
-     * Helper method to add preset buttons to the OreConduit GUI
+     * Create a preset button for the OreConduit GUI
      */
-    private void addPresetButton(Inventory inv, int slot, double presetValue, double currentPercentage, double maxPercentage, String label) {
-        boolean isSelected = Math.abs(presetValue - currentPercentage) < 0.01;
-        boolean isAvailable = presetValue <= maxPercentage;
+    private void addPresetButton(Inventory inv, int slot, double value, String label, double currentPercentage, double maxPercentage) {
+        boolean isSelected = Math.abs(value - currentPercentage) < 0.01;
+        boolean isAvailable = value <= maxPercentage;
+        String valueStr = String.format("%.1f", value);
         
-        // Choose material based on selection and availability
         Material material;
         if (isSelected) {
-            material = Material.LIME_CONCRETE; // Selected button is lime
+            material = Material.LIME_CONCRETE;
         } else if (!isAvailable) {
-            material = Material.RED_CONCRETE; // Unavailable is red
+            material = Material.BARRIER;
         } else {
-            material = Material.LIGHT_GRAY_CONCRETE; // Available but not selected is gray
+            material = Material.LIGHT_GRAY_CONCRETE;
         }
         
         ItemStack button = new ItemStack(material);
         ItemMeta meta = button.getItemMeta();
         
-        // Format the percentage string
-        String percentStr = String.format("%.1f", presetValue);
-        
-        // Display name changes based on selection state
-        meta.setDisplayName((isSelected ? ChatColor.GREEN + "» " : "") +
-                        (isSelected ? ChatColor.BOLD : "") + 
-                        (isSelected ? ChatColor.GREEN : ChatColor.YELLOW) + 
-                        percentStr + "% Split (" + label + ")" + 
-                        (isSelected ? " «" : ""));
+        // Create a cleaner display name
+        meta.setDisplayName((isSelected ? ChatColor.GREEN + "» " : "") + 
+                        ChatColor.YELLOW + valueStr + "%" + 
+                        (label != null ? " - " + label : "") + 
+                        (isSelected ? ChatColor.GREEN + " «" : ""));
         
         List<String> lore = new ArrayList<>();
         lore.add("");
-        lore.add(ChatColor.GRAY + "Preset: " + ChatColor.GOLD + label);
-        lore.add("");
         
         if (!isAvailable) {
-            lore.add(ChatColor.RED + "You need a higher node level");
-            lore.add(ChatColor.RED + "to use this preset.");
-            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+            lore.add(ChatColor.RED + "Requires higher node level");
+            lore.add(ChatColor.RED + "Current max: " + String.format("%.1f", maxPercentage) + "%");
         } else {
-            if (presetValue == 0.0) {
-                lore.add(ChatColor.GRAY + "No XP will be split to Mining");
-                lore.add(ChatColor.GRAY + "All XP stays with OreExtraction");
+            if (value == 0.0) {
+                lore.add(ChatColor.GRAY + "Keep all XP in OreExtraction");
             } else {
-                lore.add(ChatColor.GRAY + "Split " + ChatColor.AQUA + percentStr + "%" + 
-                        ChatColor.GRAY + " of OreExtraction XP");
-                lore.add(ChatColor.GRAY + "to your Mining skill");
+                lore.add(ChatColor.GRAY + "Send " + ChatColor.AQUA + valueStr + "%" + 
+                        ChatColor.GRAY + " to Mining skill");
             }
-            lore.add("");
-            lore.add(ChatColor.GRAY + "Click to select this preset");
-        }
-        
-        // Show selection status
-        if (isSelected) {
-            lore.add("");
-            lore.add(ChatColor.GREEN + "✓ CURRENTLY SELECTED");
+            
+            if (isSelected) {
+                lore.add("");
+                lore.add(ChatColor.GREEN + "✓ CURRENTLY SELECTED");
+            }
         }
         
         // Add hidden data for event handling
-        lore.add("");
-        lore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + presetValue);
+        lore.add(ChatColor.BLACK + "CONDUIT_PERCENT:" + value);
         
         meta.setLore(lore);
         button.setItemMeta(meta);
