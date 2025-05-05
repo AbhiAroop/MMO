@@ -268,9 +268,6 @@ public class AbilityListGUI {
         return item;
     }
 
-    /**
-     * Create an item representation of an ability for the GUI
-     */
     private static ItemStack createAbilityItem(SkillAbility ability, Player player) {
         ItemStack item = ability.createDisplayItem(player);
         ItemMeta meta = item.getItemMeta();
@@ -278,6 +275,52 @@ public class AbilityListGUI {
         List<String> lore = meta.getLore();
         if (lore == null) {
             lore = new ArrayList<>();
+        }
+        
+        // For passive abilities that are unlocked, add clear instructions
+        if (ability instanceof PassiveAbility && ability.isUnlocked(player)) {
+            // Find where to insert the instruction line
+            int insertPos = -1;
+            for (int i = 0; i < lore.size(); i++) {
+                if (lore.get(i).startsWith(ChatColor.YELLOW + "Status:")) {
+                    insertPos = i + 1;
+                    break;
+                }
+            }
+            
+            // If found, replace or insert the instruction line
+            if (insertPos != -1) {
+                if (insertPos < lore.size() && lore.get(insertPos).contains("Click to")) {
+                    lore.set(insertPos, ChatColor.LIGHT_PURPLE + "• " + ChatColor.GREEN + "LEFT-CLICK" + 
+                        ChatColor.YELLOW + " to toggle on/off");
+                    
+                    // Add right-click configuration option for VeinMiner
+                    if (ability.getId().equals("vein_miner")) {
+                        lore.add(insertPos + 1, ChatColor.LIGHT_PURPLE + "• " + ChatColor.YELLOW + "RIGHT-CLICK" + 
+                            ChatColor.YELLOW + " to configure");
+                    }
+                } else {
+                    lore.add(insertPos, ChatColor.LIGHT_PURPLE + "• " + ChatColor.GREEN + "LEFT-CLICK" + 
+                        ChatColor.YELLOW + " to toggle on/off");
+                    
+                    // Add right-click configuration option for VeinMiner
+                    if (ability.getId().equals("vein_miner")) {
+                        lore.add(insertPos + 1, ChatColor.LIGHT_PURPLE + "• " + ChatColor.YELLOW + "RIGHT-CLICK" + 
+                            ChatColor.YELLOW + " to configure");
+                    }
+                }
+            } else {
+                // If not found, just add to the bottom before the hidden data
+                int lastIndex = Math.max(0, lore.size() - 3);
+                lore.add(lastIndex, ChatColor.LIGHT_PURPLE + "• " + ChatColor.GREEN + "LEFT-CLICK" + 
+                    ChatColor.YELLOW + " to toggle on/off");
+                
+                // Add right-click configuration option for VeinMiner
+                if (ability.getId().equals("vein_miner")) {
+                    lore.add(lastIndex + 1, ChatColor.LIGHT_PURPLE + "• " + ChatColor.YELLOW + "RIGHT-CLICK" + 
+                        ChatColor.YELLOW + " to configure");
+                }
+            }
         }
         
         // Add the ability ID for tracking

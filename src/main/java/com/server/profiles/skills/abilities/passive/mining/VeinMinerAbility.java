@@ -77,9 +77,74 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
     }
     
     /**
-     * Get the maximum number of blocks that can be mined based on node level
+     * Get the user's custom max block setting
+     * @param player The player
+     * @return The custom max block setting, or -1 if not set
+     */
+    public int getUserMaxBlockSetting(Player player) {
+        // Check if the player has a custom setting stored in metadata
+        if (player.hasMetadata("veinminer_max_blocks")) {
+            int setting = player.getMetadata("veinminer_max_blocks").get(0).asInt();
+            
+            // Ensure setting is always at least 1
+            if (setting < 1) {
+                return -1; // Invalid value, return -1 to use default
+            }
+            
+            return setting;
+        }
+        return -1; // Default to skill-based maximum
+    }
+
+    /**
+     * Set the user's custom max block setting
+     * @param player The player
+     * @param maxBlocks The max blocks setting
+     */
+    public void setUserMaxBlockSetting(Player player, int maxBlocks) {
+        // Ensure value is at least 2
+        int setValue = Math.max(2, maxBlocks);
+        
+        // Store the setting
+        player.setMetadata("veinminer_max_blocks", new FixedMetadataValue(Main.getInstance(), setValue));
+        
+        // Log for debugging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Set VeinMiner max blocks for " + player.getName() + " to " + setValue);
+        }
+    }
+
+    /**
+     * Get the max vein size for a player, considering both skill level and user settings
      */
     public int getMaxVeinSize(Player player) {
+        // Get the base max size from skill level
+        int baseMaxSize = getSkillBasedMaxSize(player);
+        
+        // Check if the player has a custom setting
+        int userSetting = getUserMaxBlockSetting(player);
+        
+        // If user has a custom setting, use the lower of the two values
+        if (userSetting > 0) {
+            int finalSize = Math.min(userSetting, baseMaxSize);
+            
+            // Log for debugging
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("VeinMiner max size for " + player.getName() + 
+                                                ": base=" + baseMaxSize + 
+                                                ", user=" + userSetting + 
+                                                ", final=" + finalSize);
+            }
+            
+            return finalSize;
+        }
+        
+        // Otherwise use the base size
+        return baseMaxSize;
+    }
+
+    // Rename the original getMaxVeinSize to this helper method
+    public int getSkillBasedMaxSize(Player player) {
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return 0;
@@ -92,7 +157,6 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         int nodeLevel = treeData.getNodeLevel(SubskillType.ORE_EXTRACTION.getId(), "vein_miner");
         
         // Return the appropriate vein size based on node level
-        // Updated to support 9 levels
         switch (nodeLevel) {
             case 1: return 2;
             case 2: return 3;
