@@ -5,16 +5,29 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.entity.Player;
 
+import com.server.Main;
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.AbstractSkill;
 import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.CurrencyReward;
 import com.server.profiles.skills.rewards.rewards.StatReward;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
+import com.server.profiles.skills.trees.SkillTree;
+import com.server.profiles.skills.trees.SkillTreeNode;
+import com.server.profiles.skills.trees.SkillTreeRegistry;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * Gem Carving Subskill - Carefully extract fragile crystals and gems embedded in rocks
@@ -41,6 +54,12 @@ public class GemCarvingSubskill extends AbstractSkill {
     
     // Cache for rewards by level
     private final Map<Integer, List<SkillReward>> rewardsByLevel = new HashMap<>();
+
+    // Store the bonus XP amounts for players from skill tree
+    private final Map<UUID, Integer> bonusXpMap = new HashMap<>();
+    
+    // Store the mining fortune bonus from skill tree
+    private final Map<UUID, Double> miningFortuneMap = new HashMap<>();
     
     static {
         // Set up XP requirements for each level
@@ -187,6 +206,283 @@ public class GemCarvingSubskill extends AbstractSkill {
     public double getGemQualityMultiplier(int level) {
         // Formula: 1.0 (normal quality) + 0.01 per level (up to +100% at level 100)
         return 1.0 + (level * 0.01);
+    }
+
+    /**
+     * Apply effects from node upgrades
+     * This method is called when a player unlocks or upgrades a skill tree node
+     */
+    public void applyNodeUpgrade(Player player, String nodeId, int oldLevel, int newLevel) {
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return;
+        
+        PlayerStats stats = profile.getStats();
+        
+        // Calculate the incremental benefit
+        int levelDifference = newLevel - oldLevel;
+        
+        if (nodeId.equals("gem_mining_fortune")) {
+            // Add 0.5 mining fortune per level
+            double fortuneBonus = levelDifference * 0.5;
+            
+            // Get current tracking value
+            double currentBonus = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
+            double newTotalBonus = currentBonus + fortuneBonus;
+            
+            // Update the stats directly
+            stats.addMiningFortune(fortuneBonus);
+            
+            // Update our tracking map
+            miningFortuneMap.put(player.getUniqueId(), newTotalBonus);
+            
+            // Tell the player about the bonus
+            player.sendMessage(ChatColor.AQUA + "Your gem fortune has increased by " + 
+                            ChatColor.YELLOW + String.format("%.1f", fortuneBonus) + 
+                            ChatColor.AQUA + " to " + 
+                            ChatColor.YELLOW + String.format("%.1f", newTotalBonus));
+            
+            // Log for debugging
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
+                    player.getName() + " (now " + stats.getMiningFortune() + ") from GemCarving skill tree node upgrade");
+            }
+        } else if (nodeId.equals("gemcarving_xp_boost")) {
+            // Store the new bonus XP level for this player
+            bonusXpMap.put(player.getUniqueId(), newLevel);
+            
+            // Tell the player about the bonus
+            player.sendMessage(ChatColor.GREEN + "Your gem carving XP bonus is now " + 
+                            ChatColor.YELLOW + "+" + newLevel + 
+                            ChatColor.GREEN + " XP per extraction");
+            
+            // Play sound effect
+            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Set GemCarving XP bonus to " + newLevel + " for " + player.getName());
+            }
+        }
+        
+        // Also ensure both nodes are marked as special for preservation during resets
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(getId());
+        if (tree != null) {
+            // Check XP boost node
+            SkillTreeNode node = tree.getNode("gemcarving_xp_boost");
+            if (node != null && !node.isSpecialNode()) {
+                node.setSpecialNode(true);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Marked gemcarving_xp_boost node as special for " + player.getName());
+                }
+            }
+            
+            // Also check mining fortune node
+            SkillTreeNode fortuneNode = tree.getNode("gem_mining_fortune");
+            if (fortuneNode != null && !fortuneNode.isSpecialNode()) {
+                fortuneNode.setSpecialNode(true);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Marked gem_mining_fortune node as special for " + player.getName());
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get the bonus XP for a player from the skill tree
+     * @param player The player to check
+     * @return The bonus XP amount (default 0)
+     */
+    public int getBonusXp(Player player) {
+        return bonusXpMap.getOrDefault(player.getUniqueId(), 0);
+    }
+    
+    /**
+     * Award XP for a successful gem extraction
+     * @param player The player to award XP to
+     * @param baseXp The base XP amount for the extraction
+     * @param quality The quality of the extracted gem (0-100)
+     */
+    public void awardExtractionXp(Player player, double baseXp, int quality) {
+        // Get player's benefits from skill tree
+        Map<String, Double> benefits = getSkillTreeBenefits(player);
+        int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
+        
+        // Calculate final XP with bonus and quality factor
+        double qualityFactor = 0.5 + (quality / 200.0); // 0.5 to 1.0 based on quality
+        double finalXp = (baseXp + bonusXp) * qualityFactor;
+        
+        // Award the XP
+        SkillProgressionManager.getInstance().addExperience(player, this, finalXp);
+        
+        // Show info message about the bonus XP if it's significant
+        if (bonusXp > 0) {
+            player.sendMessage(ChatColor.GRAY + "+" + String.format("%.1f", bonusXp * qualityFactor) + 
+                            " bonus XP from Carver's Expertise");
+        }
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Awarded " + finalXp + " GemCarving XP to " + player.getName() + 
+                " (Base: " + baseXp + ", Bonus: " + bonusXp + ", Quality factor: " + qualityFactor + ")");
+        }
+    }
+    
+    /**
+     * Load saved player data
+     * This method is called when a player's profile is loaded
+     * Used to restore bonusXp and mining fortune values from the skill tree
+     */
+    public void loadPlayerData(Player player) {
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return;
+        
+        // Get the player's skill tree data
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        if (treeData == null) return;
+        
+        // Load the bonus XP from the skill tree
+        int gemcarvingXpBoostLevel = treeData.getNodeLevel(getId(), "gemcarving_xp_boost");
+        
+        if (gemcarvingXpBoostLevel > 0) {
+            bonusXpMap.put(player.getUniqueId(), gemcarvingXpBoostLevel);
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Loaded GemCarving XP bonus of " + gemcarvingXpBoostLevel + " for " + player.getName());
+            }
+        }
+        
+        // Load mining fortune from skill tree - calling getSkillTreeBenefits will apply it
+        Map<String, Double> benefits = getSkillTreeBenefits(player);
+        double fortune = benefits.getOrDefault("mining_fortune", 0.0);
+        
+        if (fortune > 0 && Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Loaded and applied " + fortune + " mining fortune for " + 
+                player.getName() + " from GemCarving skill tree");
+        }
+    }
+
+    /**
+     * Get the benefits from unlocked skill tree nodes
+     * @param player The player to get benefits for
+     * @return A map of benefit types to their values
+     */
+    public Map<String, Double> getSkillTreeBenefits(Player player) {
+        Map<String, Double> benefits = new HashMap<>();
+        
+        // Default benefit values
+        benefits.put("mining_fortune", 0.0);
+        benefits.put("gem_carving_xp", 0.0);
+        
+        // Get player's skill tree data
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return benefits;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return benefits;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
+        PlayerStats stats = profile.getStats();
+        
+        // Apply benefits from nodes
+        
+        // GemCarving XP Boost node - Each level gives +1 XP
+        if (nodeLevels.containsKey("gemcarving_xp_boost")) {
+            int level = nodeLevels.get("gemcarving_xp_boost");
+            // Store the XP boost directly in the map
+            benefits.put("gem_carving_xp", (double)level); // +1 XP per level
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Applied GemCarving XP boost of " + level + " XP for " + player.getName());
+            }
+        }
+        
+        // Mining Fortune node - Add 0.5 mining fortune per level
+        if (nodeLevels.containsKey("gem_mining_fortune")) {
+            int level = nodeLevels.get("gem_mining_fortune");
+            double fortune = level * 0.5;
+            benefits.put("mining_fortune", fortune);
+            
+            // Store the current mining fortune to calculate the difference
+            double oldFortune = stats.getMiningFortune();
+            
+            // Get previously applied mining fortune for this node to avoid double-applying
+            double previouslyApplied = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
+            
+            // If there's a change in the mining fortune value, update it
+            if (fortune != previouslyApplied) {
+                // First remove the old value if it exists
+                if (previouslyApplied > 0) {
+                    stats.addMiningFortune(-previouslyApplied);
+                    
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("Removed previous " + previouslyApplied + " mining fortune from " + 
+                            player.getName() + " (now " + stats.getMiningFortune() + ") before applying new value");
+                    }
+                }
+                
+                // Now apply the new value
+                stats.addMiningFortune(fortune);
+                
+                // Store the new value in our tracking map
+                miningFortuneMap.put(player.getUniqueId(), fortune);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Updated GemCarving mining fortune for " + player.getName() + 
+                        " from " + oldFortune + " to " + stats.getMiningFortune() + 
+                        " (node level: " + level + ", fortune bonus: " + fortune + ")");
+                }
+            } else if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("GemCarving mining fortune already applied for " + player.getName() + 
+                    ": " + fortune + " (current fortune: " + stats.getMiningFortune() + ")");
+            }
+        }
+        
+        return benefits;
+    }
+    
+    /**
+     * Clean up player data when they leave
+     * This method is called when a player logs out
+     */
+    public void cleanupPlayerData(Player player) {
+        // Before removing the tracking data, make sure we don't leave any
+        // permanent stats applied
+        PlayerProfile profile = null;
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        
+        if (activeSlot != null) {
+            profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        }
+        
+        // Clean up mining fortune - it will be re-applied when they log back in
+        if (profile != null) {
+            double appliedFortune = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
+            if (appliedFortune > 0) {
+                profile.getStats().addMiningFortune(-appliedFortune);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Removed " + appliedFortune + 
+                        " mining fortune from " + player.getName() + " on logout");
+                }
+            }
+        }
+        
+        // Remove from tracking maps
+        bonusXpMap.remove(player.getUniqueId());
+        miningFortuneMap.remove(player.getUniqueId());
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Cleaned up GemCarving player data for " + player.getName());
+        }
     }
 
 }

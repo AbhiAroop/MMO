@@ -781,7 +781,6 @@ public class GemCarvingMinigame {
                 // Calculate XP based on crystal quality and tier
                 double baseXp = tier.getBaseXp();
                 double qualityMultiplier = 0.5 + (quality / 100.0); // 0.5 to 1.5 based on quality
-                double finalXp = baseXp * qualityMultiplier;
                 
                 // Apply skill level multiplier to extraction success
                 int playerLevel = gemSkill.getSkillLevel(player).getLevel();
@@ -797,21 +796,47 @@ public class GemCarvingMinigame {
                 Location effectLoc = crystal.getLocation().clone().add(0, 1.0, 0);
                 
                 if (extractionSuccessful) {
-                    // Award bonus XP for successful sequence completion (scaled by level)
-                    double levelBonus = 1.0 + (playerLevel / 100.0); // Up to 2x at level 100
-                    finalXp *= levelBonus;
+                    // Get skill tree benefits using the same pattern as OreExtractionSubskill
+                    Map<String, Double> benefits = gemSkill.getSkillTreeBenefits(player);
                     
-                    // Award XP
-                    SkillProgressionManager.getInstance().addExperience(player, gemSkill, finalXp);
+                    // Get the bonus XP from the skill tree (similar to "xp_boost" in OreExtraction)
+                    int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
+                    double miningFortune = benefits.getOrDefault("mining_fortune", 0.0);
+                    
+                    // Apply level bonus to base XP
+                    double levelBonus = 1.0 + (playerLevel / 100.0); // Up to 2x at level 100
+                    double finalBaseXp = baseXp * levelBonus;
+                    double totalXp = finalBaseXp * qualityMultiplier; // Apply quality multiplier
+                    
+                    // Add bonus XP from skill tree
+                    if (bonusXp > 0) {
+                        double bonusXpWithQuality = bonusXp * (0.5 + (quality / 200.0)); // Apply quality modifier to bonus
+                        totalXp += bonusXpWithQuality;
+                        
+                        // Show message about the bonus
+                        player.sendMessage("§7(+" + String.format("%.1f", bonusXpWithQuality) + " XP from Carver's Expertise)");
+                    }
+                    
+                    // Award XP directly through the skill progression manager
+                    SkillProgressionManager.getInstance().addExperience(player, gemSkill, totalXp);
+                    
+                    // Show XP gain message
+                    player.sendMessage("§7+" + String.format("%.1f", totalXp) + " Gem Carving XP");
                     
                     // Award item (better quality based on skill and crystal quality)
                     double gemQualityMultiplier = gemSkill.getGemQualityMultiplier(playerLevel);
+                    
+                    // Apply mining fortune bonus to the gem quality from skill tree
+                    if (miningFortune > 0) {
+                        gemQualityMultiplier += (miningFortune / 100.0);
+                        player.sendMessage("§7(+" + String.format("%.1f", miningFortune) + "% gem quality from Mining Fortune)");
+                    }
+                    
                     ItemStack reward = createGemReward(playerLevel, gemQualityMultiplier, tier);
                     player.getInventory().addItem(reward);
                     
                     // Show success message and effects
                     player.sendMessage("§a§lSuccess! §aYou extracted a gem from the " + getTierDisplayName() + "!");
-                    player.sendMessage("§d+" + String.format("%.1f", finalXp) + " Gem Carving XP");
                     
                     // Create a success particle effect
                     for (int i = 0; i < 3; i++) {
@@ -856,8 +881,13 @@ public class GemCarvingMinigame {
                     
                     // Award partial XP for the attempt - higher for more difficult crystals
                     double partialXpPercent = 0.3 + (tier.getExtraDifficulty() * 0.2); // 30-50% based on difficulty
-                    double partialXp = finalXp * partialXpPercent;
+                    double partialXp = baseXp * qualityMultiplier * partialXpPercent;
+                    
+                    // For failed attempts, don't add bonus XP from skill tree
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, partialXp);
+                    
+                    player.sendMessage("§7+" + String.format("%.1f", partialXp) + " Gem Carving XP (partial reward)");
+                    
                     // Mix the tier color with red for failure
                     Color tierColor = tier.getParticleColor();
                     Color redColor = Color.RED;

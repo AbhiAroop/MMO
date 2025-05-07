@@ -14,6 +14,7 @@ import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 
 /**
@@ -133,11 +134,13 @@ public class PlayerSkillTreeData {
             }
         }
         
-        // Apply benefits if this is the OreExtraction skill tree
-        if (skillId.equals("ore_extraction")) {
-            // Get the player this belongs to
-            Player player = findPlayerForSkillTree();
-            if (player != null) {
+        // Get the player this belongs to
+        Player player = findPlayerForSkillTree();
+        if (player != null) {
+            // Apply benefits based on the skill tree type
+            
+            // OreExtraction skill tree
+            if (skillId.equals("ore_extraction")) {
                 // Get the OreExtraction skill
                 Skill skill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
                 if (skill instanceof OreExtractionSubskill) {
@@ -146,6 +149,22 @@ public class PlayerSkillTreeData {
                     oreSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
                 }
             }
+            // GemCarving skill tree
+            else if (skillId.equals("gem_carving")) {
+                // Get the GemCarving skill
+                Skill skill = SkillRegistry.getInstance().getSubskill(SubskillType.GEM_CARVING);
+                if (skill instanceof GemCarvingSubskill) {
+                    GemCarvingSubskill gemSkill = (GemCarvingSubskill) skill;
+                    // Apply the benefits from the upgrade
+                    gemSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
+                    
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Applied GemCarving node upgrade for " + 
+                                                    nodeId + " from level " + oldLevel + " to " + newLevel);
+                    }
+                }
+            }
+            // Add additional skill trees here as needed
         }
         
         return newLevel;

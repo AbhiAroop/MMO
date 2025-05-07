@@ -1,5 +1,8 @@
 package com.server.profiles.skills.skills.mining.trees;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
@@ -14,74 +17,130 @@ public class GemCarvingTreeBuilder implements SkillTreeBuilder {
 
     @Override
     public void buildSkillTree(SkillTree tree) {
-        // Add gem finding chance node
+        // =====================================================================
+        // GEMCARVING XP BOOST NODE - To the right of root (highly upgradeable)
+        // =====================================================================
+        
+        // Create descriptions and costs for the XP boost node
+        Map<Integer, String> xpBoostDescriptions = new HashMap<>();
+        Map<Integer, Integer> xpBoostCosts = new HashMap<>();
+        
+        // Set descriptions for all 1000 levels - Each level gives +1 GemCarving XP per extraction
+        for (int i = 1; i <= 1000; i++) {
+            xpBoostDescriptions.put(i, "Gain +" + i + " GemCarving XP per successful gem extraction");
+        }
+        
+        // Set increasing costs for all 1000 levels
+        // Formula: base cost increases by 1 every 10 levels
+        for (int i = 1; i <= 1000; i++) {
+            int baseCost = 1 + ((i - 1) / 10);
+            xpBoostCosts.put(i, baseCost);
+        }
+        
+        // GemCarving XP Boost Node (Upgradable up to 1000 levels)
+        SkillTreeNode xpBoostNode = new SkillTreeNode(
+            "gemcarving_xp_boost",
+            "Carver's Expertise",
+            Material.EXPERIENCE_BOTTLE,
+            ChatColor.GREEN,
+            2, 0, // 2 tiles right of root
+            xpBoostDescriptions,
+            xpBoostCosts
+        );
+        
+        // Mark this as a special node to preserve progress through resets
+        xpBoostNode.setSpecialNode(true);
+        tree.addNode(xpBoostNode);
+        tree.addConnection("root", "gemcarving_xp_boost");
+        
+        // Path node to the right of XP boost (for visual spacing)
         tree.addNode(new SkillTreeNode(
-            "gem_finding",
-            "Gem Finder",
-            "Increases chance of finding gems by 5%",
+            "gemcarving_xp_path",
+            "Carving Mastery",
+            "A path to greater gem carving knowledge",
             Material.AMETHYST_SHARD,
             ChatColor.LIGHT_PURPLE,
-            1, 0, // Position to the right of root
-            2 // Token cost
-        ));
-        
-        // Add connection from root to gem finding
-        tree.addConnection("root", "gem_finding");
-        
-        // Add extraction accuracy node
-        tree.addNode(new SkillTreeNode(
-            "extraction_accuracy",
-            "Extraction Accuracy",
-            "Increases chance of successful gem extraction by 10%",
-            Material.SHEARS,
-            ChatColor.YELLOW,
-            2, 0, // Position to the right of gem finding
+            3, 0, // 1 tile right of XP boost
             3 // Token cost
         ));
+        tree.addConnection("gemcarving_xp_boost", "gemcarving_xp_path");
         
-        // Add connection from gem finding to extraction accuracy
-        tree.addConnection("gem_finding", "extraction_accuracy");
+        // =====================================================================
+        // MINING FORTUNE NODE - To the left of root (upgradeable)
+        // =====================================================================
         
-        // Add gem quality node
-        tree.addNode(new SkillTreeNode(
-            "gem_quality",
-            "Gem Quality",
-            "Increases quality of found gems",
-            Material.DIAMOND,
+        // Create descriptions and costs for the Mining Fortune node
+        Map<Integer, String> fortuneDescriptions = new HashMap<>();
+        Map<Integer, Integer> fortuneCosts = new HashMap<>();
+        
+        // Set descriptions for all 100 levels - Each level gives +0.5 mining fortune
+        for (int i = 1; i <= 100; i++) {
+            fortuneDescriptions.put(i, "Gain +" + (i * 0.5) + " Mining Fortune");
+        }
+        
+        // Set increasing costs for all 100 levels
+        // Formula: cost increases by 1 every 5 levels
+        for (int i = 1; i <= 100; i++) {
+            int baseCost = 1 + ((i - 1) / 5);
+            fortuneCosts.put(i, baseCost);
+        }
+        
+        // Mining Fortune Node (Upgradable up to 100 levels)
+        SkillTreeNode fortuneNode = new SkillTreeNode(
+            "gem_mining_fortune",
+            "Gem Fortune",
+            Material.DIAMOND_PICKAXE,
             ChatColor.AQUA,
-            1, 1, // Position below gem finding
-            3 // Token cost
-        ));
+            -2, 0, // 2 tiles left of root
+            fortuneDescriptions,
+            fortuneCosts
+        );
         
-        // Add connection from gem finding to gem quality
-        tree.addConnection("gem_finding", "gem_quality");
+        // Mark this as a special node to preserve progress through resets
+        fortuneNode.setSpecialNode(true);
+        tree.addNode(fortuneNode);
+        tree.addConnection("root", "gem_mining_fortune");
         
-        // Add rare gem chance node
+        // Path node to the left of Mining Fortune (for visual spacing)
         tree.addNode(new SkillTreeNode(
-            "rare_gem_chance",
-            "Rare Gem Finder",
-            "Chance to find rare and valuable gems",
+            "fortune_path",
+            "Fortune Mastery",
+            "A path to greater fortune-finding abilities",
             Material.EMERALD,
             ChatColor.GREEN,
-            0, -1, // Position above and to the left of root
-            4 // Token cost
+            -3, 0, // 1 tile left of Mining Fortune
+            3 // Token cost
         ));
+        tree.addConnection("gem_mining_fortune", "fortune_path");
         
-        // Add connection from root to rare gem chance
-        tree.addConnection("root", "rare_gem_chance");
+        // =====================================================================
+        // ROOT NODE CONNECTIONS
+        // =====================================================================
         
-        // Add master carver node
+        // Add some visual nodes around the root for additional paths later
+        
+        // Path node above root
         tree.addNode(new SkillTreeNode(
-            "master_carver",
-            "Master Carver",
-            "Significantly increases all gem carving abilities",
-            Material.NETHERITE_PICKAXE,
-            ChatColor.GOLD,
-            3, 0, // Position to the right of extraction accuracy
-            5 // Token cost
+            "gem_upper_path",
+            "Crystal Knowledge",
+            "Understanding the crystalline structures",
+            Material.AMETHYST_CLUSTER,
+            ChatColor.DARK_PURPLE,
+            0, -2, // 2 tiles above root
+            3 // Token cost
         ));
+        tree.addConnection("root", "gem_upper_path");
         
-        // Add connection from extraction accuracy to master carver
-        tree.addConnection("extraction_accuracy", "master_carver");
+        // Path node below root
+        tree.addNode(new SkillTreeNode(
+            "gem_lower_path",
+            "Gemstone Mastery",
+            "Deeper understanding of precious stones",
+            Material.LAPIS_BLOCK,
+            ChatColor.BLUE,
+            0, 2, // 2 tiles below root
+            3 // Token cost
+        ));
+        tree.addConnection("root", "gem_lower_path");
     }
 }
