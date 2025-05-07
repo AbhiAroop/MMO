@@ -6,6 +6,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.display.SkillActionBarManager;
 import com.server.profiles.stats.PlayerStats;
 
 import net.md_5.bungee.api.ChatMessageType;
@@ -80,6 +81,14 @@ public class ActionBarManager {
     }
 
     private void updateActionBar(Player player) {
+        // Check if there's a custom action bar from a minigame
+        SkillActionBarManager skillActionBarManager = SkillActionBarManager.getInstance();
+        if (skillActionBarManager.hasCustomActionBar(player)) {
+            // We'll skip sending our default action bar as the minigame will handle displaying its own
+            return;
+        }
+
+        // Continue with normal action bar display...
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
 
@@ -88,15 +97,15 @@ public class ActionBarManager {
 
         PlayerStats stats = profile.getStats();
         
-        // Create action bar text with real-time values - do NOT modify the stats!
+        // Create action bar text with real-time values
         String actionBar = String.format(
             "§c❤ %.1f/%d §8| §e⚔ %d §8| §b✦ %d §8| §9✧ %d/%d §8| §a♦ %d/s",
             player.getHealth(),
             stats.getHealth(),
-            stats.getPhysicalDamage(), // Already includes any weapon bonuses from StatScanManager
-            stats.getMagicDamage(),     // Already includes any weapon bonuses from StatScanManager
+            stats.getPhysicalDamage(),
+            stats.getMagicDamage(),
             stats.getMana(),
-            stats.getTotalMana(),      // Already includes any mana bonuses from StatScanManager
+            stats.getTotalMana(),
             stats.getManaRegen()
         );
 

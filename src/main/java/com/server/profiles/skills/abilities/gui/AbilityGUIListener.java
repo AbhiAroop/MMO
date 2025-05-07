@@ -97,10 +97,16 @@ public class AbilityGUIListener implements Listener {
         }
         
         String displayName = clickedItem.getItemMeta().getDisplayName();
-        
+    
         // Handle save button
         if ((clickedItem.getType() == Material.EMERALD || clickedItem.getType() == Material.EMERALD_BLOCK) && 
             displayName.equals(ChatColor.GREEN + "Save & Close")) {
+            
+            // Extract the skill ID from the item if available, or use fallback
+            String returnSkillId = extractValueFromLore(clickedItem, "RETURN_SKILL:");
+            if (returnSkillId == null) {
+                returnSkillId = "ore_extraction"; // Default fallback
+            }
             
             // Get the currently selected value from the inventory
             int selectedValue = getSelectedValueFromInventory(player.getOpenInventory().getTopInventory());
@@ -121,16 +127,59 @@ public class AbilityGUIListener implements Listener {
             player.closeInventory();
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.5f);
             player.sendMessage(ChatColor.GREEN + "VeinMiner settings saved!");
+            
+            // Return to the passive ability GUI after saving
+            final String skillId = returnSkillId;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                AbilityListGUI.openAbilityList(player, skillId, "PASSIVE", false);
+            }, 1L);
+            
             return;
         }
         
-        // Handle cancel button
+        // Handle cancel button in VeinMiner GUI
         if ((clickedItem.getType() == Material.BARRIER || clickedItem.getType() == Material.REDSTONE_BLOCK) && 
             displayName.equals(ChatColor.RED + "Cancel")) {
+            
+            // Extract the skill ID from the cancel button
+            String returnSkillId = extractValueFromLore(clickedItem, "RETURN_SKILL:");
+            if (returnSkillId == null) {
+                returnSkillId = "ore_extraction"; // Default fallback
+            }
             
             player.closeInventory();
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 0.8f);
             player.sendMessage(ChatColor.YELLOW + "Configuration cancelled. No changes were made.");
+            
+            // Return to the passive ability GUI using the stored skill ID
+            final String skillId = returnSkillId;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                AbilityListGUI.openAbilityList(player, skillId, "PASSIVE", false);
+            }, 1L);
+            
+            return;
+        }
+
+        // Handle cancel button in OreConduit GUI
+        if (clickedItem.getType() == Material.BARRIER && 
+            displayName.equals(ChatColor.RED + "Cancel")) {
+            
+            // Extract the skill ID from the cancel button
+            String returnSkillId = extractValueFromLore(clickedItem, "RETURN_SKILL:");
+            if (returnSkillId == null) {
+                returnSkillId = "ore_extraction"; // Default fallback
+            }
+            
+            player.closeInventory();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 0.8f);
+            player.sendMessage(ChatColor.YELLOW + "Configuration cancelled. No changes were made.");
+            
+            // Return to the passive ability GUI using the stored skill ID
+            final String skillId = returnSkillId;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                AbilityListGUI.openAbilityList(player, skillId, "PASSIVE", false);
+            }, 1L);
+            
             return;
         }
         
@@ -579,6 +628,8 @@ public class AbilityGUIListener implements Listener {
         
         com.server.profiles.skills.abilities.passive.mining.VeinMinerAbility veinMiner = 
             (com.server.profiles.skills.abilities.passive.mining.VeinMinerAbility) ability;
+
+        String skillId = veinMiner.getSkillId();
         
         // Get the max potential vein size based on the player's skill level
         int maxPossibleSize = veinMiner.getSkillBasedMaxSize(player);
@@ -701,11 +752,13 @@ public class AbilityGUIListener implements Listener {
         saveLore.add("");
         saveLore.add(ChatColor.GRAY + "Click to save your selection");
         saveLore.add(ChatColor.GRAY + "and close this menu.");
+        // Add the skill ID as hidden data for return navigation
+        saveLore.add(ChatColor.BLACK + "RETURN_SKILL:" + skillId);
         saveMeta.setLore(saveLore);
         saveButton.setItemMeta(saveMeta);
         inv.setItem(44, saveButton);
         
-        // Cancel button - bottom left corner
+       // Cancel button - bottom left corner
         ItemStack cancelButton = new ItemStack(Material.REDSTONE_BLOCK);
         ItemMeta cancelMeta = cancelButton.getItemMeta();
         cancelMeta.setDisplayName(ChatColor.RED + "Cancel");
@@ -713,6 +766,8 @@ public class AbilityGUIListener implements Listener {
         cancelLore.add("");
         cancelLore.add(ChatColor.GRAY + "Click to exit without saving");
         cancelLore.add(ChatColor.GRAY + "any changes.");
+        // Add the skill ID as hidden data
+        cancelLore.add(ChatColor.BLACK + "RETURN_SKILL:" + skillId);
         cancelMeta.setLore(cancelLore);
         cancelButton.setItemMeta(cancelMeta);
         inv.setItem(36, cancelButton);
@@ -798,6 +853,8 @@ public class AbilityGUIListener implements Listener {
         
         com.server.profiles.skills.abilities.passive.mining.OreConduitAbility oreConduit = 
             (com.server.profiles.skills.abilities.passive.mining.OreConduitAbility) ability;
+
+        String skillId = oreConduit.getSkillId();
         
         // Get the player's skill node level
         int nodeLevel = getOreConduitNodeLevel(player);
@@ -914,6 +971,8 @@ public class AbilityGUIListener implements Listener {
         List<String> saveLore = new ArrayList<>();
         saveLore.add("");
         saveLore.add(ChatColor.GRAY + "Click to save your setting");
+        // Add the skill ID as hidden data for return navigation
+        saveLore.add(ChatColor.BLACK + "RETURN_SKILL:" + skillId);
         saveMeta.setLore(saveLore);
         saveButton.setItemMeta(saveMeta);
         inv.setItem(18, saveButton);
@@ -925,6 +984,8 @@ public class AbilityGUIListener implements Listener {
         List<String> cancelLore = new ArrayList<>();
         cancelLore.add("");
         cancelLore.add(ChatColor.GRAY + "Exit without saving changes");
+        // Add the skill ID as hidden data
+        cancelLore.add(ChatColor.BLACK + "RETURN_SKILL:" + skillId);
         cancelMeta.setLore(cancelLore);
         cancelButton.setItemMeta(cancelMeta);
         inv.setItem(26, cancelButton);
@@ -1109,9 +1170,15 @@ public class AbilityGUIListener implements Listener {
         
         String displayName = clickedItem.getItemMeta().getDisplayName();
         
-        // Handle save button - now using EMERALD
+         // Handle save button
         if (clickedItem.getType() == Material.EMERALD && 
             displayName.contains("Save & Close")) {
+            
+            // Extract the skill ID from the item if available, or use fallback
+            String returnSkillId = extractValueFromLore(clickedItem, "RETURN_SKILL:");
+            if (returnSkillId == null) {
+                returnSkillId = "ore_extraction"; // Default fallback
+            }
             
             // Get the currently selected percentage from the inventory
             double selectedPercentage = getSelectedPercentageFromInventory(player.getOpenInventory().getTopInventory());
@@ -1132,16 +1199,30 @@ public class AbilityGUIListener implements Listener {
             player.closeInventory();
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.5f);
             player.sendMessage(ChatColor.GREEN + "OreConduit settings saved!");
+            
+            // Return to the passive ability GUI after saving
+            final String skillId = returnSkillId;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                AbilityListGUI.openAbilityList(player, skillId, "PASSIVE", false);
+            }, 1L);
+            
             return;
         }
         
-        // Handle cancel button - now using BARRIER
+        // Handle cancel button - UPDATED to return to the ability GUI
         if (clickedItem.getType() == Material.BARRIER && 
             displayName.equals(ChatColor.RED + "Cancel")) {
             
             player.closeInventory();
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 0.8f);
             player.sendMessage(ChatColor.YELLOW + "Configuration cancelled. No changes were made.");
+            
+            // Return to the passive ability GUI
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Reopen passive abilities with the ore_extraction skill
+                AbilityListGUI.openAbilityList(player, "ore_extraction", "PASSIVE", false);
+            }, 1L);
+            
             return;
         }
         

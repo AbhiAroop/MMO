@@ -10,9 +10,11 @@ import com.server.commands.AdminStatsCommand;
 import com.server.commands.AdminTokensCommand;
 import com.server.commands.AnimationDebugCommand;
 import com.server.commands.CosmeticCommand;
+import com.server.commands.CrystalCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
 import com.server.commands.FlyCommand;
+import com.server.commands.GemCarvingToolCommand;
 import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
@@ -47,6 +49,7 @@ import com.server.profiles.skills.events.SkillActionBarListener;
 import com.server.profiles.skills.events.SkillEventListener;
 import com.server.profiles.skills.gui.SkillGUIListener;
 import com.server.profiles.skills.gui.SkillTreeGUIListener;
+import com.server.profiles.skills.minigames.GemCarvingManager;
 import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.StatScanManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
@@ -64,6 +67,7 @@ public class Main extends JavaPlugin {
     private StatScanManager statScanManager;
     private CustomEntityManager customEntityManager;
     private AbilityRegistry abilityRegistry;
+    private GemCarvingManager gemCarvingManager;
 
     // Update the onEnable method
     @Override
@@ -109,6 +113,10 @@ public class Main extends JavaPlugin {
         // Initialize ability registry
         AbilityRegistry.initialize(this);
         
+        // Initialize the GemCarving minigame
+        gemCarvingManager = new GemCarvingManager(this);
+        gemCarvingManager.initialize();
+
         // Register commands and event listeners
         registerCommands();
         registerListeners();
@@ -356,6 +364,23 @@ public class Main extends JavaPlugin {
             LOGGER.warning("Command 'adminskills' not registered in plugin.yml file!");
         }
 
+        org.bukkit.command.PluginCommand crystalCommand = this.getCommand("crystal");
+        if (crystalCommand != null) {
+            CrystalCommand crystalHandler = new CrystalCommand(this);
+            crystalCommand.setExecutor(crystalHandler);
+            crystalCommand.setTabCompleter(crystalHandler);
+        } else {
+            LOGGER.warning("Command 'crystal' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand gemToolCommand = this.getCommand("gemtool");
+        if (gemToolCommand != null) {
+            GemCarvingToolCommand gemToolHandler = new GemCarvingToolCommand(this, gemCarvingManager);
+            gemToolCommand.setExecutor(gemToolHandler);
+            gemToolCommand.setTabCompleter(gemToolHandler);
+        } else {
+            LOGGER.warning("Command 'gemtool' not registered in plugin.yml file!");
+        }
         
     }
 

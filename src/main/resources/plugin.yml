@@ -84,6 +84,14 @@ commands:
     usage: /<command> <player> <skill> <level|xp> <value> OR /<command> <reset|list> <player>
     permission: mmo.admin.skills
     aliases: [askills, askill]
+  crystal:
+    description: Manage crystals for the GemCarving skill
+    usage: /crystal <summon|remove|give> [arguments]
+    permission: mmo.command.crystal
+  gemtool:
+    description: Get a gem carving tool
+    usage: /gemtool [player]
+    permission: mmo.command.gemtool
 
 permissions:
   mmo.admin:
@@ -112,4 +120,10 @@ permissions:
     default: op
   mmo.admin.skills:
     description: Allows managing player skill levels and XP
+    default: op
+  mmo.command.crystal:
+    description: Manage crystals for the GemCarving skill
+    default: op
+  mmo.command.gemtool:
+    description: Get a gem carving tool
     default: op

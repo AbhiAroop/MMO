@@ -5,6 +5,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\ItemType.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\StatReward.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\FlyCommand.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\trees\GemCarvingTreeBuilder.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.java
@@ -24,6 +25,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillActionBarListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\GemCarvingListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillDetailsGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\VerdigranColossus.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.java
@@ -66,6 +68,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminStatsCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\RunemarkColossus.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\SkillRewardType.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CrystalCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\MobRegistry.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CosmeticCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\CombatListener.java
@@ -78,6 +81,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillTreeGUIListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\cosmetics\CosmeticGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\AutoRespawnListener.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\GemCarvingToolCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\StatScanManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\abilities\AbilityManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\data\SkillReward.java
@@ -98,6 +102,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\MenuCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\cosmetics\CosmeticManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\AbstractSkill.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\minigames\GemCarvingManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\SkillCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\UnlockReward.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillGUIListener.java
@@ -109,6 +114,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\duskhollow\DuskhollowFang.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\excavating\ExcavatingSkill.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\utils\NamespacedKeyUtils.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\CustomMobListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\gui\AbilityListGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\utils\CurrencyFormatter.java

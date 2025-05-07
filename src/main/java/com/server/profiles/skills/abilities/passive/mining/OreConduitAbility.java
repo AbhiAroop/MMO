@@ -61,13 +61,14 @@ public class OreConduitAbility extends AbstractPassiveAbility {
         lore.add(ChatColor.GRAY + "OreExtraction XP is split to your");
         lore.add(ChatColor.GRAY + "Mining skill based on the node level.");
         lore.add("");
-        lore.add(ChatColor.GRAY + "Level 1: " + ChatColor.YELLOW + "0.5% split");
-        lore.add(ChatColor.GRAY + "Level 50: " + ChatColor.YELLOW + "25% split");
-        lore.add(ChatColor.GRAY + "Level 100: " + ChatColor.YELLOW + "50% split (max)");
+        lore.add(ChatColor.YELLOW + "◆ Node Level 1: " + ChatColor.WHITE + "0.5% split");
+        lore.add(ChatColor.YELLOW + "◆ Node Level 50: " + ChatColor.WHITE + "25% split");
+        lore.add(ChatColor.YELLOW + "◆ Node Level 100: " + ChatColor.WHITE + "50% split (max)");
         lore.add("");
         lore.add(ChatColor.GRAY + "This ability helps level up your main");
         lore.add(ChatColor.GRAY + "Mining skill while focusing on OreExtraction.");
         lore.add("");
+        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.GREEN + "LEFT-CLICK" + ChatColor.YELLOW + " to toggle on/off");
         lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.YELLOW + "RIGHT-CLICK" + ChatColor.YELLOW + " to configure");
     }
 

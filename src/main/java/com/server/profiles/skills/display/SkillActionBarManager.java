@@ -39,6 +39,9 @@ public class SkillActionBarManager {
     
     // Duration in ticks to show skill action bar
     private static final int DISPLAY_DURATION = 60; // 3 seconds
+
+    private final Map<UUID, String> customActionBars = new HashMap<>();
+    private final Map<UUID, BukkitTask> customActionBarTasks = new HashMap<>();
     
     private SkillActionBarManager(Main plugin) {
         this.plugin = plugin;
@@ -68,8 +71,13 @@ public class SkillActionBarManager {
      */
     public void handleSkillXpGain(SkillExpGainEvent event) {
         Player player = event.getPlayer();
+
+        if (hasCustomActionBar(player)) {
+            return;
+        }
+    
         Skill skill = event.getSkill();
-        double amount = event.getAmount();
+        double amount = event.getAmount();      
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -93,6 +101,10 @@ public class SkillActionBarManager {
      */
     private void showSkillActionBar(Player player, Skill skill, double amount, double currentXp, double xpForNextLevel) {
         UUID playerUuid = player.getUniqueId();
+
+        if (hasCustomActionBar(player)) {
+            return;
+        }
         
         // Cancel existing task if there is one
         BukkitTask existingTask = skillActionBarTasks.remove(playerUuid);
@@ -297,5 +309,93 @@ public class SkillActionBarManager {
         // Check if the last skill was a subskill
         Skill lastSkill = lastSkills.get(playerUuid);
         return lastSkill != null && !lastSkill.isMainSkill();
+    }
+
+    /**
+     * Display a custom action bar message for a player
+     * This takes precedence over skill XP gain messages for the specified duration
+     * 
+     * @param player The player to show the action bar to
+     * @param message The message to display
+     * @param durationTicks How long to show the message for (in ticks)
+     */
+    public void showCustomActionBar(Player player, String message, int durationTicks) {
+        UUID playerId = player.getUniqueId();
+        
+        // Cancel any existing custom action bar task
+        BukkitTask existingTask = customActionBarTasks.remove(playerId);
+        if (existingTask != null) {
+            existingTask.cancel();
+        }
+        
+        // Store the custom message
+        customActionBars.put(playerId, message);
+        
+        // Show the message now
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(message));
+        
+        // Create a task to clear the custom message after the duration
+        BukkitTask clearTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            clearCustomActionBar(player);
+        }, durationTicks);
+        
+        customActionBarTasks.put(playerId, clearTask);
+    }
+
+    /**
+     * Clear the custom action bar for a player
+     * 
+     * @param player The player to clear the custom action bar for
+     */
+    public void clearCustomActionBar(Player player) {
+        UUID playerId = player.getUniqueId();
+        customActionBars.remove(playerId);
+        
+        BukkitTask task = customActionBarTasks.remove(playerId);
+        if (task != null) {
+            task.cancel();
+        }
+        
+        // Optional: Restore skill XP display if there is an active one
+        Skill lastSkill = lastSkills.get(playerId);
+        if (lastSkill != null) {
+            BukkitTask skillTask = skillActionBarTasks.get(playerId);
+            if (skillTask != null && player.isOnline()) {
+                // Get the skill level data to refresh the display
+                Integer activeSlot = ProfileManager.getInstance().getActiveProfile(playerId);
+                if (activeSlot != null) {
+                    PlayerProfile profile = ProfileManager.getInstance().getProfiles(playerId)[activeSlot];
+                    if (profile != null) {
+                        // Get current skill level
+                        SkillLevel level = profile.getSkillData().getSkillLevel(lastSkill);
+                        // Get XP required for next level
+                        double xpForNextLevel = lastSkill.getXpForLevel(level.getLevel() + 1);
+                        // Show skill action bar
+                        String actionBar = createSkillActionBar(lastSkill, 0.0, level.getCurrentXp(), xpForNextLevel);
+                        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(actionBar));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a player has a custom action bar
+     * 
+     * @param player The player to check
+     * @return True if the player has a custom action bar
+     */
+    public boolean hasCustomActionBar(Player player) {
+        return customActionBars.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * Get a player's custom action bar text
+     * 
+     * @param player The player to get the custom action bar for
+     * @return The custom action bar text, or null if none
+     */
+    public String getCustomActionBar(Player player) {
+        return customActionBars.get(player.getUniqueId());
     }
 }

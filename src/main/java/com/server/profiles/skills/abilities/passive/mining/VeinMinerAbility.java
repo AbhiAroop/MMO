@@ -490,12 +490,17 @@ public class VeinMinerAbility extends AbstractPassiveAbility {
         lore.add(ChatColor.GRAY + "automatically mine connected ore blocks");
         lore.add(ChatColor.GRAY + "when you mine an ore.");
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Maximum blocks: " + ChatColor.WHITE + MAX_BLOCKS);
-        lore.add(ChatColor.BLUE + "Mana cost: " + ChatColor.WHITE + "10 per block");
-        lore.add(ChatColor.YELLOW + "Works with: " + ChatColor.WHITE + "Coal, Iron, Gold,");
-        lore.add(ChatColor.WHITE + "Diamond, Redstone, Lapis, Emerald, Copper");
+        lore.add(ChatColor.YELLOW + "◆ Maximum blocks: " + ChatColor.WHITE + MAX_BLOCKS);
+        lore.add(ChatColor.BLUE + "◆ Mana cost: " + ChatColor.WHITE + "10 per block");
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Compatible Ores:");
+        lore.add(ChatColor.WHITE + " • Coal, Iron, Gold, Copper");
+        lore.add(ChatColor.WHITE + " • Diamond, Redstone, Lapis, Emerald");
         lore.add("");
         lore.add(ChatColor.GRAY + "Mining Fortune will apply to all blocks mined.");
+        lore.add("");
+        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.GREEN + "LEFT-CLICK" + ChatColor.YELLOW + " to toggle on/off");
+        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.YELLOW + "RIGHT-CLICK" + ChatColor.YELLOW + " to configure");
     }
 
     /**
