@@ -1,7 +1,9 @@
 package com.server.profiles.skills.minigames;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -17,6 +19,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -637,6 +640,22 @@ public class GemCarvingMinigame {
             if (gemSkill != null) {
                 // Small XP reward for each hit - scaled by tier and quality
                 double hitXp = 5.0 * (0.5 + (quality / 200.0)) * (tier.getBaseXp() / 100.0);
+                
+                // Add bonus XP from skill tree if applicable
+                Map<String, Double> benefits = gemSkill.getSkillTreeBenefits(player);
+                int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
+                
+                if (bonusXp > 0) {
+                    // Apply a small portion of the bonus XP per hit (10%)
+                    double hitBonusXp = bonusXp * 0.1 * (0.5 + (quality / 200.0));
+                    hitXp += hitBonusXp;
+                    
+                    // Occasionally remind players that the bonus scales with quality
+                    if (hitsInSequence == 1 || random.nextDouble() < 0.2) {
+                        player.sendActionBar("§3Your Carver's Expertise skill increases XP based on gem quality!");
+                    }
+                }
+                
                 SkillProgressionManager.getInstance().addExperience(player, gemSkill, hitXp);
             }
             
@@ -799,29 +818,48 @@ public class GemCarvingMinigame {
                     // Get skill tree benefits using the same pattern as OreExtractionSubskill
                     Map<String, Double> benefits = gemSkill.getSkillTreeBenefits(player);
                     
-                    // Get the bonus XP from the skill tree (similar to "xp_boost" in OreExtraction)
+                    // Get the bonus XP from the skill tree - ensure we're using the full value
                     int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
                     double miningFortune = benefits.getOrDefault("mining_fortune", 0.0);
                     
                     // Apply level bonus to base XP
                     double levelBonus = 1.0 + (playerLevel / 100.0); // Up to 2x at level 100
-                    double finalBaseXp = baseXp * levelBonus;
-                    double totalXp = finalBaseXp * qualityMultiplier; // Apply quality multiplier
+                    double finalBaseXp = baseXp * levelBonus * qualityMultiplier; // Apply quality multiplier to base XP
+                    double totalXp = finalBaseXp;
                     
-                    // Add bonus XP from skill tree
+                    // Calculate bonus XP if applicable
+                    double bonusXpWithQuality = 0;
                     if (bonusXp > 0) {
-                        double bonusXpWithQuality = bonusXp * (0.5 + (quality / 200.0)); // Apply quality modifier to bonus
+                        // Apply quality modifier to bonus XP - highlight that the bonus scales with quality
+                        double qualityBonusFactor = 0.5 + (quality / 200.0); // 0.5 to 1.0 based on quality
+                        bonusXpWithQuality = bonusXp * qualityBonusFactor;
                         totalXp += bonusXpWithQuality;
                         
-                        // Show message about the bonus
-                        player.sendMessage("§7(+" + String.format("%.1f", bonusXpWithQuality) + " XP from Carver's Expertise)");
+                        if (Main.getInstance().isDebugMode()) {
+                            Main.getInstance().getLogger().info("[GemCarvingMinigame] Bonus XP calculation: " + 
+                                bonusXp + " × " + String.format("%.3f", qualityBonusFactor) + 
+                                " (quality factor) = " + String.format("%.1f", bonusXpWithQuality));
+                        }
                     }
                     
                     // Award XP directly through the skill progression manager
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, totalXp);
                     
-                    // Show XP gain message
-                    player.sendMessage("§7+" + String.format("%.1f", totalXp) + " Gem Carving XP");
+                    // Build a single consolidated XP message
+                    StringBuilder xpMessage = new StringBuilder("§7+");
+                    xpMessage.append(String.format("%.1f", totalXp)).append(" Gem Carving XP");
+                    
+                    // Add breakdown if there's a bonus
+                    if (bonusXpWithQuality > 0) {
+                        xpMessage.append(" §8(§7")
+                                .append(String.format("%.1f", finalBaseXp))
+                                .append(" base + ")
+                                .append(String.format("%.1f", bonusXpWithQuality))
+                                .append(" from expertise §3based on gem quality§8)");
+                    }
+                    
+                    // Send the consolidated XP message
+                    player.sendMessage(xpMessage.toString());
                     
                     // Award item (better quality based on skill and crystal quality)
                     double gemQualityMultiplier = gemSkill.getGemQualityMultiplier(playerLevel);
@@ -835,8 +873,15 @@ public class GemCarvingMinigame {
                     ItemStack reward = createGemReward(playerLevel, gemQualityMultiplier, tier);
                     player.getInventory().addItem(reward);
                     
-                    // Show success message and effects
-                    player.sendMessage("§a§lSuccess! §aYou extracted a gem from the " + getTierDisplayName() + "!");
+                    // Show success message and effects with quality information
+                    player.sendMessage("§a§lSuccess! §aYou extracted a §b" + quality + "% quality §agem from the " + getTierDisplayName() + "!");
+                    if (quality >= 90) {
+                        player.sendMessage("§d§oThis is an exceptional quality gem!");
+                    } else if (quality >= 75) {
+                        player.sendMessage("§d§oThis is a high quality gem!");
+                    } else if (quality >= 50) {
+                        player.sendMessage("§7§oThis is a decent quality gem.");
+                    }
                     
                     // Create a success particle effect
                     for (int i = 0; i < 3; i++) {
@@ -866,7 +911,7 @@ public class GemCarvingMinigame {
                     
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.2f);
                 } else {
-                    // Extraction failed
+                    // Extraction failed - Use similar consolidated XP message format
                     player.sendMessage("§c§lAlmost! §cThe gem cracked during extraction.");
                     
                     // For higher tiers, explain the difficulty
@@ -886,7 +931,7 @@ public class GemCarvingMinigame {
                     // For failed attempts, don't add bonus XP from skill tree
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, partialXp);
                     
-                    player.sendMessage("§7+" + String.format("%.1f", partialXp) + " Gem Carving XP (partial reward)");
+                    player.sendMessage("§7+" + String.format("%.1f", partialXp) + " Gem Carving XP (partial reward based on quality)");
                     
                     // Mix the tier color with red for failure
                     Color tierColor = tier.getParticleColor();
@@ -944,6 +989,29 @@ public class GemCarvingMinigame {
             
             // Create the gem item
             ItemStack gem = new ItemStack(gemMaterial);
+            ItemMeta meta = gem.getItemMeta();
+            
+            // Calculate final gem quality based on both crystal quality and player skill
+            int gemQuality = (int)(quality * qualityMultiplier);
+            gemQuality = Math.min(100, gemQuality); // Cap at 100%
+            
+            // Set a custom name based on quality
+            String qualityPrefix = "";
+            if (gemQuality >= 90) qualityPrefix = "§d§lExceptional ";
+            else if (gemQuality >= 75) qualityPrefix = "§b§lHigh-Quality ";
+            else if (gemQuality >= 50) qualityPrefix = "§a§lQuality ";
+            
+            String gemName = gemMaterial.name().toLowerCase().replace("_", " ");
+            gemName = gemName.substring(0, 1).toUpperCase() + gemName.substring(1);
+            meta.setDisplayName(qualityPrefix + "§f" + gemName);
+            
+            // Add lore with quality information
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Quality: " + getQualityColor(gemQuality) + gemQuality + "%");
+            lore.add("§7Extracted from " + getTierChatColor() + getTierDisplayName());
+            meta.setLore(lore);
+            
+            gem.setItemMeta(meta);
             
             // Calculate quantity based on quality multiplier and tier
             int quantity = 1;
@@ -956,6 +1024,17 @@ public class GemCarvingMinigame {
             gem.setAmount(quantity);
             
             return gem;
+        }
+
+        /**
+         * Get a color code based on quality percentage
+         */
+        private String getQualityColor(int quality) {
+            if (quality >= 90) return "§d"; // Light purple for exceptional
+            if (quality >= 75) return "§b"; // Aqua for high quality
+            if (quality >= 50) return "§a"; // Green for good quality
+            if (quality >= 25) return "§e"; // Yellow for medium quality
+            return "§7";                    // Gray for low quality
         }
         
         /**

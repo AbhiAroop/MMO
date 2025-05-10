@@ -210,12 +210,58 @@ public class PlayerSkillTreeData {
         
         // Get all current nodes data
         Set<String> unlockedNodes = getUnlockedNodes(skillId);
-        Map<String, Integer> nodeLevels = getNodeLevels(skillId);
+        
+        // IMPORTANT: Create a deep copy of nodeLevels to prevent modification issues
+        Map<String, Integer> nodeLevels = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : getNodeLevels(skillId).entrySet()) {
+            nodeLevels.put(entry.getKey(), entry.getValue());
+        }
         
         // Debug log before resetting
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset tree " + skillId + 
                 ", nodes before: " + nodeLevels);
+        }
+
+        // Handle special cleanup BEFORE clearing nodes
+        Player player = findPlayerForSkillTree();
+        if (player != null) {
+            // Handle OreExtraction subskill
+            if (skillId.equals("ore_extraction")) {
+                try {
+                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) 
+                        SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+                        
+                    if (oreSkill != null) {
+                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Calling OreExtraction handleSkillTreeReset for player " + player.getName());
+                        oreSkill.handleSkillTreeReset(player, nodeLevels);
+                    } else {
+                        Main.getInstance().getLogger().warning("[PlayerSkillTreeData] OreExtractionSubskill not found");
+                    }
+                } catch (Exception e) {
+                    Main.getInstance().getLogger().severe("[PlayerSkillTreeData] Error handling OreExtraction reset: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            // Handle GemCarving subskill
+            else if (skillId.equals("gem_carving")) {
+                try {
+                    GemCarvingSubskill gemSkill = (GemCarvingSubskill) 
+                        SkillRegistry.getInstance().getSubskill(SubskillType.GEM_CARVING);
+                        
+                    if (gemSkill != null) {
+                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Calling GemCarving handleSkillTreeReset for player " + player.getName());
+                        gemSkill.handleSkillTreeReset(player, nodeLevels);
+                    } else {
+                        Main.getInstance().getLogger().warning("[PlayerSkillTreeData] GemCarvingSubskill not found");
+                    }
+                } catch (Exception e) {
+                    Main.getInstance().getLogger().severe("[PlayerSkillTreeData] Error handling GemCarving reset: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            Main.getInstance().getLogger().warning("[PlayerSkillTreeData] Player not found for skill tree reset");
         }
         
         // First: Ensure our permanent storage has the latest special node levels
@@ -254,7 +300,7 @@ public class PlayerSkillTreeData {
                 tokensRefunded += node.getTokenCost(i);
             }
         }
-        
+
         // Third: Completely clear the regular node storage
         if (unlockedNodeLevels.containsKey(skillId)) {
             unlockedNodeLevels.get(skillId).clear();
@@ -264,11 +310,6 @@ public class PlayerSkillTreeData {
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset tree " + skillId + 
                 ", nodes after reset (should be empty): " + getNodeLevels(skillId));
-            
-            if (skillId.equals("ore_extraction")) {
-                Main.getInstance().getLogger().info("[PlayerSkillTreeData] Permanent storage for mining_xp_boost: " + 
-                    getSpecialNodeLevel(skillId, "mining_xp_boost"));
-            }
         }
         
         // Add the refunded tokens

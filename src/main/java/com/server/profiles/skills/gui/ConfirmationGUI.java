@@ -1,7 +1,6 @@
 package com.server.profiles.skills.gui;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -259,31 +258,29 @@ public class ConfirmationGUI {
         
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         
-        // Store which nodes were unlocked before reset
-        Set<String> unlockedNodes = new HashSet<>(treeData.getUnlockedNodes(skillId));
+        // This is the key change: Call the actual resetSkillTree method that handles mining fortune removal
+        int actualTokensRefunded = treeData.resetSkillTree(skillId);
         
-        // Reset all unlocked nodes by actually removing them from the data structure
-        for (String nodeId : unlockedNodes) {
-            // Important: Actually remove the node from the unlocked nodes map
-            // Setting level to 0 wasn't properly unlocking in the PlayerSkillTreeData implementation
-            treeData.removeNode(skillId, nodeId);
+        // Log the tokens refunded for debugging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("[ConfirmationGUI] Reset skill tree " + skillId + 
+                " for player " + player.getName() + ", refunded " + actualTokensRefunded + " tokens" +
+                " (expected " + tokensToRefund + ")");
         }
-        
-        // Add refunded tokens
-        treeData.addTokens(skillId, tokensToRefund);
         
         // Notify the player
         player.sendMessage(ChatColor.GREEN + "Your " + ChatColor.GOLD + skill.getDisplayName() + 
                         ChatColor.GREEN + " skill tree has been reset.");
         player.sendMessage(ChatColor.GREEN + "You have been refunded " + ChatColor.YELLOW + 
-                        tokensToRefund + ChatColor.GREEN + " tokens.");
-        player.sendMessage(ChatColor.RED + "" + cost + " Premium Units" + ChatColor.GREEN + " have been deducted from your account.");
+                        actualTokensRefunded + ChatColor.GREEN + " tokens.");
+        player.sendMessage(ChatColor.RED + "" + cost + " Premium Units" + ChatColor.GREEN + 
+                        " have been deducted from your account.");
         
         // Play sound effect
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.6f);
         
         // Tag the player to indicate a reset was performed
-        player.setMetadata("skill_tree_reset", new FixedMetadataValue(Main.getInstance(), skillId + ":" + tokensToRefund));
+        player.setMetadata("skill_tree_reset", new FixedMetadataValue(Main.getInstance(), skillId + ":" + actualTokensRefunded));
         
         // Reopen the skill tree GUI with a brief delay to ensure the reset has fully processed
         Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {

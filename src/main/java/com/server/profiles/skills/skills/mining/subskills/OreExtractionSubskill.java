@@ -555,4 +555,93 @@ public class OreExtractionSubskill extends AbstractSkill {
         
         return false;
     }
+
+    /**
+     * Handle skill tree reset for a player
+     * This should be called when a player resets their skill tree
+     * 
+     * @param player The player who reset their skill tree
+     * @param oldNodeLevels The node levels before the reset
+     */
+    public void handleSkillTreeReset(Player player, Map<String, Integer> oldNodeLevels) {
+        Main.getInstance().getLogger().info("[OreExtractionReset] Starting reset process for player: " + player.getName());
+        
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) {
+            Main.getInstance().getLogger().warning("[OreExtractionReset] Failed: activeSlot is null for " + player.getName());
+            return;
+        }
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) {
+            Main.getInstance().getLogger().warning("[OreExtractionReset] Failed: profile is null for " + player.getName());
+            return;
+        }
+        
+        PlayerStats stats = profile.getStats();
+        
+        // Log all node levels for debugging
+        Main.getInstance().getLogger().info("[OreExtractionReset] Node levels before reset: " + oldNodeLevels);
+        
+        // Check if mining_fortune node was previously unlocked
+        if (oldNodeLevels.containsKey("mining_fortune")) {
+            int previousLevel = oldNodeLevels.get("mining_fortune");
+            Main.getInstance().getLogger().info("[OreExtractionReset] Found mining_fortune level: " + previousLevel);
+            
+            if (previousLevel <= 0) {
+                Main.getInstance().getLogger().info("[OreExtractionReset] Mining fortune level is 0 or negative, nothing to remove");
+                return;
+            }
+            
+            // Each level gives +0.5 mining fortune - calculate exactly how much was added
+            double fortuneToRemove = previousLevel * 0.5;
+            
+            // Current fortune values before removal
+            double oldDefaultFortune = stats.getDefaultMiningFortune();
+            double oldCurrentFortune = stats.getMiningFortune();
+            
+            Main.getInstance().getLogger().info("[OreExtractionReset] Current mining fortune: default=" + oldDefaultFortune + 
+                ", current=" + oldCurrentFortune + ", removing " + fortuneToRemove);
+            
+            try {
+                // Use reflection to directly access and modify the field values
+                // This ensures we remove exactly what we need to without relying on addMiningFortune which might have issues
+                java.lang.reflect.Field defaultField = PlayerStats.class.getDeclaredField("defaultMiningFortune");
+                defaultField.setAccessible(true);
+                double currentDefault = (double) defaultField.get(stats);
+                defaultField.set(stats, currentDefault - fortuneToRemove);
+                
+                java.lang.reflect.Field currentField = PlayerStats.class.getDeclaredField("miningFortune");
+                currentField.setAccessible(true);
+                double current = (double) currentField.get(stats);
+                currentField.set(stats, current - fortuneToRemove);
+                
+                // Verify the change
+                double newDefaultFortune = stats.getDefaultMiningFortune();
+                double newCurrentFortune = stats.getMiningFortune();
+                
+                Main.getInstance().getLogger().info("[OreExtractionReset] After modification: default=" + 
+                    newDefaultFortune + ", current=" + newCurrentFortune);
+                    
+                // Inform the player
+                player.sendMessage(ChatColor.GRAY + "Mining Fortune bonus of " + 
+                    ChatColor.RED + String.format("%.1f", fortuneToRemove) + 
+                    ChatColor.GRAY + " has been removed due to skill tree reset.");
+                
+                Main.getInstance().getLogger().info("[OreExtractionReset] Final mining fortune values: default=" + 
+                    stats.getDefaultMiningFortune() + ", current=" + stats.getMiningFortune());
+            } catch (Exception e) {
+                Main.getInstance().getLogger().severe("[OreExtractionReset] Error using reflection: " + e.getMessage());
+                e.printStackTrace();
+                
+                // Fallback to direct method
+                stats.increaseDefaultMiningFortune(-fortuneToRemove);
+                Main.getInstance().getLogger().info("[OreExtractionReset] Used fallback method, final values: default=" + 
+                    stats.getDefaultMiningFortune() + ", current=" + stats.getMiningFortune());
+            }
+        } else {
+            Main.getInstance().getLogger().info("[OreExtractionReset] No mining_fortune node found in oldNodeLevels for " + player.getName());
+        }
+    }
 }

@@ -24,9 +24,6 @@ import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.CurrencyReward;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
-import com.server.profiles.skills.trees.SkillTree;
-import com.server.profiles.skills.trees.SkillTreeNode;
-import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.PlayerStats;
 
 /**
@@ -266,31 +263,6 @@ public class GemCarvingSubskill extends AbstractSkill {
                 Main.getInstance().getLogger().info("Set GemCarving XP bonus to " + newLevel + " for " + player.getName());
             }
         }
-        
-        // Also ensure both nodes are marked as special for preservation during resets
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(getId());
-        if (tree != null) {
-            // Check XP boost node
-            SkillTreeNode node = tree.getNode("gemcarving_xp_boost");
-            if (node != null && !node.isSpecialNode()) {
-                node.setSpecialNode(true);
-                
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Marked gemcarving_xp_boost node as special for " + player.getName());
-                }
-            }
-            
-            // Also check mining fortune node
-            SkillTreeNode fortuneNode = tree.getNode("gem_mining_fortune");
-            if (fortuneNode != null && !fortuneNode.isSpecialNode()) {
-                fortuneNode.setSpecialNode(true);
-                
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Marked gem_mining_fortune node as special for " + player.getName());
-                }
-            }
-        }
     }
     
     /**
@@ -309,13 +281,13 @@ public class GemCarvingSubskill extends AbstractSkill {
      * @param quality The quality of the extracted gem (0-100)
      */
     public void awardExtractionXp(Player player, double baseXp, int quality) {
-        // Get player's benefits from skill tree
+        // Get player's benefits from skill tree - use the exact node level
         Map<String, Double> benefits = getSkillTreeBenefits(player);
         int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
         
         // Calculate final XP with bonus and quality factor
         double qualityFactor = 0.5 + (quality / 200.0); // 0.5 to 1.0 based on quality
-        double finalXp = (baseXp + bonusXp) * qualityFactor;
+        double finalXp = baseXp + (bonusXp * qualityFactor);  // Make sure the full bonus is applied
         
         // Award the XP
         SkillProgressionManager.getInstance().addExperience(player, this, finalXp);
@@ -394,11 +366,15 @@ public class GemCarvingSubskill extends AbstractSkill {
         
         // Apply benefits from nodes
         
-        // GemCarving XP Boost node - Each level gives +1 XP
+        // GemCarving XP Boost node - Each level gives +1 XP (FULL AMOUNT)
         if (nodeLevels.containsKey("gemcarving_xp_boost")) {
             int level = nodeLevels.get("gemcarving_xp_boost");
-            // Store the XP boost directly in the map
-            benefits.put("gem_carving_xp", (double)level); // +1 XP per level
+            
+            // IMPORTANT: Store the exact node level as a double with no scaling
+            benefits.put("gem_carving_xp", (double)level); // +1 XP per level (exact value)
+            
+            // Update the bonusXpMap for tracking
+            bonusXpMap.put(player.getUniqueId(), level);
             
             if (Main.getInstance().isDebugMode()) {
                 Main.getInstance().getLogger().info("Applied GemCarving XP boost of " + level + " XP for " + player.getName());
@@ -425,24 +401,20 @@ public class GemCarvingSubskill extends AbstractSkill {
                     
                     if (Main.getInstance().isDebugMode()) {
                         Main.getInstance().getLogger().info("Removed previous " + previouslyApplied + " mining fortune from " + 
-                            player.getName() + " (now " + stats.getMiningFortune() + ") before applying new value");
+                            player.getName());
                     }
                 }
                 
-                // Now apply the new value
-                stats.addMiningFortune(fortune);
-                
-                // Store the new value in our tracking map
-                miningFortuneMap.put(player.getUniqueId(), fortune);
-                
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Updated GemCarving mining fortune for " + player.getName() + 
-                        " from " + oldFortune + " to " + stats.getMiningFortune() + 
-                        " (node level: " + level + ", fortune bonus: " + fortune + ")");
+                // Now add the new value and update our tracking
+                if (fortune > 0) {
+                    stats.addMiningFortune(fortune);
+                    miningFortuneMap.put(player.getUniqueId(), fortune);
+                    
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("Added " + fortune + " mining fortune to " + player.getName() + 
+                            " (now " + stats.getMiningFortune() + ")");
+                    }
                 }
-            } else if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("GemCarving mining fortune already applied for " + player.getName() + 
-                    ": " + fortune + " (current fortune: " + stats.getMiningFortune() + ")");
             }
         }
         
@@ -482,6 +454,96 @@ public class GemCarvingSubskill extends AbstractSkill {
         
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("Cleaned up GemCarving player data for " + player.getName());
+        }
+    }
+
+    /**
+     * Handle skill tree reset for a player
+     * This should be called when a player resets their skill tree
+     * 
+     * @param player The player who reset their skill tree
+     * @param oldNodeLevels The node levels before the reset
+     */
+    public void handleSkillTreeReset(Player player, Map<String, Integer> oldNodeLevels) {
+        Main.getInstance().getLogger().info("[GemCarvingReset] Starting reset process for player: " + player.getName());
+        
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) {
+            Main.getInstance().getLogger().warning("[GemCarvingReset] Failed: activeSlot is null for " + player.getName());
+            return;
+        }
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) {
+            Main.getInstance().getLogger().warning("[GemCarvingReset] Failed: profile is null for " + player.getName());
+            return;
+        }
+        
+        PlayerStats stats = profile.getStats();
+        
+        // Log all node levels for debugging
+        Main.getInstance().getLogger().info("[GemCarvingReset] Node levels before reset: " + oldNodeLevels);
+        
+        // Check if gem_mining_fortune node was previously unlocked
+        if (oldNodeLevels.containsKey("gem_mining_fortune")) {
+            int previousLevel = oldNodeLevels.get("gem_mining_fortune");
+            Main.getInstance().getLogger().info("[GemCarvingReset] Found gem_mining_fortune level: " + previousLevel);
+            
+            if (previousLevel <= 0) {
+                Main.getInstance().getLogger().info("[GemCarvingReset] Mining fortune level is 0 or negative, nothing to remove");
+                return;
+            }
+            
+            // Each level gives +0.5 mining fortune
+            double fortuneToRemove = previousLevel * 0.5;
+            
+            // Get previously applied mining fortune from our tracking map
+            double previouslyApplied = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
+            
+            Main.getInstance().getLogger().info("[GemCarvingReset] Mining fortune to remove: " + fortuneToRemove + 
+                ", previously applied: " + previouslyApplied);
+            
+            // Reset tracking map first - very important
+            miningFortuneMap.put(player.getUniqueId(), 0.0);
+            
+            try {
+                // Use reflection to directly access and modify the field values
+                java.lang.reflect.Field defaultField = PlayerStats.class.getDeclaredField("defaultMiningFortune");
+                defaultField.setAccessible(true);
+                double currentDefault = (double) defaultField.get(stats);
+                defaultField.set(stats, currentDefault - fortuneToRemove);
+                
+                java.lang.reflect.Field currentField = PlayerStats.class.getDeclaredField("miningFortune");
+                currentField.setAccessible(true);
+                double current = (double) currentField.get(stats);
+                currentField.set(stats, current - fortuneToRemove);
+                
+                // Verify the change
+                double newDefaultFortune = stats.getDefaultMiningFortune();
+                double newCurrentFortune = stats.getMiningFortune();
+                
+                Main.getInstance().getLogger().info("[GemCarvingReset] After modification: default=" + 
+                    newDefaultFortune + ", current=" + newCurrentFortune);
+                    
+                // Inform the player
+                player.sendMessage(ChatColor.GRAY + "Mining Fortune bonus of " + 
+                    ChatColor.RED + String.format("%.1f", fortuneToRemove) + 
+                    ChatColor.GRAY + " has been removed due to skill tree reset.");
+                
+                Main.getInstance().getLogger().info("[GemCarvingReset] Final mining fortune values: default=" + 
+                    stats.getDefaultMiningFortune() + ", current=" + stats.getMiningFortune());
+            } catch (Exception e) {
+                Main.getInstance().getLogger().severe("[GemCarvingReset] Error using reflection: " + e.getMessage());
+                e.printStackTrace();
+                
+                // Fallback to removeExactMiningFortune method
+                stats.addMiningFortune(-fortuneToRemove);
+                Main.getInstance().getLogger().info("[GemCarvingReset] Used fallback method, final values: default=" + 
+                    stats.getDefaultMiningFortune() + ", current=" + stats.getMiningFortune());
+            }
+        } else {
+            Main.getInstance().getLogger().info("[GemCarvingReset] No gem_mining_fortune node found in oldNodeLevels for " + player.getName());
         }
     }
 
