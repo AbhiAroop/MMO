@@ -818,101 +818,91 @@ public class GemCarvingMinigame {
                 Location effectLoc = crystal.getLocation().clone().add(0, 1.0, 0);
                 
                 if (extractionSuccessful) {
-                    // Get skill tree benefits using the same pattern as OreExtractionSubskill
+                    // Get skill tree benefits
                     Map<String, Double> benefits = gemSkill.getSkillTreeBenefits(player);
-                    
-                    // Get the bonus XP from the skill tree - ensure we're using the full value
                     int bonusXp = (int)Math.round(benefits.getOrDefault("gem_carving_xp", 0.0));
                     double miningFortune = benefits.getOrDefault("mining_fortune", 0.0);
                     
-                    // Apply level bonus to base XP
-                    double levelBonus = 1.0 + (playerLevel / 100.0); // Up to 2x at level 100
-                    double finalBaseXp = baseXp * levelBonus * qualityMultiplier; // Apply quality multiplier to base XP
+                    // Calculate XP with bonuses
+                    double levelBonus = 1.0 + (playerLevel / 100.0); 
+                    double finalBaseXp = baseXp * levelBonus * qualityMultiplier;
                     double totalXp = finalBaseXp;
-                    
-                    // Calculate bonus XP if applicable
                     double bonusXpWithQuality = 0;
+                    
                     if (bonusXp > 0) {
-                        // Apply quality modifier to bonus XP - highlight that the bonus scales with quality
-                        double qualityBonusFactor = 0.5 + (quality / 200.0); // 0.5 to 1.0 based on quality
+                        double qualityBonusFactor = 0.5 + (quality / 200.0);
                         bonusXpWithQuality = bonusXp * qualityBonusFactor;
                         totalXp += bonusXpWithQuality;
                     }
                     
-                    // Award XP directly through the skill progression manager
+                    // Award XP
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, totalXp);
                     
-                    // Build a single consolidated XP message
-                    StringBuilder xpMessage = new StringBuilder("§7+");
-                    xpMessage.append(String.format("%.1f", totalXp)).append(" Gem Carving XP");
+                    // Quality descriptor for gems
+                    String qualityText;
+                    if (quality >= 90) qualityText = "§d§lexceptional §d";
+                    else if (quality >= 75) qualityText = "§b§lhigh-quality §b";
+                    else if (quality >= 50) qualityText = "§a§lquality §a";
+                    else qualityText = "§e";
                     
-                    // Add breakdown if there's a bonus
-                    if (bonusXpWithQuality > 0) {
-                        xpMessage.append(" §8(§7")
-                                .append(String.format("%.1f", finalBaseXp))
-                                .append(" base + ")
-                                .append(String.format("%.1f", bonusXpWithQuality))
-                                .append(" from expertise §3based on gem quality§8)");
-                    }
-                    
-                    // Send the consolidated XP message
-                    player.sendMessage(xpMessage.toString());
-                    
-                    // Award item (better quality based on skill and crystal quality)
-                    double gemQualityMultiplier = gemSkill.getGemQualityMultiplier(playerLevel);
-                    
-                    // Apply mining fortune bonus to the gem quality from skill tree
-                    if (miningFortune > 0) {
-                        gemQualityMultiplier += (miningFortune / 100.0);
-                        player.sendMessage("§7(+" + String.format("%.1f", miningFortune) + "% gem quality from Mining Fortune)");
-                    }
-                    
-                    // Check player's total mining fortune for drop quantity calculation
+                    // Calculate mining fortune drops
                     double totalMiningFortune = getMiningFortune(player);
                     double tierScalingFactor = calculateTierScalingFactor(tier);
+                    int fortuneGems = calculateMiningFortuneDrops(player, tier) - 1; // -1 for base drop
                     
-                    // Add information about mining fortune drops if the player has enough fortune
-                    if (totalMiningFortune >= 50 * tierScalingFactor) {
-                        player.sendMessage("§7Mining Fortune: " + String.format("%.1f", totalMiningFortune));
-                        player.sendMessage("§7Crystal tier scaling: §fx" + String.format("%.1f", tierScalingFactor));
-                        player.sendMessage("§7(§f" + (int)(100 * tierScalingFactor) + 
-                            " §7Mining Fortune needed per guaranteed extra gem)");
+                    // Generate consolidated success message with formatting
+                    StringBuilder message = new StringBuilder();
+                    message.append("\n§d✦ §a§lSUCCESSFUL EXTRACTION! §d✦\n");
+                    message.append("§fYou extracted a ").append(qualityText).append(quality).append("% §fgem from the ")
+                        .append(getTierChatColor()).append(getTierDisplayName()).append("\n");
+                    
+                    // Prepare item details
+                    double gemQualityMultiplier = gemSkill.getGemQualityMultiplier(playerLevel);
+                    if (miningFortune > 0) {
+                        gemQualityMultiplier += (miningFortune / 100.0);
                     }
                     
                     ItemStack reward = createGemReward(playerLevel, gemQualityMultiplier, tier);
-                    player.getInventory().addItem(reward);
                     
-                    // Show success message and effects with quality information
-                    player.sendMessage("§a§lSuccess! §aYou extracted a §b" + quality + "% quality §agem from the " + getTierDisplayName() + "!");
-                    if (quality >= 90) {
-                        player.sendMessage("§d§oThis is an exceptional quality gem!");
-                    } else if (quality >= 75) {
-                        player.sendMessage("§d§oThis is a high quality gem!");
-                    } else if (quality >= 50) {
-                        player.sendMessage("§7§oThis is a decent quality gem.");
+                    // Add fortune and XP details in one concise line
+                    message.append("§e⭐ §7Received: §f").append(reward.getAmount()).append("× ")
+                        .append(reward.getItemMeta().getDisplayName());
+                    
+                    if (fortuneGems > 0) {
+                        message.append(" §7(§a+").append(fortuneGems).append(" §7from Fortune)");
                     }
+                    
+                    message.append("\n§e✨ §7XP: §f+").append(String.format("%.1f", totalXp));
+                    
+                    if (bonusXpWithQuality > 0) {
+                        message.append(" §8[§7base: ").append(String.format("%.1f", finalBaseXp))
+                            .append(" §7+ boost: ").append(String.format("%.1f", bonusXpWithQuality)).append("§8]");
+                    }
+                    
+                    // Display the consolidated message
+                    player.sendMessage(message.toString());
+                    
+                    // Award the item
+                    player.getInventory().addItem(reward);
                     
                     // Create a success particle effect
                     for (int i = 0; i < 3; i++) {
-                        final int index = i; // For lambda
+                        final int index = i;
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            // Success particles with tier color
                             Color tierColor = tier.getParticleColor();
                             Color yellowColor = Color.YELLOW;
                             int r = (int)(tierColor.getRed() * 0.3 + yellowColor.getRed() * 0.7);
                             int g = (int)(tierColor.getGreen() * 0.3 + yellowColor.getGreen() * 0.7);
                             int b = (int)(tierColor.getBlue() * 0.3 + yellowColor.getBlue() * 0.7);
+                            
                             Particle.DustOptions tierSuccessParticle = new Particle.DustOptions(
-                                    Color.fromRGB(r, g, b),
-                                    1.5f);
+                                    Color.fromRGB(r, g, b), 1.5f);
                             
                             crystal.getWorld().spawnParticle(Particle.DUST, 
                                     effectLoc, 30, 0.5, 0.5, 0.5, 0, tierSuccessParticle);
-                            
                             crystal.getWorld().spawnParticle(Particle.WITCH, 
                                     effectLoc, 20, 0.5, 0.5, 0.5, 0.05);
                             
-                            // Add different sound for each burst
                             float pitch = 1.0f + (index * 0.2f);
                             player.playSound(effectLoc, Sound.BLOCK_AMETHYST_BLOCK_BREAK, 1.0f, pitch);
                         }, i * 5L);
@@ -920,40 +910,40 @@ public class GemCarvingMinigame {
                     
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.2f);
                 } else {
-                    // Extraction failed - Use similar consolidated XP message format
-                    player.sendMessage("§c§lAlmost! §cThe gem cracked during extraction.");
+                    // Create consolidated failure message
+                    StringBuilder failMessage = new StringBuilder();
+                    failMessage.append("\n§c✖ §c§lEXTRACTION FAILED! §c✖");
+                    failMessage.append("\n§7The gem cracked during the extraction process.");
                     
-                    // For higher tiers, explain the difficulty
                     if (tier.getExtraDifficulty() > 0.1) {
-                        player.sendMessage("§7This " + getTierDisplayName() + 
-                                " is challenging to carve. (+" + 
-                                String.format("%.0f", tier.getExtraDifficulty() * 100) + 
-                                "% difficulty)");
+                        failMessage.append(" This ").append(getTierChatColor()).append(getTierDisplayName())
+                                .append(" §7is ").append(getDifficultyLabel().toLowerCase()).append(" §7to carve (")
+                                .append(String.format("+%.0f", tier.getExtraDifficulty() * 100)).append("% difficulty)");
                     }
                     
-                    player.sendMessage("§7(Increase your Gem Carving level for better success rate)");
-                    
-                    // Award partial XP for the attempt - higher for more difficult crystals
-                    double partialXpPercent = 0.3 + (tier.getExtraDifficulty() * 0.2); // 30-50% based on difficulty
+                    // Calculate partial XP
+                    double partialXpPercent = 0.3 + (tier.getExtraDifficulty() * 0.2);
                     double partialXp = baseXp * qualityMultiplier * partialXpPercent;
                     
-                    // For failed attempts, don't add bonus XP from skill tree
+                    // Award partial XP
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, partialXp);
                     
-                    player.sendMessage("§7+" + String.format("%.1f", partialXp) + " Gem Carving XP (partial reward based on quality)");
+                    // Add XP info to the message
+                    failMessage.append("\n§7XP: §f+").append(String.format("%.1f", partialXp))
+                            .append(" §8(partial reward)");
                     
-                    // Mix the tier color with red for failure
+                    player.sendMessage(failMessage.toString());
+                    
+                    // Failure particles and effects
                     Color tierColor = tier.getParticleColor();
                     Color redColor = Color.RED;
                     
-                    // Manual color blending for 30% tier color, 70% red
                     int r = (int)(tierColor.getRed() * 0.3 + redColor.getRed() * 0.7);
                     int g = (int)(tierColor.getGreen() * 0.3 + redColor.getGreen() * 0.7);
                     int b = (int)(tierColor.getBlue() * 0.3 + redColor.getBlue() * 0.7);
                     
                     Particle.DustOptions tierFailParticle = new Particle.DustOptions(
-                            Color.fromRGB(r, g, b),
-                            1.0f);
+                            Color.fromRGB(r, g, b), 1.0f);
                     
                     crystal.getWorld().spawnParticle(Particle.DUST, 
                             effectLoc, 20, 0.5, 0.5, 0.5, 0, tierFailParticle);
@@ -1042,16 +1032,12 @@ public class GemCarvingMinigame {
             double miningFortune = getMiningFortune(player);
             
             // Calculate tier-based scaling factor for mining fortune requirement
-            // Higher tier crystals require more mining fortune for the same drop chance
             double tierScalingFactor = calculateTierScalingFactor(tier);
             
-            // Calculate guaranteed additional drops (integer division)
-            // For tier 1: 1 additional drop per 100 mining fortune
-            // For higher tiers: scaled accordingly (e.g., tier 8 requires 1000 mining fortune)
+            // Calculate guaranteed additional drops
             int guaranteedExtra = (int)(miningFortune / (100 * tierScalingFactor));
             
             // Calculate chance for one more drop beyond the guaranteed ones
-            // Remaining mining fortune provides proportional chance
             double remainingFortune = miningFortune % (100 * tierScalingFactor);
             double chanceForOneMore = remainingFortune / (100 * tierScalingFactor);
             
@@ -1062,29 +1048,18 @@ public class GemCarvingMinigame {
             quantity += guaranteedExtra;
             
             // Check for chance-based additional drop
+            boolean gotLuckyDrop = false;
             if (random.nextDouble() < chanceForOneMore) {
                 quantity++;
+                gotLuckyDrop = true;
             }
             
-            // Log if the player got additional drops
-            if (guaranteedExtra > 0 || chanceForOneMore > 0) {
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("[GemCarvingMinigame] Player " + player.getName() + 
-                        " with " + miningFortune + " mining fortune got " + quantity + " gems " +
-                        "(guaranteed: " + guaranteedExtra + ", chance for one more: " + 
-                        String.format("%.2f", chanceForOneMore * 100) + "%)");
-                }
-                
-                // Notify player about mining fortune bonus
-                if (guaranteedExtra > 0) {
-                    player.sendMessage("§7Mining Fortune bonus: §a+" + guaranteedExtra + 
-                        " §7guaranteed " + (guaranteedExtra == 1 ? "gem" : "gems"));
-                }
-                
-                if (random.nextDouble() < chanceForOneMore) {
-                    player.sendMessage("§7Mining Fortune chance bonus: §a+1 §7additional gem " +
-                        "(" + String.format("%.1f", chanceForOneMore * 100) + "% chance)");
-                }
+            // Log for debugging
+            if (Main.getInstance().isDebugMode() && (guaranteedExtra > 0 || chanceForOneMore > 0)) {
+                Main.getInstance().getLogger().info("[GemCarvingMinigame] Player " + player.getName() + 
+                    " with " + miningFortune + " mining fortune got " + quantity + " gems " +
+                    "(guaranteed: " + guaranteedExtra + ", chance for one more: " + 
+                    String.format("%.2f", chanceForOneMore * 100) + "%)");
             }
             
             return Math.max(1, quantity);
