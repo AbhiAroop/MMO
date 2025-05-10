@@ -40,8 +40,10 @@ import com.server.profiles.stats.PlayerStats;
 public class OreExtractionSubskill extends AbstractSkill {
     
     private static final Map<Integer, Double> XP_REQUIREMENTS = new HashMap<>();
-    private static final List<Integer> MILESTONE_LEVELS = Arrays.asList(10, 25, 50, 75, 100);
-    
+    private static final List<Integer> MILESTONE_LEVELS = Arrays.asList(
+        5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+    );
+        
     // Materials that benefit from this skill
     private static final List<Material> AFFECTED_MATERIALS = Arrays.asList(
         Material.COAL_ORE, Material.DEEPSLATE_COAL_ORE,

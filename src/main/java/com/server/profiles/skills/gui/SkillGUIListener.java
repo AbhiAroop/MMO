@@ -330,7 +330,10 @@ public class SkillGUIListener implements Listener {
         String title = player.getOpenInventory().getTitle();
         
         // Only process the back button in the rewards GUI
-        if (displayName.equals(ChatColor.RED + "Back to Skill Details")) {
+        // Check for both exact match and contains to be more resilient
+        if (displayName.equals(ChatColor.RED + "« Back to Skill Details") || 
+            (displayName.contains("Back to Skill Details") && displayName.startsWith(ChatColor.RED.toString()))) {
+            
             if (title.startsWith("Rewards: ")) {
                 // Extract skill name from GUI title
                 String skillName = title.substring("Rewards: ".length());

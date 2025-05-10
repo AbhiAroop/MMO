@@ -62,7 +62,7 @@ public class ItemReward extends SkillReward {
                 return null;
         }
     }
-    
+
     /**
      * Format an item ID for display
      */
@@ -72,6 +72,10 @@ public class ItemReward extends SkillReward {
                 return "Apprentice's Edge";
             case "emberwood_staff":
                 return "Emberwood Staff";
+            case "miners_toolkit":
+                return "Miner's Toolkit";
+            case "masterful_pickaxe":
+                return "Masterful Pickaxe";
             // Add more items here as needed
             default:
                 return capitalizeWords(itemId.replace('_', ' '));

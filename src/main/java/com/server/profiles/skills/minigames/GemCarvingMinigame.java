@@ -30,10 +30,13 @@ import org.bukkit.util.Vector;
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.display.SkillActionBarManager;
+import com.server.profiles.skills.events.SkillExpGainEvent;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.utils.NamespacedKeyUtils;
 
@@ -798,6 +801,11 @@ public class GemCarvingMinigame {
             
             // Get the GemCarving skill
             GemCarvingSubskill gemSkill = (GemCarvingSubskill) SkillRegistry.getInstance().getSkill(SubskillType.GEM_CARVING.getId());
+
+            // Initialize XP variables that will be used later for the action bar
+            double totalXp = 0;
+            double partialXp = 0;
+            boolean extractionSuccessful = false;
             
             if (gemSkill != null) {
                 // Calculate XP based on crystal quality and tier
@@ -812,7 +820,7 @@ public class GemCarvingMinigame {
                 extractionSuccess = Math.max(0.05, extractionSuccess); // Minimum 5% chance
                 
                 // Determine if extraction was successful based on player skill and crystal difficulty
-                boolean extractionSuccessful = random.nextDouble() < extractionSuccess;
+                extractionSuccessful = random.nextDouble() < extractionSuccess;
                 
                 // Create a location for effects - used in both success and failure paths
                 Location effectLoc = crystal.getLocation().clone().add(0, 1.0, 0);
@@ -826,7 +834,7 @@ public class GemCarvingMinigame {
                     // Calculate XP with bonuses
                     double levelBonus = 1.0 + (playerLevel / 100.0); 
                     double finalBaseXp = baseXp * levelBonus * qualityMultiplier;
-                    double totalXp = finalBaseXp;
+                    totalXp = finalBaseXp;
                     double bonusXpWithQuality = 0;
                     
                     if (bonusXp > 0) {
@@ -910,6 +918,11 @@ public class GemCarvingMinigame {
                     
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.2f);
                 } else {
+                    
+                    // Calculate partial XP
+                    double partialXpPercent = 0.3 + (tier.getExtraDifficulty() * 0.2);
+                    partialXp = baseXp * qualityMultiplier * partialXpPercent;
+
                     // Create consolidated failure message
                     StringBuilder failMessage = new StringBuilder();
                     failMessage.append("\n§c✖ §c§lEXTRACTION FAILED! §c✖");
@@ -920,10 +933,6 @@ public class GemCarvingMinigame {
                                 .append(" §7is ").append(getDifficultyLabel().toLowerCase()).append(" §7to carve (")
                                 .append(String.format("+%.0f", tier.getExtraDifficulty() * 100)).append("% difficulty)");
                     }
-                    
-                    // Calculate partial XP
-                    double partialXpPercent = 0.3 + (tier.getExtraDifficulty() * 0.2);
-                    double partialXp = baseXp * qualityMultiplier * partialXpPercent;
                     
                     // Award partial XP
                     SkillProgressionManager.getInstance().addExperience(player, gemSkill, partialXp);
@@ -958,6 +967,38 @@ public class GemCarvingMinigame {
             
             // End the game
             endGame(true);
+            
+            // Final XP amount to show in action bar
+            final double finalXpGained = extractionSuccessful ? totalXp : partialXp;
+            final boolean finalExtractionSuccessful = extractionSuccessful;
+            
+            // IMPORTANT: Force the action bar to show the skill progress for 3 seconds (60 ticks)
+            // This ensures the skill XP bar is visible after the minigame ends, regardless of success or failure
+            SkillLevel level = SkillRegistry.getInstance().getSkill(SubskillType.GEM_CARVING.getId()).getSkillLevel(player);
+            
+            // Clear any existing custom action bar first
+            SkillActionBarManager.getInstance().clearCustomActionBar(player);
+            
+            // Force the skillActionBarManager to show the gem carving skill status for 3 seconds
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Only proceed if player is still online
+                if (player.isOnline()) {
+                    // Get fresh skill data
+                    Skill gemCarvingSkill = SkillRegistry.getInstance().getSkill(SubskillType.GEM_CARVING.getId());
+                    
+                    // Show the actual XP gained in the action bar
+                    SkillActionBarManager.getInstance().handleSkillXpGain(
+                        new SkillExpGainEvent(player, gemCarvingSkill, finalXpGained)
+                    );
+                    
+                    // Debug log
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("Showing GemCarving action bar with " + 
+                            String.format("%.1f", finalXpGained) + " XP for " + player.getName() + 
+                            " (Extraction " + (finalExtractionSuccessful ? "successful" : "failed") + ")");
+                    }
+                }
+            }, 5L); // Short delay to ensure message appears after the minigame ends
         }
         
         /**
@@ -1145,8 +1186,9 @@ public class GemCarvingMinigame {
                 actionBarTask = null;
             }
             
-            // Clear the custom action bar to restore normal functionality
-            SkillActionBarManager.getInstance().clearCustomActionBar(player);
+            // DON'T clear the custom action bar here anymore
+            // Let completeGame() handle this with proper timing for the skill display
+            // SkillActionBarManager.getInstance().clearCustomActionBar(player);
             
             // Remove from active sessions
             activeSessions.remove(player.getUniqueId());
@@ -1161,7 +1203,7 @@ public class GemCarvingMinigame {
                 player.sendMessage("§8This crystal needs " + cooldownSeconds + " seconds to recover before another attempt.");
             }
         }
-        
+                
         /**
          * Create a visual progress bar
          */

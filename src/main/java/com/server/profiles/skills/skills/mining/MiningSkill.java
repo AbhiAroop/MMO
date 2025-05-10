@@ -12,6 +12,7 @@ import com.server.profiles.skills.core.SkillType;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.CurrencyReward;
+import com.server.profiles.skills.rewards.rewards.ItemReward;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
@@ -22,7 +23,7 @@ import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 public class MiningSkill extends AbstractSkill {
     
     private static final Map<Integer, Double> XP_REQUIREMENTS = new HashMap<>();
-    private static final List<Integer> MILESTONE_LEVELS = Arrays.asList(10, 25, 50);
+    private static final List<Integer> MILESTONE_LEVELS = Arrays.asList(5, 10, 15, 20, 25, 30, 35, 40, 45, 50);
     
     // Cache for rewards by level
     private final Map<Integer, List<SkillReward>> rewardsByLevel = new HashMap<>();
@@ -63,13 +64,11 @@ public class MiningSkill extends AbstractSkill {
         // addSubskill(new StoneBreakerSubskill(this));
     }
     
+    /**
+     * Initialize the rewards for each level
+     */
     private void initializeRewards() {
-        // Level 1: Mining Fortune +0.10
-        List<SkillReward> level1Rewards = new ArrayList<>();
-        level1Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.10));
-        rewardsByLevel.put(1, level1Rewards);
-        
-        // Level 5: Mining Fortune +0.20, Currency +100
+        // Level 5: Mining Fortune +0.20, Currency +100 (Milestone level)
         List<SkillReward> level5Rewards = new ArrayList<>();
         level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.20));
         level5Rewards.add(new CurrencyReward(100));
@@ -81,16 +80,50 @@ public class MiningSkill extends AbstractSkill {
         level10Rewards.add(new StatReward(SkillRewardType.LUCK, 1));
         rewardsByLevel.put(10, level10Rewards);
         
+        // Level 15: Mining Fortune +0.25 (Milestone level)
+        List<SkillReward> level15Rewards = new ArrayList<>();
+        level15Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.25));
+        rewardsByLevel.put(15, level15Rewards);
+        
+        // Level 20: Mining Fortune +0.30, Currency +250 (Milestone level)
+        List<SkillReward> level20Rewards = new ArrayList<>();
+        level20Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.30));
+        level20Rewards.add(new CurrencyReward(250));
+        rewardsByLevel.put(20, level20Rewards);
+        
         // Level 25: Mining Fortune +0.50, Currency +500 (Milestone level)
         List<SkillReward> level25Rewards = new ArrayList<>();
         level25Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.50));
         level25Rewards.add(new CurrencyReward(500));
+        level25Rewards.add(new ItemReward("miners_toolkit", 1));
         rewardsByLevel.put(25, level25Rewards);
+        
+        // Level 30: Mining Fortune +0.35 (Milestone level)
+        List<SkillReward> level30Rewards = new ArrayList<>();
+        level30Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.35));
+        rewardsByLevel.put(30, level30Rewards);
+        
+        // Level 35: Mining Fortune +0.40 (Milestone level)
+        List<SkillReward> level35Rewards = new ArrayList<>();
+        level35Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.40));
+        rewardsByLevel.put(35, level35Rewards);
+        
+        // Level 40: Mining Fortune +0.45, Currency +750 (Milestone level)
+        List<SkillReward> level40Rewards = new ArrayList<>();
+        level40Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.45));
+        level40Rewards.add(new CurrencyReward(750));
+        rewardsByLevel.put(40, level40Rewards);
+        
+        // Level 45: Mining Fortune +0.50 (Milestone level)
+        List<SkillReward> level45Rewards = new ArrayList<>();
+        level45Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.50));
+        rewardsByLevel.put(45, level45Rewards);
         
         // Level 50: Mining Fortune +1.00, Currency +1000 (Milestone level - max level)
         List<SkillReward> level50Rewards = new ArrayList<>();
         level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 1.00));
         level50Rewards.add(new CurrencyReward(1000));
+        level50Rewards.add(new ItemReward("masterful_pickaxe", 1));
         rewardsByLevel.put(50, level50Rewards);
     }
     

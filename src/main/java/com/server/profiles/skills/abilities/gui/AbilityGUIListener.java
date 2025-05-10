@@ -334,9 +334,9 @@ public class AbilityGUIListener implements Listener {
         String title = player.getOpenInventory().getTitle();
         String displayName = clickedItem.getItemMeta().getDisplayName();
         
-        // Handle passive abilities button
+        // Handle passive abilities button - FIXED to match the actual button name with "✦" symbol
         if (clickedItem.getType() == Material.REDSTONE_TORCH && 
-            displayName.equals(ChatColor.GOLD + "Passive Abilities")) {
+            (displayName.equals(ChatColor.GOLD + "✦ Passive Abilities") || displayName.equals(ChatColor.GOLD + "Passive Abilities"))) {
             
             // Extract skill ID from lore
             String skillId = extractValueFromLore(clickedItem, "SKILL:");
@@ -367,9 +367,9 @@ public class AbilityGUIListener implements Listener {
             return;
         }
         
-        // Handle active abilities button
+        // Handle active abilities button - FIXED to match the actual button name with "✦" symbol
         else if (clickedItem.getType() == Material.BLAZE_POWDER && 
-                displayName.equals(ChatColor.GOLD + "Active Abilities")) {
+                (displayName.equals(ChatColor.GOLD + "✦ Active Abilities") || displayName.equals(ChatColor.GOLD + "Active Abilities"))) {
             
             // Extract skill ID from lore
             String skillId = extractValueFromLore(clickedItem, "SKILL:");
@@ -401,9 +401,10 @@ public class AbilityGUIListener implements Listener {
             return;
         }
         
-        // Handle back button
+        // Handle back button - FIXED to match the actual button name with "«" symbol
         else if (clickedItem.getType() == Material.ARROW && 
-                displayName.equals(ChatColor.RED + "Back to Skill Details")) {
+                (displayName.equals(ChatColor.RED + "« Back to Skill Details") || 
+                displayName.equals(ChatColor.RED + "Back to Skill Details"))) {
             player.closeInventory();
             
             // Get skill ID from button lore
@@ -434,6 +435,14 @@ public class AbilityGUIListener implements Listener {
                 com.server.profiles.skills.gui.SkillsGUI.openSkillsMenu(player);
             }, 1L);
         }
+        
+        // Handle help/tips button
+        else if (clickedItem.getType() == Material.BOOK && 
+                displayName.contains("About Abilities")) {
+            // Just display a tooltip or do nothing - it's informational
+            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.2f);
+            return;
+        }
     }
 
     /**
@@ -460,21 +469,35 @@ public class AbilityGUIListener implements Listener {
         String abilityId = extractValueFromLore(clickedItem, "ABILITY:");
         if (abilityId == null) {
             // Handle other types of clicks
-            String toggleShowAll = extractValueFromLore(clickedItem, "TOGGLE_SHOW_ALL:");
-            if (toggleShowAll != null) {
-                String skillId = extractValueFromLore(clickedItem, "SKILL:");
-                String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
+            
+            // Check for additional toggle buttons
+            if (clickedItem.getType() == Material.MAP || 
+                clickedItem.getType() == Material.HOPPER ||
+                clickedItem.getType() == Material.CHEST || 
+                clickedItem.getType() == Material.ENDER_CHEST) {
                 
-                if (skillId != null && abilityType != null) {
-                    boolean showAll = Boolean.parseBoolean(toggleShowAll);
-                    AbilityListGUI.openAbilityList(player, skillId, abilityType, showAll);
+                String toggleShowAll = extractValueFromLore(clickedItem, "TOGGLE_SHOW_ALL:");
+                if (toggleShowAll != null) {
+                    String skillId = extractValueFromLore(clickedItem, "SKILL:");
+                    String abilityType = extractValueFromLore(clickedItem, "ABILITY_TYPE:");
+                    
+                    if (skillId != null && abilityType != null) {
+                        boolean showAll = Boolean.parseBoolean(toggleShowAll);
+                        player.closeInventory();
+                        
+                        // Use scheduler to prevent glitches
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            AbilityListGUI.openAbilityList(player, skillId, abilityType, showAll);
+                        }, 1L);
+                    }
+                    return;
                 }
-                return;
             }
             
-            // Handle back button
+            // Handle back button - account for both formats with and without fancy characters
             if (clickedItem.getType() == Material.ARROW && 
-                clickedItem.getItemMeta().getDisplayName().equals(ChatColor.RED + "Back to Abilities")) {
+                (clickedItem.getItemMeta().getDisplayName().equals(ChatColor.RED + "Back to Abilities") ||
+                clickedItem.getItemMeta().getDisplayName().equals(ChatColor.RED + "« Back to Abilities"))) {
                 player.closeInventory();
                 
                 // Extract skill ID from lore
@@ -496,6 +519,13 @@ public class AbilityGUIListener implements Listener {
                 }
                 return;
             }
+            
+            // Handle the help button
+            if (clickedItem.getType() == Material.KNOWLEDGE_BOOK) {
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.0f);
+                return; // Just show the tooltip info
+            }
+            
             return;
         }
         
