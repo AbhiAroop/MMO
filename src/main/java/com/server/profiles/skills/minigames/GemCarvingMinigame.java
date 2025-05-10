@@ -13,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import static org.bukkit.Material.EMERALD;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
@@ -27,6 +28,8 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
@@ -834,12 +837,6 @@ public class GemCarvingMinigame {
                         double qualityBonusFactor = 0.5 + (quality / 200.0); // 0.5 to 1.0 based on quality
                         bonusXpWithQuality = bonusXp * qualityBonusFactor;
                         totalXp += bonusXpWithQuality;
-                        
-                        if (Main.getInstance().isDebugMode()) {
-                            Main.getInstance().getLogger().info("[GemCarvingMinigame] Bonus XP calculation: " + 
-                                bonusXp + " × " + String.format("%.3f", qualityBonusFactor) + 
-                                " (quality factor) = " + String.format("%.1f", bonusXpWithQuality));
-                        }
                     }
                     
                     // Award XP directly through the skill progression manager
@@ -868,6 +865,18 @@ public class GemCarvingMinigame {
                     if (miningFortune > 0) {
                         gemQualityMultiplier += (miningFortune / 100.0);
                         player.sendMessage("§7(+" + String.format("%.1f", miningFortune) + "% gem quality from Mining Fortune)");
+                    }
+                    
+                    // Check player's total mining fortune for drop quantity calculation
+                    double totalMiningFortune = getMiningFortune(player);
+                    double tierScalingFactor = calculateTierScalingFactor(tier);
+                    
+                    // Add information about mining fortune drops if the player has enough fortune
+                    if (totalMiningFortune >= 50 * tierScalingFactor) {
+                        player.sendMessage("§7Mining Fortune: " + String.format("%.1f", totalMiningFortune));
+                        player.sendMessage("§7Crystal tier scaling: §fx" + String.format("%.1f", tierScalingFactor));
+                        player.sendMessage("§7(§f" + (int)(100 * tierScalingFactor) + 
+                            " §7Mining Fortune needed per guaranteed extra gem)");
                     }
                     
                     ItemStack reward = createGemReward(playerLevel, gemQualityMultiplier, tier);
@@ -979,7 +988,7 @@ public class GemCarvingMinigame {
                 }
                 
                 // Rare gems
-                Material[] rareGems = {Material.DIAMOND, Material.EMERALD};
+                Material[] rareGems = {Material.DIAMOND, EMERALD};
                 gemMaterial = rareGems[random.nextInt(rareGems.length)];
             } else {
                 // Common gems
@@ -1013,17 +1022,110 @@ public class GemCarvingMinigame {
             
             gem.setItemMeta(meta);
             
-            // Calculate quantity based on quality multiplier and tier
-            int quantity = 1;
-            double quantityChance = 0.1 * ((tier.getBaseXp() / 100.0) - 0.5); // Negative for low tiers
-            
-            if (qualityMultiplier > 1.5 && random.nextDouble() < (0.3 + quantityChance)) {
-                quantity = 1 + random.nextInt(2 + (int)(tier.getBaseXp() / 100.0));
-            }
+            // Calculate quantity based on mining fortune
+            int quantity = calculateMiningFortuneDrops(player, tier);
             
             gem.setAmount(quantity);
             
             return gem;
+        }
+
+        /**
+         * Calculate additional drops based on player's mining fortune and crystal tier
+         * 
+         * @param player The player extracting the gem
+         * @param tier The crystal tier being extracted
+         * @return The total amount of gems to drop (at least 1)
+         */
+        private int calculateMiningFortuneDrops(Player player, CrystalTier tier) {
+            // Get the player's mining fortune stat
+            double miningFortune = getMiningFortune(player);
+            
+            // Calculate tier-based scaling factor for mining fortune requirement
+            // Higher tier crystals require more mining fortune for the same drop chance
+            double tierScalingFactor = calculateTierScalingFactor(tier);
+            
+            // Calculate guaranteed additional drops (integer division)
+            // For tier 1: 1 additional drop per 100 mining fortune
+            // For higher tiers: scaled accordingly (e.g., tier 8 requires 1000 mining fortune)
+            int guaranteedExtra = (int)(miningFortune / (100 * tierScalingFactor));
+            
+            // Calculate chance for one more drop beyond the guaranteed ones
+            // Remaining mining fortune provides proportional chance
+            double remainingFortune = miningFortune % (100 * tierScalingFactor);
+            double chanceForOneMore = remainingFortune / (100 * tierScalingFactor);
+            
+            // Base quantity is always 1
+            int quantity = 1;
+            
+            // Add guaranteed extra drops from mining fortune
+            quantity += guaranteedExtra;
+            
+            // Check for chance-based additional drop
+            if (random.nextDouble() < chanceForOneMore) {
+                quantity++;
+            }
+            
+            // Log if the player got additional drops
+            if (guaranteedExtra > 0 || chanceForOneMore > 0) {
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("[GemCarvingMinigame] Player " + player.getName() + 
+                        " with " + miningFortune + " mining fortune got " + quantity + " gems " +
+                        "(guaranteed: " + guaranteedExtra + ", chance for one more: " + 
+                        String.format("%.2f", chanceForOneMore * 100) + "%)");
+                }
+                
+                // Notify player about mining fortune bonus
+                if (guaranteedExtra > 0) {
+                    player.sendMessage("§7Mining Fortune bonus: §a+" + guaranteedExtra + 
+                        " §7guaranteed " + (guaranteedExtra == 1 ? "gem" : "gems"));
+                }
+                
+                if (random.nextDouble() < chanceForOneMore) {
+                    player.sendMessage("§7Mining Fortune chance bonus: §a+1 §7additional gem " +
+                        "(" + String.format("%.1f", chanceForOneMore * 100) + "% chance)");
+                }
+            }
+            
+            return Math.max(1, quantity);
+        }
+
+        /**
+         * Calculate the scaling factor for mining fortune requirements based on tier
+         * 
+         * @param tier The crystal tier
+         * @return The scaling factor (1.0 for lowest tier, up to 10.0 for highest)
+         */
+        private double calculateTierScalingFactor(CrystalTier tier) {
+            // Get the base XP value of the tier (higher tiers have higher base XP)
+            double tierBaseXp = tier.getBaseXp();
+            double baseXp = CRYSTAL_TIERS.get("mooncrystal").getBaseXp(); // The baseline
+            
+            // Calculate tier progression factor (1.0 for mooncrystal, increases for higher tiers)
+            double tierFactor = tierBaseXp / baseXp;
+            
+            // Scale from 1.0 for lowest tier up to 10.0 for highest tier
+            // Use log scale to make early tiers less steep
+            double scalingFactor = 1.0 + 9.0 * Math.log10(tierFactor) / Math.log10(5.0);
+            
+            // Clamp to reasonable values (1.0 to 10.0)
+            return Math.max(1.0, Math.min(10.0, scalingFactor));
+        }
+
+        /**
+         * Get the player's mining fortune stat
+         * 
+         * @param player The player to check
+         * @return The player's mining fortune value
+         */
+        private double getMiningFortune(Player player) {
+            Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+            if (activeSlot == null) return 0;
+            
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile == null) return 0;
+            
+            return profile.getStats().getMiningFortune();
         }
 
         /**
