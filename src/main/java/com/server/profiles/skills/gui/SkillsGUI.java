@@ -23,14 +23,14 @@ import com.server.profiles.skills.data.SkillLevel;
  */
 public class SkillsGUI {
 
-    private static final String GUI_TITLE = "Skills";
+    private static final String GUI_TITLE = "✦ Skills Menu ✦";
     
     /**
      * Open the skills menu for a player
      */
     public static void openSkillsMenu(Player player) {
-        // Create inventory
-        Inventory gui = Bukkit.createInventory(null, 36, GUI_TITLE);
+        // Create inventory with improved size (45 slots for better layout)
+        Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -42,78 +42,78 @@ public class SkillsGUI {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Add mining skill
+        // Create fancy border for the top
+        createBorder(gui);
+        
+        // Display skills in a circular pattern around the center
+        
+        // Mining skill (top left)
         Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
         if (miningSkill != null) {
             SkillLevel miningLevel = profile.getSkillData().getSkillLevel(miningSkill);
-            ItemStack miningItem = createSkillItem(player, profile, miningSkill, miningLevel, Material.IRON_PICKAXE);
-            gui.setItem(10, miningItem);
+            ItemStack miningItem = createSkillItem(player, profile, miningSkill, miningLevel, Material.DIAMOND_PICKAXE);
+            gui.setItem(11, miningItem);
         }
         
-        // Add excavating skill
+        // Excavating skill (top right)
         Skill excavatingSkill = SkillRegistry.getInstance().getSkill(SkillType.EXCAVATING);
         if (excavatingSkill != null) {
             SkillLevel excavatingLevel = profile.getSkillData().getSkillLevel(excavatingSkill);
-            ItemStack excavatingItem = createSkillItem(player, profile, excavatingSkill, excavatingLevel, Material.IRON_SHOVEL);
-            gui.setItem(12, excavatingItem);
+            ItemStack excavatingItem = createSkillItem(player, profile, excavatingSkill, excavatingLevel, Material.DIAMOND_SHOVEL);
+            gui.setItem(15, excavatingItem);
         }
         
-        // Add fishing skill
+        // Fishing skill (middle left)
         Skill fishingSkill = SkillRegistry.getInstance().getSkill(SkillType.FISHING);
         if (fishingSkill != null) {
             SkillLevel fishingLevel = profile.getSkillData().getSkillLevel(fishingSkill);
             ItemStack fishingItem = createSkillItem(player, profile, fishingSkill, fishingLevel, Material.FISHING_ROD);
-            gui.setItem(14, fishingItem);
+            gui.setItem(20, fishingItem);
         }
         
-        // Add farming skill
+        // Farming skill (middle right)
         Skill farmingSkill = SkillRegistry.getInstance().getSkill(SkillType.FARMING);
         if (farmingSkill != null) {
             SkillLevel farmingLevel = profile.getSkillData().getSkillLevel(farmingSkill);
-            ItemStack farmingItem = createSkillItem(player, profile, farmingSkill, farmingLevel, Material.IRON_HOE);
-            gui.setItem(16, farmingItem);
+            ItemStack farmingItem = createSkillItem(player, profile, farmingSkill, farmingLevel, Material.DIAMOND_HOE);
+            gui.setItem(24, farmingItem);
         }
         
-        // Add combat skill
+        // Combat skill (bottom center)
         Skill combatSkill = SkillRegistry.getInstance().getSkill(SkillType.COMBAT);
         if (combatSkill != null) {
             SkillLevel combatLevel = profile.getSkillData().getSkillLevel(combatSkill);
-            ItemStack combatItem = createSkillItem(player, profile, combatSkill, combatLevel, Material.IRON_SWORD);
-            gui.setItem(22, combatItem);
+            ItemStack combatItem = createSkillItem(player, profile, combatSkill, combatLevel, Material.DIAMOND_SWORD);
+            gui.setItem(31, combatItem);
         }
         
-        // Add info item
-        ItemStack infoItem = new ItemStack(Material.BOOK);
-        ItemMeta infoMeta = infoItem.getItemMeta();
-        infoMeta.setDisplayName(ChatColor.GOLD + "Skill Information");
-        List<String> infoLore = new ArrayList<>();
-        infoLore.add(ChatColor.GRAY + "Skills improve as you perform actions");
-        infoLore.add(ChatColor.GRAY + "Each skill grants different bonuses");
-        infoLore.add(ChatColor.GRAY + "and has unique subskills to master!");
-        infoLore.add("");
-        infoLore.add(ChatColor.YELLOW + "Click on a skill to view more details");
-        infoMeta.setLore(infoLore);
-        infoItem.setItemMeta(infoMeta);
-        gui.setItem(31, infoItem);
+        // Add center info item with player stats
+        ItemStack infoItem = createInfoItem(player, profile);
+        gui.setItem(22, infoItem);
         
-        // Add back button
+        // Add back button (bottom left)
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta backMeta = backButton.getItemMeta();
-        backMeta.setDisplayName(ChatColor.RED + "Back to Menu");
+        backMeta.setDisplayName(ChatColor.RED + "« Back to Menu");
+        List<String> backLore = new ArrayList<>();
+        backLore.add(ChatColor.GRAY + "Return to the main menu");
+        backMeta.setLore(backLore);
         backButton.setItemMeta(backMeta);
-        gui.setItem(27, backButton);
+        gui.setItem(36, backButton);
         
-        // Fill empty slots with glass panes
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
-        filler.setItemMeta(fillerMeta);
+        // Add help button (bottom right)
+        ItemStack helpButton = new ItemStack(Material.KNOWLEDGE_BOOK);
+        ItemMeta helpMeta = helpButton.getItemMeta();
+        helpMeta.setDisplayName(ChatColor.YELLOW + "How Skills Work");
+        List<String> helpLore = new ArrayList<>();
+        helpLore.add(ChatColor.GRAY + "Click for a quick tutorial");
+        helpLore.add(ChatColor.GRAY + "on how the skill system works");
+        helpMeta.setLore(helpLore);
+        helpButton.setItemMeta(helpMeta);
+        gui.setItem(44, helpButton);
         
-        for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, filler);
-            }
-        }
+        // Fill remaining slots with glass panes
+        fillEmptySlots(gui);
         
         // Open inventory
         player.openInventory(gui);
@@ -126,46 +126,124 @@ public class SkillsGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         
-        // Set display name with level indicator (0 for beginners)
-        meta.setDisplayName(ChatColor.GOLD + skill.getDisplayName() + ChatColor.GRAY + " [Lvl " + level.getLevel() + "]");
+        // Add enchant glow for max level skills
+        if (level.getLevel() >= skill.getMaxLevel()) {
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+        }
+        
+        // Set display name with level indicator
+        meta.setDisplayName(ChatColor.GOLD + "✦ " + skill.getDisplayName() + " " + 
+                ChatColor.YELLOW + "[Lvl " + level.getLevel() + "]");
         
         // Create lore
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + skill.getDescription());
-        lore.add("");
         
-        // For level 0, show progress to level 1
-        // For higher levels, show progress to next level
-        double xpForNextLevel = skill.getXpForLevel(level.getLevel() + 1);
-        double progress = level.getProgressPercentage(xpForNextLevel);
+        // Add divider
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         
-        if (level.getLevel() < skill.getMaxLevel()) {
-            lore.add(ChatColor.YELLOW + "Progress to Level " + (level.getLevel() + 1) + ":");
-            lore.add(ChatColor.GRAY + createProgressBar(progress));
-            lore.add(ChatColor.GRAY + "XP: " + String.format("%.1f", level.getCurrentXp()) + 
-                    " / " + String.format("%.1f", xpForNextLevel) + 
-                    " (" + String.format("%.1f", progress * 100) + "%)");
-        } else {
-            lore.add(ChatColor.GREEN + "MAXIMUM LEVEL REACHED!");
-            lore.add(ChatColor.GRAY + "Total XP: " + String.format("%.1f", level.getTotalXp()));
-        }
-        
-        lore.add("");
-        
-        // Add number of subskills if this is a main skill
-        if (skill.isMainSkill()) {
-            List<Skill> subskills = skill.getSubskills();
-            lore.add(ChatColor.AQUA + "Subskills: " + subskills.size());
-            
-            // Show the subskills directly in the main menu
-            if (!subskills.isEmpty()) {
-                for (Skill subskill : subskills) {
-                    SkillLevel subskillLevel = profile.getSkillData().getSkillLevel(subskill);
-                    lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + subskill.getDisplayName() + 
-                            ChatColor.GRAY + " [Lvl " + subskillLevel.getLevel() + "]");
-                }
+        // Description with improved formatting
+        for (String line : skill.getDescription().split("\\.")) {
+            if (!line.trim().isEmpty()) {
+                lore.add(ChatColor.GRAY + line.trim() + ".");
             }
         }
+        
+        lore.add("");
+        
+        // Level progress section with fancy formatting
+        if (level.getLevel() < skill.getMaxLevel()) {
+            double xpForNextLevel = skill.getXpForLevel(level.getLevel() + 1);
+            double progress = level.getProgressPercentage(xpForNextLevel);
+            
+            lore.add(ChatColor.YELLOW + "» Progress to Level " + (level.getLevel() + 1) + ":");
+            lore.add(createProgressBar(progress));
+            lore.add(ChatColor.WHITE + "XP: " + ChatColor.AQUA + String.format("%.1f", level.getCurrentXp()) + 
+                    ChatColor.GRAY + "/" + ChatColor.AQUA + String.format("%.1f", xpForNextLevel) + 
+                    ChatColor.GRAY + " (" + ChatColor.GREEN + String.format("%.1f", progress * 100) + "%" + 
+                    ChatColor.GRAY + ")");
+        } else {
+            lore.add(ChatColor.GREEN + "» MAXIMUM LEVEL REACHED!" + ChatColor.GOLD + " ✦");
+            lore.add(ChatColor.WHITE + "Total XP Earned: " + ChatColor.AQUA + String.format("%.1f", level.getTotalXp()));
+        }
+        
+        lore.add("");
+        
+        // Add bonuses section
+        lore.add(ChatColor.YELLOW + "» Current Bonuses:");
+        // This would be skill-specific and can be expanded
+        lore.add(ChatColor.GRAY + "• +5% " + skill.getDisplayName() + " XP Gain");
+        if (level.getLevel() >= 10) {
+            lore.add(ChatColor.GRAY + "• +10% Drop Rate");
+        }
+        if (level.getLevel() >= 25) {
+            lore.add(ChatColor.GRAY + "• +15% Resource Efficiency");
+        }
+        
+        lore.add("");
+        
+        // Add subskills with improved formatting
+        if (skill.isMainSkill() && !skill.getSubskills().isEmpty()) {
+            List<Skill> subskills = skill.getSubskills();
+            lore.add(ChatColor.YELLOW + "» Subskills " + ChatColor.GRAY + "(" + subskills.size() + "):");
+            
+            for (Skill subskill : subskills) {
+                SkillLevel subskillLevel = profile.getSkillData().getSkillLevel(subskill);
+                
+                // Color code based on level
+                ChatColor levelColor = ChatColor.RED;
+                if (subskillLevel.getLevel() > 20) levelColor = ChatColor.GREEN;
+                else if (subskillLevel.getLevel() > 10) levelColor = ChatColor.YELLOW;
+                else if (subskillLevel.getLevel() > 5) levelColor = ChatColor.GOLD;
+                
+                lore.add(ChatColor.AQUA + "• " + ChatColor.WHITE + subskill.getDisplayName() + " " + 
+                        levelColor + "[Lvl " + subskillLevel.getLevel() + "]");
+            }
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Click to view skill details");
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+    
+    /**
+     * Create info item with player stats
+     */
+    private static ItemStack createInfoItem(Player player, PlayerProfile profile) {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ " + player.getName() + "'s Skills ✦");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "Skills improve as you perform actions");
+        lore.add(ChatColor.GRAY + "related to each skill type.");
+        lore.add("");
+        
+        // Calculate total skill level
+        int totalLevel = 0;
+        int totalMaxLevel = 0;
+        
+        for (SkillType type : SkillType.values()) {
+            Skill skill = SkillRegistry.getInstance().getSkill(type);
+            if (skill != null && skill.isMainSkill()) {
+                SkillLevel level = profile.getSkillData().getSkillLevel(skill);
+                totalLevel += level.getLevel();
+                totalMaxLevel += skill.getMaxLevel();
+            }
+        }
+        
+        double completionPercent = (double) totalLevel / totalMaxLevel * 100;
+        
+        lore.add(ChatColor.YELLOW + "» Total Level: " + ChatColor.GREEN + totalLevel + "/" + totalMaxLevel);
+        lore.add(ChatColor.YELLOW + "» Completion: " + ChatColor.GREEN + String.format("%.1f", completionPercent) + "%");
+        lore.add(createProgressBar(completionPercent / 100));
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Each skill grants different bonuses");
+        lore.add(ChatColor.GRAY + "and has unique subskills to master!");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -177,19 +255,85 @@ public class SkillsGUI {
      */
     private static String createProgressBar(double progress) {
         StringBuilder bar = new StringBuilder();
-        int barLength = 20;
+        int barLength = 24;
         int filledBars = (int) Math.round(progress * barLength);
         
-        bar.append(ChatColor.GREEN);
-        for (int i = 0; i < filledBars; i++) {
-            bar.append("■");
+        // Start with bracket
+        bar.append(ChatColor.GRAY + "[");
+        
+        // Add graduated color based on fill percentage
+        for (int i = 0; i < barLength; i++) {
+            if (i < filledBars) {
+                if (progress < 0.25) {
+                    bar.append(ChatColor.RED);
+                } else if (progress < 0.5) {
+                    bar.append(ChatColor.GOLD);
+                } else if (progress < 0.75) {
+                    bar.append(ChatColor.YELLOW);
+                } else {
+                    bar.append(ChatColor.GREEN);
+                }
+                bar.append("■");
+            } else {
+                bar.append(ChatColor.DARK_GRAY).append("■");
+            }
         }
         
-        bar.append(ChatColor.GRAY);
-        for (int i = filledBars; i < barLength; i++) {
-            bar.append("■");
-        }
+        // Close bracket
+        bar.append(ChatColor.GRAY + "]");
         
         return bar.toString();
+    }
+    
+    /**
+     * Create decorative border
+     */
+    private static void createBorder(Inventory gui) {
+        // Top border with alternating colors
+        ItemStack blue = createGlassPane(Material.BLUE_STAINED_GLASS_PANE);
+        ItemStack cyan = createGlassPane(Material.CYAN_STAINED_GLASS_PANE);
+        ItemStack corner = createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        
+        // Set corners
+        gui.setItem(0, corner);
+        gui.setItem(8, corner);
+        gui.setItem(36, corner);
+        gui.setItem(44, corner);
+        
+        // Top and bottom borders
+        for (int i = 1; i < 8; i++) {
+            gui.setItem(i, i % 2 == 0 ? blue : cyan);
+            gui.setItem(36 + i, i % 2 == 0 ? blue : cyan);
+        }
+        
+        // Side borders
+        for (int i = 1; i <= 3; i++) {
+            gui.setItem(i * 9, i % 2 == 0 ? blue : cyan);
+            gui.setItem(i * 9 + 8, i % 2 == 0 ? blue : cyan);
+        }
+    }
+    
+    /**
+     * Create a glass pane with empty name
+     */
+    private static ItemStack createGlassPane(Material material) {
+        ItemStack pane = new ItemStack(material);
+        ItemMeta meta = pane.getItemMeta();
+        meta.setDisplayName(" ");
+        pane.setItemMeta(meta);
+        return pane;
+    }
+    
+    /**
+     * Fill empty slots with black glass panes
+     */
+    private static void fillEmptySlots(Inventory gui) {
+        ItemStack filler = createGlassPane(Material.BLACK_STAINED_GLASS_PANE);
+        
+        for (int i = 0; i < gui.getSize(); i++) {
+            if (gui.getItem(i) == null) {
+                gui.setItem(i, filler);
+            }
+        }
     }
 }

@@ -6,8 +6,10 @@ import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -27,14 +29,15 @@ import com.server.profiles.skills.trees.PlayerSkillTreeData;
  */
 public class SkillDetailsGUI {
 
-    private static final String GUI_TITLE_PREFIX = "Skill: ";
+    // Keep the GUI title prefix the same to maintain compatibility with listeners
+    private static final String GUI_TITLE_PREFIX = "Skill Details: ";
     
     /**
      * Open the skill details menu for a player
      */
     public static void openSkillDetailsMenu(Player player, Skill skill) {
-        // Create inventory
-        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE_PREFIX + skill.getDisplayName());
+        // Create inventory with a larger size for better layout (36 slots instead of 27)
+        Inventory gui = Bukkit.createInventory(null, 36, GUI_TITLE_PREFIX + skill.getDisplayName());
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -47,108 +50,161 @@ public class SkillDetailsGUI {
         if (profile == null) return;
         
         // Get skill level
-        SkillLevel level = skill.getSkillLevel(player);
+        SkillLevel level = profile.getSkillData().getSkillLevel(skill);
         
-        // Add skill info
+        // Create decorative border
+        createBorder(gui);
+        
+        // Add skill info in top center
         ItemStack infoItem = createSkillInfoItem(skill, level);
         gui.setItem(4, infoItem);
         
-        // Add progress bar
+        // Add progress bar in center
         ItemStack progressItem = createProgressItem(skill, level);
         gui.setItem(13, progressItem);
         
-        // Add rewards button
+        // Add rewards button to the left
         ItemStack rewardsItem = createRewardsItem(skill, level);
         gui.setItem(11, rewardsItem);
         
-        // Add skill tree button
+        // Add skill tree button to the right
         ItemStack skillTreeItem = createSkillTreeItem(skill, profile);
         gui.setItem(15, skillTreeItem);
         
-        // Add abilities button
+        // Add abilities button below center
         ItemStack abilitiesItem = createAbilitiesItem(skill, player);
         gui.setItem(22, abilitiesItem);
         
         // If this is a main skill with subskills, add subskills button
         if (skill.isMainSkill() && !skill.getSubskills().isEmpty()) {
-            ItemStack subskillsItem = new ItemStack(Material.BOOK);
-            ItemMeta subskillsMeta = subskillsItem.getItemMeta();
-            subskillsMeta.setDisplayName(ChatColor.AQUA + "View Subskills");
-            
-            List<String> subskillsLore = new ArrayList<>();
-            subskillsLore.add(ChatColor.GRAY + "Click to view subskills for");
-            subskillsLore.add(ChatColor.GRAY + "this skill.");
-            subskillsLore.add("");
-            subskillsLore.add(ChatColor.YELLOW + "Subskills: " + skill.getSubskills().size());
-            
-            subskillsMeta.setLore(subskillsLore);
-            subskillsItem.setItemMeta(subskillsMeta);
-            
-            gui.setItem(22 - 9, subskillsItem); // Place above abilities button
+            ItemStack subskillsItem = createSubskillsButton(skill);
+            gui.setItem(20, subskillsItem); // Left of abilities
         }
         
-        // Add back button
-        ItemStack backButton = new ItemStack(Material.ARROW);
-        ItemMeta backMeta = backButton.getItemMeta();
-        backMeta.setDisplayName(ChatColor.RED + "Back to Skills");
-        backButton.setItemMeta(backMeta);
-        gui.setItem(18, backButton);
+        // Add back button in bottom left
+        ItemStack backButton = createBackButton();
+        gui.setItem(27, backButton);
+        
+        // Add a help button in bottom right to explain GUI
+        ItemStack helpButton = createHelpButton();
+        gui.setItem(35, helpButton);
+        
+        // Fill remaining slots with glass panes
+        fillEmptySlots(gui);
         
         // Open inventory
         player.openInventory(gui);
     }
     
     /**
+     * Create a help button with GUI explanation
+     */
+    private static ItemStack createHelpButton() {
+        ItemStack helpButton = new ItemStack(Material.KNOWLEDGE_BOOK);
+        ItemMeta meta = helpButton.getItemMeta();
+        meta.setDisplayName(ChatColor.YELLOW + "Help");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "This screen shows detailed");
+        lore.add(ChatColor.GRAY + "information about this skill.");
+        lore.add("");
+        lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Top: " + ChatColor.WHITE + "Skill overview");
+        lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Middle: " + ChatColor.WHITE + "Progress and bonuses");
+        lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Bottom: " + ChatColor.WHITE + "Related features");
+        
+        meta.setLore(lore);
+        helpButton.setItemMeta(meta);
+        return helpButton;
+    }
+
+    /**
+     * Create subskills button with enhanced design
+     */
+    private static ItemStack createSubskillsButton(Skill skill) {
+        ItemStack subskillsItem = new ItemStack(Material.BOOKSHELF);
+        ItemMeta meta = subskillsItem.getItemMeta();
+        meta.setDisplayName(ChatColor.AQUA + "✦ View Subskills");
+        
+        // Add enchant glow
+        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        
+        List<String> lore = new ArrayList<>();
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Browse specialized skills within");
+        lore.add(ChatColor.GRAY + "the " + ChatColor.YELLOW + skill.getDisplayName() + ChatColor.GRAY + " category.");
+        lore.add("");
+        
+        // Add subskill list with color coding
+        List<Skill> subskills = skill.getSubskills();
+        lore.add(ChatColor.AQUA + "Available Subskills " + ChatColor.GRAY + "(" + subskills.size() + "):");
+        for (Skill subskill : subskills) {
+            lore.add(ChatColor.YELLOW + "• " + ChatColor.WHITE + subskill.getDisplayName());
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.GREEN + "Click to view and manage subskills");
+        
+        meta.setLore(lore);
+        subskillsItem.setItemMeta(meta);
+        return subskillsItem;
+    }
+    
+    /**
+     * Create back button
+     */
+    private static ItemStack createBackButton() {
+        ItemStack backButton = new ItemStack(Material.ARROW);
+        ItemMeta meta = backButton.getItemMeta();
+        meta.setDisplayName(ChatColor.RED + "« Back to Skills");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Return to the skills overview");
+        meta.setLore(lore);
+        
+        backButton.setItemMeta(meta);
+        return backButton;
+    }
+    
+    /**
      * Create an item with skill information
      */
     private static ItemStack createSkillInfoItem(Skill skill, SkillLevel level) {
-        Material icon;
-        
-        // Choose appropriate icon based on skill type
-        switch (skill.getId()) {
-            case "mining":
-                icon = Material.DIAMOND_PICKAXE;
-                break;
-            case "excavating":
-                icon = Material.DIAMOND_SHOVEL;
-                break;
-            case "fishing":
-                icon = Material.FISHING_ROD;
-                break;
-            case "farming":
-                icon = Material.DIAMOND_HOE;
-                break;
-            case "combat":
-                icon = Material.DIAMOND_SWORD;
-                break;
-            case "ore_extraction":
-                icon = Material.IRON_ORE;
-                break;
-            case "gem_carving":
-                icon = Material.DIAMOND;
-                break;
-            default:
-                icon = Material.NETHER_STAR;
-        }
+        Material icon = getSkillIcon(skill);
         
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         
-        // Set display name
-        meta.setDisplayName(ChatColor.GOLD + skill.getDisplayName() + ChatColor.GRAY + " [Level " + level.getLevel() + "]");
+        // Set display name with enhanced formatting
+        meta.setDisplayName(ChatColor.GOLD + "✦ " + skill.getDisplayName() + " " + 
+                ChatColor.YELLOW + "[Level " + level.getLevel() + "/" + skill.getMaxLevel() + "]");
         
-        // Create lore
+        // Add enchant glow if max level
+        if (level.getLevel() >= skill.getMaxLevel()) {
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+        
+        // Create lore with dividers for better readability
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + skill.getDescription());
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        
+        // Format description with line breaks for better readability
+        for (String line : skill.getDescription().split("\\.")) {
+            if (!line.trim().isEmpty()) {
+                lore.add(ChatColor.GRAY + line.trim() + ".");
+            }
+        }
+        
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Current Level: " + level.getLevel() + "/" + skill.getMaxLevel());
-        lore.add(ChatColor.YELLOW + "Total XP: " + String.format("%.1f", level.getTotalXp()));
+        lore.add(ChatColor.YELLOW + "Total XP Earned: " + ChatColor.WHITE + 
+                String.format("%,.1f", level.getTotalXp()));
         
         if (skill.isMainSkill()) {
             lore.add("");
-            lore.add(ChatColor.AQUA + "Subskills: " + skill.getSubskills().size());
+            lore.add(ChatColor.AQUA + "» Subskill Categories:");
             
-            // Add info about available subskills
+            // Add subskills with better formatting
             if (!skill.getSubskills().isEmpty()) {
                 for (Skill subskill : skill.getSubskills()) {
                     lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + subskill.getDisplayName());
@@ -156,15 +212,60 @@ public class SkillDetailsGUI {
             }
         } else {
             lore.add("");
-            lore.add(ChatColor.AQUA + "Parent Skill: " + skill.getParentSkill().getDisplayName());
+            lore.add(ChatColor.AQUA + "» Parent Skill: " + ChatColor.YELLOW + skill.getParentSkill().getDisplayName());
         }
         
+        // Add milestones with better formatting
         lore.add("");
-        lore.add(ChatColor.GRAY + "Milestones: " + String.join(", ", convertListToStrings(skill.getMilestones())));
+        lore.add(ChatColor.AQUA + "» Milestone Levels:");
+        List<Integer> milestones = skill.getMilestones();
+        if (milestones.isEmpty()) {
+            lore.add(ChatColor.GRAY + "None");
+        } else {
+            StringBuilder sb = new StringBuilder(ChatColor.GRAY.toString());
+            for (int i = 0; i < milestones.size(); i++) {
+                Integer milestone = milestones.get(i);
+                // Color milestone based on player progress
+                if (level.getLevel() >= milestone) {
+                    sb.append(ChatColor.GREEN).append(milestone);
+                } else {
+                    sb.append(ChatColor.RED).append(milestone);
+                }
+                
+                if (i < milestones.size() - 1) {
+                    sb.append(ChatColor.GRAY).append(", ");
+                }
+            }
+            lore.add(sb.toString());
+        }
         
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+    
+    /**
+     * Get appropriate icon for a skill
+     */
+    private static Material getSkillIcon(Skill skill) {
+        switch (skill.getId()) {
+            case "mining":
+                return Material.DIAMOND_PICKAXE;
+            case "excavating":
+                return Material.DIAMOND_SHOVEL;
+            case "fishing":
+                return Material.FISHING_ROD;
+            case "farming":
+                return Material.DIAMOND_HOE;
+            case "combat":
+                return Material.DIAMOND_SWORD;
+            case "ore_extraction":
+                return Material.IRON_ORE;
+            case "gem_carving":
+                return Material.DIAMOND;
+            default:
+                return Material.NETHER_STAR;
+        }
     }
     
     /**
@@ -173,69 +274,149 @@ public class SkillDetailsGUI {
     private static ItemStack createProgressItem(Skill skill, SkillLevel level) {
         ItemStack item = new ItemStack(Material.EXPERIENCE_BOTTLE);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GREEN + "Skill Progress");
+        meta.setDisplayName(ChatColor.GREEN + "✦ Skill Progress");
         
         List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         
-        if (level.getLevel() < skill.getMaxLevel()) {
-            double xpForNextLevel = skill.getXpForLevel(level.getLevel() + 1);
+        // Make sure we're working with accurate data
+        double currentXp = level.getCurrentXp();
+        double totalXp = level.getTotalXp();
+        int currentLevel = level.getLevel();
+        
+        if (currentLevel < skill.getMaxLevel()) {
+            double xpForNextLevel = skill.getXpForLevel(currentLevel + 1);
             double progress = level.getProgressPercentage(xpForNextLevel);
             
-            lore.add(ChatColor.GRAY + "Progress to Level " + (level.getLevel() + 1) + ":");
-            lore.add(ChatColor.GRAY + createProgressBar(progress));
-            lore.add(ChatColor.GRAY + "XP: " + String.format("%.1f", level.getCurrentXp()) + 
-                    " / " + String.format("%.1f", xpForNextLevel) + 
-                    " (" + String.format("%.1f", progress * 100) + "%)");
+            // Add level and XP information with better formatting
+            lore.add(ChatColor.YELLOW + "Current Level: " + ChatColor.WHITE + currentLevel + 
+                    ChatColor.GRAY + "/" + ChatColor.WHITE + skill.getMaxLevel());
+            lore.add("");
+            
+            lore.add(ChatColor.YELLOW + "Progress to Level " + (currentLevel + 1) + ":");
+            lore.add(createFancyProgressBar(progress));
+            lore.add(ChatColor.WHITE + "XP: " + ChatColor.AQUA + String.format("%,.1f", currentXp) + 
+                    ChatColor.GRAY + "/" + ChatColor.AQUA + String.format("%,.1f", xpForNextLevel) + 
+                    ChatColor.GRAY + " (" + ChatColor.GREEN + String.format("%.1f", progress * 100) + "%" + 
+                    ChatColor.GRAY + ")");
             
             lore.add("");
-            lore.add(ChatColor.YELLOW + "Total XP Needed to Max Level:");
+            lore.add(ChatColor.YELLOW + "XP Required to Max Level:");
             
             // Calculate total XP needed to reach max level
             double totalXpToMax = 0;
-            for (int i = level.getLevel() + 1; i <= skill.getMaxLevel(); i++) {
+            for (int i = currentLevel + 1; i <= skill.getMaxLevel(); i++) {
                 totalXpToMax += skill.getXpForLevel(i);
             }
             
-            // Subtract current level progress
-            totalXpToMax -= level.getCurrentXp();
+            // Subtract already earned progress toward next level
+            totalXpToMax -= currentXp;
             
-            lore.add(ChatColor.GRAY + "Remaining XP: " + String.format("%.1f", totalXpToMax));
+            lore.add(ChatColor.AQUA + String.format("%,.1f", totalXpToMax) + ChatColor.GRAY + " XP remaining");
+            
+            // Add ETA estimate
+            lore.add(ChatColor.GRAY + "Estimated time: " + ChatColor.YELLOW + "~" + 
+                    calculateTimeEstimate(totalXpToMax));
         } else {
-            lore.add(ChatColor.GREEN + "MAXIMUM LEVEL REACHED!");
-            lore.add(ChatColor.GRAY + "Total XP Earned: " + String.format("%.1f", level.getTotalXp()));
+            // Max level reached
+            lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + "MAXIMUM LEVEL REACHED!" + ChatColor.GOLD + " ✦");
+            lore.add(ChatColor.YELLOW + "Current Level: " + ChatColor.GREEN + currentLevel + 
+                    ChatColor.GRAY + "/" + ChatColor.GREEN + skill.getMaxLevel());
             lore.add("");
-            lore.add(ChatColor.YELLOW + "Congratulations on maxing this skill!");
+            lore.add(ChatColor.GRAY + "Total XP Earned: " + ChatColor.AQUA + String.format("%,.1f", totalXp));
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Congratulations on mastering this skill!");
+            lore.add(ChatColor.GRAY + "You've unlocked all skill benefits.");
         }
         
-        // Add special details for mining subskills
-        if (skill instanceof OreExtractionSubskill) {
-            OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
-            lore.add("");
-            lore.add(ChatColor.AQUA + "Ore Extraction Bonuses:");
-            lore.add(ChatColor.GRAY + "• Mining Speed: " + 
-                    ChatColor.YELLOW + String.format("%.2fx", oreSkill.getMiningSpeedMultiplier(level.getLevel())));
-            lore.add(ChatColor.GRAY + "• Mining Fortune: " + 
-                    ChatColor.YELLOW + String.format("+%.1f", oreSkill.getMiningFortuneBonus(level.getLevel())));
-            lore.add(ChatColor.GRAY + "• Bonus Drops: " + 
-                    ChatColor.YELLOW + String.format("%.1f%%", oreSkill.getBonusDropChance(level.getLevel()) * 100));
-            lore.add(ChatColor.GRAY + "• Cave-in Risk: " + 
-                    ChatColor.YELLOW + String.format("%.1f%%", oreSkill.getCaveInChance(level.getLevel()) * 100));
-        }
-        else if (skill instanceof GemCarvingSubskill) {
-            GemCarvingSubskill gemSkill = (GemCarvingSubskill) skill;
-            lore.add("");
-            lore.add(ChatColor.AQUA + "Gem Carving Bonuses:");
-            lore.add(ChatColor.GRAY + "• Gem Find Rate: " + 
-                    ChatColor.YELLOW + String.format("%.1f%%", gemSkill.getGemFindChance(level.getLevel()) * 100));
-            lore.add(ChatColor.GRAY + "• Extraction Success: " + 
-                    ChatColor.YELLOW + String.format("%.1f%%", gemSkill.getExtractionSuccessChance(level.getLevel()) * 100));
-            lore.add(ChatColor.GRAY + "• Gem Quality: " + 
-                    ChatColor.YELLOW + String.format("%.2fx", gemSkill.getGemQualityMultiplier(level.getLevel())));
-        }
+        // Add skill-specific bonuses
+        addSpecialSkillBonuses(skill, level, lore);
         
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+    
+    /**
+     * Add special bonuses for specific skill types
+     */
+    private static void addSpecialSkillBonuses(Skill skill, SkillLevel level, List<String> lore) {
+        lore.add("");
+        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Current Skill Bonuses:");
+        
+        if (skill instanceof OreExtractionSubskill) {
+            OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
+            addOreExtractionBonuses(oreSkill, level, lore);
+        }
+        else if (skill instanceof GemCarvingSubskill) {
+            GemCarvingSubskill gemSkill = (GemCarvingSubskill) skill;
+            addGemCarvingBonuses(gemSkill, level, lore);
+        }
+        else {
+            // Generic bonuses for other skills
+            lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "XP Gain: " + 
+                    ChatColor.GREEN + "+" + (5 + (level.getLevel() / 10)) + "%");
+            
+            if (level.getLevel() >= 10) {
+                lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Efficiency: " + 
+                        ChatColor.GREEN + "+" + (level.getLevel() / 5) + "%");
+            }
+        }
+    }
+    
+    /**
+     * Add Ore Extraction specific bonuses
+     */
+    private static void addOreExtractionBonuses(OreExtractionSubskill skill, SkillLevel level, List<String> lore) {
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Mining Speed: " + 
+                ChatColor.GREEN + String.format("%.2fx", skill.getMiningSpeedMultiplier(level.getLevel())));
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Mining Fortune: " + 
+                ChatColor.GREEN + String.format("+%.1f", skill.getMiningFortuneBonus(level.getLevel())));
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Bonus Drops: " + 
+                ChatColor.GREEN + String.format("+%.1f%%", skill.getBonusDropChance(level.getLevel()) * 100));
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Cave-in Risk: " + 
+                getBetterOrWorse(skill.getCaveInChance(level.getLevel()), true) + 
+                String.format("%.1f%%", skill.getCaveInChance(level.getLevel()) * 100));
+    }
+    
+    /**
+     * Add Gem Carving specific bonuses
+     */
+    private static void addGemCarvingBonuses(GemCarvingSubskill skill, SkillLevel level, List<String> lore) {
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Gem Find Rate: " + 
+                ChatColor.GREEN + String.format("+%.1f%%", skill.getGemFindChance(level.getLevel()) * 100));
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Extraction Success: " + 
+                ChatColor.GREEN + String.format("%.1f%%", skill.getExtractionSuccessChance(level.getLevel()) * 100));
+        lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + "Gem Quality: " + 
+                ChatColor.GREEN + String.format("%.2fx", skill.getGemQualityMultiplier(level.getLevel())));
+    }
+    
+    /**
+     * Get color code for better/worse stats
+     */
+    private static String getBetterOrWorse(double value, boolean lowerIsBetter) {
+        if (lowerIsBetter) {
+            return value <= 0.05 ? ChatColor.GREEN.toString() : ChatColor.RED.toString();
+        } else {
+            return value >= 1.5 ? ChatColor.GREEN.toString() : ChatColor.YELLOW.toString();
+        }
+    }
+    
+    /**
+     * Calculate a rough time estimate for reaching max level
+     * This is simplified and could be made more accurate with player XP gain rate tracking
+     */
+    private static String calculateTimeEstimate(double xpRemaining) {
+        // Rough estimate assuming 100 XP per hour gameplay (adjust based on your actual rates)
+        double hoursNeeded = xpRemaining / 100.0;
+        
+        if (hoursNeeded < 1) {
+            return "Less than 1 hour";
+        } else if (hoursNeeded < 24) {
+            return String.format("%.1f hours", hoursNeeded);
+        } else {
+            return String.format("%.1f days", hoursNeeded / 24.0);
+        }
     }
     
     /**
@@ -244,11 +425,12 @@ public class SkillDetailsGUI {
     private static ItemStack createRewardsItem(Skill skill, SkillLevel level) {
         ItemStack item = new ItemStack(Material.GOLD_INGOT);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GOLD + "Skill Rewards");
+        meta.setDisplayName(ChatColor.GOLD + "✦ Skill Rewards");
         
         List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         
-        // Count how many levels have rewards
+        // Count rewards
         int levelsWithRewards = 0;
         int rewardsEarned = 0;
         
@@ -262,19 +444,26 @@ public class SkillDetailsGUI {
             }
         }
         
-        lore.add(ChatColor.GRAY + "Rewards Earned: " + 
-                ChatColor.YELLOW + rewardsEarned + "/" + levelsWithRewards);
+        // Progress indication
+        double progress = levelsWithRewards > 0 ? (double)rewardsEarned / levelsWithRewards : 1.0;
+        lore.add(ChatColor.YELLOW + "Rewards Unlocked:");
+        lore.add(createFancyProgressBar(progress));
+        lore.add("" + ChatColor.WHITE + rewardsEarned + ChatColor.GRAY + "/" + 
+                ChatColor.WHITE + levelsWithRewards + 
+                ChatColor.GRAY + " (" + ChatColor.GREEN + String.format("%.1f", progress * 100) + "%" + 
+                ChatColor.GRAY + ")");
+        
         lore.add("");
         
-        // Show a few rewards that have been earned
-        lore.add(ChatColor.YELLOW + "Earned Rewards:");
+        // Recent rewards
+        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Recent Unlocks:");
         boolean hasEarnedRewards = false;
         
-        for (int i = 1; i <= level.getLevel() && i <= 3; i++) { // Show only first 3 earned levels
+        for (int i = Math.max(1, level.getLevel() - 2); i <= level.getLevel() && i <= skill.getMaxLevel(); i++) {
             List<SkillReward> rewards = skill.getRewardsForLevel(i);
             if (!rewards.isEmpty()) {
                 hasEarnedRewards = true;
-                lore.add(ChatColor.GRAY + "Level " + i + ":");
+                lore.add(ChatColor.AQUA + "Level " + i + ":");
                 for (SkillReward reward : rewards) {
                     lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + reward.getDescription());
                 }
@@ -282,20 +471,20 @@ public class SkillDetailsGUI {
         }
         
         if (!hasEarnedRewards) {
-            lore.add(ChatColor.GRAY + "None yet");
+            lore.add(ChatColor.GRAY + "No recent rewards");
         }
         
         lore.add("");
         
-        // Show next rewards to earn
-        lore.add(ChatColor.YELLOW + "Next Rewards:");
+        // Coming rewards
+        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Upcoming Rewards:");
         boolean hasNextRewards = false;
         
-        for (int i = level.getLevel() + 1; i <= skill.getMaxLevel() && i <= level.getLevel() + 3; i++) { // Show only next 3 levels
+        for (int i = level.getLevel() + 1; i <= Math.min(skill.getMaxLevel(), level.getLevel() + 3); i++) {
             List<SkillReward> rewards = skill.getRewardsForLevel(i);
             if (!rewards.isEmpty()) {
                 hasNextRewards = true;
-                lore.add(ChatColor.GRAY + "Level " + i + ":");
+                lore.add(ChatColor.AQUA + "Level " + i + ":");
                 for (SkillReward reward : rewards) {
                     lore.add(ChatColor.GRAY + "• " + ChatColor.RED + reward.getDescription());
                 }
@@ -303,7 +492,7 @@ public class SkillDetailsGUI {
         }
         
         if (!hasNextRewards) {
-            if (level.getLevel() == skill.getMaxLevel()) {
+            if (level.getLevel() >= skill.getMaxLevel()) {
                 lore.add(ChatColor.GREEN + "All rewards earned!");
             } else {
                 lore.add(ChatColor.GRAY + "None in the next few levels");
@@ -311,45 +500,11 @@ public class SkillDetailsGUI {
         }
         
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to view all rewards");
+        lore.add(ChatColor.GREEN + "Click to view all skill rewards");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
-    }
-    
-    /**
-     * Convert a list of integers to a list of strings
-     */
-    private static List<String> convertListToStrings(List<Integer> list) {
-        List<String> strings = new ArrayList<>();
-        for (Integer item : list) {
-            strings.add(item.toString());
-        }
-        return strings;
-    }
-    
-    /**
-     * Create a visual progress bar
-     * @param progress The progress percentage (0-100)
-     * @return A string representing the progress bar
-     */
-    private static String createProgressBar(double progress) {
-        StringBuilder bar = new StringBuilder();
-        int barLength = 20;
-        int filledBars = (int) Math.round(progress * barLength);
-        
-        bar.append(ChatColor.GREEN);
-        for (int i = 0; i < filledBars; i++) {
-            bar.append("■");
-        }
-        
-        bar.append(ChatColor.GRAY);
-        for (int i = filledBars; i < barLength; i++) {
-            bar.append("■");
-        }
-        
-        return bar.toString();
     }
 
     /**
@@ -366,16 +521,32 @@ public class SkillDetailsGUI {
         // Create item
         ItemStack item = new ItemStack(tokenInfo.material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.AQUA + "Skill Tree");
+        meta.setDisplayName(ChatColor.AQUA + "✦ Skill Tree");
+        
+        // Add enchant glow if tokens available
+        if (tokenCount > 0) {
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
         
         List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add(ChatColor.GRAY + "Unlock special abilities and");
         lore.add(ChatColor.GRAY + "bonuses for " + ChatColor.YELLOW + skill.getDisplayName());
         lore.add("");
-        lore.add(ChatColor.YELLOW + "You have " + tokenInfo.color + tokenCount + " " + 
-            tokenInfo.displayName + " Token" + (tokenCount != 1 ? "s" : ""));
+        
+        // Token display with animation if available
+        if (tokenCount > 0) {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Available Tokens:");
+            lore.add(tokenInfo.color + "✦ " + tokenCount + " " + 
+                tokenInfo.displayName + " Token" + (tokenCount != 1 ? "s" : "") + " ✦");
+        } else {
+            lore.add(ChatColor.YELLOW + "Available Tokens:");
+            lore.add(ChatColor.GRAY + "None available");
+        }
+        
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to view Skill Tree");
+        lore.add(ChatColor.GREEN + "Click to access Skill Tree");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -389,12 +560,7 @@ public class SkillDetailsGUI {
     private static ItemStack createAbilitiesItem(Skill skill, Player player) {
         ItemStack item = new ItemStack(Material.BLAZE_POWDER);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Skill Abilities");
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "View and manage abilities for");
-        lore.add(ChatColor.GRAY + "this skill.");
-        lore.add("");
+        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Skill Abilities");
         
         // Add ability counts
         AbilityRegistry registry = AbilityRegistry.getInstance();
@@ -403,12 +569,28 @@ public class SkillDetailsGUI {
         int unlockedActive = registry.getUnlockedActiveAbilities(player, skill.getId()).size();
         int totalActive = registry.getActiveAbilities(skill.getId()).size();
         
-        lore.add(ChatColor.YELLOW + "Passive Abilities: " + 
-                ChatColor.GREEN + unlockedPassive + "/" + totalPassive);
-        lore.add(ChatColor.YELLOW + "Active Abilities: " + 
-                ChatColor.GREEN + unlockedActive + "/" + totalActive);
+        // Add enchant glow if any abilities unlocked
+        if (unlockedPassive > 0 || unlockedActive > 0) {
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "View and manage special abilities");
+        lore.add(ChatColor.GRAY + "for your " + ChatColor.YELLOW + skill.getDisplayName() + ChatColor.GRAY + " skill.");
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to view abilities");
+        
+        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Passive Abilities:");
+        lore.add(createMiniProgressBar(unlockedPassive, totalPassive) + " " + 
+                ChatColor.GREEN + unlockedPassive + "/" + totalPassive);
+        
+        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Active Abilities:");
+        lore.add(createMiniProgressBar(unlockedActive, totalActive) + " " + 
+                ChatColor.GREEN + unlockedActive + "/" + totalActive);
+        
+        lore.add("");
+        lore.add(ChatColor.GREEN + "Click to view and manage abilities");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -416,4 +598,124 @@ public class SkillDetailsGUI {
         return item;
     }
     
+    /**
+     * Convert a list of integers to a list of strings
+     */
+    private static List<String> convertListToStrings(List<Integer> list) {
+        List<String> strings = new ArrayList<>();
+        for (Integer item : list) {
+            strings.add(item.toString());
+        }
+        return strings;
+    }
+    
+    /**
+     * Create a fancy visual progress bar with gradients
+     */
+    private static String createFancyProgressBar(double progress) {
+        StringBuilder bar = new StringBuilder();
+        int barLength = 24;
+        int filledBars = (int) Math.round(progress * barLength);
+        
+        // Start with bracket
+        bar.append(ChatColor.GRAY + "[");
+        
+        // Create gradient of colors based on fill
+        for (int i = 0; i < barLength; i++) {
+            if (i < filledBars) {
+                if (progress < 0.25) {
+                    bar.append(ChatColor.RED);
+                } else if (progress < 0.5) {
+                    bar.append(ChatColor.GOLD);
+                } else if (progress < 0.75) {
+                    bar.append(ChatColor.YELLOW);
+                } else {
+                    bar.append(ChatColor.GREEN);
+                }
+                bar.append("■");
+            } else {
+                bar.append(ChatColor.DARK_GRAY).append("■");
+            }
+        }
+        
+        // Close bracket
+        bar.append(ChatColor.GRAY + "]");
+        
+        return bar.toString();
+    }
+    
+    /**
+     * Create a simple progress bar for compact display
+     */
+    private static String createMiniProgressBar(int value, int max) {
+        StringBuilder bar = new StringBuilder();
+        int barLength = 10;
+        int filledBars = max > 0 ? (int) Math.round((double) value / max * barLength) : 0;
+        
+        bar.append(ChatColor.GREEN);
+        for (int i = 0; i < filledBars; i++) {
+            bar.append("■");
+        }
+        
+        bar.append(ChatColor.GRAY);
+        for (int i = filledBars; i < barLength; i++) {
+            bar.append("■");
+        }
+        
+        return bar.toString();
+    }
+    
+    /**
+     * Fill empty slots with glass panes
+     */
+    private static void fillEmptySlots(Inventory gui) {
+        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta fillerMeta = filler.getItemMeta();
+        fillerMeta.setDisplayName(" ");
+        filler.setItemMeta(fillerMeta);
+        
+        for (int i = 0; i < gui.getSize(); i++) {
+            if (gui.getItem(i) == null) {
+                gui.setItem(i, filler);
+            }
+        }
+    }
+    
+    /**
+     * Create decorative border for GUI
+     */
+    private static void createBorder(Inventory gui) {
+        ItemStack blue = createGlassPane(Material.BLUE_STAINED_GLASS_PANE);
+        ItemStack cyan = createGlassPane(Material.CYAN_STAINED_GLASS_PANE);
+        ItemStack corner = createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        
+        // Set corners
+        gui.setItem(0, corner);
+        gui.setItem(8, corner);
+        gui.setItem(gui.getSize() - 9, corner);
+        gui.setItem(gui.getSize() - 1, corner);
+        
+        // Top and bottom rows
+        for (int i = 1; i < 8; i++) {
+            gui.setItem(i, i % 2 == 0 ? blue : cyan);
+            gui.setItem(gui.getSize() - 9 + i, i % 2 == 0 ? blue : cyan);
+        }
+        
+        // Side borders
+        for (int i = 1; i <= 2; i++) {
+            gui.setItem(i * 9, i % 2 == 0 ? blue : cyan);
+            gui.setItem(i * 9 + 8, i % 2 == 0 ? blue : cyan);
+        }
+    }
+    
+    /**
+     * Create glass pane with empty name
+     */
+    private static ItemStack createGlassPane(Material material) {
+        ItemStack pane = new ItemStack(material);
+        ItemMeta meta = pane.getItemMeta();
+        meta.setDisplayName(" ");
+        pane.setItemMeta(meta);
+        return pane;
+    }
 }

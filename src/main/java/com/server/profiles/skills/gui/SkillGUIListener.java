@@ -1,30 +1,30 @@
 package com.server.profiles.skills.gui;
 
-import java.util.List;
-
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
-import com.server.profiles.PlayerProfile;
-import com.server.profiles.ProfileManager;
 import com.server.profiles.gui.ProfileGUI;
-import com.server.profiles.skills.abilities.gui.AbilitiesGUI;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
-import com.server.profiles.skills.core.SkillType;
-import com.server.profiles.skills.trees.SkillTreeRegistry;
 
 /**
  * Listener for skill GUI interactions
  */
 public class SkillGUIListener implements Listener {
 
+    private final Main plugin;
+    
+    public SkillGUIListener(Main plugin) {
+        this.plugin = plugin;
+    }
+    
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
@@ -32,59 +32,59 @@ public class SkillGUIListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         String title = event.getView().getTitle();
         
-        // Debug output to help diagnose issues
-        if (Main.getInstance().isDebugMode() && event.getCurrentItem() != null && 
-            event.getCurrentItem().hasItemMeta() && event.getCurrentItem().getItemMeta().hasDisplayName()) {
-            Main.getInstance().getLogger().info("Click in " + title + " on " + 
-                event.getCurrentItem().getItemMeta().getDisplayName() + 
-                ", right click: " + event.isRightClick() + 
-                ", click type: " + event.getClick().name());
-        }
-        
-        // Cancel all clicks in any skill GUI
-        if (title.equals("Skills") || 
-            title.startsWith("Skill: ") || 
-            title.startsWith("Subskills: ") || 
+        // Check if this is any of our skills-related GUI titles
+        // Extended to cover all variations including Rewards GUI
+        if (title.equals("✦ Skills Menu ✦") || 
+            title.startsWith("Skill Details: ") || 
+            title.startsWith("Subskills: ") ||
+            title.startsWith("Skill Tree: ") ||
+            title.startsWith("Abilities: ") ||
             title.startsWith("Rewards: ") ||
-            title.startsWith("Skill Tree: ")) {
+            title.equals("Rewards") ||
+            title.equals("Reset Confirmation") ||
+            title.startsWith("Milestones: ")) {
+            
+            // Cancel all interactions to prevent taking items
             event.setCancelled(true);
             
-            // Handle clicks
-            if (event.getCurrentItem() == null || !event.getCurrentItem().hasItemMeta() || 
-                !event.getCurrentItem().getItemMeta().hasDisplayName()) return;
-            
             ItemStack clickedItem = event.getCurrentItem();
-            String itemName = clickedItem.getItemMeta().getDisplayName();
+            if (clickedItem == null || !clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
             
-            // Back button is common to several GUIs
-            if (itemName.equals(ChatColor.RED + "Back to Menu") ||
-                itemName.equals(ChatColor.RED + "Back to Skills") ||
-                itemName.equals(ChatColor.RED + "Back to Skill Details")) {
-                handleBackButton(player, title, itemName);
-                return;
-            }
-            
-            // Handle clicks based on the GUI
-            if (title.equals("Skills")) {
+            // Handle clicks for specific GUI types
+            if (title.equals("✦ Skills Menu ✦")) {
                 handleSkillsMenuClick(player, clickedItem);
-            } else if (title.startsWith("Skill: ")) {
-                String skillName = title.substring("Skill: ".length());
-                handleSkillDetailsMenuClick(player, clickedItem, skillName);
+            } else if (title.startsWith("Skill Details: ")) {
+                handleSkillDetailsClick(player, clickedItem, event);
             } else if (title.startsWith("Subskills: ")) {
                 handleSubskillsMenuClick(player, clickedItem, event);
+            } else if (title.startsWith("Skill Tree: ")) {
+                handleSkillTreeClick(player, clickedItem);
             } else if (title.startsWith("Rewards: ")) {
-                handleRewardsMenuClick(player, clickedItem);
+                handleRewardsClick(player, clickedItem);
+            } else if (title.startsWith("Milestones: ")) {
+                handleMilestonesClick(player, clickedItem, event);
             }
         }
+    }
+    
+    // Add drag event cancellation for all skill-related GUIs
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
         
-        // Handle profile menu click to open skills menu
-        if (title.equals("Player Menu") && 
-            event.getCurrentItem() != null && 
-            event.getCurrentItem().hasItemMeta() && 
-            event.getCurrentItem().getItemMeta().hasDisplayName() &&
-            event.getCurrentItem().getItemMeta().getDisplayName().equals(ChatColor.GREEN + "§a§lSkills")) {
-            player.closeInventory();
-            SkillsGUI.openSkillsMenu(player);
+        String title = event.getView().getTitle();
+        
+        // Updated to include all skill-related GUIs
+        if (title.equals("✦ Skills Menu ✦") || 
+            title.startsWith("Skill Details: ") || 
+            title.startsWith("Subskills: ") ||
+            title.startsWith("Skill Tree: ") ||
+            title.startsWith("Abilities: ") ||
+            title.startsWith("Rewards: ") ||
+            title.equals("Rewards") ||
+            title.equals("Reset Confirmation") ||
+            title.startsWith("Milestones: ")) {
+            
             event.setCancelled(true);
         }
     }
@@ -93,16 +93,44 @@ public class SkillGUIListener implements Listener {
      * Handle clicks in the main skills menu
      */
     private void handleSkillsMenuClick(Player player, ItemStack clickedItem) {
-        String itemName = clickedItem.getItemMeta().getDisplayName();
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
         
-        // Check if clicked on a skill
-        for (SkillType type : SkillType.values()) {
-            if (itemName.startsWith(ChatColor.GOLD + type.getDisplayName())) {
-                Skill skill = SkillRegistry.getInstance().getSkill(type);
-                if (skill != null) {
-                    player.closeInventory();
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        
+        // Back button
+        if (displayName.equals(ChatColor.RED + "« Back to Menu")) {
+            player.closeInventory();
+            
+            // Use scheduler to prevent glitches
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                ProfileGUI.openMainMenu(player);
+            }, 1L);
+            
+            return;
+        }
+        
+        // Help button
+        if (displayName.equals(ChatColor.YELLOW + "How Skills Work")) {
+            player.closeInventory();
+            player.sendMessage(ChatColor.GREEN + "=== " + ChatColor.GOLD + "Skills Guide" + ChatColor.GREEN + " ===");
+            player.sendMessage(ChatColor.YELLOW + "• Skills level up as you perform related activities");
+            player.sendMessage(ChatColor.YELLOW + "• Higher skill levels unlock bonuses and abilities");
+            player.sendMessage(ChatColor.YELLOW + "• Each main skill has multiple subskills to master");
+            player.sendMessage(ChatColor.YELLOW + "• Unlock and upgrade skill tree nodes using tokens");
+            player.sendMessage(ChatColor.YELLOW + "• Configure active and passive abilities in the skill menu");
+            return;
+        }
+        
+        // Check if this is a skill item
+        for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
+            if (displayName.contains(skill.getDisplayName())) {
+                player.closeInventory();
+                
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     SkillDetailsGUI.openSkillDetailsMenu(player, skill);
-                }
+                }, 1L);
+                
                 return;
             }
         }
@@ -111,43 +139,100 @@ public class SkillGUIListener implements Listener {
     /**
      * Handle clicks in the skill details menu
      */
-    private void handleSkillDetailsMenuClick(Player player, ItemStack clickedItem, String skillName) {
-        String itemName = clickedItem.getItemMeta().getDisplayName();
+    private void handleSkillDetailsClick(Player player, ItemStack clickedItem, InventoryClickEvent event) {
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
         
-        Skill skill = findSkillByName(skillName);
-        if (skill == null) return;
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        String title = event.getView().getTitle();
         
-        // View subskills button
-        if (itemName.equals(ChatColor.AQUA + "View Subskills")) {
+        // Back button
+        if (displayName.equals(ChatColor.RED + "« Back to Skills")) {
             player.closeInventory();
-            SubskillsGUI.openSubskillsMenu(player, skill);
+            
+            // Use scheduler to prevent glitches
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                SkillsGUI.openSkillsMenu(player);
+            }, 1L);
+            
             return;
         }
         
-        // View rewards button
-        if (itemName.equals(ChatColor.GOLD + "Skill Rewards")) {
-            player.closeInventory();
-            RewardsGUI.openRewardsMenu(player, skill);
-            return;
-        }
-        
-        // View skill tree button
-        if (itemName.equals(ChatColor.AQUA + "Skill Tree")) {
-            player.closeInventory();
-            SkillTreeGUI.openSkillTreeGUI(player, skill);
-            return;
-        }
-
-        // Handle abilities button
-        if (clickedItem.getItemMeta().getDisplayName().equals(ChatColor.LIGHT_PURPLE + "Skill Abilities")) {
+        // Subskills button - check for both standard and fancy format
+        if (displayName.equals(ChatColor.AQUA + "View Subskills") || 
+            displayName.equals(ChatColor.AQUA + "✦ View Subskills")) {
+            
+            String skillName = title.substring("Skill Details: ".length());
+            Skill skill = findSkillByName(skillName);
+            
             if (skill != null) {
                 player.closeInventory();
                 
-                // Force a short delay
-                Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                    AbilitiesGUI.openAbilitiesMenu(player, skill);
-                }, 2L);
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    SubskillsGUI.openSubskillsMenu(player, skill);
+                }, 1L);
             }
+            
+            return;
+        }
+        
+        // Abilities button - handle all variants
+        if (displayName.equals(ChatColor.LIGHT_PURPLE + "Skill Abilities") || 
+            displayName.equals(ChatColor.LIGHT_PURPLE + "✦ Skill Abilities") ||
+            displayName.equals(ChatColor.GOLD + "View Abilities")) {
+            
+            String skillName = title.substring("Skill Details: ".length());
+            Skill skill = findSkillByName(skillName);
+            
+            if (skill != null) {
+                player.closeInventory();
+                
+                // Open the abilities GUI using scheduler
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    com.server.profiles.skills.abilities.gui.AbilitiesGUI.openAbilitiesMenu(player, skill);
+                }, 1L);
+            }
+            
+            return;
+        }
+        
+        // Skill Tree button
+        if (displayName.contains("Skill Tree")) {
+            String skillName = title.substring("Skill Details: ".length());
+            Skill skill = findSkillByName(skillName);
+            
+            if (skill != null) {
+                player.closeInventory();
+                
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    SkillTreeGUI.openSkillTreeGUI(player, skill);
+                }, 1L);
+            }
+            
+            return;
+        }
+        
+        // Rewards button - handle both variants
+        if (displayName.contains("Rewards") || displayName.contains("✦ Skill Rewards")) {
+            String skillName = title.substring("Skill Details: ".length());
+            Skill skill = findSkillByName(skillName);
+            
+            if (skill != null) {
+                player.closeInventory();
+                
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    RewardsGUI.openRewardsMenu(player, skill);
+                }, 1L);
+            }
+            
+            return;
+        }
+                
+        // Help button
+        if (displayName.equals(ChatColor.YELLOW + "Help")) {
+            // Just display a tooltip, no navigation
             return;
         }
     }
@@ -156,22 +241,6 @@ public class SkillGUIListener implements Listener {
      * Handle clicks in the subskills menu
      */
     private void handleSubskillsMenuClick(Player player, ItemStack clickedItem, InventoryClickEvent event) {
-        // Debug the click event in detail to help diagnose the issue
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("SubskillGUI click: " + player.getName() + " clicked " + 
-                                            (clickedItem != null ? clickedItem.getType() : "null") + 
-                                            ", right-click: " + event.isRightClick() + 
-                                            ", click type: " + event.getClick());
-        }
-        
-        // Get player profile
-        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
-        if (activeSlot == null) return;
-        
-        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
-        if (profile == null) return;
-        
-        // Get the clicked item name
         if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
         String itemName = clickedItem.getItemMeta().getDisplayName();
         
@@ -185,7 +254,7 @@ public class SkillGUIListener implements Listener {
                     player.closeInventory();
                     
                     // Use scheduler to prevent glitches
-                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         SkillDetailsGUI.openSkillDetailsMenu(player, mainSkill);
                     }, 1L);
                 }
@@ -193,197 +262,115 @@ public class SkillGUIListener implements Listener {
             return;
         }
         
-        // Try to get the skill ID from the lore - this is critical
-        String skillId = extractSkillIdFromItem(clickedItem);
-        
-        // Debug the extracted skill ID
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("Extracted skill ID: " + skillId + " from item " + itemName);
-        }
-        
-        Skill subskill = null;
-        
-        // First try to get the skill by ID (most reliable)
-        if (skillId != null) {
-            subskill = SkillRegistry.getInstance().getSkill(skillId);
-            
-            // Debug the skill lookup result
-            if (Main.getInstance().isDebugMode()) {
-                if (subskill != null) {
-                    Main.getInstance().getLogger().info("Found skill by ID: " + subskill.getDisplayName());
-                } else {
-                    Main.getInstance().getLogger().warning("Could not find skill with ID: " + skillId);
-                }
-            }
-        }
-        
-        // Fallback to checking by display name if no ID was found or lookup failed
-        if (subskill == null) {
-            // Strip color codes and level info from item name for comparison
-            String cleanItemName = ChatColor.stripColor(itemName);
-            if (cleanItemName.contains("[")) {
-                cleanItemName = cleanItemName.substring(0, cleanItemName.indexOf("[")).trim();
-            }
-            
-            // Try each skill to find a matching display name
-            for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
-                if (!skill.isMainSkill() && skill.getDisplayName().equalsIgnoreCase(cleanItemName)) {
-                    subskill = skill;
-                    break;
-                }
-            }
-            
-            // Debug the fallback lookup
-            if (Main.getInstance().isDebugMode()) {
-                if (subskill != null) {
-                    Main.getInstance().getLogger().info("Found skill by display name: " + subskill.getDisplayName());
-                } else {
-                    Main.getInstance().getLogger().warning("Could not find skill with display name: " + cleanItemName);
-                }
-            }
-        }
-        
-        if (subskill != null) {
-            // Debug message to confirm clicks
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Found subskill: " + subskill.getId() + " - " + subskill.getDisplayName());
-                Main.getInstance().getLogger().info(player.getName() + " clicked on " + subskill.getDisplayName() + 
-                    " subskill (Right: " + event.isRightClick() + ", Click: " + event.getClick() + ")");
-            }
-            
-            // Before handling the click, force the skill object to be the correct type
-            // This ensures we're using the actual Skill object from the registry
-            final Skill finalSubskill = subskill;
-            final String skillTreeId = finalSubskill.getId();
-            
-            // Check if skill tree exists for this subskill
-            boolean treeExists = SkillTreeRegistry.getInstance().getSkillTree(skillTreeId) != null;
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Skill tree exists for " + skillTreeId + ": " + treeExists);
-            }
-            
-            // Right-click to open skill tree (check multiple right-click types for reliability)
-            if (event.isRightClick() || event.getClick() == org.bukkit.event.inventory.ClickType.RIGHT) {
-                // Close inventory first
-                player.closeInventory();
-                
-                // Force a short delay to ensure inventory is fully closed before opening new one
-                Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                    try {
-                        // Check again if skill tree exists
-                        if (SkillTreeRegistry.getInstance().getSkillTree(finalSubskill) == null) {
-                            player.sendMessage(ChatColor.RED + "Skill tree for " + finalSubskill.getDisplayName() + " is not available yet.");
-                            if (Main.getInstance().isDebugMode()) {
-                                Main.getInstance().getLogger().severe("Missing skill tree for " + finalSubskill.getId());
-                            }
-                            return;
-                        }
-                        
-                        // Open the skill tree GUI with the final subskill reference
-                        SkillTreeGUI.openSkillTreeGUI(player, finalSubskill);
-                        
-                        // Additional debug message
-                        if (Main.getInstance().isDebugMode()) {
-                            Main.getInstance().getLogger().info("Opening skill tree for " + finalSubskill.getDisplayName());
-                        }
-                    } catch (Exception e) {
-                        // Log any errors that occur
-                        if (Main.getInstance().isDebugMode()) {
-                            Main.getInstance().getLogger().severe("Error opening skill tree: " + e.getMessage());
-                            e.printStackTrace();
-                        }
-                        player.sendMessage(ChatColor.RED + "An error occurred opening the skill tree. Please try again later.");
-                    }
-                }, 2L); // Increased to 2 ticks for more reliable GUI switching
-            } else {
-                // Left-click to view details
-                player.closeInventory();
-                
-                // Force a short delay
-                Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                    SkillDetailsGUI.openSkillDetailsMenu(player, finalSubskill);
-                }, 2L); // Increased to 2 ticks
-            }
-        } else {
-            // If we couldn't find the skill, log detailed error info
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().warning("Could not find subskill for item: " + itemName);
-                if (clickedItem.hasItemMeta() && clickedItem.getItemMeta().hasLore()) {
-                    Main.getInstance().getLogger().warning("Lore: " + clickedItem.getItemMeta().getLore());
-                }
-                
-                // List all available skills for debugging
-                Main.getInstance().getLogger().warning("Available skills:");
-                for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
-                    Main.getInstance().getLogger().warning(" - " + skill.getId() + ": " + skill.getDisplayName() + 
-                                                        " (Main: " + skill.isMainSkill() + ")");
+        // Handle subskill clicks (open subskill details)
+        String title = event.getView().getTitle();
+        if (title.startsWith("Subskills: ")) {
+            for (Skill subskill : SkillRegistry.getInstance().getAllSkills()) {
+                if (itemName.contains(subskill.getDisplayName())) {
+                    player.closeInventory();
+                    
+                    // Use scheduler to prevent glitches
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        SkillDetailsGUI.openSkillDetailsMenu(player, subskill);
+                    }, 1L);
+                    
+                    return;
                 }
             }
         }
     }
-
+    
     /**
-     * Extract the skill ID from an item's lore
+     * Handle clicks in the skill tree GUI
      */
-    private String extractSkillIdFromItem(ItemStack item) {
-        if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-            List<String> lore = item.getItemMeta().getLore();
-            for (String line : lore) {
-                if (line.startsWith(ChatColor.BLACK + "SKILL_ID:")) {
-                    return line.substring((ChatColor.BLACK + "SKILL_ID:").length());
+    private void handleSkillTreeClick(Player player, ItemStack clickedItem) {
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
+        
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        
+        // Back button
+        if (displayName.equals(ChatColor.RED + "Back to Skills")) {
+            player.closeInventory();
+            
+            // Use scheduler to prevent glitches
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                SkillDetailsGUI.openSkillDetailsMenu(player, findSkillByName(
+                    player.getOpenInventory().getTitle().substring("Skill Tree: ".length())
+                ));
+            }, 1L);
+            return;
+        }
+        
+        // Node clicks
+        if (clickedItem.getItemMeta().getLore() != null) {
+            for (String lore : clickedItem.getItemMeta().getLore()) {
+                if (lore.startsWith(ChatColor.BLACK + "ID:")) {
+                    SkillTreeGUI.handleNodeClick(player, clickedItem);
+                    return;
+                }
+                if (lore.startsWith(ChatColor.BLACK + "DIRECTION:")) {
+                    SkillTreeGUI.handleNavigationClick(player, clickedItem);
+                    return;
+                }
+                if (lore.contains(ChatColor.BLACK + "RESET_BUTTON")) {
+                    SkillTreeGUI.handleResetClick(player);
+                    return;
                 }
             }
         }
-        return null;
     }
-        
+    
     /**
-     * Handle clicks in the rewards menu
+     * Handle clicks in the rewards GUI
      */
-    private void handleRewardsMenuClick(Player player, ItemStack clickedItem) {
-        String itemName = clickedItem.getItemMeta().getDisplayName();
+    private void handleRewardsClick(Player player, ItemStack clickedItem) {
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
         
-        // Implementation for handling reward menu item clicks
-        // Add your specific reward handling logic here
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        String title = player.getOpenInventory().getTitle();
         
-        // Example: if there are specific reward items to click
-        // if (itemName.startsWith(ChatColor.YELLOW + "Reward:")) {
-        //     // Handle reward selection
-        // }
-    }
-
-    /**
-     * Handle back button clicks
-     */
-    private void handleBackButton(Player player, String title, String buttonName) {
-        player.closeInventory();
-        
-        if (buttonName.equals(ChatColor.RED + "Back to Menu")) {
-            // From Skills menu back to main menu
-            ProfileGUI.openMainMenu(player);
-        } else if (buttonName.equals(ChatColor.RED + "Back to Skills")) {
-            // From Skill Details back to Skills menu
-            SkillsGUI.openSkillsMenu(player);
-        } else if (buttonName.equals(ChatColor.RED + "Back to Skill Details")) {
-            // From Subskills/Rewards menu back to Skill Details
-            if (title.startsWith("Subskills: ")) {
-                String mainSkillName = title.substring("Subskills: ".length());
-                Skill mainSkill = findSkillByName(mainSkillName);
-                if (mainSkill != null) {
-                    SkillDetailsGUI.openSkillDetailsMenu(player, mainSkill);
-                } else {
-                    SkillsGUI.openSkillsMenu(player);
-                }
-            } else if (title.startsWith("Rewards: ")) {
+        // Only process the back button in the rewards GUI
+        if (displayName.equals(ChatColor.RED + "Back to Skill Details")) {
+            if (title.startsWith("Rewards: ")) {
+                // Extract skill name from GUI title
                 String skillName = title.substring("Rewards: ".length());
                 Skill skill = findSkillByName(skillName);
+                
                 if (skill != null) {
-                    SkillDetailsGUI.openSkillDetailsMenu(player, skill);
-                } else {
-                    SkillsGUI.openSkillsMenu(player);
+                    player.closeInventory();
+                    
+                    // Use scheduler to prevent glitches
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        SkillDetailsGUI.openSkillDetailsMenu(player, skill);
+                    }, 1L);
                 }
-            } else {
-                SkillsGUI.openSkillsMenu(player);
+            }
+        }
+    }
+    
+    /**
+     * Handle clicks in the milestones GUI
+     */
+    private void handleMilestonesClick(Player player, ItemStack clickedItem, InventoryClickEvent event) {
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
+        
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        String title = event.getView().getTitle();
+        
+        // Back button
+        if (displayName.equals(ChatColor.RED + "Back to Skill Details")) {
+            if (title.startsWith("Milestones: ")) {
+                String skillName = title.substring("Milestones: ".length());
+                Skill skill = findSkillByName(skillName);
+                
+                if (skill != null) {
+                    player.closeInventory();
+                    
+                    // Use scheduler to prevent glitches
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        SkillDetailsGUI.openSkillDetailsMenu(player, skill);
+                    }, 1L);
+                }
             }
         }
     }

@@ -191,7 +191,7 @@ public class Main extends JavaPlugin {
         
         // Register skill listeners
         this.getServer().getPluginManager().registerEvents(new SkillEventListener(this), this);
-        this.getServer().getPluginManager().registerEvents(new SkillGUIListener(), this);
+        this.getServer().getPluginManager().registerEvents(new SkillGUIListener(this), this);
         
         // Register skill action bar listener
         this.getServer().getPluginManager().registerEvents(new SkillActionBarListener(), this);
