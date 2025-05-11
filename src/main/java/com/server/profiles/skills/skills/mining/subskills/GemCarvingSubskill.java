@@ -224,48 +224,74 @@ public class GemCarvingSubskill extends AbstractSkill {
         // Calculate the incremental benefit
         int levelDifference = newLevel - oldLevel;
         
-        if (nodeId.equals("gem_mining_fortune")) {
-            // Add 0.5 mining fortune per level
-            double fortuneBonus = levelDifference * 0.5;
-            
-            // Get current tracking value
-            double currentBonus = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
-            double newTotalBonus = currentBonus + fortuneBonus;
-            
-            // Update the stats directly
-            stats.addMiningFortune(fortuneBonus);
-            
-            // Update our tracking map
-            miningFortuneMap.put(player.getUniqueId(), newTotalBonus);
-            
-            // Tell the player about the bonus
-            player.sendMessage(ChatColor.AQUA + "Your gem fortune has increased by " + 
-                            ChatColor.YELLOW + String.format("%.1f", fortuneBonus) + 
-                            ChatColor.AQUA + " to " + 
-                            ChatColor.YELLOW + String.format("%.1f", newTotalBonus));
-            
-            // Log for debugging
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
-                    player.getName() + " (now " + stats.getMiningFortune() + ") from GemCarving skill tree node upgrade");
-            }
-        } else if (nodeId.equals("gemcarving_xp_boost")) {
-            // Store the new bonus XP level for this player
-            bonusXpMap.put(player.getUniqueId(), newLevel);
-            
-            // Tell the player about the bonus
-            player.sendMessage(ChatColor.GREEN + "Your gem carving XP bonus is now " + 
-                            ChatColor.YELLOW + "+" + newLevel + 
-                            ChatColor.GREEN + " XP per extraction");
-            
-            // Play sound effect
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-            
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Set GemCarving XP bonus to " + newLevel + " for " + player.getName());
-            }
+        switch (nodeId) {
+            case "gem_mining_fortune":
+                // Add 0.5 mining fortune per level
+                double fortuneBonus = levelDifference * 0.5;
+                
+                // Get current tracking value
+                double currentBonus = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
+                double newTotalBonus = currentBonus + fortuneBonus;
+                
+                // Update the stats directly
+                stats.addMiningFortune(fortuneBonus);
+                
+                // Update our tracking map
+                miningFortuneMap.put(player.getUniqueId(), newTotalBonus);
+                
+                // Tell the player about the bonus
+                player.sendMessage(ChatColor.AQUA + "Your gem fortune has increased by " + 
+                                ChatColor.YELLOW + String.format("%.1f", fortuneBonus) + 
+                                ChatColor.AQUA + " to " + 
+                                ChatColor.YELLOW + String.format("%.1f", newTotalBonus));
+                
+                // Log for debugging
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
+                        player.getName() + " (now " + stats.getMiningFortune() + ") from GemCarving skill tree node upgrade");
+                }
+                break;
+                
+            case "gemcarving_xp_boost":
+                // Store the new bonus XP level for this player
+                bonusXpMap.put(player.getUniqueId(), newLevel);
+                
+                // Tell the player about the bonus
+                player.sendMessage(ChatColor.GREEN + "Your gem carving XP bonus is now " + 
+                                ChatColor.YELLOW + "+" + newLevel + 
+                                ChatColor.GREEN + " XP per extraction");
+                
+                // Play sound effect
+                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Set GemCarving XP bonus to " + newLevel + " for " + player.getName());
+                }
+                break;
+                
+            case "basic_crystals":
+                // This node unlocks the ability to carve Azuralite crystals
+                // Only send message if this is a new unlock
+                if (oldLevel == 0 && newLevel > 0) {
+                    player.sendMessage(ChatColor.BLUE + "✦ " + ChatColor.AQUA + "You've unlocked access to " + 
+                        ChatColor.BLUE + "Azuralite Crystals" + ChatColor.AQUA + "!");
+                    player.sendMessage(ChatColor.GRAY + "Find these blue crystals in caves and right-click them to begin carving.");
+                    
+                    // Play special effect for unlocking
+                    player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.2f);
+                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+                    
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("Unlocked Azuralite crystal carving for " + player.getName());
+                    }
+                }
+                break;
         }
+        
+        // Always update cached skill tree benefits
+        updateCachedSkillTreeBenefits(player);
     }
+
     
     /**
      * Get the bonus XP for a player from the skill tree
@@ -344,6 +370,40 @@ public class GemCarvingSubskill extends AbstractSkill {
     }
 
     /**
+     * Check if a player has access to a specific crystal type
+     * @param player The player to check
+     * @param crystalType The crystal type to check access for
+     * @return true if the player can carve this crystal, false otherwise
+     */
+    public boolean hasCrystalAccess(Player player, String crystalType) {
+        // Mooncrystal is always accessible
+        if (crystalType.equalsIgnoreCase("mooncrystal")) {
+            return true;
+        }
+        
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        // Get the player's skill tree data
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        if (treeData == null) return false;
+        
+        // Check for specific crystal types based on unlocked nodes
+        if (crystalType.equalsIgnoreCase("azuralite")) {
+            return treeData.getNodeLevel(getId(), "basic_crystals") > 0;
+        }
+        
+        // Future crystal types can be added here with their corresponding nodes
+        
+        // Unknown crystal type - default to false
+        return false;
+    }
+
+    /**
      * Get the benefits from unlocked skill tree nodes
      * @param player The player to get benefits for
      * @return A map of benefit types to their values
@@ -354,6 +414,7 @@ public class GemCarvingSubskill extends AbstractSkill {
         // Default benefit values
         benefits.put("mining_fortune", 0.0);
         benefits.put("gem_carving_xp", 0.0);
+        benefits.put("basic_crystals_unlocked", 0.0);
         
         // Get player's skill tree data
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -420,9 +481,33 @@ public class GemCarvingSubskill extends AbstractSkill {
             }
         }
         
+        // Basic Crystals node - Unlocks Azuralite crystals
+        if (nodeLevels.containsKey("basic_crystals")) {
+            int level = nodeLevels.get("basic_crystals");
+            if (level > 0) {
+                benefits.put("basic_crystals_unlocked", 1.0);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Applied basic_crystals unlock for " + player.getName());
+                }
+            }
+        }
+        
         return benefits;
     }
-    
+
+    /**
+     * Update cached skill tree benefits for a player
+     */
+    private void updateCachedSkillTreeBenefits(Player player) {
+        // Calling getSkillTreeBenefits will apply all the benefits
+        getSkillTreeBenefits(player);
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Updated cached skill tree benefits for " + player.getName());
+        }
+    }
+        
     /**
      * Clean up player data when they leave
      * This method is called when a player logs out
@@ -548,5 +633,6 @@ public class GemCarvingSubskill extends AbstractSkill {
             Main.getInstance().getLogger().info("[GemCarvingReset] No gem_mining_fortune node found in oldNodeLevels for " + player.getName());
         }
     }
+
 
 }

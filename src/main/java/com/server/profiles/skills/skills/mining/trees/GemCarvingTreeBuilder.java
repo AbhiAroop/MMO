@@ -89,5 +89,23 @@ public class GemCarvingTreeBuilder implements SkillTreeBuilder {
         // Add to tree with direct connection
         tree.addNode(xpBoostNode);
         tree.addConnection("root", "gemcarving_xp_boost");
+        
+        // =====================================================================
+        // BASIC CRYSTALS NODE - Above the XP boost node
+        // =====================================================================
+        
+        // Create a node that unlocks Azuralite crystals
+        tree.addNode(new SkillTreeNode(
+            "basic_crystals",
+            "Basic Crystals",
+            "Unlocks the ability to carve Azuralite crystals",
+            Material.LAPIS_LAZULI, // Azuralite is represented by lapis in the minigame
+            ChatColor.BLUE,
+            2, -2, // 2 tiles up from the XP boost node (same x coordinate)
+            3 // Token cost
+        ));
+        
+        // Connect to the XP boost node
+        tree.addConnection("gemcarving_xp_boost", "basic_crystals");
     }
 }

@@ -354,7 +354,7 @@ public class SubskillDetailsGUI {
                                             SkillLevel level, Player player, PlayerProfile profile) {
         // Calculate unlocked ore types from skill tree
         boolean hasBasicOres = true; // Always unlocked
-        boolean hasCopperOres = true; // Always unlocked
+        boolean hasCopperOres = false; // Always unlocked
         boolean hasIronOres = level.getLevel() >= 5; // Level requirement
         boolean hasGoldOres = false;
         boolean hasRedstoneOres = false;

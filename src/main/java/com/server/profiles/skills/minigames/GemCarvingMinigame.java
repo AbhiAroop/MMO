@@ -38,6 +38,7 @@ import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.display.SkillActionBarManager;
 import com.server.profiles.skills.events.SkillExpGainEvent;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.utils.NamespacedKeyUtils;
 
 /**
@@ -195,6 +196,14 @@ public class GemCarvingMinigame {
         // Get crystal tier info or use default if not found
         CrystalTier tier = CRYSTAL_TIERS.getOrDefault(crystalType.toLowerCase(), CRYSTAL_TIERS.get("mooncrystal"));
         
+        // Check if the player has access to this crystal tier
+        if (!playerHasAccessTo(player, crystalType)) {
+            player.sendMessage("§c⚠ You haven't unlocked the ability to carve " + formatCrystalName(crystalType) + " yet!");
+            player.sendMessage("§7Unlock this crystal tier through the Gem Carving skill tree.");
+            showCrystalAccessRequirements(player, crystalType);
+            return false;
+        }
+        
         // Check if crystal is on cooldown
         if (isCrystalOnCooldown(crystal)) {
             player.sendMessage("§8This crystal is cooling down after a recent extraction attempt.");
@@ -215,6 +224,129 @@ public class GemCarvingMinigame {
         session.start();
         
         return true;
+    }
+
+    /**
+     * Show the player which crystals they have access to and which skill tree nodes
+     * they need to unlock for higher tier crystals
+     */
+    private void showCrystalAccessRequirements(Player player, String crystalType) {
+        StringBuilder message = new StringBuilder();
+        String formattedName = formatCrystalName(crystalType);
+        
+        // Get the difficulty tier
+        CrystalTier tier = CRYSTAL_TIERS.getOrDefault(crystalType.toLowerCase(), CRYSTAL_TIERS.get("mooncrystal"));
+        String tierColor = getTierChatColor(tier.getParticleColor());
+        
+        message.append("§c⚠ You haven't unlocked the ability to carve ").append(tierColor).append(formattedName).append(" §cyet!\n");
+        message.append("§7Required Skill Tree Node: §e");
+        
+        // Show required skill tree node based on crystal type
+        switch (crystalType.toLowerCase()) {
+            case "azuralite":
+                message.append("Basic Crystals");
+                break;
+            case "pyrethine":
+            case "solvanecystal":
+                message.append("Intermediate Crystals");
+                break;
+            case "nyxstone":
+            case "lucenthar":
+                message.append("Advanced Crystals");
+                break;
+            case "veyrithcrystal":
+            case "drakthyst":
+                message.append("Master Crystals");
+                break;
+            default:
+                message.append("Unknown Crystal Type");
+        }
+        
+        message.append("\n§7Unlock this crystal tier through the Gem Carving skill tree.");
+        
+        player.sendMessage(message.toString());
+    }
+
+    /**
+     * Convert tier color to approximate chat color
+     */
+    private String getTierChatColor(Color color) {
+        // Simple color matching logic
+        int r = color.getRed();
+        int g = color.getGreen();
+        int b = color.getBlue();
+        
+        if (r > 200 && g > 200 && b > 200) return "§f"; // WHITE
+        if (r > 200 && g > 200 && b < 100) return "§e"; // YELLOW
+        if (r < 100 && g > 200 && b < 100) return "§a"; // GREEN
+        if (r < 100 && g > 200 && b > 200) return "§b"; // AQUA
+        if (r < 100 && g < 100 && b > 200) return "§9"; // BLUE
+        if (r > 200 && g < 100 && b > 200) return "§d"; // LIGHT PURPLE
+        if (r > 200 && g < 100 && b < 100) return "§c"; // RED
+        if (r < 100 && g < 100 && b < 100) return "§8"; // DARK GRAY
+        
+        return "§d"; // Default to light purple
+    }
+
+    /**
+     * Format a crystal name for display (capitalize first letter, add spaces)
+     */
+    private String formatCrystalName(String crystalType) {
+        String name = crystalType.replace("crystal", " Crystal");
+        return name.substring(0, 1).toUpperCase() + name.substring(1);
+    }
+
+    /**
+     * Check if a player has access to a specific crystal type
+     * Based on their skill tree nodes in the GemCarving skill
+     */
+    private boolean playerHasAccessTo(Player player, String crystalType) {
+        // Lowercase for case-insensitive comparison
+        crystalType = crystalType.toLowerCase();
+        
+        // Mooncrystal is always available
+        if (crystalType.equals("mooncrystal")) {
+            return true;
+        }
+        
+        // Get player's profile and skill tree data
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        
+        // Get the GemCarving skill ID
+        String skillId = SubskillType.GEM_CARVING.getId();
+        
+        // Check nodes based on the crystal tier
+        // These node IDs match what will be used in the skill tree
+        switch (crystalType) {
+            case "azuralite":
+                return treeData.getNodeLevel(skillId, "basic_crystals") > 0 || 
+                    treeData.getNodeLevel(skillId, "all_crystals") > 0;
+                    
+            case "pyrethine":
+            case "solvanecystal":
+                return treeData.getNodeLevel(skillId, "intermediate_crystals") > 0 ||
+                    treeData.getNodeLevel(skillId, "all_crystals") > 0;
+                    
+            case "nyxstone":
+            case "lucenthar":
+                return treeData.getNodeLevel(skillId, "advanced_crystals") > 0 ||
+                    treeData.getNodeLevel(skillId, "all_crystals") > 0;
+                    
+            case "veyrithcrystal":
+            case "drakthyst":
+                return treeData.getNodeLevel(skillId, "master_crystals") > 0 ||
+                    treeData.getNodeLevel(skillId, "all_crystals") > 0;
+                
+            default:
+                // For any unrecognized crystal type, require the highest tier unlock
+                return treeData.getNodeLevel(skillId, "all_crystals") > 0;
+        }
     }
     
     /**
@@ -446,6 +578,11 @@ public class GemCarvingMinigame {
             
             // Send start message to player with tier-specific info
             player.sendMessage("§d✦ §bBegin " + getTierDisplayName() + " crystal carving! §d✦");
+
+            // Add tier information
+            String tierName = getTierName();
+            player.sendMessage("§7Crystal Tier: " + getTierChatColor() + tierName);
+
             player.sendMessage("§aHit the floating particles to extract the gem.");
             player.sendMessage("§7Tip: You can hit particles even through blocks! Just aim at them.");
             
@@ -495,6 +632,32 @@ public class GemCarvingMinigame {
             // Register with the SkillActionBarManager to handle the custom display
             // and start displaying the progress information
             updateActionBar();
+        }
+
+        /**
+         * Get the tier name based on crystal type
+         */
+        private String getTierName() {
+            switch (crystalType.toLowerCase()) {
+                case "mooncrystal":
+                    return "Tier 1 (Basic)";
+                case "azuralite":
+                    return "Tier 2 (Basic)";
+                case "pyrethine":
+                    return "Tier 3 (Intermediate)";
+                case "solvanecystal":
+                    return "Tier 4 (Intermediate)";
+                case "nyxstone":
+                    return "Tier 5 (Advanced)";
+                case "lucenthar":
+                    return "Tier 6 (Advanced)";
+                case "veyrithcrystal":
+                    return "Tier 7 (Master)";
+                case "drakthyst":
+                    return "Tier 8 (Master)";
+                default:
+                    return "Unknown Tier";
+            }
         }
 
         /**
