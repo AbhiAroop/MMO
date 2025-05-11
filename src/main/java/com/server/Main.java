@@ -176,7 +176,7 @@ public class Main extends JavaPlugin {
     }
 
     private void registerListeners() {
-        this.getServer().getPluginManager().registerEvents(new GUIListener(), this);
+        this.getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         this.getServer().getPluginManager().registerEvents(mobDisplayManager, this);

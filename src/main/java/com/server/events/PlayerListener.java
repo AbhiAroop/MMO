@@ -307,7 +307,9 @@ public class PlayerListener implements Listener {
         if (!(event.getPlayer() instanceof Player)) return;
         
         Player player = (Player) event.getPlayer();
-        if (!event.getView().getTitle().equals("Profile Selection")) return;
+        
+        // Use the constant title from ProfileGUI for consistency
+        if (!event.getView().getTitle().equals(ProfileGUI.PROFILE_SELECTION_TITLE)) return;
 
         // Check if player has profiles
         ProfileManager pm = ProfileManager.getInstance();

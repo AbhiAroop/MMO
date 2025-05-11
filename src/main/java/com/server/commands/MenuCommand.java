@@ -1,21 +1,27 @@
 package com.server.commands;
 
-import java.util.Arrays;
+import java.util.List;
 
-import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
-import com.server.utils.CurrencyFormatter;
+import com.server.profiles.gui.ProfileGUI;
 
+/**
+ * Command to open the player's main menu
+ */
 public class MenuCommand implements CommandExecutor {
     
     @Override
@@ -25,107 +31,146 @@ public class MenuCommand implements CommandExecutor {
         }
         
         if (!(sender instanceof Player)) {
-            sender.sendMessage("This command can only be run by a player.");
+            sender.sendMessage(ChatColor.RED + "This command can only be run by a player.");
             return true;
         }
 
         Player player = (Player) sender;
-        openMenu(player);
+        // Use the ProfileGUI's openMainMenu method to ensure consistency
+        ProfileGUI.openMainMenu(player);
         return true;
     }
 
-    private void openMenu(Player player) {
-        Inventory menu = Bukkit.createInventory(null, 27, "Player Menu");
-
-        // Create Profile Selection button (Book)
-        ItemStack profileButton = new ItemStack(Material.BOOK);
-        ItemMeta profileMeta = profileButton.getItemMeta();
-        profileMeta.setDisplayName("§6§lProfile Selection");
-        profileMeta.setLore(Arrays.asList(
-            "§7Manage your player profiles",
-            "§7Current Profiles: §e0/3",
-            "",
-            "§eClick to open profile manager"
-        ));
-        profileButton.setItemMeta(profileMeta);
-
-        // Create Stats View button (Nether Star)
-        ItemStack statsButton = new ItemStack(Material.NETHER_STAR);
-        ItemMeta statsMeta = statsButton.getItemMeta();
-        statsMeta.setDisplayName("§b§lPlayer Stats");
-        statsMeta.setLore(Arrays.asList(
-            "§7View your current profile stats",
-            "§7Includes combat, defense and more",
-            "",
-            "§eClick to view stats"
-        ));
-        statsButton.setItemMeta(statsMeta);
+    /**
+     * Legacy method for backward compatibility - redirects to ProfileGUI
+     * This will be used in case any other plugin calls this method directly
+     */
+    @Deprecated
+    public void openMenu(Player player) {
+        ProfileGUI.openMainMenu(player);
+    }
+    
+    /**
+     * Create a player head item with custom name and lore
+     */
+    public static ItemStack createPlayerHeadItem(Player player, String displayName, List<String> lore) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        meta.setOwningPlayer(player);
+        meta.setDisplayName(displayName);
+        meta.setLore(lore);
         
-        // Create Skills button (Experience Bottle)
-        ItemStack skillsButton = new ItemStack(Material.EXPERIENCE_BOTTLE);
-        ItemMeta skillsMeta = skillsButton.getItemMeta();
-        skillsMeta.setDisplayName("§a§lSkills");
-        skillsMeta.setLore(Arrays.asList(
-            "§7View and manage your skills",
-            "§7Level up skills to earn rewards",
-            "",
-            "§eClick to view skills"
-        ));
-        skillsButton.setItemMeta(skillsMeta);
-
-        // Create Currency Display button (Gold Ingot)
-        ItemStack currencyButton = new ItemStack(Material.GOLD_INGOT);
-        ItemMeta currencyMeta = currencyButton.getItemMeta();
-        currencyMeta.setDisplayName("§e§lCurrency Balances");
+        // Add enchant glow for visual appeal
+        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         
-        // Get profile currencies
-        int units = 0;
-        int premiumUnits = 0;
-        int essence = 0;
-        int bits = 0;
+        head.setItemMeta(meta);
+        return head;
+    }
+    
+    /**
+     * Create a menu button with custom material, name, and lore
+     */
+    public static ItemStack createMenuButton(Material material, String displayName, List<String> lore, boolean enchanted) {
+        ItemStack button = new ItemStack(material);
+        ItemMeta meta = button.getItemMeta();
+        meta.setDisplayName(displayName);
+        meta.setLore(lore);
         
+        // Add enchant glow if specified
+        if (enchanted) {
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+        
+        // Hide attributes to keep the tooltip clean
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        
+        button.setItemMeta(meta);
+        return button;
+    }
+    
+    /**
+     * Create a glass pane with empty name for decoration
+     */
+    public static ItemStack createGlassPane(Material material) {
+        ItemStack pane = new ItemStack(material);
+        ItemMeta meta = pane.getItemMeta();
+        meta.setDisplayName(" ");
+        pane.setItemMeta(meta);
+        return pane;
+    }
+    
+    /**
+     * Create a decorative border for a menu with alternating colors
+     */
+    public static void createBorder(Inventory menu) {
+        ItemStack bluePane = createGlassPane(Material.BLUE_STAINED_GLASS_PANE);
+        ItemStack lightBluePane = createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        ItemStack cornerPane = createGlassPane(Material.CYAN_STAINED_GLASS_PANE);
+        
+        int size = menu.getSize();
+        int rows = size / 9;
+        
+        // Set corners
+        menu.setItem(0, cornerPane);
+        menu.setItem(8, cornerPane);
+        menu.setItem(size - 9, cornerPane);
+        menu.setItem(size - 1, cornerPane);
+        
+        // Top and bottom borders with alternating colors
+        for (int i = 1; i < 8; i++) {
+            menu.setItem(i, i % 2 == 0 ? bluePane : lightBluePane);
+            menu.setItem(size - 9 + i, i % 2 == 0 ? bluePane : lightBluePane);
+        }
+        
+        // Side borders
+        for (int i = 1; i < rows - 1; i++) {
+            menu.setItem(i * 9, i % 2 == 0 ? lightBluePane : bluePane);
+            menu.setItem(i * 9 + 8, i % 2 == 0 ? lightBluePane : bluePane);
+        }
+    }
+    
+    /**
+     * Fill empty inventory slots with black glass panes
+     */
+    public static void fillEmptySlots(Inventory menu) {
+        ItemStack filler = createGlassPane(Material.BLACK_STAINED_GLASS_PANE);
+        
+        for (int i = 0; i < menu.getSize(); i++) {
+            if (menu.getItem(i) == null) {
+                menu.setItem(i, filler);
+            }
+        }
+    }
+    
+    /**
+     * Counts the number of active profiles for a player
+     */
+    public static int countActiveProfiles(Player player) {
+        int activeProfiles = 0;
+        PlayerProfile[] profiles = ProfileManager.getInstance().getProfiles(player.getUniqueId());
+        
+        for (PlayerProfile profile : profiles) {
+            if (profile != null) {
+                activeProfiles++;
+            }
+        }
+        
+        return activeProfiles;
+    }
+    
+    /**
+     * Gets the name of the player's current active profile
+     */
+    public static String getActiveProfileName(Player player) {
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot != null) {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
             if (profile != null) {
-                units = profile.getUnits();
-                premiumUnits = profile.getPremiumUnits();
-                essence = profile.getEssence();
-                bits = profile.getBits();
+                return profile.getName();
             }
         }
-        
-        // Format currency values using the CurrencyFormatter
-        currencyMeta.setLore(Arrays.asList(
-            "§7Your current balances:",
-            "",
-            "§e§lUnits: §f" + CurrencyFormatter.formatUnits(units),
-            "§d§lPremium Units: §f" + CurrencyFormatter.formatPremiumUnits(premiumUnits),
-            "§b§lEssence: §f" + CurrencyFormatter.formatEssence(essence),
-            "§a§lBits: §f" + CurrencyFormatter.formatBits(bits),
-            "",
-            "§7Use /balance to check currencies",
-            "§7Use /pay to transfer Units/Premium"
-        ));
-        currencyButton.setItemMeta(currencyMeta);
-
-        // Fill empty slots with black glass panes
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
-        filler.setItemMeta(fillerMeta);
-
-        // Fill all slots with filler first
-        for (int i = 0; i < menu.getSize(); i++) {
-            menu.setItem(i, filler);
-        }
-
-        // Add buttons in specific slots (centered)
-        menu.setItem(11, profileButton);  // Left position
-        menu.setItem(13, skillsButton);   // Center position
-        menu.setItem(15, statsButton);    // Right position
-        menu.setItem(22, currencyButton); // Bottom center
-
-        player.openInventory(menu);
+        return "None";
     }
 }
