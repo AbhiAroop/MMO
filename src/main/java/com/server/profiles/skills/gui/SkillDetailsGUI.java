@@ -77,8 +77,15 @@ public class SkillDetailsGUI {
         
         // If this is a main skill with subskills, add subskills button
         if (skill.isMainSkill() && !skill.getSubskills().isEmpty()) {
+            // Add general subskills button
             ItemStack subskillsItem = createSubskillsButton(skill);
             gui.setItem(20, subskillsItem); // Left of abilities
+        } 
+        // If this is a subskill, add detailed info button
+        else if (skill.getParentSkill() != null) {
+            // This is a subskill, add detailed info button
+            ItemStack detailedInfoButton = createSubskillDetailedInfoButton(skill);
+            gui.setItem(24, detailedInfoButton); // Right of abilities
         }
         
         // Add back button in bottom left
@@ -94,6 +101,91 @@ public class SkillDetailsGUI {
         
         // Open inventory
         player.openInventory(gui);
+    }
+
+    /**
+     * Create a detailed info button for subskill details
+     */
+    private static ItemStack createSubskillDetailedInfoButton(Skill subskill) {
+        Material icon;
+        
+        // Choose appropriate icon based on subskill type
+        if (subskill instanceof OreExtractionSubskill) {
+            icon = Material.IRON_PICKAXE;
+        } 
+        else if (subskill instanceof GemCarvingSubskill) {
+            icon = Material.EMERALD;
+        }
+        else {
+            // Default icons for other subskills based on parent skill
+            switch (subskill.getParentSkill().getId()) {
+                case "mining":
+                    icon = Material.DIAMOND_PICKAXE;
+                    break;
+                case "excavating":
+                    icon = Material.DIAMOND_SHOVEL;
+                    break;
+                case "fishing":
+                    icon = Material.FISHING_ROD;
+                    break;
+                case "farming":
+                    icon = Material.DIAMOND_HOE;
+                    break;
+                case "combat":
+                    icon = Material.COMPASS;
+                    break;
+                default:
+                    icon = Material.KNOWLEDGE_BOOK;
+            }
+        }
+        
+        ItemStack item = new ItemStack(icon);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.GOLD + "✦ " + ChatColor.AQUA + "Detailed " + subskill.getDisplayName() + " Info");
+        
+        // Add enchant glow for visual appeal
+        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "View specialized information");
+        lore.add(ChatColor.GRAY + "about the " + ChatColor.YELLOW + subskill.getDisplayName() + ChatColor.GRAY + " subskill.");
+        lore.add("");
+        
+        // Add subskill-specific description
+        if (subskill instanceof OreExtractionSubskill) {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Details include:");
+            lore.add(ChatColor.GRAY + "• Unlockable ore types");
+            lore.add(ChatColor.GRAY + "• XP gained per ore");
+            lore.add(ChatColor.GRAY + "• Mining efficiency stats");
+            lore.add(ChatColor.GRAY + "• Fortune bonus information");
+        }
+        else if (subskill instanceof GemCarvingSubskill) {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Details include:");
+            lore.add(ChatColor.GRAY + "• Crystal rarities & qualities");
+            lore.add(ChatColor.GRAY + "• Extraction success rates");
+            lore.add(ChatColor.GRAY + "• XP values per gem type");
+            lore.add(ChatColor.GRAY + "• Unlocking requirements");
+        }
+        else {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Details include:");
+            lore.add(ChatColor.GRAY + "• Special bonuses and stats");
+            lore.add(ChatColor.GRAY + "• XP sources and values");
+            lore.add(ChatColor.GRAY + "• Level-specific information");
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.GREEN + "Click to view detailed information");
+        
+        // Add hidden subskill ID for event handler
+        lore.add(ChatColor.BLACK + "VIEW_DETAILS:" + subskill.getId());
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        
+        return item;
     }
     
     /**
@@ -642,6 +734,65 @@ public class SkillDetailsGUI {
         bar.append(ChatColor.GRAY + "]");
         
         return bar.toString();
+    }
+
+    /**
+     * Create a detailed info button for subskills
+     */
+    private static ItemStack createSubskillDetailButton(Skill subskill) {
+        Material icon;
+        
+        // Choose appropriate icon based on subskill type
+        if (subskill instanceof OreExtractionSubskill) {
+            icon = Material.IRON_PICKAXE;
+        } 
+        else if (subskill instanceof GemCarvingSubskill) {
+            icon = Material.EMERALD;
+        }
+        else {
+            icon = Material.COMPASS;
+        }
+        
+        ItemStack item = new ItemStack(icon);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.AQUA + "✦ " + subskill.getDisplayName() + " Information");
+        
+        // Add enchant glow for visual appeal
+        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "View specialized information about");
+        lore.add(ChatColor.GRAY + "the " + ChatColor.YELLOW + subskill.getDisplayName() + ChatColor.GRAY + " subskill.");
+        lore.add("");
+        
+        if (subskill instanceof OreExtractionSubskill) {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Details include:");
+            lore.add(ChatColor.GRAY + "• Unlocked ore types");
+            lore.add(ChatColor.GRAY + "• XP values per ore");
+            lore.add(ChatColor.GRAY + "• Fortune bonuses");
+            lore.add(ChatColor.GRAY + "• Mining efficiency stats");
+        }
+        else if (subskill instanceof GemCarvingSubskill) {
+            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Details include:");
+            lore.add(ChatColor.GRAY + "• Unlocked gem crystals");
+            lore.add(ChatColor.GRAY + "• Extraction success rates");
+            lore.add(ChatColor.GRAY + "• Crystal qualities & values");
+            lore.add(ChatColor.GRAY + "• Carving precision stats");
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.GREEN + "Click to view detailed information");
+        
+        // Add hidden subskill ID for event handler
+        lore.add(ChatColor.BLACK + "SUBSKILL_ID:" + subskill.getId());
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        
+        return item;
     }
     
     /**

@@ -1,7 +1,10 @@
 package com.server.profiles.skills.gui;
 
+import java.util.List;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,6 +16,7 @@ import com.server.Main;
 import com.server.profiles.gui.ProfileGUI;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.trees.SkillTreeRegistry;
 
 /**
  * Listener for skill GUI interactions
@@ -25,7 +29,7 @@ public class SkillGUIListener implements Listener {
         this.plugin = plugin;
     }
     
-    @EventHandler
+   @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         
@@ -33,7 +37,7 @@ public class SkillGUIListener implements Listener {
         String title = event.getView().getTitle();
         
         // Check if this is any of our skills-related GUI titles
-        // Extended to cover all variations including Rewards GUI
+        // Extended to cover all variations including SubskillDetails GUI
         if (title.equals("✦ Skills Menu ✦") || 
             title.startsWith("Skill Details: ") || 
             title.startsWith("Subskills: ") ||
@@ -42,7 +46,8 @@ public class SkillGUIListener implements Listener {
             title.startsWith("Rewards: ") ||
             title.equals("Rewards") ||
             title.equals("Reset Confirmation") ||
-            title.startsWith("Milestones: ")) {
+            title.startsWith("Milestones: ") ||
+            (title.contains("Details") && title.startsWith(ChatColor.GOLD + "✦"))) { // Catch SubskillDetails GUI
             
             // Cancel all interactions to prevent taking items
             event.setCancelled(true);
@@ -63,6 +68,9 @@ public class SkillGUIListener implements Listener {
                 handleRewardsClick(player, clickedItem);
             } else if (title.startsWith("Milestones: ")) {
                 handleMilestonesClick(player, clickedItem, event);
+            } else if (title.contains("Details") && title.startsWith(ChatColor.GOLD + "✦")) {
+                // Handle SubskillDetails GUI clicks - specifically for the back button
+                handleSubskillDetailGUIClick(player, clickedItem);
             }
         }
     }
@@ -74,7 +82,7 @@ public class SkillGUIListener implements Listener {
         
         String title = event.getView().getTitle();
         
-        // Updated to include all skill-related GUIs
+        // Updated to include all skill-related GUIs including SubskillDetails
         if (title.equals("✦ Skills Menu ✦") || 
             title.startsWith("Skill Details: ") || 
             title.startsWith("Subskills: ") ||
@@ -83,7 +91,8 @@ public class SkillGUIListener implements Listener {
             title.startsWith("Rewards: ") ||
             title.equals("Rewards") ||
             title.equals("Reset Confirmation") ||
-            title.startsWith("Milestones: ")) {
+            title.startsWith("Milestones: ") ||
+            (title.contains("Details") && title.startsWith(ChatColor.GOLD + "✦"))) {
             
             event.setCancelled(true);
         }
@@ -176,6 +185,47 @@ public class SkillGUIListener implements Listener {
             return;
         }
         
+        // Check for detailed subskill info button
+        if (displayName.startsWith(ChatColor.GOLD + "✦ " + ChatColor.AQUA + "Detailed ") && 
+            displayName.endsWith(" Info")) {
+            
+            // Extract subskill ID from the lore
+            String subskillId = null;
+            
+            if (clickedItem.getItemMeta().hasLore()) {
+                List<String> lore = clickedItem.getItemMeta().getLore();
+                for (String line : lore) {
+                    if (line.startsWith(ChatColor.BLACK + "VIEW_DETAILS:")) {
+                        subskillId = line.substring((ChatColor.BLACK + "VIEW_DETAILS:").length());
+                        break;
+                    }
+                }
+            }
+            
+            if (subskillId != null) {
+                final String finalSubskillId = subskillId;
+                player.closeInventory();
+                
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    Skill subskill = SkillRegistry.getInstance().getSkill(finalSubskillId);
+                    if (subskill != null) {
+                        // Store this as the recent subskill for this category
+                        if (subskill.getParentSkill() != null) {
+                            String metadataKey = "recent_subskill_" + subskill.getParentSkill().getId();
+                            player.setMetadata(metadataKey, new org.bukkit.metadata.FixedMetadataValue(plugin, subskill.getId()));
+                        }
+                        
+                        SubskillDetailsGUI.openSubskillDetailsGUI(player, subskill);
+                    } else {
+                        player.sendMessage(ChatColor.RED + "Error: Could not find subskill with ID " + finalSubskillId);
+                    }
+                }, 1L);
+                
+                return;
+            }
+        }
+        
         // Abilities button - handle all variants
         if (displayName.equals(ChatColor.LIGHT_PURPLE + "Skill Abilities") || 
             displayName.equals(ChatColor.LIGHT_PURPLE + "✦ Skill Abilities") ||
@@ -262,22 +312,103 @@ public class SkillGUIListener implements Listener {
             return;
         }
         
-        // Handle subskill clicks (open subskill details)
-        String title = event.getView().getTitle();
-        if (title.startsWith("Subskills: ")) {
-            for (Skill subskill : SkillRegistry.getInstance().getAllSkills()) {
-                if (itemName.contains(subskill.getDisplayName())) {
-                    player.closeInventory();
-                    
-                    // Use scheduler to prevent glitches
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        SkillDetailsGUI.openSkillDetailsMenu(player, subskill);
-                    }, 1L);
-                    
-                    return;
+        // Check for detailed info button click
+        if (itemName.startsWith(ChatColor.GOLD + "✦ " + ChatColor.AQUA + "Detailed ") && 
+            itemName.endsWith(" Info")) {
+            
+            // Extract subskill ID from the lore
+            String subskillId = getDetailViewSkillId(clickedItem);
+            if (subskillId != null) {
+                final String finalSubskillId = subskillId;
+                player.closeInventory();
+                
+                // Use scheduler to prevent glitches
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    Skill subskill = SkillRegistry.getInstance().getSkill(finalSubskillId);
+                    if (subskill != null) {
+                        // Store this as the recent subskill for this category
+                        // Use player metadata instead of profile metadata
+                        if (subskill.getParentSkill() != null) {
+                            String metadataKey = "recent_subskill_" + subskill.getParentSkill().getId();
+                            player.setMetadata(metadataKey, new org.bukkit.metadata.FixedMetadataValue(plugin, subskill.getId()));
+                            
+                            if (plugin.isDebugMode()) {
+                                plugin.getLogger().info("Stored recent subskill preference for " + player.getName() + 
+                                            ": " + metadataKey + "=" + subskill.getId());
+                            }
+                        }
+                        
+                        SubskillDetailsGUI.openSubskillDetailsGUI(player, subskill);
+                    } else {
+                        player.sendMessage(ChatColor.RED + "Error: Could not find subskill with ID " + finalSubskillId);
+                    }
+                }, 1L);
+                return;
+            }
+        }
+        
+        // Extract subskill ID from lore if present
+        String subskillId = getSkillIdFromLore(clickedItem);
+        if (subskillId == null) return;
+        
+        Skill subskill = SkillRegistry.getInstance().getSkill(subskillId);
+        if (subskill == null) return;
+        
+        // Handle subskill clicks based on click type
+        player.closeInventory();
+        
+        if (event.isShiftClick()) {
+            // SHIFT+CLICK: Open detailed info GUI
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Store this as the recent subskill for this category
+                if (subskill.getParentSkill() != null) {
+                    String metadataKey = "recent_subskill_" + subskill.getParentSkill().getId();
+                    player.setMetadata(metadataKey, new org.bukkit.metadata.FixedMetadataValue(plugin, subskill.getId()));
+                }
+                SubskillDetailsGUI.openSubskillDetailsGUI(player, subskill);
+            }, 1L);
+        } else if (event.isRightClick() && 
+                SkillTreeRegistry.getInstance().getSkillTree(subskill) != null) {
+            // RIGHT-CLICK: Open skill tree
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                SkillTreeGUI.openSkillTreeGUI(player, subskill);
+            }, 1L);
+        } else {
+            // LEFT-CLICK or default: View regular skill details
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                SkillDetailsGUI.openSkillDetailsMenu(player, subskill);
+            }, 1L);
+        }
+    }
+
+    /**
+     * Extract the VIEW_DETAILS skill ID from item lore
+     */
+    private String getDetailViewSkillId(ItemStack item) {
+        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            List<String> lore = item.getItemMeta().getLore();
+            for (String line : lore) {
+                if (line.startsWith(ChatColor.BLACK + "VIEW_DETAILS:")) {
+                    return line.substring((ChatColor.BLACK + "VIEW_DETAILS:").length());
                 }
             }
         }
+        return null;
+    }
+    
+    /**
+     * Extract skill ID from item lore
+     */
+    private String getSkillIdFromLore(ItemStack item) {
+        if (item.hasItemMeta() && item.getItemMeta().hasLore()) {
+            List<String> lore = item.getItemMeta().getLore();
+            for (String line : lore) {
+                if (line.startsWith(ChatColor.BLACK + "SKILL_ID:")) {
+                    return line.substring((ChatColor.BLACK + "SKILL_ID:").length());
+                }
+            }
+        }
+        return null;
     }
     
     /**
@@ -372,6 +503,46 @@ public class SkillGUIListener implements Listener {
                     // Use scheduler to prevent glitches
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         SkillDetailsGUI.openSkillDetailsMenu(player, skill);
+                    }, 1L);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle clicks in the SubskillDetails GUI
+     */
+    private void handleSubskillDetailGUIClick(Player player, ItemStack clickedItem) {
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) return;
+        
+        String displayName = clickedItem.getItemMeta().getDisplayName();
+        
+        // Handle back button click
+        if (clickedItem.getType() == Material.ARROW && 
+            (displayName.equals(ChatColor.RED + "« Back to " + ChatColor.RESET) || 
+            displayName.contains("Back to") && displayName.startsWith(ChatColor.RED.toString()))) {
+            
+            // Extract parent skill ID from lore
+            String parentSkillId = null;
+            
+            if (clickedItem.getItemMeta().hasLore()) {
+                for (String line : clickedItem.getItemMeta().getLore()) {
+                    if (line.startsWith(ChatColor.BLACK + "SKILL_ID:")) {
+                        parentSkillId = line.substring((ChatColor.BLACK + "SKILL_ID:").length());
+                        break;
+                    }
+                }
+            }
+            
+            if (parentSkillId != null) {
+                // Find parent skill by ID
+                Skill parentSkill = SkillRegistry.getInstance().getSkill(parentSkillId);
+                if (parentSkill != null) {
+                    player.closeInventory();
+                    
+                    // Use scheduler to prevent glitches
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        SkillDetailsGUI.openSkillDetailsMenu(player, parentSkill);
                     }, 1L);
                 }
             }

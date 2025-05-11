@@ -30,6 +30,7 @@ com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\skills\events\MiningListener$1.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
+com\server\profiles\skills\gui\SubskillDetailsGUI.class
 com\server\events\CombatListener$2.class
 com\server\profiles\skills\events\SkillEventListener$1.class
 com\server\abilities\AbilityManager$2.class
@@ -115,6 +116,7 @@ com\server\profiles\skills\core\SkillRegistry.class
 com\server\profiles\skills\skills\farming\FarmingSkill.class
 com\server\commands\FlyCommand.class
 com\server\commands\CurrencyCommand$TransferRequest.class
+com\server\profiles\skills\gui\SubskillDetailsGUI$CrystalTier.class
 com\server\display\ActionBarManager$1.class
 com\server\profiles\skills\gui\SkillDetailsGUI.class
 com\server\commands\CrystalCommand.class

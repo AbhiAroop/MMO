@@ -102,6 +102,9 @@ public class SubskillsGUI {
             gui.setItem(slots[i], subskillItem);
         }
         
+        // Note: We're removing the detailed information button from here
+        // It will only exist in the specific subskill GUI, not in this overview list
+        
         // Add back button
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta backMeta = backButton.getItemMeta();
@@ -219,6 +222,7 @@ public class SubskillsGUI {
             lore.add(ChatColor.GRAY + "Total XP: " + String.format("%.1f", level.getTotalXp()));
         }
 
+        // Add subskill-specific info
         if (subskill instanceof OreExtractionSubskill) {
             OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
             lore.add("");
@@ -247,7 +251,7 @@ public class SubskillsGUI {
         // Check if skill tree exists for this subskill
         boolean hasSkillTree = SkillTreeRegistry.getInstance().getSkillTree(subskill) != null;
         
-        // Add explicit instructions for accessing skill tree - make it very clear
+        // Add explicit instructions for accessing skill tree and detailed info
         lore.add(ChatColor.GOLD + "───────────────────");
         lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "LEFT-CLICK: " + ChatColor.YELLOW + "View Details");
         
@@ -256,6 +260,9 @@ public class SubskillsGUI {
         } else {
             lore.add(ChatColor.GRAY + "• " + ChatColor.GRAY + "Skill Tree unavailable");
         }
+        
+        // Add new detailed info option
+        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "SHIFT+CLICK: " + ChatColor.YELLOW + "View Detailed Info");
         
         lore.add(ChatColor.GOLD + "───────────────────");
         
