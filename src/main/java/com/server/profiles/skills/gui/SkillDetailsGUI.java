@@ -89,7 +89,7 @@ public class SkillDetailsGUI {
         }
         
         // Add back button in bottom left
-        ItemStack backButton = createBackButton();
+        ItemStack backButton = createBackButton(skill);
         gui.setItem(27, backButton);
         
         // Add a help button in bottom right to explain GUI
@@ -243,16 +243,31 @@ public class SkillDetailsGUI {
     }
     
     /**
-     * Create back button
+     * Create back button with appropriate navigation based on skill type
      */
-    private static ItemStack createBackButton() {
+    private static ItemStack createBackButton(Skill skill) {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta meta = backButton.getItemMeta();
-        meta.setDisplayName(ChatColor.RED + "« Back to Skills");
         
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Return to the skills overview");
-        meta.setLore(lore);
+        if (skill.getParentSkill() != null) {
+            // This is a subskill - back button should go to parent skill's subskills menu
+            meta.setDisplayName(ChatColor.RED + "« Back to " + skill.getParentSkill().getDisplayName() + " Subskills");
+            
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Return to " + skill.getParentSkill().getDisplayName() + " subskills");
+            
+            // Add parent skill ID for the handler to use
+            lore.add(ChatColor.BLACK + "PARENT_SKILL:" + skill.getParentSkill().getId());
+            
+            meta.setLore(lore);
+        } else {
+            // This is a main skill - back button should go to skills menu
+            meta.setDisplayName(ChatColor.RED + "« Back to Skills");
+            
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Return to the skills overview");
+            meta.setLore(lore);
+        }
         
         backButton.setItemMeta(meta);
         return backButton;

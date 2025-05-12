@@ -967,13 +967,11 @@ public class SubskillDetailsGUI {
     private static ItemStack createBackButton(Skill parentSkill) {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta meta = backButton.getItemMeta();
-        meta.setDisplayName(ChatColor.RED + "« Back to " + parentSkill.getDisplayName() + " Details");
+        meta.setDisplayName(ChatColor.RED + "« Back to " + parentSkill.getDisplayName() + " Subskills");
         
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Return to the skill details screen");
-        lore.add("");
-        // Add hidden data to identify which skill to return to
-        lore.add(ChatColor.BLACK + "SKILL_ID:" + parentSkill.getId());
+        lore.add(ChatColor.GRAY + "Return to the subskills menu");
+        
         meta.setLore(lore);
         
         backButton.setItemMeta(meta);

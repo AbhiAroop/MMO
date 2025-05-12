@@ -40,13 +40,33 @@ public class SkillTreeGUIListener implements Listener {
             ItemStack clickedItem = event.getCurrentItem();
             String itemName = clickedItem.getItemMeta().getDisplayName();
             
-            // Back button - return to skill details
+            // Back button - return to appropriate skill details based on which skill tree we're in
             if (itemName.equals(ChatColor.RED + "Back to Skills")) {
                 player.closeInventory();
-                SkillsGUI.openSkillsMenu(player);
+                
+                // Extract the skill name from the GUI title
+                // Title format is "Skill Tree: SkillName"
+                String skillName = title.substring(SkillTreeGUI.GUI_TITLE_PREFIX.length());
+                Skill skill = findSkillByDisplayName(skillName);
+                
+                // Open the appropriate skill details menu for this skill
+                if (skill != null) {
+                    // Use scheduler to prevent glitches
+                    org.bukkit.Bukkit.getScheduler().runTaskLater(
+                        com.server.Main.getInstance(), 
+                        () -> SkillDetailsGUI.openSkillDetailsMenu(player, skill), 
+                        1L);
+                } else {
+                    // Fallback to main skills menu if skill not found
+                    org.bukkit.Bukkit.getScheduler().runTaskLater(
+                        com.server.Main.getInstance(), 
+                        () -> SkillsGUI.openSkillsMenu(player), 
+                        1L);
+                }
                 return;
             }
             
+            // Rest of the method remains unchanged
             // Check if this is a navigation button
             if (isNavigationButton(clickedItem)) {
                 SkillTreeGUI.handleNavigationClick(player, clickedItem);
