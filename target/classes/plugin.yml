@@ -92,6 +92,11 @@ commands:
     description: Get a gem carving tool
     usage: /gemtool [player]
     permission: mmo.command.gemtool
+  mmonpc:
+    description: Create and manage NPCs for the MMO system
+    usage: /mmonpc <create|remove|list> [args]
+    permission: mmo.admin.npc
+    aliases: [mmopnpc, mnpc]
 
 permissions:
   mmo.admin:
@@ -126,4 +131,7 @@ permissions:
     default: op
   mmo.command.gemtool:
     description: Get a gem carving tool
+    default: op
+  mmo.admin.npc:
+    description: Allows creating and managing NPCs
     default: op

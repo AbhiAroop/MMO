@@ -18,6 +18,7 @@ import com.server.commands.GemCarvingToolCommand;
 import com.server.commands.GiveHatCommand;
 import com.server.commands.GiveItemCommand;
 import com.server.commands.MenuCommand;
+import com.server.commands.NPCCommand;
 import com.server.commands.ProfileCommand;
 import com.server.commands.SkillCommand;
 import com.server.commands.SpawnCustomMobCommand;
@@ -28,6 +29,8 @@ import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
 import com.server.entities.CustomEntityManager;
+import com.server.entities.npc.NPCDeathHandler;
+import com.server.entities.npc.NPCManager;
 import com.server.events.AbilityListener;
 import com.server.events.AutoRespawnListener;
 import com.server.events.CombatListener;
@@ -117,6 +120,9 @@ public class Main extends JavaPlugin {
         gemCarvingManager = new GemCarvingManager(this);
         gemCarvingManager.initialize();
 
+        // Initialize NPCManager
+        NPCManager.initialize(this);
+
         // Register commands and event listeners
         registerCommands();
         registerListeners();
@@ -200,6 +206,9 @@ public class Main extends JavaPlugin {
 
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
+
+        // Register NPC death handler
+        getServer().getPluginManager().registerEvents(new NPCDeathHandler(NPCManager.getInstance()), this);
     }
 
     public static Main getInstance() {
@@ -381,6 +390,15 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'gemtool' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand mmoncCommand = this.getCommand("mmonpc");
+        if (mmoncCommand != null) {
+            NPCCommand npcHandler = new NPCCommand(this);
+            mmoncCommand.setExecutor(npcHandler);
+            mmoncCommand.setTabCompleter(npcHandler);
+        } else {
+            LOGGER.warning("Command 'mmonpc' not registered in plugin.yml file!");
+        }
         
     }
 
@@ -430,4 +448,14 @@ public class Main extends JavaPlugin {
     public AbilityRegistry getAbilityRegistry() {
         return AbilityRegistry.getInstance();
     }
+
+    /**
+     * Check if debug mode is enabled
+     * 
+     * @return true if debug mode is enabled
+     */
+    public boolean isDebugEnabled() {
+        return isDebugMode();
+    }
+
 }

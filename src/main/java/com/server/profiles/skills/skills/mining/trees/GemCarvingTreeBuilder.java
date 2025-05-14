@@ -102,7 +102,7 @@ public class GemCarvingTreeBuilder implements SkillTreeBuilder {
             Material.LAPIS_LAZULI, // Azuralite is represented by lapis in the minigame
             ChatColor.BLUE,
             2, -2, // 2 tiles up from the XP boost node (same x coordinate)
-            3 // Token cost
+            5 // Token cost
         ));
         
         // Connect to the XP boost node
