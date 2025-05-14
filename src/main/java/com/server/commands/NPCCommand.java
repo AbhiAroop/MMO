@@ -105,10 +105,10 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             builder.addNode("greeting", "It's a pleasure to meet you as well! My name is " + name + ".", responses);
             
             builder.addNode("role", "I'm here to provide information and assistance to adventurers like yourself.", 
-                   Arrays.asList(new DialogueResponse("That's great.", "root")));
+                Arrays.asList(new DialogueResponse("That's great.", "root")));
             
             builder.addNode("nice", "The pleasure is all mine! Is there anything else I can help you with?",
-                   Arrays.asList(new DialogueResponse("Return to topics", "root")));
+                Arrays.asList(new DialogueResponse("Return to topics", "root")));
             
             builder.addNode("goodbye", "Farewell! Come back if you need anything else.", new ArrayList<>());
             
@@ -116,8 +116,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             
             manager.createTalkingNPC(id, name, player.getLocation(), skin, dialogueTree);
             player.sendMessage(ChatColor.GREEN + "Created talking NPC " + name + " with ID " + id);
-            
-        } else if (type.equals("combat")) {
+        } 
+        else if (type.equals("combat")) {
             // Create combat training NPC
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
             double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
@@ -127,7 +127,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                             " with ID " + id + 
                             ", health: " + health + 
                             ", damage: " + damage);
-        } else {
+        } 
+        else {
             player.sendMessage(ChatColor.RED + "Unknown NPC type: " + type);
             player.sendMessage(ChatColor.GRAY + "Valid types: talk, combat");
             return true;
@@ -232,7 +233,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      */
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.GOLD + "=== MMO NPC Commands ===");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc create <type> <id> [name] [skin] [health]" + ChatColor.WHITE + " - Create a new NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc create talk <id> [name] [skin]" + ChatColor.WHITE + " - Create a talking NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc remove <id>" + ChatColor.WHITE + " - Remove an NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc list" + ChatColor.WHITE + " - List all NPCs");
     }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.ArmorStand;
@@ -146,8 +147,10 @@ public class NPCManager {
      * @param health The health of the NPC
      * @param damage The damage the NPC deals
      * @return The created NPC
+     * @deprecated Use createCombatNPC with NPCStats instead
      */
-    public NPC createCombatNPC(String id, String name, Location location, String skinName, double health, double damage) {
+    @Deprecated
+    private NPC createCombatNPCLegacy(String id, String name, Location location, String skinName, double health, double damage) {
         // Create a basic NPC without AI
         NPC npc = createNPC(id, name, location, skinName, false);
         
@@ -201,59 +204,74 @@ public class NPCManager {
     }
 
     /**
-     * Create a custom hologram nameplate attached as a passenger to the NPC
-     * 
-     * @param npc The NPC to create a nameplate for
-     * @param name The base name 
-     * @param health Current health
-     * @param maxHealth Maximum health
+     * Create a combat NPC with custom stats
      */
-    public void createHologramNameplate(NPC npc, String name, double health, double maxHealth) {
-        if (!npc.isSpawned()) return;
+    public NPC createCombatNPC(String id, String name, Location location, String skinName, NPCStats stats) {
+        // Create a basic NPC without AI
+        NPC npc = createNPC(id, name, location, skinName, false);
         
-        // Remove any existing nameplate first
-        removeNameplate(npc.getUniqueId());
+        // Make sure the NPC is NOT protected from Citizens' perspective to allow our custom damage handling
+        npc.data().set(NPC.Metadata.DEFAULT_PROTECTED, false);
         
-        // Get level from metadata
-        int level = 1;
-        if (npc.getEntity().hasMetadata("level")) {
-            level = npc.getEntity().getMetadata("level").get(0).asInt();
+        // Set entity type to PLAYER for combat NPCs
+        if (npc.hasTrait(net.citizensnpcs.api.trait.trait.MobType.class)) {
+            npc.getTrait(net.citizensnpcs.api.trait.trait.MobType.class).setType(EntityType.PLAYER);
         }
         
-        // Format: [Lv.1] ❈ Combat NPC ❤ 100/100
-        String displayName = String.format("%s[Lv.%d] %s %s%s %s❤ %.1f/%.1f",
-                org.bukkit.ChatColor.GRAY,
-                level,
-                org.bukkit.ChatColor.GOLD + "❈", // Gold elite marker for combat NPCs
-                org.bukkit.ChatColor.WHITE,
-                name,
-                org.bukkit.ChatColor.RED,
-                health,
-                maxHealth
-        );
+        // Give it equipment if it supports equipment
+        if (npc.hasTrait(net.citizensnpcs.api.trait.trait.Equipment.class)) {
+            net.citizensnpcs.api.trait.trait.Equipment equipment = npc.getTrait(net.citizensnpcs.api.trait.trait.Equipment.class);
+            equipment.set(net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.HAND, new org.bukkit.inventory.ItemStack(Material.IRON_SWORD));
+        }
+
+        // IMPORTANT: Completely hide the default nameplate
+        npc.data().setPersistent(NPC.Metadata.NAMEPLATE_VISIBLE, false);
         
-        // Create the armor stand with optimal placement
-        ArmorStand hologram = npc.getEntity().getWorld().spawn(
-                npc.getEntity().getLocation().add(0, 0.7, 0), 
-                ArmorStand.class
-        );
+        // Make the entity vulnerable to allow our custom damage handling
+        if (npc.isSpawned()) {
+            // For entity interaction, set to NOT invulnerable so damage events fire
+            npc.getEntity().setInvulnerable(false);
+            
+            // Completely hide the entity name
+            npc.getEntity().setCustomNameVisible(false);
+            npc.getEntity().setCustomName(null);
+            
+            // Store metadata for our custom damage handling
+            npc.getEntity().setMetadata("custom_health", new FixedMetadataValue(plugin, stats.getMaxHealth()));
+            npc.getEntity().setMetadata("max_health", new FixedMetadataValue(plugin, stats.getMaxHealth()));
+            
+            // Store the original clean name in metadata
+            npc.getEntity().setMetadata("original_name", new FixedMetadataValue(plugin, name));
+        }
         
-        // Configure the armor stand for nameplate display
-        hologram.setVisible(false);
-        hologram.setGravity(false);
-        hologram.setMarker(true);
-        hologram.setSmall(true);
-        hologram.setCustomNameVisible(true);
-        hologram.setCustomName(displayName);
-        hologram.setBasePlate(false);
-        hologram.setInvulnerable(true);
-        hologram.setSilent(true);
+        // Create and register combat handler
+        CombatHandler handler = new CombatHandler(stats.getMaxHealth(), stats.getPhysicalDamage());
+        handler.setNPCStats(npc.getUniqueId(), stats);
+        registerInteractionHandler(id, handler);
         
-        // Use Bukkit's native passenger system instead of Citizens trait
-        npc.getEntity().addPassenger(hologram);
+        // Initialize the NPC with the combat handler - the handler will manage the nameplate
+        if (npc.isSpawned()) {
+            handler.startCombatBehavior(npc, null);
+            
+            // Create custom nameplate after a small delay to ensure NPC is fully spawned
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (npc.isSpawned()) {
+                    // Create a custom nameplate as a passenger armor stand
+                    createHologramNameplate(npc, name, stats.getMaxHealth(), stats.getMaxHealth());
+                }
+            }, 5L);
+        }
         
-        // Store the hologram reference
-        nameplateStands.put(npc.getUniqueId(), hologram);
+        return npc;
+    }
+
+    // For backward compatibility
+    public NPC createCombatNPC(String id, String name, Location location, String skinName, double health, double damage) {
+        NPCStats stats = new NPCStats();
+        stats.setMaxHealth(health);
+        stats.setPhysicalDamage((int)damage);
+        
+        return createCombatNPC(id, name, location, skinName, stats);
     }
 
     /**
@@ -493,5 +511,75 @@ public class NPCManager {
      */
     public NPC getNPCByUUID(UUID uuid) {
         return npcByUUID.get(uuid);
+    }
+    
+    /**
+     * Creates a hologram nameplate above an NPC
+     * 
+     * @param npc The NPC
+     * @param name The name to display
+     * @param health Current health
+     * @param maxHealth Maximum health
+     */
+    public void createHologramNameplate(NPC npc, String name, double health, double maxHealth) {
+        if (!npc.isSpawned()) return;
+        
+        // Remove any existing nameplate first
+        removeNameplate(npc.getUniqueId());
+        
+        // Get level from metadata
+        int level = 1;
+        if (npc.getEntity().hasMetadata("level")) {
+            level = npc.getEntity().getMetadata("level").get(0).asInt();
+        }
+        
+        // Get NPC type from metadata or default to NORMAL
+        NPCType npcType = NPCType.NORMAL;
+        if (npc.getEntity().hasMetadata("npc_type")) {
+            String typeName = npc.getEntity().getMetadata("npc_type").get(0).asString();
+            try {
+                npcType = NPCType.valueOf(typeName);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid type and use default
+            }
+        }
+        
+        // Format: [Lv.1] ❈ Combat NPC ❤ 100/100
+        // Now use the NPC type's color and symbol
+        String displayName = String.format("%s[Lv.%d] %s%s %s%s %s❤ %.1f/%.1f",
+                ChatColor.GRAY,
+                level,
+                npcType.getColor(),
+                npcType.getSymbol(), // Use symbol from NPC type
+                ChatColor.WHITE,
+                name,
+                ChatColor.RED,
+                health,
+                maxHealth
+        );
+        
+        // Create an invisible armor stand for the nameplate
+        ArmorStand hologram = (ArmorStand) npc.getEntity().getWorld().spawnEntity(
+                npc.getEntity().getLocation(),
+                EntityType.ARMOR_STAND
+        );
+        
+        // Configure the armor stand
+        hologram.setVisible(false);
+        hologram.setCustomName(displayName);
+        hologram.setCustomNameVisible(true);
+        hologram.setGravity(false);
+        hologram.setInvulnerable(true);
+        hologram.setSmall(true);
+        hologram.setMarker(true);
+        
+        // Store original NPC name in metadata
+        hologram.setMetadata("npc_uuid", new FixedMetadataValue(plugin, npc.getUniqueId().toString()));
+        
+        // Add the armor stand as a passenger to the NPC
+        npc.getEntity().addPassenger(hologram);
+        
+        // Store the reference to the armor stand
+        nameplateStands.put(npc.getUniqueId(), hologram);
     }
 }

@@ -79,6 +79,7 @@ com\server\entities\mobs\MobRegistry.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\profiles\skills\trees\builders\SkillTreeBuilder.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
+com\server\entities\npc\NPCType.class
 com\server\profiles\skills\gui\SkillTreeGUI$ResetData.class
 com\server\entities\npc\NPCInteractionListener.class
 com\server\entities\mobs\CustomMob$1$1.class
@@ -133,6 +134,7 @@ com\server\events\CustomMobListener$1.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
 com\server\cosmetics\CosmeticManager$1.class
+com\server\entities\npc\NPCStats.class
 com\server\entities\CustomEntityManager$1.class
 com\server\commands\AdminStatsCommand.class
 com\server\items\ItemManager.class
