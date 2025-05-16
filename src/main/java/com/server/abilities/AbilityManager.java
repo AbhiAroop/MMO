@@ -35,6 +35,7 @@ public class AbilityManager {
     private static AbilityManager instance;
     private final Main plugin;
     private final Map<UUID, Map<String, Long>> playerCooldowns = new HashMap<>();
+    private final Map<UUID, Map<String, Long>> entityHitCooldowns = new HashMap<>();
 
     private AbilityManager(Main plugin) {
         this.plugin = plugin;
@@ -150,7 +151,7 @@ public class AbilityManager {
                 world.spawnParticle(Particle.DUST, currentLoc, 5, 0.05, 0.05, 0.05, 0.01, dustOptions);
                 world.spawnParticle(Particle.FLAME, currentLoc, 1, 0.05, 0.05, 0.05, 0.01);
                 
-                // Check for entities in beam path
+                // Fire beam - update the entity damage section
                 for (Entity entity : world.getNearbyEntities(currentLoc, 0.8, 0.8, 0.8)) {
                     if (entity instanceof LivingEntity && entity != player) {
                         LivingEntity livingEntity = (LivingEntity) entity;
@@ -158,14 +159,16 @@ public class AbilityManager {
                         // Apply fire
                         livingEntity.setFireTicks(60); // Set on fire for 3 seconds
                         
-                        // Apply damage
+                        // Calculate damage
                         double initialDamage = finalDamagePerTick * 3;
-                        livingEntity.damage(finalDamagePerTick * 3, player); // Initial hit damage
+                        
+                        // Use our safe damage method
+                        applyAbilityDamageToTarget(livingEntity, player, "fire_beam", initialDamage);
 
                         // Apply omnivamp from initial hit
                         applyOmnivampHealing(player, initialDamage);
                         
-                        // Apply DoT effect
+                        // Apply DoT effect but don't hit the entity repeatedly
                         applyBurnDamageOverTime(player, livingEntity, finalDamagePerTick, 3);
                     }
                 }
@@ -208,6 +211,122 @@ public class AbilityManager {
                 ticks++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    /**
+     * Safely apply ability damage to a target (NPC or other entity)
+     * This method includes protection against multiple hits
+     */
+    private void applyAbilityDamageToTarget(LivingEntity target, Player player, String abilityId, double damage) {
+        // Check if it's a Citizens NPC
+        net.citizensnpcs.api.npc.NPC npc = null;
+        try {
+            npc = net.citizensnpcs.api.CitizensAPI.getNPCRegistry().getNPC(target);
+        } catch (Exception e) {
+            // Not a Citizens NPC or Citizens API not available
+        }
+        
+        if (npc != null) {
+            // Use the CombatHandler's built-in ability damage system
+            // First get NPCManager
+            com.server.entities.npc.NPCManager npcManager = com.server.entities.npc.NPCManager.getInstance();
+            if (npcManager != null) {
+                // Find the handler for this NPC
+                String npcId = null;
+                for (String id : npcManager.getIds()) {
+                    if (npcManager.getNPC(id).equals(npc)) {
+                        npcId = id;
+                        break;
+                    }
+                }
+                
+                if (npcId != null) {
+                    com.server.entities.npc.NPCInteractionHandler handler = npcManager.getInteractionHandler(npcId);
+                    if (handler instanceof com.server.entities.npc.CombatHandler) {
+                        com.server.entities.npc.CombatHandler combatHandler = (com.server.entities.npc.CombatHandler) handler;
+                        
+                        // Calculate ability damage based on player stats - only for abilities that scale with player stats
+                        double finalDamage = damage;
+                        
+                        // Get player profile for proper damage calculations
+                        PlayerProfile profile = null;
+                        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+                        if (activeSlot != null) {
+                            profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+                        }
+                        
+                        // Apply ability-specific scaling for certain abilities
+                        if (profile != null) {
+                            switch (abilityId) {
+                                case "fire_beam":
+                                    // Fire beam should scale with player's magic damage (in this case, physical is the same)
+                                    // This applies damage as a function of the player's attack power
+                                    finalDamage = (10.0 + profile.getStats().getPhysicalDamage() * 0.5);
+                                    break;
+                                    
+                                case "lightning_throw":
+                                    // Lightning throw already has player damage included in the damage value
+                                    // No further adjustment needed
+                                    break;
+                                    
+                                case "blood_harvest":
+                                    // Blood harvest has fixed base damage values - passed directly from the source method
+                                    // No adjustment needed
+                                    break;
+                                    
+                                default:
+                                    // For any other ability, use the damage directly
+                                    break;
+                            }
+                        }
+                        
+                        // Pass the correctly scaled damage to the combat handler
+                        combatHandler.handleAbilityDamage(npc, player, abilityId, finalDamage);
+                        
+                        // Debug logging
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Ability " + abilityId + " damage to NPC: Raw=" + damage + 
+                                ", Final=" + finalDamage);
+                        }
+                        
+                        // We successfully applied damage via the combat handler
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // For regular entities (non-NPCs), use cooldown tracking and apply damage
+        // (Rest of the method remains unchanged for non-NPC entities)
+        UUID entityId = target.getUniqueId();
+        String uniqueAbilityId = abilityId + "-" + player.getUniqueId().toString();
+        
+        // Create a cooldown map for entities to track recent hits
+        if (!entityHitCooldowns.containsKey(entityId)) {
+            entityHitCooldowns.put(entityId, new HashMap<>());
+        }
+        
+        // Check if this entity was hit recently by this ability from this player
+        Map<String, Long> cooldowns = entityHitCooldowns.get(entityId);
+        if (cooldowns.containsKey(uniqueAbilityId)) {
+            long cooldownEndTime = cooldowns.get(uniqueAbilityId);
+            if (System.currentTimeMillis() < cooldownEndTime) {
+                // Entity was hit too recently, don't apply damage again
+                return;
+            }
+        }
+        
+        // Set cooldown (2 seconds) to prevent multiple hits
+        cooldowns.put(uniqueAbilityId, System.currentTimeMillis() + 2000);
+        
+        // Apply regular damage with caps to prevent one-shots
+        double currentHealth = target.getHealth();
+        double maxHealth = target.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
+        double maxAllowedDamage = Math.min(damage, currentHealth * 0.4); // Cap at 40% of current health
+        
+        // Apply damage directly for better control
+        target.damage(0.1, player); // Apply tiny amount for attribution
+        target.setHealth(Math.max(1.0, currentHealth - maxAllowedDamage)); // Ensure we don't kill with 1 hit
     }
     
     public boolean isOnCooldown(Player player, String abilityId) {
@@ -347,21 +466,18 @@ public class AbilityManager {
                         // Add to hit list so we don't hit multiple times
                         hitEntities.add(target);
                         
-                        // IMPORTANT CHANGE: Apply damage directly, bypassing Minecraft's damage reduction
-                        // Use setHealth instead of damage() method to apply raw damage value
-                        double currentHealth = target.getHealth();
-                        double newHealth = Math.max(0, currentHealth - finalDamage);
+                        // Use safe damage method
+                        applyAbilityDamageToTarget(target, player, "lightning_throw", finalDamage);
                         
-                        // For proper damage attribution (shows player as killer)
-                        target.damage(0.1, player); // Apply tiny damage to register hit
-                        target.setHealth(newHealth); // Then set health directly
+                        // Apply the lightning visual effects
+                        target.getWorld().strikeLightningEffect(target.getLocation());
+                        target.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, 
+                            target.getLocation().add(0, 1, 0),
+                            20, 0.5, 0.5, 0.5, 0.2);
                         
-                        // Add more dramatic visual effects to match the powerful hit
-                        world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.5, 0.5, 0.5, 0.3);
-                        world.spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation().add(0, 1, 0), 10, 0.3, 0.3, 0.3, 0.1);
-                        world.playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.6f, 1.2f);
-                        world.playSound(target.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.2f);
-                        
+                        // Play hit sound
+                        world.playSound(target.getLocation(), 
+                            Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 1.0f, 1.2f);
                     }
                 }
                 
@@ -523,47 +639,82 @@ public class AbilityManager {
             
             @Override
             public void run() {
+                // Inside the castBloodHarvest method, update this section:
                 if (animTime >= animDuration) {
                     // Animation complete, apply final effects
                     
                     // Determine if enhanced damage should be applied (3+ targets hit)
                     boolean applyEnhancedDamage = hitEntities.size() >= 3;
                     double finalDamage = applyEnhancedDamage ? enhancedDamage : baseDamage;
-                    
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Blood Harvest hit " + hitEntities.size() + 
-                                            " entities, applying " + finalDamage + " damage");
-                    }
-                    
-                    // Apply damage to all hit entities using direct health manipulation for exact damage
+
+                    // Apply damage to all hit entities
                     for (LivingEntity target : hitEntities) {
-                        // Store current health
-                        double currentHealth = target.getHealth();
+                        // Apply damage using our safe method
+                        applyAbilityDamageToTarget(target, player, "blood_harvest", finalDamage);
                         
-                        // Apply a tiny amount of damage to register the hit and for attribution
-                        target.damage(0.1, player);
-                        
-                        // Then directly set health to the value we want (bypassing armor and resistance)
-                        double newHealth = Math.max(0, currentHealth - finalDamage);
-                        target.setHealth(newHealth);
-                        
-                        // Apply omnivamp from ability damage
-                        applyOmnivampHealing(player, finalDamage);
-                        
-                        // Visual impact effect
+                        // Play effects at the target
                         Location targetLoc = target.getLocation().add(0, 1, 0);
                         world.spawnParticle(Particle.SOUL, targetLoc, 10, 0.3, 0.3, 0.3, 0.05);
                         
-                        // Impact sound
-                        world.playSound(targetLoc, Sound.ENTITY_PHANTOM_BITE, 0.7f, 0.7f);
-                        
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("  - Target: " + target.getType().name() + 
-                                                ", Old Health: " + currentHealth + 
-                                                ", New Health: " + newHealth);
+                        // Healing from blood harvest - only apply if the target isn't an NPC
+                        if (!(net.citizensnpcs.api.CitizensAPI.getNPCRegistry().isNPC(target))) {
+                            double healthSteal = finalDamage * 0.3; // 30% lifesteal
+                            double currentPlayerHealth = player.getHealth();
+                            double maxPlayerHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+                            double newPlayerHealth = Math.min(maxPlayerHealth, currentPlayerHealth + healthSteal);
+                            player.setHealth(newPlayerHealth);
+                            
+                            // Show healing effect
+                            player.getWorld().spawnParticle(
+                                Particle.HEART,
+                                player.getLocation().add(0, 1.2, 0),
+                                3, 0.3, 0.3, 0.3, 0.1
+                            );
+                        } else {
+                            // For NPCs, still apply some lifesteal but based on the NPC's custom health
+                            try {
+                                // Get the NPC object
+                                net.citizensnpcs.api.npc.NPC npc = net.citizensnpcs.api.CitizensAPI.getNPCRegistry().getNPC(target);
+                                com.server.entities.npc.NPCManager npcManager = com.server.entities.npc.NPCManager.getInstance();
+                                if (npc != null && npcManager != null) {
+                                    String npcId = null;
+                                    for (String id : npcManager.getIds()) {
+                                        if (npcManager.getNPC(id).equals(npc)) {
+                                            npcId = id;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (npcId != null) {
+                                        com.server.entities.npc.NPCInteractionHandler handler = npcManager.getInteractionHandler(npcId);
+                                        if (handler instanceof com.server.entities.npc.CombatHandler) {
+                                            com.server.entities.npc.CombatHandler combatHandler = (com.server.entities.npc.CombatHandler) handler;
+                                            
+                                            // Apply lifesteal based on the damage dealt to the NPC
+                                            double healthSteal = finalDamage * 0.3; // 30% lifesteal
+                                            double currentPlayerHealth = player.getHealth();
+                                            double maxPlayerHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+                                            double newPlayerHealth = Math.min(maxPlayerHealth, currentPlayerHealth + healthSteal);
+                                            player.setHealth(newPlayerHealth);
+                                            
+                                            // Show healing effect
+                                            player.getWorld().spawnParticle(
+                                                Particle.HEART,
+                                                player.getLocation().add(0, 1.2, 0),
+                                                3, 0.3, 0.3, 0.3, 0.1
+                                            );
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                // Just log if lifesteal fails for NPCs
+                                if (plugin.isDebugMode()) {
+                                    plugin.getLogger().warning("Failed to apply lifesteal on NPC: " + e.getMessage());
+                                }
+                            }
                         }
                     }
-                    
+
                     // Success message with damage value included
                     if (applyEnhancedDamage) {
                         player.sendMessage("§4Blood Harvest §cstrikes " + hitEntities.size() + 
@@ -613,7 +764,7 @@ public class AbilityManager {
                             world.spawnParticle(Particle.SOUL_FIRE_FLAME, particleLoc, 1, 0.05, 0.05, 0.05, 0);
                         }
                         
-                        // Check for entities in this part of the cone
+                        // Find entities in this part of the cone (in the sweep)
                         for (Entity entity : world.getNearbyEntities(particleLoc, 0.8, 1.0, 0.8)) {
                             if (entity instanceof LivingEntity && entity != player && !hitEntities.contains(entity)) {
                                 // Calculate angle between player direction and entity direction

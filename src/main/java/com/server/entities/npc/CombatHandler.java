@@ -8,7 +8,6 @@ import java.util.UUID;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -19,7 +18,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -729,18 +727,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
      * Determine scaling factor based on weapon tier
      */
     private double getWeaponTierScaling(int customModelData) {
-        // More balanced scaling that won't make weapons feel too weak
-        if (customModelData >= 250000) { // Tier 5 (Legendary)
-            return 0.55; // 55% of original damage
-        } else if (customModelData >= 240000) { // Tier 4 (Mythic)
-            return 0.65; // 65% of original damage
-        } else if (customModelData >= 230000) { // Tier 3 (Rare)
-            return 0.75; // 75% of original damage
-        } else if (customModelData >= 220000) { // Tier 2 (Uncommon)
-            return 0.85; // 85% of original damage
-        } else if (customModelData >= 210000) { // Tier 1 (Common)
-            return 0.95; // 95% of original damage
-        }
         return 1.0;
     }
 
@@ -748,22 +734,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
      * Determine scaling for vanilla weapons
      */
     private double getVanillaWeaponScaling(Material material) {
-        double scaling = 0.8; // Default scaling for vanilla weapons
-        
-        // Adjust scaling based on material tier
-        if (material.name().contains("NETHERITE")) {
-            scaling = 0.6; // 60% damage for netherite (stronger than before)
-        } else if (material.name().contains("DIAMOND")) {
-            scaling = 0.65; // 65% damage for diamond
-        } else if (material.name().contains("IRON")) {
-            scaling = 0.7; // 70% damage for iron
-        } else if (material.name().contains("STONE")) {
-            scaling = 0.75; // 75% damage for stone
-        } else if (material.name().contains("WOODEN") || material.name().contains("GOLD")) {
-            scaling = 0.8; // 80% damage for wooden/gold
-        }
-        
-        return scaling;
+        return 1.0;
     }
 
     /**
@@ -907,47 +878,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         if (!meta.hasCustomModelData()) return baseDamage;
         
         int customModelData = meta.getCustomModelData();
-        
-        // Apply special weapon damage modifications
-        switch (customModelData) {
-            case 210001: // Apprentice's Edge
-                // Check if this is a "Precision Strike" (every 5th hit)
-                NamespacedKey key = new NamespacedKey(Main.getInstance(), "hit_counter");
-                if (meta.getPersistentDataContainer().has(key, PersistentDataType.INTEGER)) {
-                    int hitCount = meta.getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
-                    hitCount++;
-                    
-                    if (hitCount == 5) {
-                        baseDamage += 3.0; // Add bonus damage from passive
-                        hitCount = 0; // Reset counter
-                        player.sendMessage("§6Precision Strike! §7Your attack deals §c+3 §7bonus damage!");
-                    }
-                    
-                    // Update the counter
-                    meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, hitCount);
-                    item.setItemMeta(meta);
-                }
-                break;
                 
-            case 210002: // Siphon Fang
-                // Base damage +7 (already applied via PlayerStats)
-                // Lifesteal is handled separately in applyLifestealIfApplicable
-                break;
-                
-            case 220001: // Fleshrake
-                // Base damage +25 (already applied via PlayerStats)
-                // Omnivamp is handled at ability level
-                break;
-                
-            case 250001: // Arcloom
-                // Base damage +35 (already applied via PlayerStats)
-                break;
-                
-            case 213001: // Shattered Shell Pickaxe
-                // Base damage +3 (already applied via PlayerStats)
-                break;
-        }
-        
         return baseDamage;
     }
 
@@ -999,24 +930,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                     int bowTier = projectile.getMetadata("bow_tier").get(0).asInt();
                     double damageScaling = 1.0;
                     
-                    // Scale down damage for higher tier weapons
-                    switch (bowTier) {
-                        case 5: // Tier 5 (Legendary)
-                            damageScaling = 0.25;
-                            break;
-                        case 4: // Tier 4 (Epic)
-                            damageScaling = 0.4;
-                            break;
-                        case 3: // Tier 3 (Rare)
-                            damageScaling = 0.5;
-                            break;
-                        case 2: // Tier 2 (Uncommon)
-                            damageScaling = 0.7;
-                            break;
-                        case 1: // Tier 1 (Common)
-                            damageScaling = 0.85;
-                            break;
-                    }
                     
                     // Apply scaling
                     damageAmount *= damageScaling;
@@ -1094,62 +1007,83 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
     public void handleAbilityDamage(NPC npc, Player caster, String abilityId, double damage) {
         if (!npcHealth.containsKey(npc.getUniqueId())) return;
         
+        // Add a cooldown tracking system to prevent duplicate damage from rapid ticks
+        UUID npcUUID = npc.getUniqueId();
+        String uniqueAbilityHitId = abilityId + "-" + caster.getUniqueId().toString();
+        
+        // Track last hit time for this ability on this NPC
+        Map<String, Long> abilityCooldowns = new HashMap<>();
+        long currentTime = System.currentTimeMillis();
+        long lastHitTime = 0;
+        
+        // Check if we have a record for this NPC
+        if (abilityCooldownMap.containsKey(npcUUID)) {
+            abilityCooldowns = abilityCooldownMap.get(npcUUID);
+            
+            // Check if this ability was used recently
+            if (abilityCooldowns.containsKey(uniqueAbilityHitId)) {
+                lastHitTime = abilityCooldowns.get(uniqueAbilityHitId);
+                
+                // If the ability was used too recently (within 250ms), skip to prevent multi-hit from same ability tick
+                if (currentTime - lastHitTime < 250) {
+                    if (Main.getInstance().isDebugMode()) {
+                        Main.getInstance().getLogger().info("Prevented duplicate tick damage for " + abilityId + 
+                            " (hit again within " + (currentTime - lastHitTime) + "ms)");
+                    }
+                    return;
+                }
+            }
+        } else {
+            abilityCooldownMap.put(npcUUID, abilityCooldowns);
+        }
+        
+        // Record this hit time
+        abilityCooldowns.put(uniqueAbilityHitId, currentTime);
+        
         NPCStats stats = getNPCStats(npc.getUniqueId());
         double currentHealth = npcHealth.getOrDefault(npc.getUniqueId(), stats.getMaxHealth());
         
-        // IMPORTANT: Scale down ability damage to prevent one-shots
-        double abilityDamageScaling = 0.2; // 20% of original damage
-        
-        // Different scaling for different abilities based on power level
-        switch (abilityId) {
-            case "blood_harvest":
-                abilityDamageScaling = 0.15; // 15% of original damage (strong AOE)
-                break;
-            case "lightning_throw":
-                abilityDamageScaling = 0.25; // 25% of original damage (single target)
-                break;
-            case "fire_beam":
-                abilityDamageScaling = 0.2; // 20% of original damage
-                break;
-            default:
-                abilityDamageScaling = 0.25; // Default scaling
-        }
-        
-        // Apply ability damage scaling
-        damage *= abilityDamageScaling;
-        
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("Applied ability damage scaling: " + 
-                abilityDamageScaling + " for ability: " + abilityId + ", damage now: " + damage);
-        }
-        
-        // Apply damage reductions
+        // Apply damage reduction based on ability type - THIS IS THE ONLY REDUCTION THAT SHOULD OCCUR
         double damageReduction = 0;
         
-        // Apply different damage reductions based on ability type
-        switch (abilityId) {
-            case "fire_beam":
-            case "blood_harvest":
-                // Magic damage abilities - use magic resist
-                damageReduction = stats.getMagicDamageReduction() / 100.0;
-                break;
-                
-            case "lightning_throw":
-                // Physical damage ability - use armor
-                damageReduction = stats.getArmorDamageReduction() / 100.0;
-                break;
+        // Apply appropriate damage reductions based on ability type
+        if (abilityId.equals("fire_beam") || abilityId.equals("blood_harvest")) {
+            // Magic damage abilities - use magic resist
+            damageReduction = stats.getMagicDamageReduction() / 100.0;
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Applied Magic Resist reduction: " + 
+                    (stats.getMagicDamageReduction()) + "% to " + abilityId);
+            }
+        } else if (abilityId.equals("lightning_throw") || 
+                abilityId.equals("arcloom_ability") || 
+                abilityId.equals("fleshrake_ability")) {
+            // Physical damage ability - use armor
+            damageReduction = stats.getArmorDamageReduction() / 100.0;
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Applied Armor reduction: " + 
+                    (stats.getArmorDamageReduction()) + "% to " + abilityId);
+            }
         }
         
-        // Apply damage reduction
+        // Apply damage reduction - THIS IS THE ONLY DAMAGE ADJUSTMENT THAT SHOULD HAPPEN
         double finalDamage = damage * (1.0 - damageReduction);
         
-        // Round to nearest whole number
-        finalDamage = Math.max(1, Math.round(finalDamage));
+        // No arbitrary damage caps - just ensure minimum damage of 1
+        finalDamage = Math.max(1, finalDamage);
         
-        // Apply damage
+        // Apply the damage to our custom NPC health system
         currentHealth -= finalDamage;
-        currentHealth = Math.max(0, currentHealth);
+        currentHealth = Math.max(0, currentHealth); // Ensure health doesn't go negative
         npcHealth.put(npc.getUniqueId(), currentHealth);
+        
+        // Debug logging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Ability damage: " + abilityId + 
+                " dealt " + finalDamage + " to NPC " + npc.getName() + 
+                " (Original damage: " + damage + ", Reduction: " + (damageReduction * 100) + "%)");
+        }
         
         // Show damage indicator
         Location damageLocation = npc.getEntity().getLocation().add(0, 1.5, 0);
@@ -1159,6 +1093,32 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         startCombatBehavior(npc, caster);
         
         // Apply appropriate visual effects based on ability
+        applyAbilityVisualEffects(npc, abilityId);
+        
+        // Check if NPC is dead
+        if (currentHealth <= 0) {
+            handleNPCDeath(npc, caster);
+        } else {
+            // Update the nameplate with the new health value
+            NPCManager.getInstance().updateNameplate(npc, currentHealth, stats.getMaxHealth());
+            
+            // Play hurt animation/sound
+            npc.getEntity().getWorld().playSound(
+                npc.getEntity().getLocation(),
+                Sound.ENTITY_PLAYER_HURT,
+                1.0f,
+                1.0f
+            );
+        }
+    }
+
+    // Add this field to the class
+    private Map<UUID, Map<String, Long>> abilityCooldownMap = new HashMap<>();
+
+    // Add this helper method for visual effects
+    private void applyAbilityVisualEffects(NPC npc, String abilityId) {
+        if (!npc.isSpawned()) return;
+        
         switch (abilityId) {
             case "fire_beam":
                 // Fire visual effects
@@ -1198,22 +1158,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                     0.7f
                 );
                 break;
-        }
-        
-        // Check if NPC is dead
-        if (currentHealth <= 0) {
-            handleNPCDeath(npc, caster);
-        } else {
-            // Update the nameplate
-            NPCManager.getInstance().updateNameplate(npc, currentHealth, stats.getMaxHealth());
-            
-            // Play hurt animation/sound
-            npc.getEntity().getWorld().playSound(
-                npc.getEntity().getLocation(),
-                Sound.ENTITY_PLAYER_HURT,
-                1.0f,
-                1.0f
-            );
         }
     }
     
