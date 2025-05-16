@@ -153,7 +153,10 @@ public class AbilityManager {
                 
                 // Fire beam - update the entity damage section
                 for (Entity entity : world.getNearbyEntities(currentLoc, 0.8, 0.8, 0.8)) {
-                    if (entity instanceof LivingEntity && entity != player) {
+                    if (entity instanceof LivingEntity && 
+                        entity != player && 
+                        isValidAbilityTarget(entity)) {  // Add this filter
+                        
                         LivingEntity livingEntity = (LivingEntity) entity;
                         
                         // Apply fire
@@ -218,6 +221,15 @@ public class AbilityManager {
      * This method includes protection against multiple hits
      */
     private void applyAbilityDamageToTarget(LivingEntity target, Player player, String abilityId, double damage) {
+        
+        // First validate that this is a real target, not a nameplate
+        if (!isValidAbilityTarget(target)) {
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Skipping invalid ability target: " + target.getType());
+            }
+            return;
+        }
+
         // Check if it's a Citizens NPC
         net.citizensnpcs.api.npc.NPC npc = null;
         try {
@@ -460,7 +472,11 @@ public class AbilityManager {
                 
                 // Check for entities in the trident's path
                 for (Entity entity : world.getNearbyEntities(currentLoc, 1.0, 1.0, 1.0)) {
-                    if (entity instanceof LivingEntity && entity != player && !hitEntities.contains(entity)) {
+                    if (entity instanceof LivingEntity && 
+                        entity != player && 
+                        !hitEntities.contains(entity) && 
+                        isValidAbilityTarget(entity)) {  // Add this filter
+                        
                         LivingEntity target = (LivingEntity) entity;
                         
                         // Add to hit list so we don't hit multiple times
@@ -766,7 +782,11 @@ public class AbilityManager {
                         
                         // Find entities in this part of the cone (in the sweep)
                         for (Entity entity : world.getNearbyEntities(particleLoc, 0.8, 1.0, 0.8)) {
-                            if (entity instanceof LivingEntity && entity != player && !hitEntities.contains(entity)) {
+                            if (entity instanceof LivingEntity && 
+                                entity != player && 
+                                !hitEntities.contains(entity) && 
+                                isValidAbilityTarget(entity)) {  // Add this filter
+                                
                                 // Calculate angle between player direction and entity direction
                                 Vector toEntity = entity.getLocation().toVector().subtract(playerLoc.toVector());
                                 double angle = playerDir.angle(toEntity);
@@ -778,7 +798,7 @@ public class AbilityManager {
                                     // Target acquired indicator
                                     DustOptions targetDust = new DustOptions(Color.fromRGB(255, 0, 0), 1.5f);
                                     world.spawnParticle(Particle.DUST, entity.getLocation().add(0, 1, 0), 
-                                                    8, 0.3, 0.3, 0.3, 0, targetDust);
+                                                8, 0.3, 0.3, 0.3, 0, targetDust);
                                 }
                             }
                         }
@@ -792,4 +812,39 @@ public class AbilityManager {
         
         return true;
     }
+
+    /**
+     * Check if an entity should be counted for ability hit tracking
+     * @param entity The entity to check
+     * @return true if the entity is a valid target, false if it should be ignored
+     */
+    private boolean isValidAbilityTarget(Entity entity) {
+        // Ignore null entities
+        if (entity == null) return false;
+        
+        // Ignore dead entities
+        if (entity instanceof LivingEntity && ((LivingEntity) entity).isDead()) return false;
+        
+        // Special handling for ArmorStands - ignore nameplates
+        if (entity instanceof ArmorStand) {
+            ArmorStand stand = (ArmorStand) entity;
+            
+            // Check for NPC nameplate metadata
+            if (stand.hasMetadata("npc_uuid")) {
+                return false;
+            }
+            
+            // Check for characteristics of nameplate stands
+            if (stand.isSmall() && stand.isMarker() && stand.isCustomNameVisible() && !stand.isVisible()) {
+                return false;
+            }
+            
+            // Skip armor stands riding other entities (these are likely nameplates)
+            if (stand.isInsideVehicle()) {
+                return false;
+            }
+        }
+        
+        return true;
+    }    
 }
