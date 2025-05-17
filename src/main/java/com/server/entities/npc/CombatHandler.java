@@ -66,10 +66,109 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
      * @param stats The stats to set
      */
     public void setNPCStats(UUID npcId, NPCStats stats) {
-        npcStats.put(npcId, stats);
+        // Clone the stats to prevent shared references
+        NPCStats uniqueStats = new NPCStats();
+        uniqueStats.setMaxHealth(stats.getMaxHealth());
+        uniqueStats.setPhysicalDamage(stats.getPhysicalDamage());
+        uniqueStats.setMagicDamage(stats.getMagicDamage());
+        uniqueStats.setArmor(stats.getArmor());
+        uniqueStats.setMagicResist(stats.getMagicResist());
+        uniqueStats.setAttackSpeed(stats.getAttackSpeed());
+        uniqueStats.setAttackRange(stats.getAttackRange());
+        uniqueStats.setLevel(stats.getLevel());
+        uniqueStats.setHasCustomAbilities(stats.hasCustomAbilities());
+        uniqueStats.setNpcType(stats.getNpcType());
+        uniqueStats.setExpReward(stats.getExpReward());
+        uniqueStats.setMinGoldDrop(stats.getMinGoldDrop());
+        uniqueStats.setMaxGoldDrop(stats.getMaxGoldDrop());
         
-        // Reset health to max when setting new stats
-        npcHealth.put(npcId, stats.getMaxHealth());
+        // Store the clone
+        npcStats.put(npcId, uniqueStats);
+    }
+
+    /**
+     * Get the nameplate information for an NPC
+     * This ensures each NPC has correct stats for its nameplate
+     */
+    private NPCStats getAndEnsureNPCStats(NPC npc) {
+        UUID npcId = npc.getUniqueId();
+        
+        // Check if stats already exist
+        if (npcStats.containsKey(npcId)) {
+            return npcStats.get(npcId);
+        }
+        
+        // Otherwise, create defaults for this specific NPC
+        NPCStats newStats = new NPCStats();
+        
+        // Only if the NPC is spawned, we can get metadata
+        if (npc.isSpawned()) {
+            // Check metadata for level if available
+            if (npc.getEntity().hasMetadata("level")) {
+                int level = npc.getEntity().getMetadata("level").get(0).asInt();
+                newStats.setLevel(level);
+            }
+            
+            // Check for custom max health metadata
+            if (npc.getEntity().hasMetadata("max_health")) {
+                double maxHealth = npc.getEntity().getMetadata("max_health").get(0).asDouble();
+                newStats.setMaxHealth(maxHealth);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Retrieved custom max health from metadata: " + maxHealth + 
+                        " for NPC " + npc.getName());
+                }
+            }
+            
+            // IMPORTANT: Check for physical damage metadata
+            if (npc.getEntity().hasMetadata("physical_damage")) {
+                int physicalDamage = npc.getEntity().getMetadata("physical_damage").get(0).asInt();
+                newStats.setPhysicalDamage(physicalDamage);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("Retrieved custom physical damage from metadata: " + physicalDamage + 
+                        " for NPC " + npc.getName());
+                }
+            }
+            
+            // Check for other stats as well - armor, magic damage, etc.
+            if (npc.getEntity().hasMetadata("armor")) {
+                int armor = npc.getEntity().getMetadata("armor").get(0).asInt();
+                newStats.setArmor(armor);
+            }
+            
+            if (npc.getEntity().hasMetadata("magic_resist")) {
+                int magicResist = npc.getEntity().getMetadata("magic_resist").get(0).asInt();
+                newStats.setMagicResist(magicResist);
+            }
+            
+            if (npc.getEntity().hasMetadata("magic_damage")) {
+                int magicDamage = npc.getEntity().getMetadata("magic_damage").get(0).asInt();
+                newStats.setMagicDamage(magicDamage);
+            }
+            
+            // Check for NPC type (hostile vs normal)
+            if (npc.getEntity().hasMetadata("npc_type")) {
+                try {
+                    String typeStr = npc.getEntity().getMetadata("npc_type").get(0).asString();
+                    NPCType type = NPCType.valueOf(typeStr);
+                    newStats.setNpcType(type);
+                } catch (Exception e) {
+                    // Default to NORMAL if type isn't valid
+                    newStats.setNpcType(NPCType.NORMAL);
+                }
+            }
+        }
+        
+        // Store these new stats
+        npcStats.put(npcId, newStats);
+        
+        // Initialize health pool if needed
+        if (!npcHealth.containsKey(npcId)) {
+            npcHealth.put(npcId, newStats.getMaxHealth());
+        }
+        
+        return newStats;
     }
     
     /**
@@ -79,7 +178,29 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
      * @return The NPC's stats
      */
     public NPCStats getNPCStats(UUID npcId) {
-        return npcStats.getOrDefault(npcId, defaultStats);
+        if (npcStats.containsKey(npcId)) {
+            return npcStats.get(npcId);
+        }
+        
+        // Otherwise, return a copy of default stats
+        NPCStats copy = new NPCStats();
+        copy.setMaxHealth(defaultStats.getMaxHealth());
+        copy.setPhysicalDamage(defaultStats.getPhysicalDamage());
+        copy.setMagicDamage(defaultStats.getMagicDamage());
+        copy.setArmor(defaultStats.getArmor());
+        copy.setMagicResist(defaultStats.getMagicResist());
+        copy.setAttackSpeed(defaultStats.getAttackSpeed());
+        copy.setAttackRange(defaultStats.getAttackRange());
+        copy.setLevel(defaultStats.getLevel());
+        copy.setHasCustomAbilities(defaultStats.hasCustomAbilities());
+        copy.setNpcType(defaultStats.getNpcType());
+        copy.setExpReward(defaultStats.getExpReward());
+        copy.setMinGoldDrop(defaultStats.getMinGoldDrop());
+        copy.setMaxGoldDrop(defaultStats.getMaxGoldDrop());
+        
+        // Store this copy
+        npcStats.put(npcId, copy);
+        return copy;
     }
     
     @Override
@@ -97,9 +218,39 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
      * @param initialTarget The initial target player
      */
     public void startCombatBehavior(NPC npc, Player initialTarget) {
+        if (!npc.isSpawned()) return;
+        
+        // Get targeting settings from metadata or use defaults
+        boolean npcTargetsPlayers = true;
+        boolean npcTargetsNPCs = false;
+        
+        if (npc.getEntity().hasMetadata("targets_players")) {
+            npcTargetsPlayers = npc.getEntity().getMetadata("targets_players").get(0).asBoolean();
+        }
+        if (npc.getEntity().hasMetadata("targets_npcs")) {
+            npcTargetsNPCs = npc.getEntity().getMetadata("targets_npcs").get(0).asBoolean();
+        }
+        
+        // Use the helper method with the correct settings
+        startCombatWithSettings(npc, initialTarget, npcTargetsPlayers, npcTargetsNPCs);
+    }
+
+    /**
+     * Start combat behavior with specific targeting settings
+     * 
+     * @param npc The NPC to start combat behavior for
+     * @param initialTarget The initial player target (can be null)
+     * @param targetsPlayers Whether this NPC should target players
+     * @param targetsNPCs Whether this NPC should target other NPCs
+     */
+    private void startCombatWithSettings(NPC npc, Player initialTarget, boolean targetsPlayers, boolean targetsNPCs) {
         if (!npc.isSpawned() || combatTasks.containsKey(npc.getUniqueId())) {
             return;
         }
+        
+        // Store targeting settings in metadata
+        npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), targetsPlayers));
+        npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), targetsNPCs));
         
         // Get this NPC's stats
         NPCStats stats = getNPCStats(npc.getUniqueId());
@@ -153,6 +304,9 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
             private float attackCharge = 0.0f;
             private boolean isCharging = true; // Track if we're in charging phase
             private int attackCooldown = 0;    // Track cooldown between attacks
+            // Use the local targeting variables, not the class variables
+            private final boolean localTargetsPlayers = targetsPlayers;
+            private final boolean localTargetsNPCs = targetsNPCs;
             
             @Override
             public void run() {
@@ -204,7 +358,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                     currentTarget = null;
                     
                     // Check for player targets if we're configured to target players
-                    if (targetsPlayers) {
+                    if (localTargetsPlayers) {
                         for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
                             if (entity instanceof Player && !entity.hasMetadata("NPC")) {
                                 Player player = (Player) entity;
@@ -224,7 +378,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                     }
                     
                     // If no player targets found or we're configured to check for NPC targets too
-                    if ((currentTarget == null || targetsNPCs) && targetsNPCs) {
+                    if ((currentTarget == null || localTargetsNPCs) && localTargetsNPCs) {
                         for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
                             if (entity.hasMetadata("NPC") && entity != npc.getEntity()) {
                                 try {
@@ -248,8 +402,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                         return;
                     }
                 }
-                
-                // Rest of the method remains unchanged...
                 
                 // Calculate distance to target
                 double distance = npc.getEntity().getLocation().distance(currentTarget.getLocation());
@@ -411,9 +563,8 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         // Handle NPC targets
         NPC targetNpc = null;
         try {
-            if (target.hasMetadata("NPC")) {
-                targetNpc = CitizensAPI.getNPCRegistry().getNPC(target);
-            }
+            targetNpc = CitizensAPI.getNPCRegistry().getNPC(target);
+            
         } catch (Exception e) {
             // Not an NPC
         }
@@ -428,30 +579,48 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         }
     }
 
-    /**
-     * Apply direct damage from one NPC to another without using events
-     * This ensures reliable damage application
-     */
+    // In directNpcToNpcDamage method, fix the health initialization issue
     private void directNpcToNpcDamage(NPC attacker, NPC target, double damage, boolean isCritical) {
         UUID attackerId = attacker.getUniqueId();
         UUID targetId = target.getUniqueId();
         
+        // Get attacker stats - make sure to get the most up-to-date stats
+        NPCStats attackerStats = getNPCStats(attackerId);
+        
+        // Debug the attacker's physical damage to verify it's correct
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("ATTACKER STATS CHECK: " + 
+                attacker.getName() + " - PhysicalDmg: " + attackerStats.getPhysicalDamage() + 
+                ", Source damage: " + damage);
+        }
+        
+        // IMPORTANT: For target, check if we already have stored stats first
+        NPCStats targetStats;
+        if (npcStats.containsKey(targetId)) {
+            // Use existing stats to maintain custom values
+            targetStats = npcStats.get(targetId);
+        } else {
+            // Only create new stats if none exist
+            targetStats = getAndEnsureNPCStats(target);
+        }
+        
+        // Debug max health
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("Target NPC max health from stats: " + targetStats.getMaxHealth());
+        }
+        
+        // Ensure target has health but preserve custom max health
         if (!npcHealth.containsKey(targetId)) {
-            // IMPORTANT: Initialize health if not already set - this was the key missing part
-            NPCStats targetStats = getNPCStats(targetId);
             npcHealth.put(targetId, targetStats.getMaxHealth());
             
             if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Initialized missing health for target NPC " + target.getName());
+                Main.getInstance().getLogger().info("Initialized missing health for target NPC " + target.getName() + 
+                " with max health: " + targetStats.getMaxHealth());
             }
         }
         
-        // Get the stats for both NPCs
-        NPCStats attackerStats = getNPCStats(attackerId);
-        NPCStats targetStats = getNPCStats(targetId);
-        
-        // Get target's current health
-        double currentHealth = npcHealth.getOrDefault(targetId, targetStats.getMaxHealth());
+        // Get current health directly from the health map using the target's ID only
+        double currentHealth = npcHealth.get(targetId);
         
         // Apply armor reduction from target
         double armorReduction = targetStats.getArmorDamageReduction() / 100.0;
@@ -460,7 +629,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         // Ensure at least 1 damage
         finalDamage = Math.max(1, Math.round(finalDamage));
         
-        // DEBUGGING OUTPUT - VERY IMPORTANT
+        // DEBUGGING OUTPUT
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("PRE-DAMAGE CHECK: Target=" + target.getName() + 
                 ", Current Health=" + currentHealth + "/" + targetStats.getMaxHealth() + 
@@ -480,23 +649,25 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         // Record this hit time for cooldown checking
         npcCombatCooldowns.put(combatKey, currentTime);
         
-        // Apply damage directly to TARGET'S health in a thread-safe manner
-        synchronized (npcHealth) {
-            currentHealth = npcHealth.getOrDefault(targetId, targetStats.getMaxHealth());
-            currentHealth -= finalDamage;
-            currentHealth = Math.max(0, currentHealth);
-            npcHealth.put(targetId, currentHealth);
-            
-            // DEBUGGING OUTPUT - VERY IMPORTANT
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("APPLIED DAMAGE: Target=" + target.getName() + 
-                    ", Old Health=" + (currentHealth + finalDamage) + 
-                    ", New Health=" + currentHealth + 
-                    ", Damage=" + finalDamage);
-            }
+        // Store the old health value for better logging
+        double oldHealth = currentHealth;
+        
+        // Apply damage directly to TARGET'S health
+        currentHealth -= finalDamage;
+        currentHealth = Math.max(0, currentHealth);
+        
+        // CRITICAL FIX: Update the target's health in the map
+        npcHealth.put(targetId, currentHealth);
+        
+        // DEBUGGING OUTPUT
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("APPLIED DAMAGE: Target=" + target.getName() + 
+                ", Old Health=" + oldHealth + 
+                ", New Health=" + currentHealth + 
+                ", Damage=" + finalDamage +
+                ", Max Health=" + targetStats.getMaxHealth());
         }
         
-        // Debug logging
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("DIRECT NPC damage: " + 
                 attacker.getName() + " (PhysDmg: " + attackerStats.getPhysicalDamage() + ") -> " +
@@ -540,9 +711,9 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
             applyDamageEffect(target.getEntity());
         }
         
-        // Update nameplate with new health
+        // Update nameplate with new health - CRITICAL FIX: Use the target's stats for max health
         NPCManager.getInstance().updateNameplate(target, currentHealth, targetStats.getMaxHealth());
-        
+    
         // Check if target is dead
         if (currentHealth <= 0) {
             handleNPCDeath(target, attacker.getEntity());
@@ -817,6 +988,13 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
     public void onNPCDamage(NPCDamageByEntityEvent event) {
         NPC npc = event.getNPC();
         
+        // CRITICAL FIX: Check if NPC is actually spawned and has a valid entity
+        if (npc == null || !npc.isSpawned() || npc.getEntity() == null) {
+            // NPC is despawned or invalid, cancel the event to prevent NPE
+            event.setCancelled(true);
+            return;
+        }
+        
         // Check if this is one of our combat NPCs
         if (npcHealth.containsKey(npc.getUniqueId())) {
             // Important: We let the vanilla event go through, but we handle the damage calculation ourselves
@@ -827,6 +1005,12 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
             
             // Get current health
             double currentHealth = npcHealth.getOrDefault(npc.getUniqueId(), stats.getMaxHealth());
+            
+            // Check if NPC is already dead (health <= 0)
+            if (currentHealth <= 0) {
+                // NPC is already dead, no need to process further damage
+                return;
+            }
             
             // Calculate base damage
             double damageAmount = 10.0;
@@ -1470,8 +1654,27 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         // Get NPC stats before stopping
         NPCStats stats = getNPCStats(npc.getUniqueId());
         
-        // Stop combat behavior
+        // Store the combat behavior configuration before stopping
         UUID npcId = npc.getUniqueId();
+        
+        // Initialize as final variables to be used in inner classes
+        final boolean npcTargetsPlayers;
+        final boolean npcTargetsNPCs;
+        
+        // IMPORTANT: Get the targeting settings from the metadata if available
+        if (npc.isSpawned() && npc.getEntity().hasMetadata("targets_players")) {
+            npcTargetsPlayers = npc.getEntity().getMetadata("targets_players").get(0).asBoolean();
+        } else {
+            npcTargetsPlayers = true; // Default
+        }
+        
+        if (npc.isSpawned() && npc.getEntity().hasMetadata("targets_npcs")) {
+            npcTargetsNPCs = npc.getEntity().getMetadata("targets_npcs").get(0).asBoolean();
+        } else {
+            npcTargetsNPCs = false; // Default
+        }
+        
+        // Stop combat behavior
         stopCombatBehavior(npcId);
         
         // Store the location and original name before removing the NPC
@@ -1565,35 +1768,50 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
             // Save the final originalName for clean respawn
             final String finalOriginalName = originalName;
             
-            // Respawn the NPC after a delay
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    // Respawn at the stored location
-                    if (!npc.isSpawned()) {
-                        npc.spawn(respawnLocation);
+           new BukkitRunnable() {
+            @Override
+            public void run() {
+                // Respawn at the stored location
+                if (!npc.isSpawned()) {
+                    npc.spawn(respawnLocation);
+                }
+                
+                // Reset health
+                npcHealth.put(npcId, stats.getMaxHealth());
+                
+                // Make the NPC vulnerable again
+                if (npc.isSpawned()) {
+                    // IMPORTANT: Set to NOT invulnerable so we can receive damage events
+                    npc.getEntity().setInvulnerable(false);
+                    
+                    // Hide default nameplate
+                    npc.getEntity().setCustomNameVisible(false);
+                    npc.getEntity().setCustomName(null);
+                    npc.data().setPersistent(NPC.Metadata.NAMEPLATE_VISIBLE, false);
+                    
+                    // IMPORTANT: Store ALL critical stats in metadata to ensure they're preserved
+                    npc.getEntity().setMetadata("original_name", new FixedMetadataValue(Main.getInstance(), finalOriginalName));
+                    npc.getEntity().setMetadata("level", new FixedMetadataValue(Main.getInstance(), stats.getLevel()));
+                    npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), stats.getNpcType().name()));
+                    npc.getEntity().setMetadata("max_health", new FixedMetadataValue(Main.getInstance(), stats.getMaxHealth()));
+                    npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(Main.getInstance(), stats.getPhysicalDamage()));
+                    
+                    // Store additional stats if they're non-default
+                    if (stats.getArmor() > 0) {
+                        npc.getEntity().setMetadata("armor", new FixedMetadataValue(Main.getInstance(), stats.getArmor()));
                     }
                     
-                    // Reset health
-                    npcHealth.put(npcId, stats.getMaxHealth());
+                    if (stats.getMagicResist() > 0) {
+                        npc.getEntity().setMetadata("magic_resist", new FixedMetadataValue(Main.getInstance(), stats.getMagicResist()));
+                    }
                     
-                    // Make the NPC vulnerable again
-                    if (npc.isSpawned()) {
-                        // IMPORTANT: Set to NOT invulnerable so we can receive damage events
-                        npc.getEntity().setInvulnerable(false);
-                        
-                        // Hide default nameplate
-                        npc.getEntity().setCustomNameVisible(false);
-                        npc.getEntity().setCustomName(null);
-                        npc.data().setPersistent(NPC.Metadata.NAMEPLATE_VISIBLE, false);
-                        
-                        // Store the original name for consistency
-                        npc.getEntity().setMetadata("original_name", new FixedMetadataValue(Main.getInstance(), finalOriginalName));
-                        
-                        // Store the level and type
-                        npc.getEntity().setMetadata("level", new FixedMetadataValue(Main.getInstance(), stats.getLevel()));
-                        npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), 
-                                stats.getNpcType().name()));
+                    if (stats.getMagicDamage() > 0) {
+                        npc.getEntity().setMetadata("magic_damage", new FixedMetadataValue(Main.getInstance(), stats.getMagicDamage()));
+                    }
+                    
+                    // IMPORTANT: Store targeting settings in metadata for persistence
+                    npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), npcTargetsPlayers));
+                    npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), npcTargetsNPCs));
                         
                         // Wait a tick to ensure NPC is fully spawned before adding nameplate
                         new BukkitRunnable() {
@@ -1602,12 +1820,142 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                                 if (npc.isSpawned()) {
                                     // Create a new nameplate
                                     NPCManager.getInstance().createHologramNameplate(npc, finalOriginalName, stats.getMaxHealth(), stats.getMaxHealth());
+                                    
+                                    // CRITICAL FIX: Immediately restart the combat behavior with the correct targeting settings
+                                    if (npcTargetsNPCs) {
+                                        // Start combat directly with the saved targeting settings
+                                        startCombatBehavior(npc, null);
+                                        
+                                        // Add additional debug log
+                                        if (Main.getInstance().isDebugMode()) {
+                                            Main.getInstance().getLogger().info("Restarted combat behavior for hostile NPC: " + 
+                                                npc.getName() + " with targets_npcs=" + npcTargetsNPCs);
+                                        }
+                                    }
                                 }
                             }
                         }.runTaskLater(Main.getInstance(), 2L);
                     }
                 }
             }.runTaskLater(Main.getInstance(), 100L); // 5-second respawn
+        }
+    }
+
+    /**
+     * Configure if this NPC targets players
+     */
+    public void setTargetsPlayers(boolean targetsPlayers) {
+        this.targetsPlayers = targetsPlayers;
+        
+        // Store in metadata for all NPCs currently being managed
+        for (UUID npcId : combatTasks.keySet()) {
+            NPC npc = CitizensAPI.getNPCRegistry().getByUniqueId(npcId);
+            if (npc != null && npc.isSpawned()) {
+                npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), targetsPlayers));
+            }
+        }
+    }
+
+    /**
+     * Configure if this NPC targets other NPCs
+     */
+    public void setTargetsNPCs(boolean targetsNPCs) {
+        this.targetsNPCs = targetsNPCs;
+        
+        // Store in metadata for all NPCs currently being managed
+        for (UUID npcId : combatTasks.keySet()) {
+            NPC npc = CitizensAPI.getNPCRegistry().getByUniqueId(npcId);
+            if (npc != null && npc.isSpawned()) {
+                npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), targetsNPCs));
+            }
+        }
+    }
+
+    /**
+     * Find and target nearby entities based on targeting settings
+     */
+    private void findAndTargetNearbyEntities(NPC npc, boolean targetsPlayers, boolean targetsNPCs) {
+        if (!npc.isSpawned()) return;
+        
+        // IMPORTANT: Store targeting settings on this NPC instance
+        UUID npcId = npc.getUniqueId();
+        npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), targetsPlayers));
+        npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), targetsNPCs));
+        
+        // Make sure we have the correct stats for this NPC
+        NPCStats stats = getNPCStats(npcId);
+        
+        // Debug stats to verify they're correctly preserved
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("NPC STATS ON RESPAWN: " + 
+                npc.getName() + " - Health: " + stats.getMaxHealth() + 
+                ", PhysicalDmg: " + stats.getPhysicalDamage() +
+                ", MagicDmg: " + stats.getMagicDamage() +
+                ", Armor: " + stats.getArmor());
+        }
+        
+        // Find a target entity...
+        Entity targetEntity = null;
+        double closestDist = 10.0;
+        
+        // Check for player targets if we're configured to target players
+        if (targetsPlayers) {
+            for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
+                if (entity instanceof Player && !entity.hasMetadata("NPC")) {
+                    Player player = (Player) entity;
+                    
+                    // Skip players in creative mode
+                    if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                        continue;
+                    }
+                    
+                    double dist = player.getLocation().distance(npc.getEntity().getLocation());
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        targetEntity = player;
+                    }
+                }
+            }
+        }
+        
+        // If no player targets found or we're configured to check for NPC targets too
+        if ((targetEntity == null || targetsNPCs) && targetsNPCs) {
+            for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
+                if (entity.hasMetadata("NPC") && entity != npc.getEntity()) {
+                    try {
+                        NPC otherNPC = CitizensAPI.getNPCRegistry().getNPC(entity);
+                        if (otherNPC != null && otherNPC.isSpawned()) {
+                            double dist = entity.getLocation().distance(npc.getEntity().getLocation());
+                            if (dist < closestDist) {
+                                closestDist = dist;
+                                targetEntity = entity;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Just skip this entity
+                    }
+                }
+            }
+        }
+        
+        // If we found a target, start combat - but DON'T override the instance variables
+        if (targetEntity != null) {
+            // Start combat behavior directly - don't use this.targetsPlayers/this.targetsNPCs
+            Player initialPlayer = (targetEntity instanceof Player) ? (Player)targetEntity : null;
+            
+            // Create custom combat behavior with preserved settings
+            startCombatWithSettings(npc, initialPlayer, targetsPlayers, targetsNPCs);
+            
+            // Set the entity as the target
+            if (npc.getNavigator() != null) {
+                npc.getNavigator().setTarget(targetEntity, false);
+            }
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("NPC " + npc.getName() + 
+                    " found target " + targetEntity.getName() + 
+                    " after respawn (damage=" + stats.getPhysicalDamage() + ")");
+            }
         }
     }
     
@@ -1669,20 +2017,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                 ticks++;
             }
         }.runTaskTimer(Main.getInstance(), 0, 1);
-    }
-
-    /**
-     * Configure if this NPC targets players
-     */
-    public void setTargetsPlayers(boolean targetsPlayers) {
-        this.targetsPlayers = targetsPlayers;
-    }
-
-    /**
-     * Configure if this NPC targets other NPCs
-     */
-    public void setTargetsNPCs(boolean targetsNPCs) {
-        this.targetsNPCs = targetsNPCs;
     }
 
     /**

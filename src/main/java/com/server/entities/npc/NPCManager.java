@@ -203,7 +203,7 @@ public class NPCManager {
         return npc;
     }
 
-    /**
+   /**
      * Create a combat NPC with custom stats
      */
     public NPC createCombatNPC(String id, String name, Location location, String skinName, NPCStats stats) {
@@ -251,13 +251,25 @@ public class NPCManager {
         
         // Initialize the NPC with the combat handler - the handler will manage the nameplate
         if (npc.isSpawned()) {
-            handler.startCombatBehavior(npc, null);
-            
             // Create custom nameplate after a small delay to ensure NPC is fully spawned
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (npc.isSpawned()) {
                     // Create a custom nameplate as a passenger armor stand
                     createHologramNameplate(npc, name, stats.getMaxHealth(), stats.getMaxHealth());
+                    
+                    // IMPORTANT: For hostile NPCs, check if they're set to target other NPCs
+                    // and if so, start the combat behavior immediately
+                    if (npc.getEntity().hasMetadata("targets_npcs") && 
+                        npc.getEntity().getMetadata("targets_npcs").get(0).asBoolean()) {
+                        
+                        // Start combat behavior without a specific target
+                        handler.startCombatBehavior(npc, null);
+                        
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Auto-started combat behavior for hostile NPC: " + 
+                                name + " to look for targets");
+                        }
+                    }
                 }
             }, 5L);
         }

@@ -14,6 +14,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 
 import com.server.Main;
 import com.server.entities.npc.CombatHandler;
@@ -132,8 +133,20 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
             double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
             
-            // Create NPC with standard stats
-            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            // Create customized stats object
+            NPCStats customStats = new NPCStats();
+            customStats.setMaxHealth(health);
+            customStats.setPhysicalDamage((int)damage);
+            
+            // Create NPC with custom stats
+            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, customStats);
+
+            // IMPORTANT: Store ALL critical stats in metadata for persistence
+            npc.getEntity().setMetadata("max_health", new FixedMetadataValue(Main.getInstance(), health));
+            npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(Main.getInstance(), damage));
+            npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), true));
+            npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), false));
+            npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), "NORMAL"));
             
             // Configure it to target only players
             CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
@@ -146,13 +159,30 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                             ", damage: " + damage + 
                             " (targets only players)");
         }
+        // In the NPCCommand class's handleCreate method
         else if (type.equals("hostile")) {
             // Create hostile NPC that can target both players and other NPCs
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
             double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
             
             // Create NPC with standard stats
-            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            NPCStats customStats = new NPCStats();
+            customStats.setMaxHealth(health);
+            customStats.setPhysicalDamage((int)damage);
+            
+            // Apply any other custom stat settings as needed
+            // For example: customStats.setArmor(10);
+            
+            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, customStats);
+            
+            // IMPORTANT: Store ALL critical stats in metadata for persistence across respawns
+            npc.getEntity().setMetadata("max_health", new FixedMetadataValue(Main.getInstance(), health));
+            npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(Main.getInstance(), damage));
+            
+            // Set NPC type and targeting settings
+            npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), true));
+            npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), true));
+            npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), "HOSTILE"));
             
             // Configure it to target both players and NPCs
             CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
@@ -164,7 +194,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                             ", health: " + health + 
                             ", damage: " + damage +
                             " (targets players AND other NPCs)");
-        } 
+        }
         else {
             player.sendMessage(ChatColor.RED + "Unknown NPC type: " + type);
             player.sendMessage(ChatColor.GRAY + "Valid types: talk, combat, hostile");
