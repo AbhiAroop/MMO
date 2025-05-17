@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -36,7 +37,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
     
-    @Override
+   @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
             sender.sendMessage(ChatColor.RED + "This command can only be used by players");
@@ -61,6 +62,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             return handleCreate(player, args);
         } else if (subCommand.equals("remove")) {
             return handleRemove(player, args);
+        } else if (subCommand.equals("removeall")) {
+            return handleRemoveAll(player, args);
         } else if (subCommand.equals("dialogue")) {
             return handleDialogue(player, args);
         } else if (subCommand.equals("list")) {
@@ -236,6 +239,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/mmonpc create talk <id> [name] [skin]" + ChatColor.WHITE + " - Create a talking NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc remove <id>" + ChatColor.WHITE + " - Remove an NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within radius");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc list" + ChatColor.WHITE + " - List all NPCs");
     }
     
@@ -245,7 +249,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             // Main commands
-            List<String> commands = Arrays.asList("create", "remove", "list");
+            List<String> commands = Arrays.asList("create", "remove", "removeall", "list");
             String input = args[0].toLowerCase();
             
             for (String cmd : commands) {
@@ -276,6 +280,17 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                     }
                 }
             }
+            else if (args[0].equalsIgnoreCase("removeall")) {
+                // For removeall, suggest some common radius values
+                List<String> radii = Arrays.asList("5", "10", "20", "50");
+                String input = args[1].toLowerCase();
+                
+                for (String radius : radii) {
+                    if (radius.startsWith(input)) {
+                        completions.add(radius);
+                    }
+                }
+            }
         }
         else if (args.length >= 4) {
             if (args[0].equalsIgnoreCase("create")) {
@@ -289,5 +304,73 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         }
         
         return completions;
+    }
+
+    /**
+     * Handle the 'removeall' subcommand - removes all NPCs or those within a radius
+     */
+    private boolean handleRemoveAll(Player player, String[] args) {
+        NPCManager manager = NPCManager.getInstance();
+        List<String> npcIds = manager.getIds();
+        
+        if (npcIds.isEmpty()) {
+            player.sendMessage(ChatColor.YELLOW + "No NPCs found to remove.");
+            return true;
+        }
+        
+        // Check if a radius was specified
+        double radius = -1; // Default: no radius limit (remove all)
+        if (args.length > 1) {
+            try {
+                radius = Double.parseDouble(args[1]);
+                if (radius <= 0) {
+                    player.sendMessage(ChatColor.RED + "Radius must be a positive number.");
+                    return true;
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage(ChatColor.RED + "Invalid radius. Usage: /mmonpc removeall [radius]");
+                return true;
+            }
+        }
+        
+        int removedCount = 0;
+        List<String> toRemove = new ArrayList<>();
+        
+        // Gather NPCs to remove
+        for (String id : npcIds) {
+            NPC npc = manager.getNPC(id);
+            if (npc == null) continue;
+            
+            // If radius specified, check distance
+            if (radius > 0) {
+                if (!npc.isSpawned()) continue; // Skip despawned NPCs
+                
+                Location npcLoc = npc.getEntity().getLocation();
+                double distance = player.getLocation().distance(npcLoc);
+                
+                if (distance <= radius) {
+                    toRemove.add(id);
+                }
+            } else {
+                // No radius, remove all
+                toRemove.add(id);
+            }
+        }
+        
+        // Now remove the NPCs
+        for (String id : toRemove) {
+            manager.removeNPC(id);
+            removedCount++;
+        }
+        
+        // Send feedback message
+        if (radius > 0) {
+            player.sendMessage(ChatColor.GREEN + "Removed " + removedCount + " NPCs within " + 
+                            String.format("%.1f", radius) + " blocks.");
+        } else {
+            player.sendMessage(ChatColor.GREEN + "Removed all " + removedCount + " NPCs.");
+        }
+        
+        return true;
     }
 }
