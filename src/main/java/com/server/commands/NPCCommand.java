@@ -3,6 +3,7 @@ package com.server.commands;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.bukkit.ChatColor;
@@ -12,12 +13,16 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.entities.npc.CombatHandler;
 import com.server.entities.npc.DialogueHandler;
 import com.server.entities.npc.DialogueResponse;
 import com.server.entities.npc.DialogueTree;
+import com.server.entities.npc.NPCInteractionHandler;
 import com.server.entities.npc.NPCManager;
+import com.server.entities.npc.NPCStats;
 
 import net.citizensnpcs.api.npc.NPC;
 
@@ -68,6 +73,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             return handleDialogue(player, args);
         } else if (subCommand.equals("list")) {
             return handleList(player, args);
+        } else if (subCommand.equals("equip")) {
+            return handleEquip(player, args);
         } else {
             sendHelp(player);
             return true;
@@ -240,6 +247,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc remove <id>" + ChatColor.WHITE + " - Remove an NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within radius");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc equip <id> <slot> <item>" + ChatColor.WHITE + " - Equip an item on an NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc list" + ChatColor.WHITE + " - List all NPCs");
     }
     
@@ -249,7 +257,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             // Main commands
-            List<String> commands = Arrays.asList("create", "remove", "removeall", "list");
+            List<String> commands = Arrays.asList("create", "remove", "removeall", "list", "equip");
             String input = args[0].toLowerCase();
             
             for (String cmd : commands) {
@@ -269,7 +277,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                     }
                 }
             }
-            else if (args[0].equalsIgnoreCase("remove")) {
+            else if (args[0].equalsIgnoreCase("remove") || args[0].equalsIgnoreCase("equip")) {
                 // NPC IDs
                 NPCManager manager = NPCManager.getInstance();
                 String input = args[1].toLowerCase();
@@ -288,6 +296,33 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                 for (String radius : radii) {
                     if (radius.startsWith(input)) {
                         completions.add(radius);
+                    }
+                }
+            }
+        }
+        else if (args.length == 3) {
+            if (args[0].equalsIgnoreCase("equip")) {
+                // Equipment slots
+                List<String> slots = Arrays.asList("mainhand", "offhand", "helmet", "chestplate", "leggings", "boots");
+                String input = args[2].toLowerCase();
+                
+                for (String slot : slots) {
+                    if (slot.startsWith(input)) {
+                        completions.add(slot);
+                    }
+                }
+            }
+        }
+        else if (args.length == 4) {
+            if (args[0].equalsIgnoreCase("equip")) {
+                // Item names
+                List<String> items = Arrays.asList("witchhat", "apprenticeedge", "emberwood", "arcloom", 
+                                                "crownofmagnus", "siphonfang", "fleshrake", "shatteredshell");
+                String input = args[3].toLowerCase();
+                
+                for (String item : items) {
+                    if (item.startsWith(input)) {
+                        completions.add(item);
                     }
                 }
             }
@@ -372,5 +407,181 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         }
         
         return true;
+    }
+
+    /**
+     * Handle the 'equip' subcommand - gives equipment to an NPC
+     */
+    private boolean handleEquip(Player player, String[] args) {
+        if (args.length < 4) {
+            player.sendMessage(ChatColor.RED + "Usage: /mmonpc equip <id> <slot> <item>");
+            player.sendMessage(ChatColor.GRAY + "Slots: mainhand, offhand, helmet, chestplate, leggings, boots");
+            player.sendMessage(ChatColor.GRAY + "Items: Use item names from /giveitem command");
+            return true;
+        }
+        
+        String id = args[1];
+        String slotName = args[2].toLowerCase();
+        String itemName = args[3].toLowerCase();
+        
+        NPCManager manager = NPCManager.getInstance();
+        NPC npc = manager.getNPC(id);
+        
+        if (npc == null) {
+            player.sendMessage(ChatColor.RED + "No NPC found with ID " + id);
+            return true;
+        }
+        
+        // Convert slot name to equipment slot
+        net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot slot;
+        switch (slotName) {
+            case "mainhand":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.HAND;
+                break;
+            case "offhand":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.OFF_HAND;
+                break;
+            case "helmet":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.HELMET;
+                break;
+            case "chestplate":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.CHESTPLATE;
+                break;
+            case "leggings":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.LEGGINGS;
+                break;
+            case "boots":
+                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.BOOTS;
+                break;
+            default:
+                player.sendMessage(ChatColor.RED + "Invalid slot: " + slotName);
+                player.sendMessage(ChatColor.GRAY + "Valid slots: mainhand, offhand, helmet, chestplate, leggings, boots");
+                return true;
+        }
+        
+        // Get the item from the custom items registry
+        ItemStack item = getCustomItemByName(itemName);
+        
+        if (item == null) {
+            player.sendMessage(ChatColor.RED + "Unknown item: " + itemName);
+            player.sendMessage(ChatColor.GRAY + "Use /giveitem to see available items");
+            return true;
+        }
+        
+        // Equip the item on the NPC
+        manager.setEquipment(id, slot, item);
+        
+        // Update NPC stats if it's a combat NPC
+        NPCInteractionHandler handler = manager.getInteractionHandler(id);
+        if (handler instanceof CombatHandler) {
+            CombatHandler combatHandler = (CombatHandler) handler;
+            UUID npcUuid = npc.getUniqueId();
+            NPCStats stats = combatHandler.getNPCStats(npcUuid);
+            
+            // Apply item stats to NPC
+            applyItemStatsToNPC(stats, item, slot);
+            
+            // Update the NPC with the new stats
+            combatHandler.setNPCStats(npcUuid, stats);
+            
+            // Update nameplate to reflect new stats if NPC is spawned
+            if (npc.isSpawned()) {
+                manager.updateNameplate(npc, combatHandler.getNpcHealth().getOrDefault(npcUuid, stats.getMaxHealth()), 
+                        stats.getMaxHealth());
+            }
+        }
+        
+        player.sendMessage(ChatColor.GREEN + "Equipped " + ChatColor.YELLOW + item.getItemMeta().getDisplayName() + 
+                        ChatColor.GREEN + " on " + ChatColor.YELLOW + npc.getName() + 
+                        ChatColor.GREEN + " (" + slot.name().toLowerCase().replace("_", " ") + ")");
+        
+        return true;
+    }
+
+    /**
+     * Get a custom item by its name
+     */
+    private ItemStack getCustomItemByName(String name) {
+        switch (name.toLowerCase()) {
+            case "witchhat":
+                return com.server.items.CustomItems.createWitchHat();
+            case "apprenticeedge":
+                return com.server.items.CustomItems.createApprenticeEdge();
+            case "emberwood":
+                return com.server.items.CustomItems.createEmberwoodStaff();
+            case "arcloom":
+                return com.server.items.CustomItems.createArcloom();
+            case "crownofmagnus":
+                return com.server.items.CustomItems.createCrownOfMagnus();
+            case "siphonfang":
+                return com.server.items.CustomItems.createSiphonFang();
+            case "fleshrake":
+                return com.server.items.CustomItems.createFleshrake();
+            case "shatteredshell":
+                return com.server.items.CustomItems.createShatteredShellPickaxe();
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Apply item stats to NPC based on the item's lore
+     */
+    private void applyItemStatsToNPC(NPCStats stats, ItemStack item, net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot slot) {
+        if (!item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
+        
+        for (String loreLine : item.getItemMeta().getLore()) {
+            String cleanLine = ChatColor.stripColor(loreLine).trim();
+            
+            // Physical damage (weapon)
+            if (cleanLine.startsWith("Physical Damage: +")) {
+                try {
+                    int damage = Integer.parseInt(cleanLine.substring("Physical Damage: +".length()));
+                    stats.setPhysicalDamage(stats.getPhysicalDamage() + damage);
+                } catch (NumberFormatException e) {
+                    // Ignore parse errors
+                }
+            }
+            
+            // Health (armor)
+            else if (cleanLine.startsWith("Health: +")) {
+                try {
+                    int health = Integer.parseInt(cleanLine.substring("Health: +".length()));
+                    stats.setMaxHealth(stats.getMaxHealth() + health);
+                } catch (NumberFormatException e) {
+                    // Ignore parse errors
+                }
+            }
+            
+            // Armor (armor)
+            else if (cleanLine.startsWith("Armor: +")) {
+                try {
+                    int armor = Integer.parseInt(cleanLine.substring("Armor: +".length()));
+                    stats.setArmor(stats.getArmor() + armor);
+                } catch (NumberFormatException e) {
+                    // Ignore parse errors
+                }
+            }
+            
+            // Magic resist (armor)
+            else if (cleanLine.startsWith("Magic Resist: +")) {
+                try {
+                    int resist = Integer.parseInt(cleanLine.substring("Magic Resist: +".length()));
+                    stats.setMagicResist(stats.getMagicResist() + resist);
+                } catch (NumberFormatException e) {
+                    // Ignore parse errors
+                }
+            }
+            
+            // Magic damage (weapon)
+            else if (cleanLine.startsWith("Magic Damage: +")) {
+                try {
+                    int magicDamage = Integer.parseInt(cleanLine.substring("Magic Damage: +".length()));
+                    stats.setMagicDamage(stats.getMagicDamage() + magicDamage);
+                } catch (NumberFormatException e) {
+                    // Ignore parse errors
+                }
+            }
+        }
     }
 }
