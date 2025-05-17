@@ -128,19 +128,46 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(ChatColor.GREEN + "Created talking NPC " + name + " with ID " + id);
         } 
         else if (type.equals("combat")) {
-            // Create combat training NPC
+            // Create combat training NPC that only targets players
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
             double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
             
-            manager.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            // Create NPC with standard stats
+            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            
+            // Configure it to target only players
+            CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
+            handler.setTargetsPlayers(true);
+            handler.setTargetsNPCs(false);
+            
             player.sendMessage(ChatColor.GREEN + "Created combat NPC " + name + 
                             " with ID " + id + 
                             ", health: " + health + 
-                            ", damage: " + damage);
+                            ", damage: " + damage + 
+                            " (targets only players)");
+        }
+        else if (type.equals("hostile")) {
+            // Create hostile NPC that can target both players and other NPCs
+            double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
+            double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
+            
+            // Create NPC with standard stats
+            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            
+            // Configure it to target both players and NPCs
+            CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
+            handler.setTargetsPlayers(true);
+            handler.setTargetsNPCs(true);
+            
+            player.sendMessage(ChatColor.GREEN + "Created hostile NPC " + name + 
+                            " with ID " + id + 
+                            ", health: " + health + 
+                            ", damage: " + damage +
+                            " (targets players AND other NPCs)");
         } 
         else {
             player.sendMessage(ChatColor.RED + "Unknown NPC type: " + type);
-            player.sendMessage(ChatColor.GRAY + "Valid types: talk, combat");
+            player.sendMessage(ChatColor.GRAY + "Valid types: talk, combat, hostile");
             return true;
         }
         
@@ -244,7 +271,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.GOLD + "=== MMO NPC Commands ===");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc create talk <id> [name] [skin]" + ChatColor.WHITE + " - Create a talking NPC");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC (targets players)");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc create hostile <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a hostile NPC (targets players AND NPCs)");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc remove <id>" + ChatColor.WHITE + " - Remove an NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within radius");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc equip <id> <slot> <item>" + ChatColor.WHITE + " - Equip an item on an NPC");
@@ -267,10 +295,10 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             }
         }
         else if (args.length == 2) {
-            // Depends on first argument
+        // Depends on first argument
             if (args[0].equalsIgnoreCase("create")) {
-                // NPC types
-                List<String> types = Arrays.asList("talk", "combat");
+                // NPC types - add "hostile"
+                List<String> types = Arrays.asList("talk", "combat", "hostile");
                 for (String type : types) {
                     if (type.startsWith(args[1].toLowerCase())) {
                         completions.add(type);

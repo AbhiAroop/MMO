@@ -11,6 +11,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,6 +28,7 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.stats.PlayerStats;
 
+import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.event.NPCDamageByEntityEvent;
 import net.citizensnpcs.api.npc.NPC;
 
@@ -35,6 +37,9 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
     private final Map<UUID, BukkitTask> combatTasks = new HashMap<>();
     private final Map<UUID, NPCStats> npcStats = new HashMap<>();
     private final NPCStats defaultStats;
+    private boolean targetsPlayers = true;
+    private boolean targetsNPCs = false;
+    private final Map<String, Long> npcCombatCooldowns = new HashMap<>();
     
     public CombatHandler(double health, double damage) {
         // Create default stats for backward compatibility
@@ -139,7 +144,7 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         
         // Create a combat AI task
         BukkitTask task = new BukkitRunnable() {
-            private Player currentTarget = initialTarget;
+            private Entity currentTarget = initialTarget;
             private int tickCounter = 0;
             private final int ATTACK_INTERVAL = attackInterval;
             private final double ATTACK_RANGE = attackRange;
@@ -190,27 +195,50 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                 }
                 
                 // Find a target if we don't have one
-                if (currentTarget == null || !currentTarget.isOnline() || 
+                if (currentTarget == null || !currentTarget.isValid() || currentTarget.isDead() || 
                     currentTarget.getWorld() != npc.getEntity().getWorld() || 
                     currentTarget.getLocation().distance(npc.getEntity().getLocation()) > 15) {
                     
-                    // Find closest player within 10 blocks
+                    // Find closest entity within 10 blocks - could be player or NPC
                     double closestDist = 10.0;
                     currentTarget = null;
                     
-                    for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
-                        if (entity instanceof Player) {
-                            Player player = (Player) entity;
-                            
-                            // Skip players in creative mode
-                            if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
-                                continue;
+                    // Check for player targets if we're configured to target players
+                    if (targetsPlayers) {
+                        for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
+                            if (entity instanceof Player && !entity.hasMetadata("NPC")) {
+                                Player player = (Player) entity;
+                                
+                                // Skip players in creative mode
+                                if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                                    continue;
+                                }
+                                
+                                double dist = player.getLocation().distance(npc.getEntity().getLocation());
+                                if (dist < closestDist) {
+                                    closestDist = dist;
+                                    currentTarget = player;
+                                }
                             }
-                            
-                            double dist = player.getLocation().distance(npc.getEntity().getLocation());
-                            if (dist < closestDist) {
-                                closestDist = dist;
-                                currentTarget = player;
+                        }
+                    }
+                    
+                    // If no player targets found or we're configured to check for NPC targets too
+                    if ((currentTarget == null || targetsNPCs) && targetsNPCs) {
+                        for (Entity entity : npc.getEntity().getNearbyEntities(10, 10, 10)) {
+                            if (entity.hasMetadata("NPC") && entity != npc.getEntity()) {
+                                try {
+                                    NPC otherNPC = CitizensAPI.getNPCRegistry().getNPC(entity);
+                                    if (otherNPC != null && otherNPC.isSpawned()) {
+                                        double dist = entity.getLocation().distance(npc.getEntity().getLocation());
+                                        if (dist < closestDist) {
+                                            closestDist = dist;
+                                            currentTarget = entity;
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    // Just skip this entity
+                                }
                             }
                         }
                     }
@@ -220,6 +248,8 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                         return;
                     }
                 }
+                
+                // Rest of the method remains unchanged...
                 
                 // Calculate distance to target
                 double distance = npc.getEntity().getLocation().distance(currentTarget.getLocation());
@@ -267,8 +297,8 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                     // Reset animation cooldown
                     animationCooldownTicks = ANIMATION_COOLDOWN;
                     
-                    // Deal damage based on NPC stats and charge
-                    dealDamageToPlayer(npc, currentTarget, finalCharge);
+                    // Deal damage based on NPC stats and charge - use the generalized method
+                    dealDamageToEntity(npc, currentTarget, finalCharge);
                     
                     // Reset charge and set cooldown
                     attackCharge = 0.0f;
@@ -330,6 +360,283 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
         
         // Store the task for later cancellation
         combatTasks.put(npc.getUniqueId(), task);
+    }
+
+    /**
+     * Deal damage to any entity based on the NPC's stats and attack charge
+     * This is a generalized version that works for both players and NPCs
+     * 
+     * @param attackerNpc The attacking NPC
+     * @param target The target entity (could be player or another NPC)
+     * @param chargePercent The attack charge percentage (0.0-1.0)
+     */
+    private void dealDamageToEntity(NPC attackerNpc, Entity target, float chargePercent) {
+        // Skip invalid targets
+        if (!(target instanceof LivingEntity)) return;
+
+        // Get the attacker's stats
+        NPCStats attackerStats = getNPCStats(attackerNpc.getUniqueId());
+        
+        // Base damage from attacker's stats
+        double baseDamage = attackerStats.getPhysicalDamage();
+        
+        // Debug log
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("NPC " + attackerNpc.getName() + 
+                " attacking entity with base damage: " + baseDamage);
+        }
+        
+        // Scale damage based on charge percentage
+        double scaledDamage;
+        if (chargePercent <= 0.01) {
+            // At 0-1% charge, minimum damage is 0.5
+            scaledDamage = 0.5;
+        } else {
+            // For charges above 1%, scale linearly but ensure minimum 0.5 damage
+            scaledDamage = Math.max(0.5, baseDamage * chargePercent);
+        }
+        
+        // Apply critical hit at full charge (10% chance)
+        boolean isCritical = chargePercent >= 0.9f && Math.random() < 0.1;
+        if (isCritical) {
+            scaledDamage *= 1.5; // 50% more damage for critical hits
+        }
+        
+        // If target is player, use existing player damage method
+        if (target instanceof Player && !target.hasMetadata("NPC")) {
+            dealDamageToPlayer(attackerNpc, (Player)target, chargePercent);
+            return;
+        }
+        
+        // Handle NPC targets
+        NPC targetNpc = null;
+        try {
+            if (target.hasMetadata("NPC")) {
+                targetNpc = CitizensAPI.getNPCRegistry().getNPC(target);
+            }
+        } catch (Exception e) {
+            // Not an NPC
+        }
+        
+        if (targetNpc != null) {
+            // DIRECT NPC DAMAGE IMPLEMENTATION
+            // This completely bypasses the event system for reliability
+            directNpcToNpcDamage(attackerNpc, targetNpc, scaledDamage, isCritical);
+        } else {
+            // Apply damage directly to other entities
+            ((LivingEntity)target).damage(scaledDamage, attackerNpc.getEntity());
+        }
+    }
+
+    /**
+     * Apply direct damage from one NPC to another without using events
+     * This ensures reliable damage application
+     */
+    private void directNpcToNpcDamage(NPC attacker, NPC target, double damage, boolean isCritical) {
+        UUID attackerId = attacker.getUniqueId();
+        UUID targetId = target.getUniqueId();
+        
+        if (!npcHealth.containsKey(targetId)) {
+            // IMPORTANT: Initialize health if not already set - this was the key missing part
+            NPCStats targetStats = getNPCStats(targetId);
+            npcHealth.put(targetId, targetStats.getMaxHealth());
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("Initialized missing health for target NPC " + target.getName());
+            }
+        }
+        
+        // Get the stats for both NPCs
+        NPCStats attackerStats = getNPCStats(attackerId);
+        NPCStats targetStats = getNPCStats(targetId);
+        
+        // Get target's current health
+        double currentHealth = npcHealth.getOrDefault(targetId, targetStats.getMaxHealth());
+        
+        // Apply armor reduction from target
+        double armorReduction = targetStats.getArmorDamageReduction() / 100.0;
+        double finalDamage = damage * (1.0 - armorReduction);
+        
+        // Ensure at least 1 damage
+        finalDamage = Math.max(1, Math.round(finalDamage));
+        
+        // DEBUGGING OUTPUT - VERY IMPORTANT
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("PRE-DAMAGE CHECK: Target=" + target.getName() + 
+                ", Current Health=" + currentHealth + "/" + targetStats.getMaxHealth() + 
+                ", Attacker=" + attacker.getName() + ", Damage=" + finalDamage);
+        }
+        
+        // Add a cooldown tracking to prevent damage spam between NPCs
+        String combatKey = attackerId.toString() + "-" + targetId.toString();
+        long currentTime = System.currentTimeMillis();
+        long lastTime = npcCombatCooldowns.getOrDefault(combatKey, 0L);
+        
+        // Skip damage if hit too recently (400ms cooldown)
+        if (currentTime - lastTime < 400) {
+            return;
+        }
+        
+        // Record this hit time for cooldown checking
+        npcCombatCooldowns.put(combatKey, currentTime);
+        
+        // Apply damage directly to TARGET'S health in a thread-safe manner
+        synchronized (npcHealth) {
+            currentHealth = npcHealth.getOrDefault(targetId, targetStats.getMaxHealth());
+            currentHealth -= finalDamage;
+            currentHealth = Math.max(0, currentHealth);
+            npcHealth.put(targetId, currentHealth);
+            
+            // DEBUGGING OUTPUT - VERY IMPORTANT
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("APPLIED DAMAGE: Target=" + target.getName() + 
+                    ", Old Health=" + (currentHealth + finalDamage) + 
+                    ", New Health=" + currentHealth + 
+                    ", Damage=" + finalDamage);
+            }
+        }
+        
+        // Debug logging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("DIRECT NPC damage: " + 
+                attacker.getName() + " (PhysDmg: " + attackerStats.getPhysicalDamage() + ") -> " +
+                target.getName() + " (Health: " + currentHealth + "/" + targetStats.getMaxHealth() + 
+                ", Damage: " + finalDamage + ", Critical: " + isCritical + ")");
+        }
+        
+        // Play hurt effects if target is spawned
+        if (target.isSpawned()) {
+            // Play hurt sound
+            target.getEntity().getWorld().playSound(
+                target.getEntity().getLocation(),
+                Sound.ENTITY_PLAYER_HURT,
+                0.7f, 1.0f
+            );
+            
+            // Show damage indicator for nearby players
+            Location damageLocation = target.getEntity().getLocation().add(0, 1.5, 0);
+            for (Player player : target.getEntity().getWorld().getPlayers()) {
+                if (player.getLocation().distance(damageLocation) <= 30) {
+                    showDamageIndicator(damageLocation, finalDamage, player);
+                }
+            }
+            
+            // Show damage particles
+            target.getEntity().getWorld().spawnParticle(
+                org.bukkit.Particle.DAMAGE_INDICATOR,
+                target.getEntity().getLocation().add(0, 1, 0),
+                8, 0.2, 0.5, 0.2, 0.05
+            );
+            
+            // Apply knockback if target is not dead
+            if (currentHealth > 0) {
+                Vector knockbackDir = target.getEntity().getLocation().subtract(
+                    attacker.getEntity().getLocation()).toVector().normalize();
+                knockbackDir.setY(0.2);
+                target.getEntity().setVelocity(knockbackDir.multiply(0.3));
+            }
+            
+            // Apply damage effect
+            applyDamageEffect(target.getEntity());
+        }
+        
+        // Update nameplate with new health
+        NPCManager.getInstance().updateNameplate(target, currentHealth, targetStats.getMaxHealth());
+        
+        // Check if target is dead
+        if (currentHealth <= 0) {
+            handleNPCDeath(target, attacker.getEntity());
+        }
+    }
+
+    /**
+     * Handle damage dealt from one NPC to another
+     */
+    private void handleNpcToNpcDamage(NPC attacker, NPC target, double damage, boolean isCritical) {
+        // Skip if target NPC doesn't have health tracking
+        UUID targetId = target.getUniqueId();
+        if (!npcHealth.containsKey(targetId)) return;
+        
+        // Get the stats for both NPCs
+        NPCStats attackerStats = getNPCStats(attacker.getUniqueId());
+        NPCStats targetStats = getNPCStats(targetId);
+        
+        // Get target's current health
+        double currentHealth = npcHealth.getOrDefault(targetId, targetStats.getMaxHealth());
+        
+        // Apply armor reduction from target
+        double armorReduction = targetStats.getArmorDamageReduction() / 100.0;
+        double finalDamage = damage * (1.0 - armorReduction);
+        
+        // Ensure at least 1 damage
+        finalDamage = Math.max(1, Math.round(finalDamage));
+        
+        // Add a cooldown tracking to prevent damage spam between NPCs
+        String combatKey = attacker.getUniqueId().toString() + "-" + targetId.toString();
+        long currentTime = System.currentTimeMillis();
+        long lastTime = npcCombatCooldowns.getOrDefault(combatKey, 0L);
+        
+        // Skip damage if hit too recently (400ms cooldown)
+        if (currentTime - lastTime < 400) {
+            return;
+        }
+        
+        // Record this hit time for cooldown checking
+        npcCombatCooldowns.put(combatKey, currentTime);
+        
+        // Apply damage to target
+        currentHealth -= finalDamage;
+        currentHealth = Math.max(0, currentHealth);
+        npcHealth.put(targetId, currentHealth);
+        
+        // Debug logging
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("NPC-to-NPC damage: " + 
+                attacker.getName() + " (Damage: " + attackerStats.getPhysicalDamage() + ") -> " +
+                target.getName() + " (Health: " + currentHealth + "/" + targetStats.getMaxHealth() + 
+                ", Damage: " + finalDamage + ", Critical: " + isCritical + ")");
+        }
+        
+        // Play hurt effects if target is spawned
+        if (target.isSpawned()) {
+            // Play hurt sound
+            target.getEntity().getWorld().playSound(
+                target.getEntity().getLocation(),
+                Sound.ENTITY_PLAYER_HURT,
+                0.7f, 1.0f
+            );
+            
+            // Show damage indicator for nearby players
+            Location damageLocation = target.getEntity().getLocation().add(0, 1.5, 0);
+            for (Player player : target.getEntity().getWorld().getPlayers()) {
+                if (player.getLocation().distance(damageLocation) <= 30) {
+                    showDamageIndicator(damageLocation, finalDamage, player);
+                }
+            }
+            
+            // Show damage particles
+            target.getEntity().getWorld().spawnParticle(
+                org.bukkit.Particle.DAMAGE_INDICATOR,
+                target.getEntity().getLocation().add(0, 1, 0),
+                8, 0.2, 0.5, 0.2, 0.05
+            );
+            
+            // Apply knockback if target is not dead
+            if (currentHealth > 0) {
+                Vector knockbackDir = target.getEntity().getLocation().subtract(
+                    attacker.getEntity().getLocation()).toVector().normalize();
+                knockbackDir.setY(0.2);
+                target.getEntity().setVelocity(knockbackDir.multiply(0.3));
+            }
+        }
+        
+        // Update nameplate with new health
+        if (currentHealth > 0) {
+            NPCManager.getInstance().updateNameplate(target, currentHealth, targetStats.getMaxHealth());
+        } else {
+            // Handle death
+            handleNPCDeath(target, attacker.getEntity());
+        }
     }
 
     /**
@@ -528,11 +835,6 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
             // If the attacker is a player, we can customize damage based on player stats
             if (event.getDamager() instanceof Player) {
                 Player player = (Player) event.getDamager();
-                
-                // Skip players in creative mode - they shouldn't be able to damage NPCs
-                if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
-                    return;
-                }
                 
                 // Get the player's attack charge progression
                 float chargePercent = player.getAttackCooldown();
@@ -1367,5 +1669,33 @@ public class CombatHandler implements NPCInteractionHandler, Listener {
                 ticks++;
             }
         }.runTaskTimer(Main.getInstance(), 0, 1);
+    }
+
+    /**
+     * Configure if this NPC targets players
+     */
+    public void setTargetsPlayers(boolean targetsPlayers) {
+        this.targetsPlayers = targetsPlayers;
+    }
+
+    /**
+     * Configure if this NPC targets other NPCs
+     */
+    public void setTargetsNPCs(boolean targetsNPCs) {
+        this.targetsNPCs = targetsNPCs;
+    }
+
+    /**
+     * Check if this NPC targets players
+     */
+    public boolean getTargetsPlayers() {
+        return this.targetsPlayers;
+    }
+
+    /**
+     * Check if this NPC targets other NPCs
+     */
+    public boolean getTargetsNPCs() {
+        return this.targetsNPCs;
     }
 }
