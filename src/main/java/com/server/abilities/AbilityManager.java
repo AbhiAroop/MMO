@@ -240,72 +240,7 @@ public class AbilityManager {
         
         if (npc != null) {
             // Use the CombatHandler's built-in ability damage system
-            // First get NPCManager
-            com.server.entities.npc.NPCManager npcManager = com.server.entities.npc.NPCManager.getInstance();
-            if (npcManager != null) {
-                // Find the handler for this NPC
-                String npcId = null;
-                for (String id : npcManager.getIds()) {
-                    if (npcManager.getNPC(id).equals(npc)) {
-                        npcId = id;
-                        break;
-                    }
-                }
-                
-                if (npcId != null) {
-                    com.server.entities.npc.NPCInteractionHandler handler = npcManager.getInteractionHandler(npcId);
-                    if (handler instanceof com.server.entities.npc.CombatHandler) {
-                        com.server.entities.npc.CombatHandler combatHandler = (com.server.entities.npc.CombatHandler) handler;
-                        
-                        // Calculate ability damage based on player stats - only for abilities that scale with player stats
-                        double finalDamage = damage;
-                        
-                        // Get player profile for proper damage calculations
-                        PlayerProfile profile = null;
-                        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
-                        if (activeSlot != null) {
-                            profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
-                        }
-                        
-                        // Apply ability-specific scaling for certain abilities
-                        if (profile != null) {
-                            switch (abilityId) {
-                                case "fire_beam":
-                                    // Fire beam should scale with player's magic damage (in this case, physical is the same)
-                                    // This applies damage as a function of the player's attack power
-                                    finalDamage = (10.0 + profile.getStats().getPhysicalDamage() * 0.5);
-                                    break;
-                                    
-                                case "lightning_throw":
-                                    // Lightning throw already has player damage included in the damage value
-                                    // No further adjustment needed
-                                    break;
-                                    
-                                case "blood_harvest":
-                                    // Blood harvest has fixed base damage values - passed directly from the source method
-                                    // No adjustment needed
-                                    break;
-                                    
-                                default:
-                                    // For any other ability, use the damage directly
-                                    break;
-                            }
-                        }
-                        
-                        // Pass the correctly scaled damage to the combat handler
-                        combatHandler.handleAbilityDamage(npc, player, abilityId, finalDamage);
-                        
-                        // Debug logging
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Ability " + abilityId + " damage to NPC: Raw=" + damage + 
-                                ", Final=" + finalDamage);
-                        }
-                        
-                        // We successfully applied damage via the combat handler
-                        return;
-                    }
-                }
-            }
+            
         }
         
         // For regular entities (non-NPCs), use cooldown tracking and apply damage
@@ -688,46 +623,7 @@ public class AbilityManager {
                             );
                         } else {
                             // For NPCs, still apply some lifesteal but based on the NPC's custom health
-                            try {
-                                // Get the NPC object
-                                net.citizensnpcs.api.npc.NPC npc = net.citizensnpcs.api.CitizensAPI.getNPCRegistry().getNPC(target);
-                                com.server.entities.npc.NPCManager npcManager = com.server.entities.npc.NPCManager.getInstance();
-                                if (npc != null && npcManager != null) {
-                                    String npcId = null;
-                                    for (String id : npcManager.getIds()) {
-                                        if (npcManager.getNPC(id).equals(npc)) {
-                                            npcId = id;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    if (npcId != null) {
-                                        com.server.entities.npc.NPCInteractionHandler handler = npcManager.getInteractionHandler(npcId);
-                                        if (handler instanceof com.server.entities.npc.CombatHandler) {
-                                            com.server.entities.npc.CombatHandler combatHandler = (com.server.entities.npc.CombatHandler) handler;
-                                            
-                                            // Apply lifesteal based on the damage dealt to the NPC
-                                            double healthSteal = finalDamage * 0.3; // 30% lifesteal
-                                            double currentPlayerHealth = player.getHealth();
-                                            double maxPlayerHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
-                                            double newPlayerHealth = Math.min(maxPlayerHealth, currentPlayerHealth + healthSteal);
-                                            player.setHealth(newPlayerHealth);
-                                            
-                                            // Show healing effect
-                                            player.getWorld().spawnParticle(
-                                                Particle.HEART,
-                                                player.getLocation().add(0, 1.2, 0),
-                                                3, 0.3, 0.3, 0.3, 0.1
-                                            );
-                                        }
-                                    }
-                                }
-                            } catch (Exception e) {
-                                // Just log if lifesteal fails for NPCs
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().warning("Failed to apply lifesteal on NPC: " + e.getMessage());
-                                }
-                            }
+                           
                         }
                     }
 

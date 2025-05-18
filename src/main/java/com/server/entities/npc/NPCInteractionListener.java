@@ -9,40 +9,44 @@ import net.citizensnpcs.api.event.NPCRightClickEvent;
 import net.citizensnpcs.api.npc.NPC;
 
 /**
- * Listens for interactions with NPCs
+ * Listens for interactions with NPCs and forwards them to the appropriate handlers
  */
 public class NPCInteractionListener implements Listener {
     
-    private final NPCManager npcManager;
+    private final NPCManager manager;
     
     /**
      * Create a new NPCInteractionListener
      * 
-     * @param npcManager The NPCManager instance
+     * @param manager The NPCManager instance
      */
-    public NPCInteractionListener(NPCManager npcManager) {
-        this.npcManager = npcManager;
-    }
-    
-    /**
-     * Handle left click interactions with NPCs
-     */
-    @EventHandler
-    public void onNPCLeftClick(NPCLeftClickEvent event) {
-        Player player = event.getClicker();
-        NPC npc = event.getNPC();
-        
-        npcManager.handleInteraction(player, npc, false);
+    public NPCInteractionListener(NPCManager manager) {
+        this.manager = manager;
     }
     
     /**
      * Handle right click interactions with NPCs
+     * 
+     * @param event The NPCRightClickEvent
      */
     @EventHandler
-    public void onNPCRightClick(NPCRightClickEvent event) {
+    public void onRightClick(NPCRightClickEvent event) {
         Player player = event.getClicker();
         NPC npc = event.getNPC();
         
-        npcManager.handleInteraction(player, npc, true);
+        manager.handleInteraction(player, npc, true);
+    }
+    
+    /**
+     * Handle left click interactions with NPCs
+     * 
+     * @param event The NPCLeftClickEvent
+     */
+    @EventHandler
+    public void onLeftClick(NPCLeftClickEvent event) {
+        Player player = event.getClicker();
+        NPC npc = event.getNPC();
+        
+        manager.handleInteraction(player, npc, false);
     }
 }

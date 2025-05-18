@@ -372,4 +372,36 @@ public class DamageIndicatorManager implements Listener {
             }
         }.runTaskTimer(plugin, 0L, 2L);
     }
+
+    /**
+     * Spawns a damage indicator at the specified location for all nearby players
+     * 
+     * @param location The location to spawn the indicator at
+     * @param damage The damage amount
+     * @param isCritical Whether this is a critical hit
+     */
+    public void spawnDamageIndicator(Location location, int damage, boolean isCritical) {
+        if (location == null) return;
+        
+        // Get the symbol and color based on damage type (physical by default)
+        String symbol = "⚔"; // Physical damage symbol
+        String color = "§c"; // Red color
+        
+        // Enhance visual appearance for critical hits
+        String format = isCritical ? "§c§l%.1f" : "§c%.1f";
+        
+        // Show to all nearby players within viewing distance
+        location.getWorld().getPlayers().stream()
+            .filter(p -> p.getLocation().distanceSquared(location) <= 400) // 20 blocks
+            .forEach(player -> {
+                spawnPersonalizedDamageIndicator(
+                    location,
+                    damage,
+                    symbol,
+                    color,
+                    format,
+                    player
+                );
+            });
+    }
 }

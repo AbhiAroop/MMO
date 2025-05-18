@@ -155,7 +155,7 @@ public class NPCStats {
     public double getArmorDamageReduction() {
         return (armor * 100.0) / (armor + 100.0);
     }
-
+    
     /**
      * Calculate magic damage reduction from magic resist
      * @return Percentage of damage reduced (0-100)
@@ -170,5 +170,28 @@ public class NPCStats {
      */
     public int getAttackIntervalTicks() {
         return Math.max(1, (int)(20 / attackSpeed));
+    }
+
+    /**
+     * Create a deep copy of this stats object
+     * 
+     * @return A new NPCStats object with the same values
+     */
+    public NPCStats clone() {
+        NPCStats clone = new NPCStats();
+        clone.maxHealth = this.maxHealth;
+        clone.physicalDamage = this.physicalDamage;
+        clone.magicDamage = this.magicDamage;
+        clone.armor = this.armor;
+        clone.magicResist = this.magicResist;
+        clone.attackSpeed = this.attackSpeed;
+        clone.attackRange = this.attackRange;
+        clone.level = this.level;
+        clone.hasCustomAbilities = this.hasCustomAbilities;
+        clone.npcType = this.npcType;
+        clone.expReward = this.expReward;
+        clone.minGoldDrop = this.minGoldDrop;
+        clone.maxGoldDrop = this.maxGoldDrop;
+        return clone;
     }
 }

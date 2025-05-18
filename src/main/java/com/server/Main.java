@@ -29,14 +29,15 @@ import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
 import com.server.entities.CustomEntityManager;
-import com.server.entities.npc.NPCDeathHandler;
 import com.server.entities.npc.NPCManager;
+import com.server.entities.npc.dialogue.DialogueManager;
 import com.server.events.AbilityListener;
 import com.server.events.AutoRespawnListener;
 import com.server.events.CombatListener;
 import com.server.events.CustomMobListener;
 import com.server.events.GUIListener;
 import com.server.events.ItemListener;
+import com.server.events.NPCDamageListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.profiles.ProfileManager;
@@ -120,8 +121,11 @@ public class Main extends JavaPlugin {
         gemCarvingManager = new GemCarvingManager(this);
         gemCarvingManager.initialize();
 
-        // Initialize NPCManager
+        // Initialize NPC manager
         NPCManager.initialize(this);
+
+        // Initialize DialogueManager after NPCManager
+        DialogueManager.getInstance();
 
         // Register commands and event listeners
         registerCommands();
@@ -174,6 +178,9 @@ public class Main extends JavaPlugin {
         if (customEntityManager != null) {
             customEntityManager.cleanup();
         }
+
+        // Clean up NPC resources
+        NPCManager.getInstance().cleanup();
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
@@ -193,6 +200,7 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new HealthRegenerationListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AutoRespawnListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CustomMobListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new NPCDamageListener(this), this);
         this.getCommand("animdebug").setExecutor(new AnimationDebugCommand(this));
         
         // Register skill listeners
@@ -207,8 +215,6 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
 
-        // Register NPC death handler
-        getServer().getPluginManager().registerEvents(new NPCDeathHandler(NPCManager.getInstance()), this);
     }
 
     public static Main getInstance() {
@@ -391,11 +397,11 @@ public class Main extends JavaPlugin {
             LOGGER.warning("Command 'gemtool' not registered in plugin.yml file!");
         }
 
-        org.bukkit.command.PluginCommand mmoncCommand = this.getCommand("mmonpc");
-        if (mmoncCommand != null) {
+        org.bukkit.command.PluginCommand npcCommand = this.getCommand("mmonpc");
+        if (npcCommand != null) {
             NPCCommand npcHandler = new NPCCommand(this);
-            mmoncCommand.setExecutor(npcHandler);
-            mmoncCommand.setTabCompleter(npcHandler);
+            npcCommand.setExecutor(npcHandler);
+            npcCommand.setTabCompleter(npcHandler);
         } else {
             LOGGER.warning("Command 'mmonpc' not registered in plugin.yml file!");
         }
@@ -456,6 +462,15 @@ public class Main extends JavaPlugin {
      */
     public boolean isDebugEnabled() {
         return isDebugMode();
+    }
+
+    /**
+     * Get the DamageIndicatorManager instance
+     *
+     * @return The DamageIndicatorManager instance
+     */
+    public DamageIndicatorManager getDamageIndicatorManager() {
+        return damageIndicatorManager;
     }
 
 }

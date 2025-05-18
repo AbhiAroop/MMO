@@ -5,12 +5,11 @@ import org.bukkit.entity.Player;
 import net.citizensnpcs.api.npc.NPC;
 
 /**
- * Interface for handling NPC interactions
+ * Interface for handling interactions with NPCs
  */
 public interface NPCInteractionHandler {
-    
     /**
-     * Handle an interaction with an NPC
+     * Called when a player interacts with an NPC
      * 
      * @param player The player who interacted
      * @param npc The NPC that was interacted with

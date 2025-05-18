@@ -3,29 +3,30 @@ package com.server.commands;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.metadata.FixedMetadataValue;
 
 import com.server.Main;
-import com.server.entities.npc.CombatHandler;
-import com.server.entities.npc.DialogueHandler;
-import com.server.entities.npc.DialogueResponse;
-import com.server.entities.npc.DialogueTree;
-import com.server.entities.npc.NPCInteractionHandler;
+import com.server.entities.npc.NPCFactory;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
+import com.server.entities.npc.types.CombatNPC;
+import com.server.entities.npc.types.DialogueNPC;
+import com.server.entities.npc.types.HostileNPC;
+import com.server.entities.npc.types.PassiveNPC;
+import com.server.items.CustomItems;
 
 import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot;
 
 /**
  * Command handler for NPC-related commands
@@ -43,17 +44,17 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
     
-   @Override
+    @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players");
+            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
             return true;
         }
         
         Player player = (Player) sender;
         
-        if (!player.hasPermission("mmo.admin.npc")) {
-            player.sendMessage(ChatColor.RED + "You don't have permission to use this command");
+        if (!player.hasPermission("mmo.command.npc")) {
+            player.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
             return true;
         }
         
@@ -86,118 +87,52 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      * Handle the 'create' subcommand
      */
     private boolean handleCreate(Player player, String[] args) {
-        if (args.length < 3) {
-            player.sendMessage(ChatColor.RED + "Usage: /mmonpc create <type> <id> [name] [skinName]");
-            player.sendMessage(ChatColor.GRAY + "Types: talk, combat");
+        if (args.length < 4) {
+            player.sendMessage(ChatColor.RED + "Usage: /mmonpc create <type> <id> <name> [skin] [health] [damage]");
             return true;
         }
         
         String type = args[1].toLowerCase();
         String id = args[2];
-        String name = args.length > 3 ? args[3] : id;
-        String skin = args.length > 4 ? args[4] : name;
         
+        // Combine the rest of the arguments as the name (if not provided separately)
+        String name = args[3];
+        String skin = args.length > 4 ? args[4] : player.getName();
+        
+        NPCFactory factory = NPCFactory.getInstance();
         NPCManager manager = NPCManager.getInstance();
         
         if (type.equals("talk")) {
-            // Create simple talking NPC with basic dialogue
-            DialogueTree.Builder builder = new DialogueTree.Builder("root");
-            
-            List<DialogueResponse> responses = new ArrayList<>();
-            responses.add(new DialogueResponse("Hello there!", "greeting"));
-            responses.add(new DialogueResponse("What do you do here?", "role"));
-            responses.add(new DialogueResponse("Goodbye.", "goodbye"));
-            
-            builder.addNode("root", "Hello! How can I help you today?", responses);
-            
-            responses = new ArrayList<>();
-            responses.add(new DialogueResponse("Nice to meet you!", "nice"));
-            responses.add(new DialogueResponse("I'll be going now.", "goodbye"));
-            builder.addNode("greeting", "It's a pleasure to meet you as well! My name is " + name + ".", responses);
-            
-            builder.addNode("role", "I'm here to provide information and assistance to adventurers like yourself.", 
-                Arrays.asList(new DialogueResponse("That's great.", "root")));
-            
-            builder.addNode("nice", "The pleasure is all mine! Is there anything else I can help you with?",
-                Arrays.asList(new DialogueResponse("Return to topics", "root")));
-            
-            builder.addNode("goodbye", "Farewell! Come back if you need anything else.", new ArrayList<>());
-            
-            DialogueTree dialogueTree = builder.build();
-            
-            manager.createTalkingNPC(id, name, player.getLocation(), skin, dialogueTree);
-            player.sendMessage(ChatColor.GREEN + "Created talking NPC " + name + " with ID " + id);
-        } 
-        else if (type.equals("combat")) {
-            // Create combat training NPC that only targets players
+            // Create a dialogue NPC
+            DialogueNPC npc = factory.createDialogueNPC(id, name, player.getLocation(), skin);
+            manager.registerInteractionHandler(id, npc);
+            player.sendMessage(ChatColor.GREEN + "Created dialogue NPC " + name + " with ID " + id);
+        } else if (type.equals("passive")) {
+            // Create a passive NPC
+            PassiveNPC npc = factory.createPassiveNPC(id, name, player.getLocation(), skin);
+            manager.registerInteractionHandler(id, npc);
+            player.sendMessage(ChatColor.GREEN + "Created passive NPC " + name + " with ID " + id);
+        } else if (type.equals("combat")) {
+            // Create a combat NPC
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
-            double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
+            int damage = args.length > 6 ? Integer.parseInt(args[6]) : 10;
             
-            // Create customized stats object
-            NPCStats customStats = new NPCStats();
-            customStats.setMaxHealth(health);
-            customStats.setPhysicalDamage((int)damage);
-            
-            // Create NPC with custom stats
-            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, customStats);
-
-            // IMPORTANT: Store ALL critical stats in metadata for persistence
-            npc.getEntity().setMetadata("max_health", new FixedMetadataValue(Main.getInstance(), health));
-            npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(Main.getInstance(), damage));
-            npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), true));
-            npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), false));
-            npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), "NORMAL"));
-            
-            // Configure it to target only players
-            CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
-            handler.setTargetsPlayers(true);
-            handler.setTargetsNPCs(false);
-            
-            player.sendMessage(ChatColor.GREEN + "Created combat NPC " + name + 
-                            " with ID " + id + 
-                            ", health: " + health + 
-                            ", damage: " + damage + 
-                            " (targets only players)");
-        }
-        // In the NPCCommand class's handleCreate method
-        else if (type.equals("hostile")) {
-            // Create hostile NPC that can target both players and other NPCs
+            CombatNPC npc = factory.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
+            manager.registerInteractionHandler(id, npc);
+            player.sendMessage(ChatColor.GREEN + "Created combat NPC " + name + " with ID " + id + 
+                            " (Health: " + health + ", Damage: " + damage + ")");
+        } else if (type.equals("hostile")) {
+            // Create a hostile NPC
             double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
-            double damage = args.length > 6 ? Double.parseDouble(args[6]) : 10.0;
+            int damage = args.length > 6 ? Integer.parseInt(args[6]) : 10;
             
-            // Create NPC with standard stats
-            NPCStats customStats = new NPCStats();
-            customStats.setMaxHealth(health);
-            customStats.setPhysicalDamage((int)damage);
-            
-            // Apply any other custom stat settings as needed
-            // For example: customStats.setArmor(10);
-            
-            NPC npc = manager.createCombatNPC(id, name, player.getLocation(), skin, customStats);
-            
-            // IMPORTANT: Store ALL critical stats in metadata for persistence across respawns
-            npc.getEntity().setMetadata("max_health", new FixedMetadataValue(Main.getInstance(), health));
-            npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(Main.getInstance(), damage));
-            
-            // Set NPC type and targeting settings
-            npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(Main.getInstance(), true));
-            npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(Main.getInstance(), true));
-            npc.getEntity().setMetadata("npc_type", new FixedMetadataValue(Main.getInstance(), "HOSTILE"));
-            
-            // Configure it to target both players and NPCs
-            CombatHandler handler = (CombatHandler) manager.getInteractionHandler(id);
-            handler.setTargetsPlayers(true);
-            handler.setTargetsNPCs(true);
-            
-            player.sendMessage(ChatColor.GREEN + "Created hostile NPC " + name + 
-                            " with ID " + id + 
-                            ", health: " + health + 
-                            ", damage: " + damage +
-                            " (targets players AND other NPCs)");
-        }
-        else {
+            HostileNPC npc = factory.createHostileNPC(id, name, player.getLocation(), skin, health, damage);
+            manager.registerInteractionHandler(id, npc);
+            player.sendMessage(ChatColor.GREEN + "Created hostile NPC " + name + " with ID " + id + 
+                            " (Health: " + health + ", Damage: " + damage + ")");
+        } else {
             player.sendMessage(ChatColor.RED + "Unknown NPC type: " + type);
-            player.sendMessage(ChatColor.GRAY + "Valid types: talk, combat, hostile");
+            player.sendMessage(ChatColor.RED + "Available types: talk, passive, combat, hostile");
             return true;
         }
         
@@ -218,9 +153,9 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         
         if (manager.getNPC(id) != null) {
             manager.removeNPC(id);
-            player.sendMessage(ChatColor.GREEN + "Removed NPC with ID " + id);
+            player.sendMessage(ChatColor.GREEN + "Removed NPC with ID: " + id);
         } else {
-            player.sendMessage(ChatColor.RED + "No NPC found with ID " + id);
+            player.sendMessage(ChatColor.RED + "No NPC found with ID: " + id);
         }
         
         return true;
@@ -230,43 +165,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      * Handle the 'dialogue' subcommand - used by dialogue click events
      */
     private boolean handleDialogue(Player player, String[] args) {
-        if (args.length < 3) {
-            return true;
-        }
-        
-        try {
-            int npcId = Integer.parseInt(args[1]);
-            int responseIndex = Integer.parseInt(args[2]);
-            
-            NPCManager manager = NPCManager.getInstance();
-            NPC npc = null;
-            
-            // Find the NPC by its Citizens ID
-            for (NPC n : manager.getNPCRegistry()) {
-                if (n.getId() == npcId) {
-                    npc = n;
-                    break;
-                }
-            }
-            
-            if (npc == null) {
-                return true;
-            }
-            
-            // Get the handler for this NPC
-            for (String id : manager.getIds()) {
-                if (manager.getNPC(id) == npc) {
-                    if (manager.getInteractionHandler(id) instanceof DialogueHandler) {
-                        DialogueHandler handler = (DialogueHandler) manager.getInteractionHandler(id);
-                        handler.handleResponse(player, npc, responseIndex);
-                        return true;
-                    }
-                }
-            }
-        } catch (NumberFormatException e) {
-            // Silently ignore invalid numbers
-        }
-        
+        // This is handled in the DialogueManager, just a placeholder for tab completion
         return true;
     }
     
@@ -275,20 +174,19 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleList(Player player, String[] args) {
         NPCManager manager = NPCManager.getInstance();
-        List<String> npcIds = manager.getIds();
+        List<String> ids = manager.getIds();
         
-        if (npcIds.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "No NPCs have been created yet.");
+        if (ids.isEmpty()) {
+            player.sendMessage(ChatColor.YELLOW + "No NPCs found.");
             return true;
         }
         
-        player.sendMessage(ChatColor.YELLOW + "NPCs (" + npcIds.size() + "):");
-        for (String id : npcIds) {
+        player.sendMessage(ChatColor.GREEN + "NPCs (" + ids.size() + "):");
+        for (String id : ids) {
             NPC npc = manager.getNPC(id);
             if (npc != null) {
-                String status = npc.isSpawned() ? ChatColor.GREEN + "Spawned" : ChatColor.RED + "Despawned";
-                player.sendMessage(ChatColor.GOLD + " - " + id + ": " + ChatColor.WHITE + npc.getName() + 
-                        " (" + status + ChatColor.WHITE + ")");
+                player.sendMessage(ChatColor.GREEN + " - " + id + ": " + npc.getName() + 
+                                  (npc.isSpawned() ? ChatColor.GREEN + " (Spawned)" : ChatColor.RED + " (Despawned)"));
             }
         }
         
@@ -299,14 +197,15 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      * Send help message to a player
      */
     private void sendHelp(Player player) {
-        player.sendMessage(ChatColor.GOLD + "=== MMO NPC Commands ===");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc create talk <id> [name] [skin]" + ChatColor.WHITE + " - Create a talking NPC");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc create combat <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a combat NPC (targets players)");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc create hostile <id> [name] [skin] [health] [damage]" + ChatColor.WHITE + " - Create a hostile NPC (targets players AND NPCs)");
+        player.sendMessage(ChatColor.GREEN + "==== NPC Commands ====");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc create <type> <id> <name> [skin] [health] [damage]" + ChatColor.WHITE + " - Create an NPC");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc remove <id>" + ChatColor.WHITE + " - Remove an NPC");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within radius");
-        player.sendMessage(ChatColor.YELLOW + "/mmonpc equip <id> <slot> <item>" + ChatColor.WHITE + " - Equip an item on an NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within a radius");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc list" + ChatColor.WHITE + " - List all NPCs");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc equip <id> <slot> <item>" + ChatColor.WHITE + " - Equip an NPC");
+        player.sendMessage(ChatColor.GREEN + "===================");
+        player.sendMessage(ChatColor.YELLOW + "Available NPC types: talk, passive, combat, hostile");
+        player.sendMessage(ChatColor.YELLOW + "Available equipment slots: mainhand, offhand, helmet, chestplate, leggings, boots");
     }
     
     @Override
@@ -327,10 +226,12 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         else if (args.length == 2) {
         // Depends on first argument
             if (args[0].equalsIgnoreCase("create")) {
-                // NPC types - add "hostile"
-                List<String> types = Arrays.asList("talk", "combat", "hostile");
+                // NPC types
+                List<String> types = Arrays.asList("talk", "passive", "combat", "hostile");
+                String input = args[1].toLowerCase();
+                
                 for (String type : types) {
-                    if (type.startsWith(args[1].toLowerCase())) {
+                    if (type.startsWith(input)) {
                         completions.add(type);
                     }
                 }
@@ -404,64 +305,42 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleRemoveAll(Player player, String[] args) {
         NPCManager manager = NPCManager.getInstance();
-        List<String> npcIds = manager.getIds();
         
-        if (npcIds.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "No NPCs found to remove.");
-            return true;
-        }
-        
-        // Check if a radius was specified
-        double radius = -1; // Default: no radius limit (remove all)
         if (args.length > 1) {
+            // Remove NPCs within a radius
             try {
-                radius = Double.parseDouble(args[1]);
-                if (radius <= 0) {
-                    player.sendMessage(ChatColor.RED + "Radius must be a positive number.");
-                    return true;
+                double radius = Double.parseDouble(args[1]);
+                int removed = 0;
+                
+                for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
+                    if (entity.hasMetadata("NPC")) {
+                        // Find the NPC ID by UUID
+                        for (String id : new ArrayList<>(manager.getIds())) {
+                            NPC npc = manager.getNPC(id);
+                            if (npc != null && npc.getEntity() == entity) {
+                                manager.removeNPC(id);
+                                removed++;
+                                break;
+                            }
+                        }
+                    }
                 }
+                
+                player.sendMessage(ChatColor.GREEN + "Removed " + removed + " NPCs within " + radius + " blocks.");
+                
             } catch (NumberFormatException e) {
-                player.sendMessage(ChatColor.RED + "Invalid radius. Usage: /mmonpc removeall [radius]");
+                player.sendMessage(ChatColor.RED + "Invalid radius: " + args[1]);
                 return true;
             }
-        }
-        
-        int removedCount = 0;
-        List<String> toRemove = new ArrayList<>();
-        
-        // Gather NPCs to remove
-        for (String id : npcIds) {
-            NPC npc = manager.getNPC(id);
-            if (npc == null) continue;
-            
-            // If radius specified, check distance
-            if (radius > 0) {
-                if (!npc.isSpawned()) continue; // Skip despawned NPCs
-                
-                Location npcLoc = npc.getEntity().getLocation();
-                double distance = player.getLocation().distance(npcLoc);
-                
-                if (distance <= radius) {
-                    toRemove.add(id);
-                }
-            } else {
-                // No radius, remove all
-                toRemove.add(id);
-            }
-        }
-        
-        // Now remove the NPCs
-        for (String id : toRemove) {
-            manager.removeNPC(id);
-            removedCount++;
-        }
-        
-        // Send feedback message
-        if (radius > 0) {
-            player.sendMessage(ChatColor.GREEN + "Removed " + removedCount + " NPCs within " + 
-                            String.format("%.1f", radius) + " blocks.");
         } else {
-            player.sendMessage(ChatColor.GREEN + "Removed all " + removedCount + " NPCs.");
+            // Remove all NPCs
+            int count = manager.getIds().size();
+            
+            for (String id : new ArrayList<>(manager.getIds())) {
+                manager.removeNPC(id);
+            }
+            
+            player.sendMessage(ChatColor.GREEN + "Removed all NPCs (" + count + ").");
         }
         
         return true;
@@ -473,8 +352,6 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
     private boolean handleEquip(Player player, String[] args) {
         if (args.length < 4) {
             player.sendMessage(ChatColor.RED + "Usage: /mmonpc equip <id> <slot> <item>");
-            player.sendMessage(ChatColor.GRAY + "Slots: mainhand, offhand, helmet, chestplate, leggings, boots");
-            player.sendMessage(ChatColor.GRAY + "Items: Use item names from /giveitem command");
             return true;
         }
         
@@ -486,160 +363,176 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         NPC npc = manager.getNPC(id);
         
         if (npc == null) {
-            player.sendMessage(ChatColor.RED + "No NPC found with ID " + id);
+            player.sendMessage(ChatColor.RED + "No NPC found with ID: " + id);
             return true;
         }
         
-        // Convert slot name to equipment slot
-        net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot slot;
+        // Convert slot name to EquipmentSlot
+        EquipmentSlot slot;
         switch (slotName) {
             case "mainhand":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.HAND;
+                slot = EquipmentSlot.HAND;
                 break;
             case "offhand":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.OFF_HAND;
+                slot = EquipmentSlot.OFF_HAND;
                 break;
             case "helmet":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.HELMET;
+                slot = EquipmentSlot.HELMET;
                 break;
             case "chestplate":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.CHESTPLATE;
+                slot = EquipmentSlot.CHESTPLATE;
                 break;
             case "leggings":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.LEGGINGS;
+                slot = EquipmentSlot.LEGGINGS;
                 break;
             case "boots":
-                slot = net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot.BOOTS;
+                slot = EquipmentSlot.BOOTS;
                 break;
             default:
-                player.sendMessage(ChatColor.RED + "Invalid slot: " + slotName);
-                player.sendMessage(ChatColor.GRAY + "Valid slots: mainhand, offhand, helmet, chestplate, leggings, boots");
+                player.sendMessage(ChatColor.RED + "Invalid slot. Use: mainhand, offhand, helmet, chestplate, leggings, boots");
                 return true;
         }
         
-        // Get the item from the custom items registry
+        // Get the item
         ItemStack item = getCustomItemByName(itemName);
-        
         if (item == null) {
             player.sendMessage(ChatColor.RED + "Unknown item: " + itemName);
-            player.sendMessage(ChatColor.GRAY + "Use /giveitem to see available items");
             return true;
         }
         
-        // Equip the item on the NPC
-        manager.setEquipment(id, slot, item);
-        
-        // Update NPC stats if it's a combat NPC
-        NPCInteractionHandler handler = manager.getInteractionHandler(id);
-        if (handler instanceof CombatHandler) {
-            CombatHandler combatHandler = (CombatHandler) handler;
-            UUID npcUuid = npc.getUniqueId();
-            NPCStats stats = combatHandler.getNPCStats(npcUuid);
-            
-            // Apply item stats to NPC
-            applyItemStatsToNPC(stats, item, slot);
-            
-            // Update the NPC with the new stats
-            combatHandler.setNPCStats(npcUuid, stats);
-            
-            // Update nameplate to reflect new stats if NPC is spawned
-            if (npc.isSpawned()) {
-                manager.updateNameplate(npc, combatHandler.getNpcHealth().getOrDefault(npcUuid, stats.getMaxHealth()), 
-                        stats.getMaxHealth());
+        // Get the item debug info
+        String itemInfo = item.getType().name();
+        if (item.hasItemMeta()) {
+            if (item.getItemMeta().hasDisplayName()) {
+                itemInfo = item.getItemMeta().getDisplayName();
+            }
+            if (item.getItemMeta().hasCustomModelData()) {
+                itemInfo += " (Model:" + item.getItemMeta().getCustomModelData() + ")";
             }
         }
         
-        player.sendMessage(ChatColor.GREEN + "Equipped " + ChatColor.YELLOW + item.getItemMeta().getDisplayName() + 
-                        ChatColor.GREEN + " on " + ChatColor.YELLOW + npc.getName() + 
-                        ChatColor.GREEN + " (" + slot.name().toLowerCase().replace("_", " ") + ")");
+        // Debug log the item that's being equipped
+        plugin.getLogger().info("Equipping " + itemInfo + " to NPC " + id + " in slot " + slotName);
+        
+        // Equip the item
+        manager.setEquipment(id, slot, item);
+        player.sendMessage(ChatColor.GREEN + "Equipped " + itemName + " to " + slotName + " slot of NPC " + id);
+        
+        // Update the NPC's stats based on equipment
+        Object handler = manager.getInteractionHandler(id);
+        if (handler instanceof CombatNPC) {
+            CombatNPC combatNPC = (CombatNPC) handler;
+            
+            // Get baseline stats before equipment is applied
+            NPCStats baseStats = combatNPC.getStats().clone();
+            
+            // Update stats from equipment
+            combatNPC.updateStatsFromEquipment();
+            NPCStats updatedStats = combatNPC.getStats();
+            
+            // Show updated stats for confirmation and highlight changes
+            player.sendMessage(ChatColor.YELLOW + "Updated NPC stats: ");
+            
+            if (baseStats.getMaxHealth() != updatedStats.getMaxHealth()) {
+                player.sendMessage(ChatColor.RED + "Health: " + baseStats.getMaxHealth() + " → " + 
+                                ChatColor.GREEN + updatedStats.getMaxHealth());
+            } else {
+                player.sendMessage(ChatColor.RED + "Health: " + updatedStats.getMaxHealth());
+            }
+            
+            if (baseStats.getPhysicalDamage() != updatedStats.getPhysicalDamage()) {
+                player.sendMessage(ChatColor.RED + "Physical Damage: " + baseStats.getPhysicalDamage() + " → " + 
+                                ChatColor.GREEN + updatedStats.getPhysicalDamage());
+            } else {
+                player.sendMessage(ChatColor.RED + "Physical Damage: " + updatedStats.getPhysicalDamage());
+            }
+            
+            if (baseStats.getArmor() != updatedStats.getArmor()) {
+                player.sendMessage(ChatColor.BLUE + "Armor: " + baseStats.getArmor() + " → " + 
+                                ChatColor.GREEN + updatedStats.getArmor());
+            } else {
+                player.sendMessage(ChatColor.BLUE + "Armor: " + updatedStats.getArmor());
+            }
+            
+            if (baseStats.getAttackRange() != updatedStats.getAttackRange()) {
+                player.sendMessage(ChatColor.YELLOW + "Attack Range: " + baseStats.getAttackRange() + " → " + 
+                                ChatColor.GREEN + updatedStats.getAttackRange());
+            } else {
+                player.sendMessage(ChatColor.YELLOW + "Attack Range: " + updatedStats.getAttackRange());
+            }
+            
+            if (baseStats.getAttackSpeed() != updatedStats.getAttackSpeed()) {
+                player.sendMessage(ChatColor.YELLOW + "Attack Speed: " + baseStats.getAttackSpeed() + " → " + 
+                                ChatColor.GREEN + updatedStats.getAttackSpeed());
+            } else {
+                player.sendMessage(ChatColor.YELLOW + "Attack Speed: " + updatedStats.getAttackSpeed());
+            }
+            
+            // Log detailed info to console
+            plugin.getLogger().info("NPC " + id + " stats updated for item " + itemName + " in slot " + slotName);
+            plugin.getLogger().info("  Physical Damage: " + baseStats.getPhysicalDamage() + " → " + updatedStats.getPhysicalDamage());
+            plugin.getLogger().info("  Health: " + baseStats.getMaxHealth() + " → " + updatedStats.getMaxHealth());
+            plugin.getLogger().info("  Armor: " + baseStats.getArmor() + " → " + updatedStats.getArmor());
+            plugin.getLogger().info("  Attack Range: " + baseStats.getAttackRange() + " → " + updatedStats.getAttackRange());
+            plugin.getLogger().info("  Attack Speed: " + baseStats.getAttackSpeed() + " → " + updatedStats.getAttackSpeed());
+        }
         
         return true;
     }
 
     /**
-     * Get a custom item by its name
+     * Get a custom item by its name - fixed to use the CustomItems class
      */
     private ItemStack getCustomItemByName(String name) {
-        switch (name.toLowerCase()) {
-            case "witchhat":
-                return com.server.items.CustomItems.createWitchHat();
-            case "apprenticeedge":
-                return com.server.items.CustomItems.createApprenticeEdge();
-            case "emberwood":
-                return com.server.items.CustomItems.createEmberwoodStaff();
-            case "arcloom":
-                return com.server.items.CustomItems.createArcloom();
-            case "crownofmagnus":
-                return com.server.items.CustomItems.createCrownOfMagnus();
-            case "siphonfang":
-                return com.server.items.CustomItems.createSiphonFang();
-            case "fleshrake":
-                return com.server.items.CustomItems.createFleshrake();
-            case "shatteredshell":
-                return com.server.items.CustomItems.createShatteredShellPickaxe();
-            default:
-                return null;
+        // Use CustomItems class to get items by name
+        String lowercaseName = name.toLowerCase();
+        
+        // Try to get the item using reflection to avoid hardcoding item names
+        try {
+            java.lang.reflect.Method method = CustomItems.class.getMethod("create" + capitalizeFirstLetter(lowercaseName));
+            return (ItemStack) method.invoke(null);
+        } catch (Exception e) {
+            // If reflection fails, try common items directly
+            switch (lowercaseName) {
+                case "witchhat":
+                    return CustomItems.createWitchHat();
+                case "apprenticeedge":
+                    return CustomItems.createApprenticeEdge();
+                case "emberwood":
+                case "emberwoodstaff":
+                    return CustomItems.createEmberwoodStaff();
+                case "arcloom":
+                    return CustomItems.createArcloom();
+                case "crownofmagnus":
+                    return CustomItems.createCrownOfMagnus();
+                case "siphonfang":
+                    return CustomItems.createSiphonFang();
+                case "fleshrake":
+                    return CustomItems.createFleshrake();
+                case "shatteredshell":
+                case "shatteredshellpickaxe":
+                    return CustomItems.createShatteredShellPickaxe();
+                default:
+                    // Try to match as a material name
+                    Material material = Material.matchMaterial(name);
+                    if (material != null) {
+                        return new ItemStack(material);
+                    }
+                    return null;
+            }
         }
     }
 
     /**
-     * Apply item stats to NPC based on the item's lore
+     * Helper method to capitalize first letter
+     * 
+     * @param input The input string
+     * @return The string with first letter capitalized
      */
-    private void applyItemStatsToNPC(NPCStats stats, ItemStack item, net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot slot) {
-        if (!item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
-        
-        for (String loreLine : item.getItemMeta().getLore()) {
-            String cleanLine = ChatColor.stripColor(loreLine).trim();
-            
-            // Physical damage (weapon)
-            if (cleanLine.startsWith("Physical Damage: +")) {
-                try {
-                    int damage = Integer.parseInt(cleanLine.substring("Physical Damage: +".length()));
-                    stats.setPhysicalDamage(stats.getPhysicalDamage() + damage);
-                } catch (NumberFormatException e) {
-                    // Ignore parse errors
-                }
-            }
-            
-            // Health (armor)
-            else if (cleanLine.startsWith("Health: +")) {
-                try {
-                    int health = Integer.parseInt(cleanLine.substring("Health: +".length()));
-                    stats.setMaxHealth(stats.getMaxHealth() + health);
-                } catch (NumberFormatException e) {
-                    // Ignore parse errors
-                }
-            }
-            
-            // Armor (armor)
-            else if (cleanLine.startsWith("Armor: +")) {
-                try {
-                    int armor = Integer.parseInt(cleanLine.substring("Armor: +".length()));
-                    stats.setArmor(stats.getArmor() + armor);
-                } catch (NumberFormatException e) {
-                    // Ignore parse errors
-                }
-            }
-            
-            // Magic resist (armor)
-            else if (cleanLine.startsWith("Magic Resist: +")) {
-                try {
-                    int resist = Integer.parseInt(cleanLine.substring("Magic Resist: +".length()));
-                    stats.setMagicResist(stats.getMagicResist() + resist);
-                } catch (NumberFormatException e) {
-                    // Ignore parse errors
-                }
-            }
-            
-            // Magic damage (weapon)
-            else if (cleanLine.startsWith("Magic Damage: +")) {
-                try {
-                    int magicDamage = Integer.parseInt(cleanLine.substring("Magic Damage: +".length()));
-                    stats.setMagicDamage(stats.getMagicDamage() + magicDamage);
-                } catch (NumberFormatException e) {
-                    // Ignore parse errors
-                }
-            }
+    private String capitalizeFirstLetter(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
         }
+        return input.substring(0, 1).toUpperCase() + input.substring(1);
     }
 }
