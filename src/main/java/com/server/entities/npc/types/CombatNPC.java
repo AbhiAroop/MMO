@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -111,26 +112,18 @@ public class CombatNPC extends BaseNPC {
         EquipmentBehavior equipBehavior = (EquipmentBehavior) behaviors.get("equipment");
         if (equipBehavior == null) return;
         
-        // Create a brand new clean stats object with default values
+        // IMPORTANT FIX: Store the original base values before resetting stats
         NPCStats baseStats = new NPCStats();
         // Copy only the essential base values from our current stats that we want to preserve
-        baseStats.setMaxHealth(100.0);  // Always start from base health of 100
-        baseStats.setPhysicalDamage(10); // Always start from base damage of 10
-        baseStats.setAttackSpeed(0.5);   // Default attack speed
-        baseStats.setAttackRange(4.0);   // Default attack range
+        baseStats.setMaxHealth(stats.getMaxHealth());  // Preserve custom max health
+        baseStats.setPhysicalDamage(stats.getPhysicalDamage()); // Preserve custom physical damage
+        baseStats.setAttackSpeed(stats.getAttackSpeed());   // Preserve attack speed
+        baseStats.setAttackRange(stats.getAttackRange());   // Preserve attack range
         baseStats.setNpcType(stats.getNpcType()); // Preserve NPC type
         baseStats.setLevel(stats.getLevel());     // Preserve level
-        
-        // Reset stats to base values instead of replacing the object
-        stats.setMaxHealth(baseStats.getMaxHealth());
-        stats.setPhysicalDamage(baseStats.getPhysicalDamage());
-        stats.setAttackSpeed(baseStats.getAttackSpeed());
-        stats.setAttackRange(baseStats.getAttackRange());
-        stats.setNpcType(baseStats.getNpcType());
-        stats.setLevel(baseStats.getLevel());
-        stats.setMagicDamage(0); // Reset other stats to default values
-        stats.setArmor(0);
-        stats.setMagicResist(0);
+        baseStats.setMagicDamage(stats.getMagicDamage());  // Preserve magic damage
+        baseStats.setArmor(stats.getArmor());     // Preserve armor
+        baseStats.setMagicResist(stats.getMagicResist()); // Preserve magic resist
         
         // Process each equipped item and apply stats
         Map<net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot, org.bukkit.inventory.ItemStack> equippedItems = 
@@ -138,7 +131,41 @@ public class CombatNPC extends BaseNPC {
         
         // Log the number of equipped items found for debugging
         if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Updating NPC " + name + " stats from " + equippedItems.size() + " equipped items");
+            plugin.getLogger().info("Found " + equippedItems.size() + " equipped items for NPC " + name);
+        }
+        
+        // Reset stats to base values - CRITICAL FIX: Use the preserved values instead of defaults
+        stats.setMaxHealth(baseStats.getMaxHealth());
+        stats.setPhysicalDamage(baseStats.getPhysicalDamage());
+        stats.setAttackSpeed(baseStats.getAttackSpeed());
+        stats.setAttackRange(baseStats.getAttackRange());
+        stats.setNpcType(baseStats.getNpcType());
+        stats.setLevel(baseStats.getLevel());
+        stats.setMagicDamage(baseStats.getMagicDamage());
+        stats.setArmor(baseStats.getArmor());
+        stats.setMagicResist(baseStats.getMagicResist());
+        
+        // Now continue with the existing method to apply equipment bonuses
+        if (equippedItems.isEmpty()) {
+            // Early exit if there are no equipped items - but make sure we update combat handler
+            if (npc != null && npc.isSpawned()) {
+                // Update metadata to reflect base stats
+                npc.getEntity().setMetadata("max_health", new FixedMetadataValue(plugin, stats.getMaxHealth()));
+                npc.getEntity().setMetadata("physical_damage", new FixedMetadataValue(plugin, stats.getPhysicalDamage()));
+                npc.getEntity().setMetadata("magic_damage", new FixedMetadataValue(plugin, stats.getMagicDamage()));
+                npc.getEntity().setMetadata("armor", new FixedMetadataValue(plugin, stats.getArmor()));
+                npc.getEntity().setMetadata("magic_resist", new FixedMetadataValue(plugin, stats.getMagicResist()));
+                
+                // Update the combat handler with preserved stats
+                combatHandler.setNPCStats(npc.getUniqueId(), stats);
+                
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("No equipped items, using base stats for NPC " + name + 
+                        ": Health=" + stats.getMaxHealth() + 
+                        ", PhysDmg=" + stats.getPhysicalDamage());
+                }
+            }
+            return;
         }
         
         // Process each equipped item
@@ -161,7 +188,6 @@ public class CombatNPC extends BaseNPC {
                     if (plugin.isDebugMode()) {
                         plugin.getLogger().info("Processing item with model data: " + modelData);
                     }
-                    
                 }
                 
                 // Also process lore if available (for items without specific model data handling)
@@ -271,15 +297,15 @@ public class CombatNPC extends BaseNPC {
             // Update the combat handler
             combatHandler.setNPCStats(npc.getUniqueId(), stats);
             
-            // IMPORTANT: Set current health to max health when equipping items that increase max health
+            // IMPORTANT: Get current health from metadata before updating it
             double currentHealth = npc.getEntity().hasMetadata("current_health") ?
-                npc.getEntity().getMetadata("current_health").get(0).asDouble() : stats.getMaxHealth();
+                npc.getEntity().getMetadata("current_health").get(0).asDouble() : baseStats.getMaxHealth();
             
-            // When max health increases, also increase current health by the same amount
-            // Get the old max health
+            // CRITICAL FIX: Get the old max health from metadata instead of using a field
             double oldMaxHealth = npc.getEntity().hasMetadata("old_max_health") ? 
-                npc.getEntity().getMetadata("old_max_health").get(0).asDouble() : 100.0;
+                npc.getEntity().getMetadata("old_max_health").get(0).asDouble() : baseStats.getMaxHealth();
             
+            // When max health increases, also increase current health by the difference
             if (stats.getMaxHealth() > oldMaxHealth) {
                 // If max health increased, increase current health by the difference
                 double healthIncrease = stats.getMaxHealth() - oldMaxHealth;
@@ -297,7 +323,7 @@ public class CombatNPC extends BaseNPC {
             
             // Update current health metadata
             npc.getEntity().setMetadata("current_health", new FixedMetadataValue(plugin, currentHealth));
-
+            
             // CRITICAL FIX: Make sure to update the combat handler's health tracking too
             combatHandler.setHealth(npc.getUniqueId(), currentHealth);
 
@@ -313,6 +339,9 @@ public class CombatNPC extends BaseNPC {
                     ", Attack Speed: " + stats.getAttackSpeed());
             }
         }
+
+        // CRITICAL FIX: Remove this recursive call that was causing the double application
+        // equipBehavior.applyItemStatsToNPC(stats, item, slot);
     }
     
     @Override
@@ -426,8 +455,11 @@ public class CombatNPC extends BaseNPC {
                 false);
         }
         
-        // Always become hostile when damaged
-        setHostile(true);
+        // IMPROVED: Chance to immediately counter-attack while being attacked by player
+        if (Math.random() < 0.5) { // 50% chance to counter player attacks
+            plugin.getLogger().info("🟢 PLAYER COUNTER-ATTACK: " + name + " attempting counter-attack against " + player.getName());
+            combatHandler.triggerCounterAttack(npc, player);
+        }
         
         // Use combat behavior if available
         CombatBehavior combatBehavior = (CombatBehavior) behaviors.get("combat");
@@ -652,6 +684,14 @@ public class CombatNPC extends BaseNPC {
         plugin.getLogger().info("🟢 NAMEPLATE UPDATE: " + name + " nameplate updated to show " + 
             newHealth + "/" + stats.getMaxHealth() + " health");
         
+        // IMPROVED: Chance to immediately counter-attack while being attacked
+        if (Math.random() < 0.6) { // 60% chance to counter
+            if (attackerNPC != null) {
+                plugin.getLogger().info("🟢 COUNTER-ATTACK: " + name + " attempting counter-attack against " + attackerNPC.getName());
+                combatHandler.triggerCounterAttack(npc, attackerNPC.getEntity());
+            }
+        }
+        
         // Only set hostile and target the attacking NPC if there is one
         if (attackerNPC != null) {
             // Set hostile and target the attacking NPC
@@ -684,5 +724,102 @@ public class CombatNPC extends BaseNPC {
         }
     }
 
+    /**
+     * Called when this NPC is damaged by magic
+     * 
+     * @param player The attacking player
+     * @param damage The damage amount
+     */
+    public void onMagicDamage(Player player, double damage) {
+        if (npc == null || !npc.isSpawned()) return;
+        
+        // CRITICAL FIX: Make sure the combat handler has the correct max health value before damage is applied
+        double currentHealth = npc.getEntity().hasMetadata("current_health") ?
+            npc.getEntity().getMetadata("current_health").get(0).asDouble() : stats.getMaxHealth();
+        
+        // Ensure the combat handler has the correct current health value
+        combatHandler.setHealth(npc.getUniqueId(), currentHealth);
+        
+        // Calculate damage reduction from magic resist
+        double magicResistReduction = stats.getMagicResist() > 0 ? 
+            stats.getMagicResist() / (stats.getMagicResist() + 100.0) : 0.0;
+        double finalDamage = damage * (1.0 - magicResistReduction);
+        
+        // Apply minimum damage
+        finalDamage = Math.max(1.0, finalDamage);
+        
+        // Debug logging
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("💫 MAGIC DAMAGE: " + player.getName() + " -> " + name + 
+                ", Raw: " + damage + ", After MR(" + stats.getMagicResist() + 
+                "): " + finalDamage + ", Reduction: " + (magicResistReduction * 100) + "%");
+        }
+        
+        // Apply visual damage indicators with magic color
+        if (plugin.getDamageIndicatorManager() != null) {
+            plugin.getDamageIndicatorManager().spawnDamageIndicator(
+                npc.getEntity().getLocation().add(0, 1, 0),
+                (int) finalDamage,
+                true); // Use true to indicate magic damage
+        }
+        
+        // Magic damage visual effects
+        npc.getEntity().getWorld().spawnParticle(
+            org.bukkit.Particle.WITCH,
+            npc.getEntity().getLocation().add(0, 1, 0),
+            15, 0.3, 0.5, 0.3, 0.05
+        );
+        
+        // Play magic damage sound
+        npc.getEntity().getWorld().playSound(
+            npc.getEntity().getLocation(),
+            Sound.ENTITY_PLAYER_HURT_ON_FIRE,
+            0.8f, 1.2f
+        );
+        
+        // IMPROVED: Chance to immediately counter-attack while being attacked by magic
+        if (Math.random() < 0.4) { // 40% chance to counter magical attacks
+            plugin.getLogger().info("🟢 MAGIC COUNTER-ATTACK: " + name + " attempting counter-attack against " + player.getName());
+            combatHandler.triggerCounterAttack(npc, player);
+        }
+        
+        // Update the NPC's health directly
+        double newHealth = Math.max(0, currentHealth - finalDamage);
+        npc.getEntity().setMetadata("current_health", new FixedMetadataValue(plugin, newHealth));
+        combatHandler.setHealth(npc.getUniqueId(), newHealth);
+        
+        // Update nameplate with new health value
+        NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
+        
+        // Use combat behavior if available
+        CombatBehavior combatBehavior = (CombatBehavior) behaviors.get("combat");
+        if (combatBehavior != null) {
+            // Start combat with the player who attacked
+            combatBehavior.startCombat(player);
+            
+            if (combatBehavior.isInCombat()) {
+                // Send threatening message occasionally
+                if (Math.random() < 0.2) {
+                    String[] magicCombatMessages = {
+                        "Your magic is weak against me!",
+                        "Magic? Is that all you've got?",
+                        "Your spells won't save you!",
+                        "I've faced stronger mages than you!",
+                        "Magic tricks won't stop me!"
+                    };
+                    sendMessage(player, magicCombatMessages[(int)(Math.random() * magicCombatMessages.length)]);
+                }
+            } else {
+                // Not in combat yet, start combat and send initial message
+                sendMessage(player, "Your magic has awakened my wrath!");
+            }
+        }
+        
+        // Check if NPC died
+        if (newHealth <= 0) {
+            // Let the combat handler handle this NPC's death
+            combatHandler.handleNPCDeath(npc, player);
+        }
+    }
     
 }

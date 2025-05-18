@@ -28,8 +28,15 @@ import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.display.DamageIndicatorManager;
+import com.server.entities.npc.NPCInteractionHandler;
+import com.server.entities.npc.NPCManager;
+import com.server.entities.npc.types.CombatNPC;
+import com.server.entities.npc.types.PassiveNPC;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+
+import net.citizensnpcs.api.npc.NPC;
 
 public class AbilityManager {
     private static AbilityManager instance;
@@ -239,12 +246,71 @@ public class AbilityManager {
         }
         
         if (npc != null) {
-            // Use the CombatHandler's built-in ability damage system
+            // Get the NPC ID to find its handler
+            String npcId = findNpcIdByUuid(npc.getUniqueId());
             
+            // Determine if this ability causes magic damage
+            boolean isMagicDamage = abilityId.contains("fire") || 
+                                    abilityId.contains("arcane") || 
+                                    abilityId.contains("lightning") || 
+                                    abilityId.contains("frost") || 
+                                    abilityId.contains("spell") || 
+                                    abilityId.contains("beam");
+            
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("💫 ABILITY DAMAGE: " + abilityId + " from " + player.getName() + 
+                                    " to " + npc.getName() + " for " + damage + 
+                                    " " + (isMagicDamage ? "magic" : "physical") + " damage");
+            }
+            
+            if (npcId != null) {
+                // Try to get the NPC handler
+                NPCInteractionHandler handler = NPCManager.getInstance().getInteractionHandler(npcId);
+                
+                // Handle different NPC types appropriately
+                if (handler instanceof PassiveNPC) {
+                    // For passive NPCs, use the magic damage handler if it's magical damage
+                    PassiveNPC passiveNPC = (PassiveNPC) handler;
+                    if (isMagicDamage) {
+                        passiveNPC.onMagicDamage(player, damage);
+                    } else {
+                        passiveNPC.onDamage(player, damage);
+                    }
+                    return;
+                } 
+                else if (handler instanceof CombatNPC) {
+                    // For combat NPCs, use the magic damage handler if it's magical damage
+                    CombatNPC combatNPC = (CombatNPC) handler;
+                    if (isMagicDamage) {
+                        combatNPC.onMagicDamage(player, damage);
+                    } else {
+                        combatNPC.onDamage(player, damage);
+                    }
+                    return;
+                }
+            }
+            
+            // Fallback for NPCs without proper handlers
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Using fallback damage for NPC: " + npc.getName());
+            }
+            
+            // Show damage indicator
+            DamageIndicatorManager damageManager = plugin.getDamageIndicatorManager();
+            if (damageManager != null) {
+                damageManager.spawnDamageIndicator(
+                    target.getLocation().add(0, 1, 0),
+                    (int)Math.round(damage),
+                    isMagicDamage
+                );
+            }
+            
+            // Apply minimal vanilla damage for visual effect
+            target.damage(0.1, player);
+            return;
         }
         
         // For regular entities (non-NPCs), use cooldown tracking and apply damage
-        // (Rest of the method remains unchanged for non-NPC entities)
         UUID entityId = target.getUniqueId();
         String uniqueAbilityId = abilityId + "-" + player.getUniqueId().toString();
         
@@ -274,6 +340,31 @@ public class AbilityManager {
         // Apply damage directly for better control
         target.damage(0.1, player); // Apply tiny amount for attribution
         target.setHealth(Math.max(1.0, currentHealth - maxAllowedDamage)); // Ensure we don't kill with 1 hit
+        
+        // Determine if this was magic damage for effects and healing
+        boolean isMagicDamage = abilityId.contains("fire") || 
+                            abilityId.contains("arcane") || 
+                            abilityId.contains("lightning") || 
+                            abilityId.contains("frost") || 
+                            abilityId.contains("beam");
+                            
+        // If it's magic damage and player has omnivamp, apply healing
+        if (isMagicDamage) {
+            applyOmnivampHealing(player, maxAllowedDamage);
+        }
+    }
+
+    /**
+     * Helper method to find NPC ID by UUID
+     */
+    private String findNpcIdByUuid(java.util.UUID uuid) {
+        for (String id : NPCManager.getInstance().getIds()) {
+            NPC npc = NPCManager.getInstance().getNPC(id);
+            if (npc != null && npc.getUniqueId().equals(uuid)) {
+                return id;
+            }
+        }
+        return null;
     }
     
     public boolean isOnCooldown(Player player, String abilityId) {
@@ -708,6 +799,8 @@ public class AbilityManager {
         
         return true;
     }
+
+    
 
     /**
      * Check if an entity should be counted for ability hit tracking

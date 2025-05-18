@@ -88,7 +88,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleCreate(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ChatColor.RED + "Usage: /mmonpc create <type> <id> <name> [skin] [health] [damage]");
+            sendHelp(player);
             return true;
         }
         
@@ -102,37 +102,55 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         NPCFactory factory = NPCFactory.getInstance();
         NPCManager manager = NPCManager.getInstance();
         
+        // Parse health and damage parameters if provided
+        double health = 100.0; // Default health
+        int damage = 10; // Default damage
+        
+        try {
+            if (args.length > 5) {
+                health = Double.parseDouble(args[5]);
+            }
+            if (args.length > 6) {
+                damage = Integer.parseInt(args[6]);
+            }
+        } catch (NumberFormatException e) {
+            player.sendMessage("§cInvalid health or damage value. Using defaults.");
+        }
+        
+        // Debug log for custom stats
+        if (health != 100.0 || damage != 10) {
+            plugin.getLogger().info("Creating NPC with custom stats: Health=" + health + ", Damage=" + damage);
+        }
+        
         if (type.equals("talk")) {
-            // Create a dialogue NPC
             DialogueNPC npc = factory.createDialogueNPC(id, name, player.getLocation(), skin);
-            manager.registerInteractionHandler(id, npc);
-            player.sendMessage(ChatColor.GREEN + "Created dialogue NPC " + name + " with ID " + id);
+            player.sendMessage("§aCreated dialogue NPC: §e" + name);
         } else if (type.equals("passive")) {
-            // Create a passive NPC
-            PassiveNPC npc = factory.createPassiveNPC(id, name, player.getLocation(), skin);
-            manager.registerInteractionHandler(id, npc);
-            player.sendMessage(ChatColor.GREEN + "Created passive NPC " + name + " with ID " + id);
+            NPCStats stats = new NPCStats();
+            stats.setMaxHealth(health);
+            stats.setPhysicalDamage(damage);
+            
+            PassiveNPC npc = new PassiveNPC(id, name, stats);
+            npc.spawn(player.getLocation(), skin);
+            player.sendMessage("§aCreated passive NPC: §e" + name);
         } else if (type.equals("combat")) {
-            // Create a combat NPC
-            double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
-            int damage = args.length > 6 ? Integer.parseInt(args[6]) : 10;
+            NPCStats stats = new NPCStats();
+            stats.setMaxHealth(health);
+            stats.setPhysicalDamage(damage);
             
-            CombatNPC npc = factory.createCombatNPC(id, name, player.getLocation(), skin, health, damage);
-            manager.registerInteractionHandler(id, npc);
-            player.sendMessage(ChatColor.GREEN + "Created combat NPC " + name + " with ID " + id + 
-                            " (Health: " + health + ", Damage: " + damage + ")");
+            // Create a combat NPC that only fights back when provoked
+            CombatNPC npc = factory.createCustomCombatNPC(id, name, player.getLocation(), skin, stats);
+            player.sendMessage("§aCreated combat NPC: §e" + name);
         } else if (type.equals("hostile")) {
-            // Create a hostile NPC
-            double health = args.length > 5 ? Double.parseDouble(args[5]) : 100.0;
-            int damage = args.length > 6 ? Integer.parseInt(args[6]) : 10;
+            NPCStats stats = new NPCStats();
+            stats.setMaxHealth(health);
+            stats.setPhysicalDamage(damage);
             
-            HostileNPC npc = factory.createHostileNPC(id, name, player.getLocation(), skin, health, damage);
-            manager.registerInteractionHandler(id, npc);
-            player.sendMessage(ChatColor.GREEN + "Created hostile NPC " + name + " with ID " + id + 
-                            " (Health: " + health + ", Damage: " + damage + ")");
+            // Create a hostile NPC that attacks players on sight
+            HostileNPC npc = factory.createCustomHostileNPC(id, name, player.getLocation(), skin, stats);
+            player.sendMessage("§aCreated hostile NPC: §e" + name);
         } else {
-            player.sendMessage(ChatColor.RED + "Unknown NPC type: " + type);
-            player.sendMessage(ChatColor.RED + "Available types: talk, passive, combat, hostile");
+            player.sendMessage("§cInvalid NPC type. Valid types: talk, passive, combat, hostile");
             return true;
         }
         
@@ -414,8 +432,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         // Debug log the item that's being equipped
         plugin.getLogger().info("Equipping " + itemInfo + " to NPC " + id + " in slot " + slotName);
         
-        // Equip the item
-        manager.setEquipment(id, slot, item);
+        // IMPORTANT FIX: Pass false to prevent NPCManager from updating stats - we'll do it ourselves
+        manager.setEquipment(id, slot, item, false);
         player.sendMessage(ChatColor.GREEN + "Equipped " + itemName + " to " + slotName + " slot of NPC " + id);
         
         // Update the NPC's stats based on equipment

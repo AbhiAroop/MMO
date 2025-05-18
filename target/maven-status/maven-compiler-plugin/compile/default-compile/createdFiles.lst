@@ -63,6 +63,7 @@ com\server\profiles\skills\gui\SkillDetailsGUI.class
 com\server\commands\CrystalCommand.class
 com\server\entities\mobs\duskhollow\DuskhollowFang.class
 com\server\entities\npc\types\CombatNPC.class
+com\server\entities\npc\types\PassiveNPC$2.class
 com\server\profiles\skills\events\SkillExpGainEvent.class
 com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.class
 com\server\abilities\AbilityManager$3$1.class

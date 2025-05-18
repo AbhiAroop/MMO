@@ -234,8 +234,9 @@ public class NPCManager {
      * @param npcId The ID of the NPC
      * @param slot The equipment slot
      * @param item The item to set
+     * @param updateStats Whether to update the NPC's stats (set to false if the caller will update them)
      */
-    public void setEquipment(String npcId, EquipmentSlot slot, org.bukkit.inventory.ItemStack item) {
+    public void setEquipment(String npcId, EquipmentSlot slot, org.bukkit.inventory.ItemStack item, boolean updateStats) {
         NPC npc = npcById.get(npcId);
         if (npc == null) return;
         
@@ -263,29 +264,24 @@ public class NPCManager {
         // Check if this NPC has an interaction handler that's a CombatNPC
         NPCInteractionHandler handler = interactionHandlers.get(npcId);
         
-        if (handler instanceof CombatNPC) {
+        // Only update stats if requested and handler is appropriate
+        if (updateStats && handler instanceof CombatNPC) {
             plugin.getLogger().info("Found CombatNPC handler, updating stats from equipment");
-            
-            // Update stats from equipment
             ((CombatNPC) handler).updateStatsFromEquipment();
         }
-        else {
-            if (plugin.isDebugMode()) {
-                if (handler != null) {
-                    plugin.getLogger().warning("NPC " + npc.getName() + " handler is not a CombatNPC, it is a " + 
-                        handler.getClass().getName());
-                } else {
-                    plugin.getLogger().warning("No interaction handler found for NPC " + npc.getName() + 
-                        " with ID " + npcId);
-                    
-                    // List all registered handlers for debugging
-                    plugin.getLogger().warning("Registered handlers: " + 
-                        interactionHandlers.keySet().toString());
-                }
-            }
-        }
     }
-    
+
+    /**
+     * Set equipment for an NPC (overload with default updateStats=true for backward compatibility)
+     * 
+     * @param npcId The ID of the NPC
+     * @param slot The equipment slot
+     * @param item The item to set
+     */
+    public void setEquipment(String npcId, EquipmentSlot slot, org.bukkit.inventory.ItemStack item) {
+        setEquipment(npcId, slot, item, true);
+    }
+        
     /**
      * Clean up resources when the plugin is disabled
      */

@@ -177,7 +177,7 @@ public class CombatHandler {
         UUID npcId = npc.getUniqueId();
         
         // Set more aggressive stats for hostile NPCs
-        stats.setAttackSpeed(1.2); // Even faster attack speed 
+        stats.setAttackSpeed(1.5); // Even faster attack speed 
         stats.setAttackRange(3.0); // Keep shorter attack range for more aggressive behavior
         npcStats.put(npcId, stats);
         
@@ -224,6 +224,7 @@ public class CombatHandler {
             private long lastPathUpdateTime = 0;
             private boolean isAttacking = false;
             private long lastAttackTime = System.currentTimeMillis();
+            private boolean canCounterAttack = true;
             
             @Override
             public void run() {
@@ -400,13 +401,13 @@ public class CombatHandler {
                         if (attackCooldown > 0) {
                             attackCooldown--;
                         } else if (distance <= 3.0 && !isAttacking) {
-                            // SLOWER ATTACK RATE: Minimum time between attacks
+                            // FASTER ATTACK RATE: Reduced minimum time between attacks
                             long attackCurrentTime = System.currentTimeMillis();
-                            boolean canAttackByTime = (attackCurrentTime - lastAttackTime) >= 500; // 800ms = 0.8s between attacks
+                            boolean canAttackByTime = (attackCurrentTime - lastAttackTime) >= 450; // 450ms = 0.45s between attacks
                             
                             if (canAttackByTime) {
-                                // SLOWER CHARGE BUILDUP: Reduced from /10.0f to /15.0f
-                                attackCharge += stats.getAttackSpeed() / 15.0f;
+                                // FASTER CHARGE BUILDUP: Increased from /15.0f to /12.0f
+                                attackCharge += stats.getAttackSpeed() / 12.0f;
                                 
                                 if (attackCharge >= 1.0f) {
                                     // Attack fully charged - set attacking flag to prevent new attacks during animation
@@ -418,19 +419,19 @@ public class CombatHandler {
                                     // Play attack animation and then handle damage
                                     attackTarget(npc, target, 1.0f);
                                     
-                                    // Reset charge with longer cooldown
-                                    attackCharge = 0.3f;
-                                    attackCooldown = 16; // 16 ticks = 0.8 seconds (was 5)
+                                    // Reset charge with shorter cooldown
+                                    attackCharge = 0.5f;
+                                    attackCooldown = 10; // 10 ticks = 0.5 seconds (was 16)
                                     
-                                    // Reset attacking flag after a delay (15 ticks = 0.75s)
+                                    // Reset attacking flag after a shorter delay (8 ticks = 0.4s)
                                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                                         isAttacking = false;
-                                    }, 15L);
+                                    }, 8L);
                                 }
                             }
                         } else {
-                            // If not in range, build up charge slowly
-                            attackCharge = Math.min(0.9f, attackCharge + 0.02f);
+                            // If not in range, build up charge faster
+                            attackCharge = Math.min(0.9f, attackCharge + 0.03f);
                         }
                     }
                 }
@@ -650,10 +651,17 @@ public class CombatHandler {
                     lookTrait.toggle();
                 }
                 
-                // Complete the animation and apply damage
+                // Complete the animation and apply damage IMMEDIATELY rather than waiting
                 if (onAnimationComplete != null) {
                     onAnimationComplete.run();
                 }
+                
+                // Re-enable look trait AFTER damage is applied
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (lookTrait != null && wasLooking && npc.isSpawned()) {
+                        lookTrait.toggle();
+                    }
+                }, 3L);
             } catch (Exception e) {
                 // Catch any errors to prevent crashes
                 if (plugin.isDebugMode()) {
@@ -747,7 +755,7 @@ public class CombatHandler {
         // Set attack range to 3 blocks for combat NPCs that have become hostile
         if (npc.getEntity().hasMetadata("hostile") && npc.getEntity().getMetadata("hostile").get(0).asBoolean()) {
             stats.setAttackRange(3.0); // Set attack range to 3 blocks for hostile combat NPCs
-            stats.setAttackSpeed(0.5); // Faster attack speed when hostile
+            stats.setAttackSpeed(0.9); // Faster attack speed when hostile
             npcStats.put(npcId, stats);
         }
         
@@ -785,6 +793,7 @@ public class CombatHandler {
             private int stuckCounter = 0;
             private Location lastLocation = null;
             private long lastAttackTime = System.currentTimeMillis();
+            private boolean attackLocked = false;
             
             @Override
             public void run() {
@@ -855,14 +864,17 @@ public class CombatHandler {
                     } else if (distance <= attackRange) {
                         // In attack range
                         if (isCharging) {
-                            // REDUCED CHARGING SPEED: Slower attack charging rate overall
+                            // FASTER CHARGING SPEED: Increased attack charging rate
                             float chargeRate = (float) (npc.getEntity().hasMetadata("hostile") && 
                                             npc.getEntity().getMetadata("hostile").get(0).asBoolean() ?
-                                            stats.getAttackSpeed() / 20.0 : stats.getAttackSpeed() / 30.0);
+                                            stats.getAttackSpeed() / 15.0 : stats.getAttackSpeed() / 20.0);
                             
                             attackCharge += chargeRate;
                             
-                            if (attackCharge >= 1.0f) {
+                            if (attackCharge >= 1.0f && !attackLocked) {
+                                // Lock the attack to prevent multiple attacks at once
+                                attackLocked = true;
+                                
                                 // Attack is fully charged, execute it with animation
                                 attackTarget(npc, target, Math.min(attackCharge, 1.0f));
                                 
@@ -870,19 +882,24 @@ public class CombatHandler {
                                 isCharging = false;
                                 attackCharge = 0.0f;
                                 
-                                // LONGER COOLDOWN: Increase minimum time between attacks (was 5 for hostile)
+                                // SHORTER COOLDOWN: Decrease time between attacks
                                 attackCooldown = npc.getEntity().hasMetadata("hostile") ? 
-                                                10 : stats.getAttackIntervalTicks(); // 10 ticks = 0.5 seconds
+                                                8 : stats.getAttackIntervalTicks(); // 8 ticks = 0.4 seconds
+                                                
+                                // Unlock the attack lock after a short delay
+                                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                    attackLocked = false;
+                                }, 4L); // 4 ticks = 0.2 seconds
                             }
                         } else {
                             // Start charging a new attack
                             isCharging = true;
-                            attackCharge = 0.3f; // Start with 30% charge for faster follow-up attacks
+                            attackCharge = 0.5f; // Start with 50% charge for faster follow-up attacks
                         }
                     } else {
                         // Not in range, maintain some charge for faster attacks when in range
                         isCharging = true;
-                        attackCharge = Math.min(0.5f, attackCharge + 0.01f);
+                        attackCharge = Math.min(0.7f, attackCharge + 0.02f); // Build up to 70% pre-charge
                     }
                 }
                 
@@ -1251,6 +1268,44 @@ public class CombatHandler {
     }
 
     /**
+     * Make an NPC counterattack even while being attacked
+     */
+    public void triggerCounterAttack(NPC npc, Entity attacker) {
+        if (npc == null || !npc.isSpawned() || attacker == null) return;
+        
+        // Get the attack charge data
+        BukkitTask combatTask = combatTasks.get(npc.getUniqueId());
+        
+        // Add the attacker as a target
+        currentTargets.put(npc.getUniqueId(), attacker);
+        
+        // Get stats for this NPC
+        NPCStats stats = getNPCStats(npc.getUniqueId());
+        
+        // Check if the NPC is close enough to counterattack
+        double distance = npc.getEntity().getLocation().distance(attacker.getLocation());
+        if (distance <= stats.getAttackRange()) {
+            // Prepare a counter-attack
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Execute a counter-attack if still in range
+                if (npc.isSpawned() && attacker.isValid() && 
+                    npc.getEntity().getLocation().distance(attacker.getLocation()) <= stats.getAttackRange()) {
+                    
+                    // Face the target for better counter-attack visual
+                    npc.faceLocation(attacker.getLocation());
+                    
+                    // Counter-attack with slightly reduced damage
+                    attackTarget(npc, attacker, 0.8f);
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("NPC " + npc.getName() + " performed a counter-attack against " + attacker.getName());
+                    }
+                }
+            }, 5L); // Counter-attack after a short delay
+        }
+    }
+
+    /**
      * Find an NPC ID by its UUID
      * 
      * @param uuid The UUID of the NPC
@@ -1588,102 +1643,103 @@ public class CombatHandler {
      * @param killer The entity that killed the NPC
      */
     public void handleNPCDeath(NPC npc, Entity killer) {
-        UUID npcId = npc.getUniqueId();
-        String npcId_string = null;
-        
-        // Find the string ID of the NPC by UUID
-        NPCManager manager = NPCManager.getInstance();
-        for (String id : manager.getIds()) {
-            NPC tempNpc = manager.getNPC(id);
-            if (tempNpc != null && tempNpc.getUniqueId().equals(npcId)) {
-                npcId_string = id;
-                break;
+        // Store the location where the NPC died for respawn
+        final Location deathLocation;
+        if (npc != null && npc.isSpawned() && npc.getEntity() != null) {
+            deathLocation = npc.getEntity().getLocation().clone();
+        } else {
+            // If NPC is already despawned, use a fallback location or return without respawning
+            if (killer != null) {
+                deathLocation = killer.getLocation().clone();
+            } else {
+                return; // Cannot respawn without a valid location
             }
         }
         
-        // Stop combat behavior
-        stopCombatBehavior(npcId);
+        // Store the NPC ID
+        final UUID npcId = npc.getUniqueId();
+        final String npcId_string = findNpcIdByUuid(npcId);
         
-        // Remove NPC from target tracking
-        currentTargets.entrySet().removeIf(entry -> entry.getValue().equals(npc.getEntity()));
-        
-        // Play death sound and animation
-        if (npc.isSpawned()) {
-            npc.getEntity().getWorld().playSound(
-                npc.getEntity().getLocation(),
-                Sound.ENTITY_PLAYER_DEATH,
-                1.0f, 1.0f
-            );
-            
-            // Spawn death particles
-            npc.getEntity().getWorld().spawnParticle(
-                org.bukkit.Particle.DAMAGE_INDICATOR,
-                npc.getEntity().getLocation().add(0, 1, 0),
-                20, 0.3, 0.5, 0.3, 0.1
-            );
+        // Get NPC stats for respawning with the same stats
+        NPCStats stats = getNPCStats(npcId);
+        if (stats == null) {
+            stats = new NPCStats(); // Fallback to default stats if none found
         }
         
-        // Keep track of the NPC's position for respawn
-        Location deathLocation = null;
-        if (npc.isSpawned()) {
-            deathLocation = npc.getEntity().getLocation().clone();
-        }
-        
-        final Location respawnLocation = deathLocation;
+        // Store the final values for usage in the task
+        final NPCStats finalStats = stats;
         final String finalNpcId = npcId_string;
+        final String npcName = npc.getName();
         
         // Check if this NPC should respawn
         boolean shouldRespawn = true;
         
+        // Determine NPC type
+        boolean isHostile = npc.getEntity() != null && 
+                        npc.getEntity().hasMetadata("hostile_npc") && 
+                        npc.getEntity().getMetadata("hostile_npc").get(0).asBoolean();
+        
+        boolean isCombat = npc.getEntity() != null && 
+                        npc.getEntity().hasMetadata("combat_npc") && 
+                        npc.getEntity().getMetadata("combat_npc").get(0).asBoolean();
+        
         // Basic respawn for all non-passive NPCs
         if (shouldRespawn) {
             // Store the respawn timer
-            String npcName = npc.getName();
             final int respawnTime = RESPAWN_TIME;
+            final Location respawnLocation = deathLocation.clone();
+            NPCManager manager = NPCManager.getInstance();
             
             // Schedule the respawn
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    // Instead of respawning, create a new NPC
-                    if (finalNpcId != null) {
-                        // Remove the old NPC completely
-                        manager.removeNPC(finalNpcId);
+                    try {
+                        // IMPORTANT: Pass the custom stats when respawning
+                        double maxHealth = finalStats.getMaxHealth();
+                        int physicalDamage = finalStats.getPhysicalDamage();
                         
-                        // Determine the NPC type
-                        boolean isHostile = npc.getEntity().hasMetadata("hostile_npc");
-                        boolean isCombat = npc.getEntity().hasMetadata("combat_npc");
-                        
-                        // Get relevant stats from the old NPC
-                        NPCStats stats = getNPCStats(npcId);
-                        
-                        // Create a new NPC of the same type
-                        if (isHostile) {
-                            plugin.getServer().dispatchCommand(
-                                plugin.getServer().getConsoleSender(), 
-                                "mmonpc create hostile " + finalNpcId + " " + npcName + " " + 
-                                "default " + stats.getMaxHealth() + " " + stats.getPhysicalDamage()
-                            );
-                        } else if (isCombat) {
-                            plugin.getServer().dispatchCommand(
-                                plugin.getServer().getConsoleSender(), 
-                                "mmonpc create combat " + finalNpcId + " " + npcName + " " + 
-                                "default " + stats.getMaxHealth() + " " + stats.getPhysicalDamage()
-                            );
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Respawning NPC " + npcName + 
+                                " with stats: Health=" + maxHealth + ", Damage=" + physicalDamage);
                         }
                         
-                        // Teleport the new NPC to the death location
-                        if (respawnLocation != null) {
-                            new BukkitRunnable() {
-                                @Override
-                                public void run() {
-                                    NPC newNpc = manager.getNPC(finalNpcId);
-                                    if (newNpc != null) {
-                                        newNpc.teleport(respawnLocation, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
+                        // Create a new NPC to replace the old one
+                        if (finalNpcId != null && !finalNpcId.isEmpty()) {
+                            if (isHostile) {
+                                plugin.getServer().dispatchCommand(
+                                    plugin.getServer().getConsoleSender(), 
+                                    "mmonpc create hostile " + finalNpcId + " " + npcName + " " + 
+                                    "default " + maxHealth + " " + physicalDamage
+                                );
+                            } else if (isCombat) {
+                                plugin.getServer().dispatchCommand(
+                                    plugin.getServer().getConsoleSender(), 
+                                    "mmonpc create combat " + finalNpcId + " " + npcName + " " + 
+                                    "default " + maxHealth + " " + physicalDamage
+                                );
+                            }
+                            
+                            // Teleport the new NPC to the death location
+                            if (respawnLocation != null) {
+                                new BukkitRunnable() {
+                                    @Override
+                                    public void run() {
+                                        NPC newNpc = manager.getNPC(finalNpcId);
+                                        if (newNpc != null) {
+                                            // CRITICAL FIX: Check if entity is available before teleporting
+                                            try {
+                                                newNpc.teleport(respawnLocation, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
+                                            } catch (Exception e) {
+                                                plugin.getLogger().warning("Error during NPC respawn teleport: " + e.getMessage());
+                                            }
+                                        }
                                     }
-                                }
-                            }.runTaskLater(plugin, 5L);
+                                }.runTaskLater(plugin, 5L);
+                            }
                         }
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Error during NPC respawn: " + e.getMessage());
                     }
                 }
             }.runTaskLater(plugin, respawnTime * 20L);
