@@ -217,12 +217,13 @@ public class CombatHandler {
         // More aggressive AI task for hostile NPCs
         BukkitTask task = new BukkitRunnable() {
             private int tickCounter = 0;
-            private float attackCharge = 0.7f; // Start with 70% charge for faster first attack
+            private float attackCharge = 0.7f;
             private int attackCooldown = 0;
             private Location lastLocation = null;
             private int stuckCounter = 0;
             private long lastPathUpdateTime = 0;
             private boolean isAttacking = false;
+            private long lastAttackTime = System.currentTimeMillis();
             
             @Override
             public void run() {
@@ -399,28 +400,37 @@ public class CombatHandler {
                         if (attackCooldown > 0) {
                             attackCooldown--;
                         } else if (distance <= 3.0 && !isAttacking) {
-                            // Fast attack buildup
-                            attackCharge += stats.getAttackSpeed() / 10.0f; // Faster attack charging
+                            // SLOWER ATTACK RATE: Minimum time between attacks
+                            long attackCurrentTime = System.currentTimeMillis();
+                            boolean canAttackByTime = (attackCurrentTime - lastAttackTime) >= 500; // 800ms = 0.8s between attacks
                             
-                            if (attackCharge >= 1.0f) {
-                                // Attack fully charged - set attacking flag to prevent new attacks during animation
-                                isAttacking = true;
+                            if (canAttackByTime) {
+                                // SLOWER CHARGE BUILDUP: Reduced from /10.0f to /15.0f
+                                attackCharge += stats.getAttackSpeed() / 15.0f;
                                 
-                                // Play attack animation and then handle damage
-                                attackTarget(npc, target, 1.0f);
-                                
-                                // Reset charge with shorter cooldown - after attack completes
-                                attackCharge = 0.3f;
-                                attackCooldown = 5; // Very short cooldown (5 ticks)
-                                
-                                // Reset attacking flag after a delay (10 ticks = 0.5s)
-                                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                    isAttacking = false;
-                                }, 10L);
+                                if (attackCharge >= 1.0f) {
+                                    // Attack fully charged - set attacking flag to prevent new attacks during animation
+                                    isAttacking = true;
+                                    
+                                    // Update attack timestamp
+                                    lastAttackTime = System.currentTimeMillis();
+                                    
+                                    // Play attack animation and then handle damage
+                                    attackTarget(npc, target, 1.0f);
+                                    
+                                    // Reset charge with longer cooldown
+                                    attackCharge = 0.3f;
+                                    attackCooldown = 16; // 16 ticks = 0.8 seconds (was 5)
+                                    
+                                    // Reset attacking flag after a delay (15 ticks = 0.75s)
+                                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                        isAttacking = false;
+                                    }, 15L);
+                                }
                             }
                         } else {
-                            // If not in range, build up charge to be ready
-                            attackCharge = Math.min(1.0f, attackCharge + 0.05f);
+                            // If not in range, build up charge slowly
+                            attackCharge = Math.min(0.9f, attackCharge + 0.02f);
                         }
                     }
                 }
@@ -737,7 +747,7 @@ public class CombatHandler {
         // Set attack range to 3 blocks for combat NPCs that have become hostile
         if (npc.getEntity().hasMetadata("hostile") && npc.getEntity().getMetadata("hostile").get(0).asBoolean()) {
             stats.setAttackRange(3.0); // Set attack range to 3 blocks for hostile combat NPCs
-            stats.setAttackSpeed(1.2); // Faster attack speed when hostile
+            stats.setAttackSpeed(0.5); // Faster attack speed when hostile
             npcStats.put(npcId, stats);
         }
         
@@ -769,11 +779,12 @@ public class CombatHandler {
         // Combat AI task
         BukkitTask task = new BukkitRunnable() {
             private int tickCounter = 0;
-            private float attackCharge = 0.3f; // Start with 30% charge for faster first attack
+            private float attackCharge = 0.3f;
             private boolean isCharging = true;
             private int attackCooldown = 0;
             private int stuckCounter = 0;
             private Location lastLocation = null;
+            private long lastAttackTime = System.currentTimeMillis();
             
             @Override
             public void run() {
@@ -833,10 +844,10 @@ public class CombatHandler {
                         lastLocation = currentLoc;
                     }
                     
-                    // IMPORTANT: Fixed attack range for CombatNPC to 3.0 blocks when hostile
+                     // IMPORTANT: Fixed attack range for CombatNPC to 3.0 blocks when hostile
                     double attackRange = npc.getEntity().hasMetadata("hostile") && 
-                                        npc.getEntity().getMetadata("hostile").get(0).asBoolean() ? 
-                                        3.0 : stats.getAttackRange();
+                                    npc.getEntity().getMetadata("hostile").get(0).asBoolean() ? 
+                                    3.0 : stats.getAttackRange();
                     
                     // Handle attacks - always use the 3.0 range for hostile NPCs
                     if (attackCooldown > 0) {
@@ -844,10 +855,10 @@ public class CombatHandler {
                     } else if (distance <= attackRange) {
                         // In attack range
                         if (isCharging) {
-                            // Charging attack - faster charge if hostile
+                            // REDUCED CHARGING SPEED: Slower attack charging rate overall
                             float chargeRate = (float) (npc.getEntity().hasMetadata("hostile") && 
                                             npc.getEntity().getMetadata("hostile").get(0).asBoolean() ?
-                                            stats.getAttackSpeed() / 10.0 : stats.getAttackSpeed() / 20.0);
+                                            stats.getAttackSpeed() / 20.0 : stats.getAttackSpeed() / 30.0);
                             
                             attackCharge += chargeRate;
                             
@@ -858,8 +869,10 @@ public class CombatHandler {
                                 // Reset charge and set cooldown
                                 isCharging = false;
                                 attackCharge = 0.0f;
+                                
+                                // LONGER COOLDOWN: Increase minimum time between attacks (was 5 for hostile)
                                 attackCooldown = npc.getEntity().hasMetadata("hostile") ? 
-                                                5 : stats.getAttackIntervalTicks(); // Shorter cooldown when hostile
+                                                10 : stats.getAttackIntervalTicks(); // 10 ticks = 0.5 seconds
                             }
                         } else {
                             // Start charging a new attack
@@ -1417,6 +1430,7 @@ public class CombatHandler {
         // Get target NPC's stats
         NPCStats targetStats = getNPCStats(targetId);
         
+        // Debug logging
         plugin.getLogger().info("🔴 NPC DAMAGE: " + 
             (attacker != null ? attacker.getName() : "null") + " (ID:" + 
             (attacker != null ? attacker.getId() : "null") + ") -> " + 
@@ -1479,18 +1493,46 @@ public class CombatHandler {
             0.8f, 1.0f
         );
         
-        // Apply knockback
+        // IMPROVED KNOCKBACK SYSTEM with anti-stack protection
         if (target.isSpawned() && attacker != null && attacker.isSpawned()) {
-            Vector knockback = target.getEntity().getLocation()
-                .subtract(attacker.getEntity().getLocation())
-                .toVector()
-                .normalize();
-            knockback.multiply(0.3);
-            knockback.setY(0.2);
+            // Check if entity already has recent knockback applied (within last 0.5 seconds)
+            long currentTime = System.currentTimeMillis();
+            long lastKnockbackTime = 0;
             
-            if (target.getEntity() instanceof LivingEntity) {
-                LivingEntity living = (LivingEntity) target.getEntity();
-                living.setVelocity(living.getVelocity().add(knockback));
+            if (target.getEntity().hasMetadata("last_knockback_time")) {
+                lastKnockbackTime = target.getEntity().getMetadata("last_knockback_time").get(0).asLong();
+            }
+            
+            // Only apply knockback if enough time has passed (500ms = 0.5 seconds)
+            if (currentTime - lastKnockbackTime > 500) {
+                // Calculate knockback direction
+                Vector knockback = target.getEntity().getLocation()
+                    .subtract(attacker.getEntity().getLocation())
+                    .toVector()
+                    .normalize();
+                    
+                // Scale knockback based on damage but with reasonable limits
+                double knockbackStrength = Math.min(0.3, 0.1 + (finalDamage * 0.01));
+                
+                // Apply horizontal knockback with small vertical component
+                knockback.multiply(knockbackStrength);
+                knockback.setY(0.1); // Reduced vertical component to prevent excessive bouncing
+                
+                if (target.getEntity() instanceof LivingEntity) {
+                    LivingEntity living = (LivingEntity) target.getEntity();
+                    living.setVelocity(living.getVelocity().add(knockback));
+                    
+                    // Update last knockback time
+                    target.getEntity().setMetadata("last_knockback_time", 
+                        new FixedMetadataValue(plugin, currentTime));
+                    
+                    if (plugin.isDebugMode()) {
+                        plugin.getLogger().info("🔴 APPLIED KNOCKBACK: " + knockback + 
+                            " with strength " + knockbackStrength);
+                    }
+                }
+            } else if (plugin.isDebugMode()) {
+                plugin.getLogger().info("🔴 KNOCKBACK IGNORED: Too soon since last knockback");
             }
         }
         
