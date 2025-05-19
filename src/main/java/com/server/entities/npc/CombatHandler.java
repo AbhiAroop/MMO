@@ -25,7 +25,6 @@ import org.bukkit.util.Vector;
 
 import com.server.Main;
 import com.server.display.DamageIndicatorManager;
-import com.server.entities.npc.types.CombatNPC;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -1168,7 +1167,7 @@ public class CombatHandler {
         }
     }
     
-   /**
+    /**
      * Attack a target entity
      */
     private void attackTarget(NPC npc, Entity target, float chargePercent) {
@@ -1217,34 +1216,17 @@ public class CombatHandler {
                 // CRITICAL FIX: First check if target is an NPC, before checking if it's a Player
                 // This is important because NPCs in Citizens can also be instances of Player
                 if (CitizensAPI.getNPCRegistry().isNPC(target)) {
-                    // Get the actual NPC instance
+                    // Apply damage to the NPC
                     NPC targetNPC = CitizensAPI.getNPCRegistry().getNPC(target);
                     if (targetNPC != null && targetNPC.isSpawned()) {
                         // Apply damage to the NPC
                         plugin.getLogger().info("🔸 DAMAGE NPC: " + npc.getName() + 
                             " -> NPC " + targetNPC.getName() + ", Damage: " + finalDamage);
-                            
-                        // Get the target NPC's handler to apply damage
-                        String targetId = findNpcIdByUuid(targetNPC.getUniqueId());
-                        if (targetId != null) {
-                            NPCInteractionHandler handler = NPCManager.getInstance().getInteractionHandler(targetId);
-                            if (handler instanceof CombatNPC) {
-                                plugin.getLogger().info("🟥 DIRECT NPC-to-NPC DAMAGE APPLIED: " + 
-                                    npc.getName() + " -> " + targetNPC.getName() + 
-                                    " via CombatNPC.onNPCDamage() [ID: " + targetId + "]");
-                                    
-                                ((CombatNPC) handler).onNPCDamage(npc, finalDamage, isCritical);
-                            } else {
-                                // Fallback to direct damage application
-                                applyDamageToNPC(npc, targetNPC, finalDamage, isCritical);
-                            }
-                        } else {
-                            // Fallback to direct damage application
-                            applyDamageToNPC(npc, targetNPC, finalDamage, isCritical);
-                        }
+                        
+                        // CRITICAL: Apply direct damage to target NPC
+                        applyDamageToNPC(npc, targetNPC, finalDamage, isCritical);
                     }
                 }
-                // If not an NPC, then check if it's a player
                 else if (target instanceof Player) {
                     // Apply damage to player
                     plugin.getLogger().info("🔸 DAMAGE PLAYER: " + npc.getName() + 
@@ -1261,8 +1243,10 @@ public class CombatHandler {
                     " -> " + target.getName() + ", Damage: " + finalDamage + 
                     ", Critical: " + isCritical);
             } catch (Exception e) {
-                plugin.getLogger().warning("🔸 ERROR ATTACKING: " + e.getMessage());
-                e.printStackTrace();
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().warning("Error in attack completion: " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -1491,6 +1475,25 @@ public class CombatHandler {
             (attacker != null ? attacker.getId() : "null") + ") -> " + 
             target.getName() + " (ID:" + target.getId() + "), Raw damage: " + damage);
         
+        // CRITICAL: Apply actual vanilla damage for the red flash effect  
+        if (target.getEntity() instanceof LivingEntity) {
+            LivingEntity targetEntity = (LivingEntity) target.getEntity();
+            
+            // Apply a small amount of real damage (0.1) to trigger the red flash effect
+            // This is small enough not to kill the NPC but will trigger the visual effect
+            if (attacker != null && attacker.isSpawned()) {
+                // Apply damage from the attacker entity
+                targetEntity.damage(0.1, attacker.getEntity());
+            } else {
+                // Apply generic damage if no attacker
+                targetEntity.damage(0.1);
+            }
+            
+            // Ensure the hurt effect is played
+            targetEntity.playEffect(org.bukkit.EntityEffect.HURT);
+        }
+        
+        // Continue with our custom damage handling...
         // DEBUGGING: Check current health tracking
         double currentHealth = 0;
         if (npcHealth.containsKey(targetId)) {

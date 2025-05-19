@@ -56,14 +56,44 @@ public class NPCFactory {
      */
     public PassiveNPC createPassiveNPC(String id, String name, Location location, String skin) {
         NPCStats stats = new NPCStats();
-        stats.setMaxHealth(50); // Lower default health for passive NPCs
+        stats.setMaxHealth(100); // Lower default health for passive NPCs
         stats.setNpcType(NPCType.NORMAL);
-        
+    
         PassiveNPC npc = new PassiveNPC(id, name, stats);
-        npc.spawn(location, skin);
+        
+        // CRITICAL FIX: Create NPC with proper player entity type the same way as combat NPCs
+        net.citizensnpcs.api.npc.NPC citizensNPC = NPCManager.getInstance().getNPCRegistry().createNPC(
+            org.bukkit.entity.EntityType.PLAYER, 
+            name, 
+            location
+        );
+        
+        // Apply skin if provided
+        if (skin != null && !skin.isEmpty()) {
+            net.citizensnpcs.trait.SkinTrait skinTrait = citizensNPC.getOrAddTrait(net.citizensnpcs.trait.SkinTrait.class);
+            skinTrait.setSkinName(skin, true);
+        }
+        
+        // Apply look close trait
+        citizensNPC.getOrAddTrait(net.citizensnpcs.trait.LookClose.class).lookClose(true);
+        
+        // Make sure the NPC is not invulnerable
+        if (citizensNPC.isSpawned()) {
+            citizensNPC.getEntity().setInvulnerable(false);
+        }
+        
+        // Manually assign the Citizens NPC
+        npc.setNPC(citizensNPC);
+        
+        // Finish initializing
+        npc.finalizeSpawn();
+        
+        // CRITICAL FIX: Register the interaction handler
+        NPCManager.getInstance().registerInteractionHandler(id, npc);
+        
         return npc;
     }
-    
+        
     /**
      * Create a combat NPC that fights back when attacked
      * 

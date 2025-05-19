@@ -92,9 +92,24 @@ public class PassiveNPC extends BaseNPC {
      * @param damage The damage amount
      */
     public void onDamage(Player player, double damage) {
-        // FIXED: Remove check that prevented damage while running
         // Allow damage even if already running
         if (!npc.isSpawned()) return;
+
+        // PROTECTION AGAINST SPAM: Check for damage cooldown
+        if (npc.getEntity().hasMetadata("damage_immune_until")) {
+            long immuneUntil = npc.getEntity().getMetadata("damage_immune_until").get(0).asLong();
+            if (System.currentTimeMillis() < immuneUntil) {
+                // Still in immunity period
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Damage ignored: " + name + " - in cooldown period");
+                }
+                return;
+            }
+        }
+        
+        // Set damage immunity for 200ms
+        npc.getEntity().setMetadata("damage_immune_until", 
+            new FixedMetadataValue(plugin, System.currentTimeMillis() + 200));
         
         // CRITICAL FIX: Make sure we have the correct health value first
         double currentHealth = npc.getEntity().hasMetadata("current_health") ?
@@ -103,16 +118,35 @@ public class PassiveNPC extends BaseNPC {
         // Calculate damage reduction from armor
         double armorReduction = stats.getArmor() > 0 ? stats.getArmor() / (stats.getArmor() + 100.0) : 0.0;
         double finalDamage = damage * (1.0 - armorReduction);
+        
+        // Apply minimum damage
         finalDamage = Math.max(1, finalDamage);
         
-        // CRITICAL FIX: Update health value
+        // Update health after damage
         double newHealth = Math.max(0, currentHealth - finalDamage);
         
-        // Store updated health in metadata
+        // Debug log the damage
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("PassiveNPC " + name + " damaged by " + player.getName() + 
+                ": health " + currentHealth + " → " + newHealth + 
+                " (damage: " + finalDamage + ")");
+        }
+        
+        // CRITICAL FIX: Store updated health in BOTH storage mechanisms
         npc.getEntity().setMetadata("current_health", new FixedMetadataValue(plugin, newHealth));
+        
+        // CRITICAL ADDITION: Also update the Combat Handler's health map
+        NPCManager.getInstance().getCombatHandler().setHealth(npc.getUniqueId(), newHealth);
         
         // Update the nameplate
         NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
+        
+        // Play hurt sound and animation
+        npc.getEntity().getWorld().playSound(
+            npc.getEntity().getLocation(),
+            Sound.ENTITY_PLAYER_HURT,
+            0.8f, 1.0f
+        );
         
         // Display damage indicators
         if (plugin.getDamageIndicatorManager() != null) {
@@ -120,20 +154,6 @@ public class PassiveNPC extends BaseNPC {
                 npc.getEntity().getLocation().add(0, 1, 0),
                 (int) finalDamage,
                 false);
-        }
-        
-        // Play hurt sound and animation
-        npc.getEntity().getWorld().playSound(
-            npc.getEntity().getLocation(),
-            org.bukkit.Sound.ENTITY_PLAYER_HURT,
-            0.8f, 1.0f
-        );
-        
-        // Debug log the damage
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("PassiveNPC " + name + " damaged by " + player.getName() + 
-                ": health " + currentHealth + " → " + newHealth + 
-                " (damage: " + finalDamage + ")");
         }
         
         // Check if NPC is now dead
@@ -156,8 +176,8 @@ public class PassiveNPC extends BaseNPC {
             
             // Run away for 5 seconds
             new BukkitRunnable() {
-                int ticks = 0;
-                final int maxTicks = 5 * 20; // 5 seconds
+                private int ticks = 0;
+                private final int maxTicks = 5 * 20; // 5 seconds
                 
                 @Override
                 public void run() {
@@ -210,11 +230,14 @@ public class PassiveNPC extends BaseNPC {
                 "): " + finalDamage + ", Reduction: " + (magicResistReduction * 100) + "%");
         }
         
-        // CRITICAL FIX: Update health value
+         // CRITICAL FIX: Update health value
         double newHealth = Math.max(0, currentHealth - finalDamage);
         
         // Store updated health in metadata
         npc.getEntity().setMetadata("current_health", new FixedMetadataValue(plugin, newHealth));
+        
+        // CRITICAL ADDITION: Also update the Combat Handler's health map
+        NPCManager.getInstance().getCombatHandler().setHealth(npc.getUniqueId(), newHealth);
         
         // Update the nameplate
         NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
