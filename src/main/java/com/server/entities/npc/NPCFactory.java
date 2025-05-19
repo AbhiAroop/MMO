@@ -82,7 +82,33 @@ public class NPCFactory {
         stats.setNpcType(NPCType.NORMAL);
         
         CombatNPC npc = new CombatNPC(id, name, stats);
-        npc.spawn(location, skin);
+        
+        // Critical fix: Create NPC with proper player entity type
+        net.citizensnpcs.api.npc.NPC citizensNPC = NPCManager.getInstance().getNPCRegistry().createNPC(
+            org.bukkit.entity.EntityType.PLAYER, 
+            name, 
+            location
+        );
+        
+        // Apply skin if provided
+        if (skin != null && !skin.isEmpty()) {
+            net.citizensnpcs.trait.SkinTrait skinTrait = citizensNPC.getOrAddTrait(net.citizensnpcs.trait.SkinTrait.class);
+            skinTrait.setSkinName(skin, true);
+        }
+        
+        // Apply look close trait
+        citizensNPC.getOrAddTrait(net.citizensnpcs.trait.LookClose.class).lookClose(true);
+        
+        // IMPORTANT: Make sure the NPC is not invulnerable (crucial for damage effects)
+        if (citizensNPC.isSpawned()) {
+            citizensNPC.getEntity().setInvulnerable(false);
+        }
+        
+        // Manually assign the Citizens NPC to our CombatNPC
+        npc.setNPC(citizensNPC);
+        
+        // Finish initializing our CombatNPC
+        npc.finalizeSpawn();
         
         // Register the interaction handler
         NPCManager.getInstance().registerInteractionHandler(id, npc);

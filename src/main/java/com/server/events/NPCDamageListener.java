@@ -1,5 +1,8 @@
 package com.server.events;
 
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -10,12 +13,12 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
-import com.server.entities.npc.CombatHandler;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.behaviors.CombatBehavior;
-import com.server.entities.npc.types.BaseNPC;
 import com.server.entities.npc.types.CombatNPC;
 import com.server.entities.npc.types.PassiveNPC;
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
 
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
@@ -26,16 +29,18 @@ import net.citizensnpcs.api.npc.NPC;
 public class NPCDamageListener implements Listener {
     
     private final Main plugin;
+    private final java.util.Map<UUID, Long> lastDamageTimeMap = new java.util.HashMap<>();
+    private static final long DAMAGE_COOLDOWN = 500; // 500ms cooldown between damage events
     
     public NPCDamageListener(Main plugin) {
         this.plugin = plugin;
     }
     
-    @EventHandler(priority = EventPriority.NORMAL)
+    @EventHandler(priority = EventPriority.LOWEST) // CRITICAL: Use LOWEST priority to run before Citizens handlers
     public void onNPCDamage(EntityDamageByEntityEvent event) {
         // Print debug information
         if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPCDamageEvent: Entity=" + event.getEntity().getType() + 
+            plugin.getLogger().info("EntityDamageByEntityEvent: Entity=" + event.getEntity().getType() + 
                                 ", Damager=" + event.getDamager().getType() +
                                 ", Damage=" + event.getDamage());
         }
@@ -53,12 +58,6 @@ public class NPCDamageListener implements Listener {
             return;
         }
         
-        // Print additional debug
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPC damage detected: NPC=" + npc.getName() +
-                                ", IsSpawned=" + npc.isSpawned());
-        }
-        
         // Get the damager
         Entity damager = event.getDamager();
         
@@ -69,175 +68,151 @@ public class NPCDamageListener implements Listener {
         
         Player player = (Player) damager;
         
-        // Always cancel the vanilla damage event, we'll handle it manually
-        event.setCancelled(true);
+        // Check for damage cooldown
+        UUID npcUUID = npc.getUniqueId();
+        long currentTime = System.currentTimeMillis();
         
-        // Print more debug information about NPC type
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPC metadata check: " + 
-                                "passive=" + target.hasMetadata("passive_npc") +
-                                ", combat=" + target.hasMetadata("combat_npc") + 
-                                ", hostile=" + target.hasMetadata("hostile_npc"));
+        if (lastDamageTimeMap.containsKey(npcUUID)) {
+            long lastDamageTime = lastDamageTimeMap.get(npcUUID);
+            long timeSinceLastDamage = currentTime - lastDamageTime;
+            
+            if (timeSinceLastDamage < DAMAGE_COOLDOWN) {
+                // Still in immunity period
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("NPC in damage cooldown: " + 
+                        timeSinceLastDamage + "ms since last hit (needs " + DAMAGE_COOLDOWN + "ms)");
+                }
+                return;
+            }
         }
         
-        double damage = event.getDamage();
-        boolean processed = false;
+        // Record this damage time
+        lastDamageTimeMap.put(npcUUID, currentTime);
         
-        // Get the correct reference to the CombatHandler
-        CombatHandler sharedCombatHandler = NPCManager.getInstance().getCombatHandler();
+        // CRITICAL: Allow actual damage to go through for Citizens to handle the red damage effect
+        // We need a decent amount of damage to ensure the red effect shows properly
+        double originalDamage = event.getDamage();
         
-        // Try to find the NPC handler based on ID first
-        String npcId = findNpcIdByUuid(npc.getUniqueId());
-        if (npcId != null) {
-            // Get the interaction handler which should be the BaseNPC instance
-            Object handler = NPCManager.getInstance().getInteractionHandler(npcId);
+        // Don't modify the damage - let Citizens handle it naturally
+        // This is key for getting the red flash effect
+        
+        // Get current health and entity
+        LivingEntity livingEntity = null;
+        double currentHealth = 0;
+        
+        if (npc.isSpawned() && npc.getEntity() instanceof LivingEntity) {
+            livingEntity = (LivingEntity) npc.getEntity();
+            currentHealth = livingEntity.getHealth();
+        }
+        
+        // Create final copies for use in the lambda
+        final LivingEntity finalLivingEntity = livingEntity;
+        final double finalCurrentHealth = currentHealth;
+        
+        // Get the actual damage amount from the player's stats
+        double playerDamage = getDamageFromPlayer(player);
+        
+        // Process the damage in our custom system right after the vanilla system
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // Make sure the NPC is still valid
+            if (!npc.isSpawned() || npc.getEntity() == null) return;
             
-            // Handle damage based on NPC type using handlers
-            if (handler instanceof BaseNPC) {
-                BaseNPC baseNpc = (BaseNPC) handler;
+            // CRITICAL FIX: Restore health after vanilla damage is applied
+            if (finalLivingEntity != null && finalLivingEntity.isValid() && !finalLivingEntity.isDead()) {
+                // Reset health back to where it was before damage
+                finalLivingEntity.setHealth(Math.min(finalLivingEntity.getMaxHealth(), finalCurrentHealth));
+            }
+            
+            // Process our custom damage
+            String npcId = findNpcIdByUuid(npc.getUniqueId());
+            if (npcId != null) {
+                Object handler = NPCManager.getInstance().getInteractionHandler(npcId);
                 
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Processing custom damage for NPC " + npcId + 
+                        ", handler type: " + (handler != null ? handler.getClass().getSimpleName() : "null"));
+                }
+                
+                // Handle damage differently based on NPC type
                 if (handler instanceof PassiveNPC) {
-                    // Passive NPC - run away when attacked
-                    PassiveNPC passiveNPC = (PassiveNPC) baseNpc;
-                    passiveNPC.onDamage(player, damage);
-                    processed = true;
+                    PassiveNPC passiveNPC = (PassiveNPC) handler;
+                    passiveNPC.onDamage(player, playerDamage);
                     
                     // Apply knockback
                     applyKnockback(npc.getEntity(), player, 0.4);
                 } 
                 else if (handler instanceof CombatNPC) {
-                    // Combat NPC - fight back
-                    CombatNPC combatNPC = (CombatNPC) baseNpc;
-                    
-                    // First try to use behavior
+                    CombatNPC combatNPC = (CombatNPC) handler;
                     CombatBehavior combatBehavior = (CombatBehavior) combatNPC.getBehavior("combat");
+                    
                     if (combatBehavior != null) {
-                        // Let the behavior handle the damage
-                        combatBehavior.onDamage(player, damage);
-                        processed = true;
-                        
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Processed damage using CombatBehavior for NPC " + npc.getName());
-                        }
+                        combatBehavior.onDamage(player, playerDamage);
                     } else {
-                        // Fallback to direct handler method
-                        combatNPC.onDamage(player, damage);
-                        processed = true;
-                        
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Processed damage using CombatNPC.onDamage for NPC " + npc.getName());
-                        }
+                        combatNPC.onDamage(player, playerDamage);
                     }
                     
                     // Apply knockback
-                    applyKnockback(npc.getEntity(), player, 0.5);
+                    applyKnockback(npc.getEntity(), player, 0.3);
                 }
             }
-        }
-        
-        // If not processed yet, try a direct metadata approach
-        if (!processed) {
-            if (target.hasMetadata("passive_npc")) {
-                // Try direct metadata-based processing for passive NPCs
-                PassiveNPC passiveNPC = findPassiveNPCById(npcId);
-                if (passiveNPC != null) {
-                    passiveNPC.onDamage(player, damage);
-                    processed = true;
-                    
-                    // Apply knockback
-                    applyKnockback(npc.getEntity(), player, 0.4);
-                }
-            } 
-            else if (target.hasMetadata("combat_npc") || target.hasMetadata("hostile_npc")) {
-                // Try direct metadata-based processing for combat NPCs
-                CombatNPC combatNPC = findCombatNPCById(npcId);
-                if (combatNPC != null) {
-                    combatNPC.onDamage(player, damage);
-                    processed = true;
-                    
-                    // Apply knockback
-                    applyKnockback(npc.getEntity(), player, 0.5);
-                    
-                    // Debug log that we processed through the handler
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Processed damage through CombatNPC handler: " + npcId);
-                    }
-                } else {
-                    // As a fallback, use the shared combat handler
-                    if (target.hasMetadata("combat_npc") || target.hasMetadata("hostile_npc")) {
-                        // Apply damage
-                        sharedCombatHandler.applyDamageToNPC(null, npc, damage, false);
-                        
-                        // IMPORTANT: The reason NPCs weren't fighting back is we were missing this crucial line:
-                        // Start combat behavior with the player as target
-                        if (target.hasMetadata("hostile_npc")) {
-                            sharedCombatHandler.startHostileCombatBehavior(npc, player);
-                        } else {
-                            sharedCombatHandler.startCombatBehavior(npc, player);
-                        }
-                        
-                        processed = true;
-                        
-                        // Apply knockback
-                        applyKnockback(npc.getEntity(), player, 0.5);
-                        
-                        // Debug log that we used fallback
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Used fallback CombatHandler for NPC: " + npc.getName());
-                        }
-                    }
-                }
-            }
-        }
-        
-        // If we couldn't process through handlers, use a direct approach as fallback
-        if (!processed) {
-            // Log this fallback case
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Using fallback damage handling for NPC: " + npc.getName());
-            }
-            
-            // Force basic damage indicator
-            if (plugin.getDamageIndicatorManager() != null) {
-                plugin.getDamageIndicatorManager().spawnDamageIndicator(
-                    target.getLocation().add(0, 1, 0), 
-                    (int) damage, 
-                    false);
-            }
-            
-            // Apply knockback
-            applyKnockback(npc.getEntity(), player, 0.5);
-            
-            // Play hurt sound
-            target.getWorld().playSound(
-                target.getLocation(),
-                org.bukkit.Sound.ENTITY_PLAYER_HURT,
-                0.8f, 1.0f
-            );
-            
-            // Last resort - use direct damage application through combat handler
-            sharedCombatHandler.applyDamageToNPC(null, npc, damage, false);
-            sharedCombatHandler.startCombatBehavior(npc, player);
-        }
+        }, 1L); // Just 1 tick later
     }
-    
+
     /**
      * Apply knockback to an entity
-     * 
-     * @param entity The entity to knock back
-     * @param source The source of the knockback
-     * @param strength The strength of the knockback
      */
     private void applyKnockback(Entity entity, Entity source, double strength) {
         if (entity instanceof LivingEntity) {
+            // Calculate knockback direction away from the source
             Vector knockback = entity.getLocation().subtract(source.getLocation()).toVector().normalize();
-            knockback.multiply(strength);
-            knockback.setY(0.2); // Add slight vertical component
             
-            entity.setVelocity(entity.getVelocity().add(knockback));
+            // Add some upward component for better visual effect
+            knockback.setY(Math.max(0.2, knockback.getY() * 0.6));
+            
+            // Apply the knockback with the specified strength
+            knockback.multiply(strength);
+            
+            // Use a delayed task to apply knockback after damage is processed
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (entity.isValid() && !entity.isDead()) {
+                    entity.setVelocity(entity.getVelocity().add(knockback));
+                }
+            }, 1L);
+            
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Applied knockback with strength " + strength + " and vector " + knockback);
+            }
         }
     }
-    
+
+    /**
+     * Get damage from a player based on their stats
+     */
+    private double getDamageFromPlayer(Player player) {
+        // Default damage if we can't get player's stats
+        double damage = 5.0;
+        
+        // Try to get player's actual damage from their stats
+        ProfileManager profileManager = plugin.getProfileManager();
+        if (profileManager != null) {
+            Integer activeSlot = profileManager.getActiveProfile(player.getUniqueId());
+            if (activeSlot != null) {
+                PlayerProfile profile = profileManager.getProfiles(player.getUniqueId())[activeSlot];
+                if (profile != null) {
+                    damage = profile.getStats().getPhysicalDamage();
+                    
+                    // Account for charge level if available
+                    if (player.hasMetadata("last_attack_charge")) {
+                        float chargePercent = player.getMetadata("last_attack_charge").get(0).asFloat();
+                        damage *= Math.max(0.2, chargePercent); // Min 20% damage
+                    }
+                }
+            }
+        }
+        
+        return damage;
+    }
+        
     /**
      * Find an NPC ID by its UUID
      * 

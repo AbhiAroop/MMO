@@ -438,81 +438,39 @@ public class CombatNPC extends BaseNPC {
      * @param damage The damage amount
      */
     public void onDamage(Player player, double damage) {
-        if (npc == null || !npc.isSpawned()) return;
+        // Skip if NPC is not spawned
+        if (!npc.isSpawned()) return;
         
-        // CRITICAL FIX: Make sure the combat handler has the correct max health value before damage is applied
-        double currentHealth = npc.getEntity().hasMetadata("current_health") ?
-            npc.getEntity().getMetadata("current_health").get(0).asDouble() : stats.getMaxHealth();
-        
-        // Ensure the combat handler has the correct current health value
-        combatHandler.setHealth(npc.getUniqueId(), currentHealth);
-        
-        // Apply visual damage indicators
-        if (plugin.getDamageIndicatorManager() != null) {
-            plugin.getDamageIndicatorManager().spawnDamageIndicator(
-                npc.getEntity().getLocation().add(0, 1, 0),
-                (int) damage,
-                false);
+        // Get the combat behavior if available
+        CombatBehavior behavior = (CombatBehavior) getBehavior("combat");
+        if (behavior != null) {
+            behavior.onDamage(player, damage);
+            return;
         }
         
-        // IMPROVED: Chance to immediately counter-attack while being attacked by player
-        if (Math.random() < 0.5) { // 50% chance to counter player attacks
-            plugin.getLogger().info("🟢 PLAYER COUNTER-ATTACK: " + name + " attempting counter-attack against " + player.getName());
-            combatHandler.triggerCounterAttack(npc, player);
-        }
+        // If no behavior or this is called directly, handle damage here
+        // Get current health value from CombatHandler
+        CombatHandler combatHandler = (CombatHandler) NPCManager.getInstance().getInteractionHandler(id);
+        if (combatHandler == null) return;
         
-        // Use combat behavior if available
-        CombatBehavior combatBehavior = (CombatBehavior) behaviors.get("combat");
-        if (combatBehavior != null) {
-            // Let the behavior handle the damage
-            combatBehavior.onDamage(player, damage);
+        // Get current and max health
+        double currentHealth = 0;
+        double maxHealth = 0;
+        
+        if (npc != null && npc.isSpawned()) {
+            // Get current health directly from the combat handler
+            currentHealth = combatHandler.getHealth(npc.getUniqueId());
             
-            if (combatBehavior.isInCombat()) {
-                // Send threatening message occasionally
-                if (Math.random() < 0.2) {
-                    String[] combatMessages = {
-                        "You'll pay for that!",
-                        "Is that all you've got?",
-                        "Fight me properly!",
-                        "You're making a mistake!",
-                        "I'll end you!"
-                    };
-                    sendMessage(player, combatMessages[(int)(Math.random() * combatMessages.length)]);
-                }
-            } else {
-                // Not in combat yet, start combat and send initial message
-                sendMessage(player, "You'll regret attacking me!");
-                combatBehavior.startCombat(player);
-            }
-        } else {
-            // Fallback to direct combat handler
-            if (combatHandler.isInCombat(npc.getUniqueId())) {
-                // Already in combat, just apply damage
-                combatHandler.applyDamageToNPC(null, npc, damage, false);
-                
-                // Make sure we are targeting this player
-                combatHandler.setCurrentTarget(npc.getUniqueId(), player);
-                
-                // Send threatening message occasionally
-                if (Math.random() < 0.2) {
-                    String[] combatMessages = {
-                        "You'll pay for that!",
-                        "Is that all you've got?",
-                        "Fight me properly!",
-                        "You're making a mistake!",
-                        "I'll end you!"
-                    };
-                    sendMessage(player, combatMessages[(int)(Math.random() * combatMessages.length)]);
-                }
-            } else {
-                // Not in combat yet, start combat and apply initial damage
-                sendMessage(player, "You'll regret attacking me!");
-                
-                // Apply damage first
-                combatHandler.applyDamageToNPC(null, npc, damage, false);
-                
-                // Then start combat behavior with this player as target
-                combatHandler.startCombatBehavior(npc, player);
+            // Get max health from stats
+            NPCStats stats = combatHandler.getNPCStats(npc.getUniqueId());
+            maxHealth = stats.getMaxHealth();
+            
+            // CRITICAL: Update nameplate with current health
+            NPCManager.getInstance().updateNameplate(npc, currentHealth, maxHealth);
+            
+            // Debug health values
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("CombatNPC damaged: " + name + " health = " + currentHealth + "/" + maxHealth);
             }
         }
     }

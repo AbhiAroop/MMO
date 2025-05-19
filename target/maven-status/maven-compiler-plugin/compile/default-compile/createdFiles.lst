@@ -17,6 +17,7 @@ com\server\profiles\skills\events\MiningListener$1.class
 com\server\events\CombatListener$2.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
+com\server\entities\npc\NPCDamageEffects$1.class
 com\server\profiles\skills\abilities\SkillAbility.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
@@ -143,7 +144,6 @@ com\server\Main.class
 com\server\entities\npc\behaviors\CombatBehavior.class
 com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
-com\server\entities\npc\types\HostileNPC$3.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
 com\server\entities\npc\types\HostileNPC.class
@@ -162,6 +162,7 @@ com\server\entities\mobs\CustomMob.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
 com\server\events\PlayerListener$3.class
+com\server\entities\npc\NPCDamageEffects.class
 com\server\profiles\skills\abilities\passive\PassiveAbility.class
 com\server\profiles\skills\abilities\AbstractSkillAbility.class
 com\server\entities\npc\types\BaseNPC.class

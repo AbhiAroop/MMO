@@ -175,22 +175,18 @@ public class HostileNPC extends CombatNPC {
     
     @Override
     public void onDamage(Player player, double damage) {
-        super.onDamage(player, damage);
+        super.onDamage(player, damage); // Make sure the parent CombatNPC's method is called
         
-        // Ensure that when damaged, the detection range temporarily increases
-        if (npc != null && npc.isSpawned()) {
-            // When damaged, the NPC can see further temporarily
-            npc.getEntity().setMetadata("detection_range", new FixedMetadataValue(plugin, 25.0));
+        // Get the combat behavior
+        CombatBehavior behavior = (CombatBehavior) getBehavior("combat");
+        if (behavior != null) {
+            // Make hostile NPCs aggressive when attacked
+            behavior.setTargetsPlayers(true);
             
-            // Reset detection range after a while
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (npc != null && npc.isSpawned()) {
-                        npc.getEntity().setMetadata("detection_range", new FixedMetadataValue(plugin, 15.0));
-                    }
-                }
-            }.runTaskLater(plugin, 200L); // 10 seconds
+            // Debug message
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Started aggressive behavior for hostile NPC: " + name + " with initial target: " + player.getName());
+            }
         }
     }
     
