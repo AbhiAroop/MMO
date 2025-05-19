@@ -186,107 +186,69 @@ public class CombatHandler {
         
         npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(plugin, shouldTargetPlayers));
         npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(plugin, shouldTargetNPCs));
+        
+        // Keep track of NPC as hostile
         npc.getEntity().setMetadata("hostile", new FixedMetadataValue(plugin, true));
+        hostileNpcUuids.add(npcId);
         
-        // Store the limited detection range in metadata if not already set
-        if (!npc.getEntity().hasMetadata("detection_range")) {
-            npc.getEntity().setMetadata("detection_range", new FixedMetadataValue(plugin, 15.0)); // 15 block detection range
-        }
-        
-        // Make sure health is properly set
-        if (!npcHealth.containsKey(npcId)) {
-            npcHealth.put(npcId, stats.getMaxHealth());
-        }
-        
-        // Cancel any existing combat task
-        BukkitTask existingTask = combatTasks.get(npcId);
-        if (existingTask != null) {
-            existingTask.cancel();
-            combatTasks.remove(npcId);
-        }
-        
-        // Update nameplate
-        NPCManager.getInstance().updateNameplate(npc, npcHealth.get(npcId), stats.getMaxHealth());
-        
-        // Set initial target if provided
+        // Start initial target
         if (initialTarget != null) {
             currentTargets.put(npcId, initialTarget);
         }
         
-        // More aggressive AI task for hostile NPCs
+        // Stop any existing task 
+        stopCombatBehavior(npcId);
+        
+        // Start the combat task with increased aggression
         BukkitTask task = new BukkitRunnable() {
             private int tickCounter = 0;
-            private float attackCharge = 0.7f;
+            private Entity target = initialTarget;
+            private float attackCharge = 0.5f; // Start with 50% charge for immediate action
             private int attackCooldown = 0;
+            private boolean isAttacking = false;
+            private long lastPathUpdateTime = 0;
+            private long lastAttackTime = 0;
             private Location lastLocation = null;
             private int stuckCounter = 0;
-            private long lastPathUpdateTime = 0;
-            private boolean isAttacking = false;
-            private long lastAttackTime = System.currentTimeMillis();
-            private boolean canCounterAttack = true;
             
             @Override
             public void run() {
-                if (!npc.isSpawned() || npcHealth.getOrDefault(npcId, 0.0) <= 0) {
+                // Check if NPC is still valid
+                if (!npc.isSpawned()) {
                     this.cancel();
-                    combatTasks.remove(npcId);
                     return;
                 }
                 
-                // Get current target
-                Entity target = currentTargets.get(npcId);
+                // Get latest stats for dynamic updates
+                NPCStats stats = getNPCStats(npcId);
                 
-                // Check for target more frequently (every 10 ticks = 0.5s)
-                if (target == null || !isValidCombatTarget(npc, target) || tickCounter % 10 == 0) {
-                    // Use detection range to find targets
-                    double detectionRange = 15.0;
-                    if (npc.getEntity().hasMetadata("detection_range")) {
-                        detectionRange = npc.getEntity().getMetadata("detection_range").get(0).asDouble();
-                    }
-                    
-                    // Find a target within the detection range
-                    target = findTargetWithinRange(npc, shouldTargetPlayers, shouldTargetNPCs, detectionRange);
-                    
-                    if (target != null) {
-                        currentTargets.put(npcId, target);
+                // Update target every few ticks
+                if (tickCounter % 10 == 0) { // Every 10 ticks = 0.5 seconds
+                    // Try to find a target if we don't have one
+                    if (target == null || !target.isValid() || target.isDead()) {
+                        // First check the current target map
+                        target = currentTargets.get(npcId);
                         
-                        // Debug target acquisition
-                        if (plugin.isDebugMode() && tickCounter % 20 == 0) {
-                            plugin.getLogger().info("Hostile NPC " + npc.getName() + " targeting: " + target.getName() + 
-                                                " at distance: " + npc.getEntity().getLocation().distance(target.getLocation()));
-                        }
-                    } else {
-                        // No target found within range
-                        currentTargets.remove(npcId);
-                        
-                        // If no target and we've been looking a while, go back to wandering
-                        if (tickCounter % 40 == 0) {
-                            // Random wandering when no target
-                            Location currentLoc = npc.getEntity().getLocation();
-                            double wanderDistance = 3 + Math.random() * 4; // 3-7 blocks
-                            double angle = Math.random() * Math.PI * 2;
-                            Location wanderLoc = currentLoc.clone().add(
-                                Math.cos(angle) * wanderDistance,
-                                0,
-                                Math.sin(angle) * wanderDistance
-                            );
-                            
-                            // Configure realistic wandering speed
-                            npc.getNavigator().getLocalParameters().speedModifier(0.8f);
-                            npc.getNavigator().setTarget(wanderLoc);
+                        // If still no target, find the closest one
+                        if (target == null || !target.isValid() || target.isDead()) {
+                            target = findBestTarget(npc, shouldTargetPlayers, shouldTargetNPCs);
+                            if (target != null) {
+                                currentTargets.put(npcId, target);
+                            }
                         }
                     }
                 }
                 
-                // If we have a target, pursue and attack it
-                if (target != null && !isAttacking) {
+                // Process movement and attacks if we have a target
+                if (target != null && target.isValid() && !target.isDead()) {
+                    // Calculate distance to target
                     double distance = npc.getEntity().getLocation().distance(target.getLocation());
                     
-                    // Check if target is out of pursuit range (25 blocks)
-                    if (distance > 25.0) {
+                    // If target too far away, clear it
+                    if (distance > MAX_TARGET_RANGE * 1.5) {
                         if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Hostile NPC " + npc.getName() + " abandoning target " + 
-                                                target.getName() + " - too far away: " + distance);
+                            plugin.getLogger().info(npc.getName() + " losing target " + 
+                                                    target.getName() + " - too far away: " + distance);
                         }
                         // Clear target if too far away
                         currentTargets.remove(npcId);
@@ -300,152 +262,99 @@ public class CombatHandler {
                         if (currentTime - lastPathUpdateTime > 200) { // 200ms = 4 ticks - faster updates for sprinting
                             lastPathUpdateTime = currentTime;
                             
-                            // Set navigator parameters to improve movement and reduce "flying"
-                            net.citizensnpcs.api.ai.NavigatorParameters params = npc.getNavigator().getLocalParameters();
-                            params.attackStrategy((attacker, targetEntity) -> true); // Simple attack strategy
+                            // Use more aggressive navigation
+                            updateAggressiveNavigation(npc, target, distance);
                             
-                            // ALWAYS SPRINT - Higher speed for hostile NPCs
-                            // Use higher speed the further away the target is
-                            float speedMod;
-                            if (distance > 12) {
-                                speedMod = 2.1f;      // Very fast when far away (sprinting)
-                            } else if (distance > 6) {
-                                speedMod = 1.9f;      // Fast when closing in (sprinting)
-                            } else if (distance > 3) {
-                                speedMod = 1.7f;      // Slightly slower when getting close
-                            } else {
-                                speedMod = 1.5f;      // Even slower when very close
-                            }
-                            
-                            params.speedModifier(speedMod);
-                            params.range(40);         // Larger range for pathfinding
-                            params.avoidWater(false); // Don't avoid water
-                            params.baseSpeed(speedMod); // Ensure base speed is set too
-                            
-                            // Add sprint effect to the entity if it's a LivingEntity
-                            if (npc.getEntity() instanceof LivingEntity) {
-                                ((LivingEntity) npc.getEntity()).addPotionEffect(
-                                    new PotionEffect(PotionEffectType.SPEED, 30, 1, false, false)
-                                );
-                            }
-                            
-                            // Anti-stuck measures that prevent teleporting/flying
-                            params.stuckAction((stuckNpc, navigator) -> {
-                                // If stuck, just try jumping to get unstuck
-                                if (npc.isSpawned() && npc.getEntity() instanceof LivingEntity) {
-                                    LivingEntity living = (LivingEntity)npc.getEntity();
-                                    
-                                    // Apply reasonable vertical velocity for jumping
-                                    living.setVelocity(new Vector(
-                                        Math.random() * 0.2 - 0.1, // Small random X component
-                                        0.3,                      // Reasonable jump height
-                                        Math.random() * 0.2 - 0.1  // Small random Z component
-                                    ));
-                                }
-                                return false; // Never teleport, just try to jump
-                            });
-                            
-                            // Set target directly
-                            npc.getNavigator().setTarget(target.getLocation());
-                        }
-                        
-                        // Stuck detection (without teleporting)
-                        if (tickCounter % 20 == 0) {
+                            // Check if stuck
                             Location currentLoc = npc.getEntity().getLocation();
-                            
-                            // Check if we're stuck (not moving much)
-                            if (lastLocation != null && currentLoc.distanceSquared(lastLocation) < 0.1) {
-                                stuckCounter++;
-                                
-                                // If we've been stuck for a while, try to get unstuck
-                                if (stuckCounter >= 3) {
-                                    // Apply a small jump to help get unstuck
-                                    if (npc.getEntity() instanceof LivingEntity) {
-                                        LivingEntity living = (LivingEntity) npc.getEntity();
-                                        living.setVelocity(new Vector(
-                                            Math.random() * 0.3 - 0.15,
-                                            0.3,
-                                            Math.random() * 0.3 - 0.15
-                                        ));
-                                    }
+                            if (lastLocation != null) {
+                                // Check if we've moved less than a minimal amount
+                                if (lastLocation.distanceSquared(currentLoc) < 0.01 && distance > 2.0) {
+                                    stuckCounter++;
                                     
-                                    // If we're really stuck and the target is far, try a different approach path
-                                    if (stuckCounter >= 5 && distance > 5.0) {
-                                        // Pick a position to the side of our path to try to go around obstacles
-                                        Location intermediateTarget = currentLoc.clone();
-                                        double offsetAngle = Math.random() * Math.PI * 2;
-                                        intermediateTarget.add(
-                                            Math.cos(offsetAngle) * 3,
-                                            0,
-                                            Math.sin(offsetAngle) * 3
-                                        );
-                                        npc.getNavigator().setTarget(intermediateTarget);
-                                        
-                                        if (plugin.isDebugMode()) {
-                                            plugin.getLogger().info("NPC " + npc.getName() + " trying alternative path");
+                                    // If stuck for too long, try to get unstuck
+                                    if (stuckCounter > 20) { // 1 second of being stuck
+                                        // Try to jump
+                                        if (npc.getEntity() instanceof LivingEntity) {
+                                            LivingEntity living = (LivingEntity) npc.getEntity();
+                                            living.setVelocity(living.getVelocity().add(new Vector(0, 0.4, 0)));
                                         }
+                                        
+                                        // Try a new path
+                                        Location jumpTarget = currentLoc.clone().add(
+                                            (Math.random() - 0.5) * 3,
+                                            0,
+                                            (Math.random() - 0.5) * 3
+                                        );
+                                        npc.getNavigator().setTarget(jumpTarget);
                                         
                                         stuckCounter = 0; // Reset counter after trying alternative
                                     }
+                                } else {
+                                    // We're moving, reset stuck counter
+                                    stuckCounter = 0;
+                                }
+                                
+                                lastLocation = currentLoc;
+                            }
+                            
+                            // Handle attacks when within range using attack speed
+                            if (attackCooldown > 0) {
+                                attackCooldown--;
+                            } else if (distance <= 3.0 && !isAttacking) {
+                                // CRITICAL FIX: Use attack speed to determine attack rate
+                                // For hostile NPCs, we want them to attack slightly faster
+                                long attackCurrentTime = System.currentTimeMillis();
+                                // Min time between attacks is 1000ms / attackSpeed
+                                long minTimeBetweenAttacks = (long)(1000 / stats.getAttackSpeed());
+                                
+                                boolean canAttackByTime = (attackCurrentTime - lastAttackTime) >= minTimeBetweenAttacks;
+                                
+                                if (canAttackByTime) {
+                                    // FASTER CHARGE BUILDUP based on attack speed
+                                    attackCharge += stats.getAttackSpeed() / 12.0f;
+                                    
+                                    if (attackCharge >= 1.0f) {
+                                        // Attack fully charged - set attacking flag to prevent new attacks during animation
+                                        isAttacking = true;
+                                        
+                                        // Update attack timestamp
+                                        lastAttackTime = System.currentTimeMillis();
+                                        
+                                        // Play attack animation and then handle damage
+                                        attackTarget(npc, target, 1.0f);
+                                        
+                                        // Reset charge with shorter cooldown based on attack speed
+                                        attackCharge = 0.5f;
+                                        attackCooldown = Math.max(1, (int)(20 / stats.getAttackSpeed())); 
+                                        
+                                        // Reset attacking flag after a shorter delay 
+                                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                            isAttacking = false;
+                                        }, Math.max(1, (int)(8 / stats.getAttackSpeed())));
+                                    }
                                 }
                             } else {
-                                // We're moving, reset stuck counter
-                                stuckCounter = 0;
+                                // If not in range, build up charge faster
+                                attackCharge = Math.min(0.9f, attackCharge + 0.03f);
                             }
-                            
-                            lastLocation = currentLoc;
-                        }
-                        
-                        // Handle attacks when within 3 block range - improved with better timing
-                        if (attackCooldown > 0) {
-                            attackCooldown--;
-                        } else if (distance <= 3.0 && !isAttacking) {
-                            // FASTER ATTACK RATE: Reduced minimum time between attacks
-                            long attackCurrentTime = System.currentTimeMillis();
-                            boolean canAttackByTime = (attackCurrentTime - lastAttackTime) >= 450; // 450ms = 0.45s between attacks
-                            
-                            if (canAttackByTime) {
-                                // FASTER CHARGE BUILDUP: Increased from /15.0f to /12.0f
-                                attackCharge += stats.getAttackSpeed() / 12.0f;
-                                
-                                if (attackCharge >= 1.0f) {
-                                    // Attack fully charged - set attacking flag to prevent new attacks during animation
-                                    isAttacking = true;
-                                    
-                                    // Update attack timestamp
-                                    lastAttackTime = System.currentTimeMillis();
-                                    
-                                    // Play attack animation and then handle damage
-                                    attackTarget(npc, target, 1.0f);
-                                    
-                                    // Reset charge with shorter cooldown
-                                    attackCharge = 0.5f;
-                                    attackCooldown = 10; // 10 ticks = 0.5 seconds (was 16)
-                                    
-                                    // Reset attacking flag after a shorter delay (8 ticks = 0.4s)
-                                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                        isAttacking = false;
-                                    }, 8L);
-                                }
-                            }
-                        } else {
-                            // If not in range, build up charge faster
-                            attackCharge = Math.min(0.9f, attackCharge + 0.03f);
                         }
                     }
                 }
                 
                 tickCounter++;
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+        }.runTaskTimer(plugin, 0L, 1L); // Run every tick
         
-        // Store task
+        // Store this task
         combatTasks.put(npcId, task);
         
-        // Debug log
+        // Track this as a hostile NPC
+        hostileNpcUuids.add(npcId);
+        
         if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Started aggressive behavior for hostile NPC: " + npc.getName() + 
-                                " with initial target: " + (initialTarget != null ? initialTarget.getName() : "none"));
+            plugin.getLogger().info("Started hostile combat behavior for " + npc.getName() + 
+                " with attack speed: " + stats.getAttackSpeed());
         }
     }
 
@@ -611,6 +520,21 @@ public class CombatHandler {
         // Wind-up animation - prepare to attack
         world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.4f, 1.2f);
         
+        // CRITICAL FIX: Perform the arm swing animation
+        if (npc.getEntity() instanceof LivingEntity) {
+            LivingEntity living = (LivingEntity) npc.getEntity();
+            
+            // Use the proper swing animation method
+            living.swingMainHand();
+            
+            // For enhanced visual effect, also perform the sweep attack animation
+            world.spawnParticle(
+                org.bukkit.Particle.SWEEP_ATTACK,
+                living.getLocation().add(0, 1.0, 0),
+                1, 0.5, 0.1, 0.5, 0.0
+            );
+        }
+        
         // Schedule the actual attack animation after a short delay (5 ticks = 0.25 seconds)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             try {
@@ -645,9 +569,10 @@ public class CombatHandler {
                     target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_HURT, 0.6f, 1.0f);
                 }
                 
-                // Re-enable look trait
-                if (lookTrait != null && wasLooking && npc.isSpawned()) {
-                    lookTrait.toggle();
+                // CRITICAL FIX: Perform another arm swing at impact moment
+                if (npc.getEntity() instanceof LivingEntity) {
+                    LivingEntity living = (LivingEntity) npc.getEntity();
+                    living.swingMainHand();
                 }
                 
                 // Complete the animation and apply damage IMMEDIATELY rather than waiting
@@ -665,6 +590,7 @@ public class CombatHandler {
                 // Catch any errors to prevent crashes
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().warning("Error in attack animation: " + e.getMessage());
+                    e.printStackTrace();
                 }
                 
                 // Still run the completion callback even if there's an error
@@ -739,186 +665,144 @@ public class CombatHandler {
      * Start combat behavior with specific targeting settings
      */
     private void startCombatWithSettings(NPC npc, Player initialTarget, boolean targetsPlayers, boolean targetsNPCs) {
-        if (!npc.isSpawned() || combatTasks.containsKey(npc.getUniqueId())) {
-            return;
+        if (!npc.isSpawned()) return;
+        
+        UUID npcId = npc.getUniqueId();
+        
+        // Stop any existing combat task
+        stopCombatBehavior(npcId);
+        
+        // Start tracking the target
+        if (initialTarget != null) {
+            currentTargets.put(npcId, initialTarget);
         }
         
-        // Store targeting settings in metadata
+        // Set metadata for targeting settings
         npc.getEntity().setMetadata("targets_players", new FixedMetadataValue(plugin, targetsPlayers));
         npc.getEntity().setMetadata("targets_npcs", new FixedMetadataValue(plugin, targetsNPCs));
         
-        // Get this NPC's stats
-        NPCStats stats = getNPCStats(npc.getUniqueId());
-        UUID npcId = npc.getUniqueId();
+        // Get the NPC's stats
+        NPCStats stats = getNPCStats(npcId);
         
-        // Set attack range to 3 blocks for combat NPCs that have become hostile
-        if (npc.getEntity().hasMetadata("hostile") && npc.getEntity().getMetadata("hostile").get(0).asBoolean()) {
-            stats.setAttackRange(3.0); // Set attack range to 3 blocks for hostile combat NPCs
-            stats.setAttackSpeed(0.9); // Faster attack speed when hostile
-            npcStats.put(npcId, stats);
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("Starting combat behavior for " + npc.getName() + 
+                " with stats: attackSpeed=" + stats.getAttackSpeed() + 
+                ", attackRange=" + stats.getAttackRange());
         }
         
-        // CRITICAL FIX: Never reset health if it already exists
-        if (!npcHealth.containsKey(npcId)) {
-            npcHealth.put(npcId, stats.getMaxHealth());
-            
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Initialized missing health for NPC " + npc.getName() + 
-                    " with max health: " + stats.getMaxHealth());
-            }
-        } else {
-            // Log existing health for debugging
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Preserved existing health for NPC " + npc.getName() + 
-                    ": " + npcHealth.get(npcId) + "/" + stats.getMaxHealth());
-            }
-        }
-        
-        // Update nameplate with current health
-        NPCManager.getInstance().updateNameplate(npc, npcHealth.get(npcId), stats.getMaxHealth());
-        
-        // Set initial target if provided
-        if (initialTarget != null) {
-            currentTargets.put(npc.getUniqueId(), initialTarget);
-            npc.getNavigator().setTarget(initialTarget, true);
-        }
-        
-        // Combat AI task
+        // Start the combat task
         BukkitTask task = new BukkitRunnable() {
             private int tickCounter = 0;
-            private float attackCharge = 0.3f;
-            private boolean isCharging = true;
+            private Entity target = initialTarget;
+            private float attackCharge = 0.0f;
             private int attackCooldown = 0;
-            private int stuckCounter = 0;
-            private Location lastLocation = null;
-            private long lastAttackTime = System.currentTimeMillis();
-            private boolean attackLocked = false;
+            private boolean isAttacking = false;
+            private long lastPathUpdateTime = 0;
+            private boolean isCharging = true; // Track if NPC is charging an attack
             
             @Override
             public void run() {
-                if (!npc.isSpawned() || npcHealth.getOrDefault(npcId, 0.0) <= 0) {
-                    // NPC is despawned or dead, cancel task
+                // Check if NPC is still valid
+                if (!npc.isSpawned()) {
                     this.cancel();
-                    combatTasks.remove(npcId);
                     return;
                 }
                 
-                // Get current target
-                Entity target = currentTargets.get(npcId);
+                // Only process every few ticks to reduce server load
+                if (tickCounter % 2 != 0) {
+                    tickCounter++;
+                    return;
+                }
                 
-                // Check if we need a new target
-                if (target == null || !isValidCombatTarget(npc, target) || tickCounter % TARGET_CHECK_INTERVAL == 0) {
-                    target = findBestTarget(npc, targetsPlayers, targetsNPCs);
+                // Try to find a target if we don't have one
+                if (target == null || !target.isValid() || target.isDead()) {
+                    target = currentTargets.get(npcId);
                     
-                    if (target != null) {
-                        currentTargets.put(npcId, target);
-                    } else {
-                        currentTargets.remove(npcId);
+                    // If we still don't have a target, try to find one
+                    if (target == null || !target.isValid() || target.isDead()) {
+                        if (tickCounter % TARGET_CHECK_INTERVAL == 0) {
+                            target = findBestTarget(npc, targetsPlayers, targetsNPCs);
+                            if (target != null) {
+                                currentTargets.put(npcId, target);
+                            }
+                        }
+                    }
+                    
+                    // Still no target, just update tick counter
+                    if (target == null || !target.isValid() || target.isDead()) {
+                        tickCounter++;
+                        return;
                     }
                 }
                 
-                // If we have a target, pursue and attack it
-                if (target != null) {
-                    // Navigate to target if needed
-                    double distance = npc.getEntity().getLocation().distance(target.getLocation());
-                    
-                    // Update navigation with improved pathfinding
-                    updateNavigation(npc, target, distance, stats);
-                    
-                    // Stuck detection
-                    if (tickCounter % 20 == 0) {
-                        Location currentLoc = npc.getEntity().getLocation();
-                        if (lastLocation != null && currentLoc.distanceSquared(lastLocation) < 0.2) {
-                            stuckCounter++;
+                // Get latest stats - important for dynamic stat changes
+                NPCStats stats = getNPCStats(npcId);
+                
+                // Calculate distance to target
+                double distance = npc.getEntity().getLocation().distance(target.getLocation());
+                
+                // Update navigation if we have a valid target
+                updateNavigation(npc, target, distance, stats);
+                
+                // Get the actual attack range - hostile NPCs force a shorter range for more aggressive behavior
+                double attackRange = npc.getEntity().hasMetadata("hostile") && 
+                    npc.getEntity().getMetadata("hostile").get(0).asBoolean() ? 
+                    3.0 : stats.getAttackRange();
+                
+                // Handle attacks - always use the appropriate range
+                if (attackCooldown > 0) {
+                    attackCooldown--;
+                } else if (distance <= attackRange) {
+                    // In attack range
+                    if (isCharging) {
+                        // CRITICAL FIX: Calculate charge rate based on attack speed stat
+                        // For 1.0 attackSpeed, it should take 20 ticks for full charge (1 second)
+                        float chargeRate = (float)(stats.getAttackSpeed() / 20.0);
+                        
+                        // Add charge based on attack speed
+                        attackCharge += chargeRate;
+                        
+                        if (attackCharge >= 1.0f) {
+                            // Attack fully charged - set attacking flag to prevent new attacks during animation
+                            isAttacking = true;
                             
-                            // If stuck for too long, try a different path
-                            if (stuckCounter > 3 && distance > stats.getAttackRange() * 1.5) {
-                                // Calculate a slightly different path
-                                Vector dirToTarget = target.getLocation().subtract(currentLoc).toVector().normalize();
-                                Vector perpendicular = new Vector(-dirToTarget.getZ(), 0, dirToTarget.getX()).normalize().multiply(2);
-                                
-                                // Alternate between left and right side paths
-                                if (stuckCounter % 2 == 0) {
-                                    perpendicular.multiply(-1);
-                                }
-                                
-                                // Try an alternate path
-                                Location waypointLoc = currentLoc.clone().add(perpendicular);
-                                npc.getNavigator().setTarget(waypointLoc);
+                            // Play attack animation and then handle damage
+                            attackTarget(npc, target, 1.0f);
+                            
+                            // Reset charge and set cooldown based on attack speed
+                            attackCharge = 0.0f;
+                            
+                            // CRITICAL FIX: Calculate cooldown in ticks based on attack speed
+                            // attackSpeed of 1.0 = 20 tick cooldown (1 second)
+                            // attackSpeed of 2.0 = 10 tick cooldown (0.5 seconds)
+                            int baseCooldown = Math.max(1, (int)(20 / stats.getAttackSpeed()));
+                            
+                            // Apply cooldown reduction for hostile NPCs
+                            if (npc.getEntity().hasMetadata("hostile") && 
+                                npc.getEntity().getMetadata("hostile").get(0).asBoolean()) {
+                                baseCooldown = Math.max(1, (int)(baseCooldown * 0.8)); // 20% faster for hostile NPCs
                             }
-                        } else {
-                            stuckCounter = 0;
-                        }
-                        lastLocation = currentLoc;
-                    }
-                    
-                     // IMPORTANT: Fixed attack range for CombatNPC to 3.0 blocks when hostile
-                    double attackRange = npc.getEntity().hasMetadata("hostile") && 
-                                    npc.getEntity().getMetadata("hostile").get(0).asBoolean() ? 
-                                    3.0 : stats.getAttackRange();
-                    
-                    // Handle attacks - always use the 3.0 range for hostile NPCs
-                    if (attackCooldown > 0) {
-                        attackCooldown--;
-                    } else if (distance <= attackRange) {
-                        // In attack range
-                        if (isCharging) {
-                            // FASTER CHARGING SPEED: Increased attack charging rate
-                            float chargeRate = (float) (npc.getEntity().hasMetadata("hostile") && 
-                                            npc.getEntity().getMetadata("hostile").get(0).asBoolean() ?
-                                            stats.getAttackSpeed() / 15.0 : stats.getAttackSpeed() / 20.0);
                             
-                            attackCharge += chargeRate;
+                            attackCooldown = baseCooldown;
                             
-                            if (attackCharge >= 1.0f && !attackLocked) {
-                                // Lock the attack to prevent multiple attacks at once
-                                attackLocked = true;
-                                
-                                // Attack is fully charged, execute it with animation
-                                attackTarget(npc, target, Math.min(attackCharge, 1.0f));
-                                
-                                // Reset charge and set cooldown
-                                isCharging = false;
-                                attackCharge = 0.0f;
-                                
-                                // SHORTER COOLDOWN: Decrease time between attacks
-                                attackCooldown = npc.getEntity().hasMetadata("hostile") ? 
-                                                8 : stats.getAttackIntervalTicks(); // 8 ticks = 0.4 seconds
-                                                
-                                // Unlock the attack lock after a short delay
-                                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                    attackLocked = false;
-                                }, 4L); // 4 ticks = 0.2 seconds
-                            }
-                        } else {
-                            // Start charging a new attack
-                            isCharging = true;
-                            attackCharge = 0.5f; // Start with 50% charge for faster follow-up attacks
+                            // Reset attacking flag after a short delay (proportional to attack speed)
+                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                isAttacking = false;
+                            }, Math.max(1, (int)(8 / stats.getAttackSpeed())));
                         }
-                    } else {
-                        // Not in range, maintain some charge for faster attacks when in range
-                        isCharging = true;
-                        attackCharge = Math.min(0.7f, attackCharge + 0.02f); // Build up to 70% pre-charge
                     }
+                } else {
+                    // If not in range, build up charge faster when closer to attack range
+                    double chargeMultiplier = Math.max(0.1, 1.0 - (distance / (attackRange * 2)));
+                    attackCharge = Math.min(0.9f, attackCharge + 0.02f * (float)chargeMultiplier);
                 }
                 
                 tickCounter++;
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+        }.runTaskTimer(plugin, 0L, 1L); // Run every tick
         
-        // Store the task reference for later cancellation
-        combatTasks.put(npc.getUniqueId(), task);
-        
-        // Log startup
-        if (plugin.isDebugMode()) {
-            if (initialTarget != null) {
-                plugin.getLogger().info("Started combat behavior for NPC: " + npc.getName() + 
-                    " targeting player: " + initialTarget.getName());
-            } else {
-                plugin.getLogger().info("Auto-started combat behavior for NPC: " + npc.getName() + 
-                    " to look for targets");
-            }
-        }
+        // Store this task
+        combatTasks.put(npcId, task);
     }
     
     /**
@@ -961,43 +845,45 @@ public class CombatHandler {
     private Entity findBestTarget(NPC npc, boolean targetsPlayers, boolean targetsNPCs) {
         if (!npc.isSpawned()) return null;
         
+        // Get the location of the NPC
+        Location location = npc.getEntity().getLocation();
+        double closestDistance = Double.MAX_VALUE;
         Entity bestTarget = null;
-        double closestDistance = MAX_TARGET_RANGE;
         
-        // Always check if we already have a valid current target
-        Entity currentTarget = currentTargets.get(npc.getUniqueId());
-        if (currentTarget != null && isValidCombatTarget(npc, currentTarget) && 
-            npc.getEntity().getLocation().distance(currentTarget.getLocation()) <= MAX_TARGET_RANGE * 1.5) {
-            // Keep the current target if still valid and within an extended range
-            // This prevents target switching too frequently and improves pathfinding consistency
-            return currentTarget;
-        }
-        
-        // First, prioritize players as targets
-        if (targetsPlayers) {
-            for (Player player : npc.getEntity().getWorld().getPlayers()) {
-                // Skip invalid targets
-                if (!isValidCombatTarget(npc, player)) continue;
-                
-                double distance = npc.getEntity().getLocation().distance(player.getLocation());
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    bestTarget = player;
+        // Get all entities within range
+        for (Entity entity : location.getWorld().getNearbyEntities(location, MAX_TARGET_RANGE, MAX_TARGET_RANGE, MAX_TARGET_RANGE)) {
+            // CRITICAL FIX: Skip self-targeting - prevent NPCs from targeting themselves
+            if (entity.equals(npc.getEntity())) {
+                continue;
+            }
+            
+            // Skip non-LivingEntities
+            if (!(entity instanceof LivingEntity)) {
+                continue;
+            }
+            
+            // CRITICAL FIX: Skip players in creative mode
+            if (entity instanceof Player) {
+                Player player = (Player) entity;
+                if (player.getGameMode() == GameMode.CREATIVE || 
+                    player.getGameMode() == GameMode.SPECTATOR) {
+                    continue;
                 }
             }
-        }
-        
-        // Then check for NPC targets if no player was found or if very close
-        if ((bestTarget == null || closestDistance > 5.0) && targetsNPCs) {
-            for (NPC otherNpc : CitizensAPI.getNPCRegistry()) {
-                // Skip self and invalid targets
-                if (otherNpc.equals(npc) || !otherNpc.isSpawned() || !isValidCombatTarget(npc, otherNpc.getEntity())) 
-                    continue;
+            
+            // Skip dead entities
+            if (entity instanceof LivingEntity && ((LivingEntity) entity).getHealth() <= 0) {
+                continue;
+            }
+            
+            // Check if entity is valid target based on targeting settings
+            if (isValidCombatTarget(npc, entity)) {
+                double distance = entity.getLocation().distance(location);
                 
-                double distance = npc.getEntity().getLocation().distance(otherNpc.getEntity().getLocation());
+                // Prioritize closer targets
                 if (distance < closestDistance) {
                     closestDistance = distance;
-                    bestTarget = otherNpc.getEntity();
+                    bestTarget = entity;
                 }
             }
         }
@@ -1173,6 +1059,26 @@ public class CombatHandler {
     private void attackTarget(NPC npc, Entity target, float chargePercent) {
         if (!npc.isSpawned() || target == null || target.isDead()) return;
         
+        // CRITICAL FIX: Skip self-targeting - prevent NPCs from attacking themselves
+        if (target.equals(npc.getEntity())) {
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("NPC " + npc.getName() + " attempted to attack itself. Skipping attack.");
+            }
+            return;
+        }
+        
+        // CRITICAL FIX: Skip players in creative mode
+        if (target instanceof Player) {
+            Player player = (Player) target;
+            if (player.getGameMode() == GameMode.CREATIVE || 
+                player.getGameMode() == GameMode.SPECTATOR) {
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().info("Skipping attack on player in creative/spectator mode: " + player.getName());
+                }
+                return;
+            }
+        }
+        
         UUID npcId = npc.getUniqueId();
         NPCStats stats = getNPCStats(npcId);
         
@@ -1216,6 +1122,12 @@ public class CombatHandler {
                 // CRITICAL FIX: First check if target is an NPC, before checking if it's a Player
                 // This is important because NPCs in Citizens can also be instances of Player
                 if (CitizensAPI.getNPCRegistry().isNPC(target)) {
+                    // CRITICAL FIX: Skip self damage
+                    if (target.equals(npc.getEntity())) {
+                        plugin.getLogger().warning("NPC " + npc.getName() + " attempted to damage itself. Skipping damage application.");
+                        return;
+                    }
+                    
                     // Apply damage to the NPC
                     NPC targetNPC = CitizensAPI.getNPCRegistry().getNPC(target);
                     if (targetNPC != null && targetNPC.isSpawned()) {
@@ -1228,6 +1140,17 @@ public class CombatHandler {
                     }
                 }
                 else if (target instanceof Player) {
+                    Player playerTarget = (Player) target;
+                    
+                    // CRITICAL FIX: Skip players in creative mode
+                    if (playerTarget.getGameMode() == GameMode.CREATIVE || 
+                        playerTarget.getGameMode() == GameMode.SPECTATOR) {
+                        if (plugin.isDebugMode()) {
+                            plugin.getLogger().info("Skipping damage on player in creative/spectator mode: " + playerTarget.getName());
+                        }
+                        return;
+                    }
+                    
                     // Apply damage to player
                     plugin.getLogger().info("🔸 DAMAGE PLAYER: " + npc.getName() + 
                         " -> Player " + target.getName() + ", Damage: " + finalDamage);
@@ -1332,6 +1255,21 @@ public class CombatHandler {
             }
         }
         
+        // CRITICAL FIX: Add the arm swing animation
+        if (npc.getEntity() instanceof LivingEntity) {
+            LivingEntity living = (LivingEntity) npc.getEntity();
+            living.swingMainHand();
+            
+            // Add attack particle effects
+            world.spawnParticle(
+                org.bukkit.Particle.SWEEP_ATTACK,
+                living.getLocation().add(
+                    living.getLocation().getDirection().multiply(1).add(new Vector(0, 1.0, 0))
+                ),
+                1, 0.0, 0.0, 0.0, 0.0
+            );
+        }
+        
         // Play attack sound
         world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.0f);
     }
@@ -1340,6 +1278,14 @@ public class CombatHandler {
      * Apply damage to a player
      */
     private void applyDamageToPlayer(NPC npc, Player player, double damage, boolean isCritical) {
+        // CRITICAL FIX: Skip players in creative mode
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Skipping damage application to player in creative/spectator mode: " + player.getName());
+            }
+            return;
+        }
+        
         // Get their profile to update health properly
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
@@ -1428,6 +1374,13 @@ public class CombatHandler {
             // Critical hit effect
             if (isCritical) {
                 player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
+                player.getWorld().spawnParticle(
+                    org.bukkit.Particle.CRIT,
+                    player.getLocation().add(0, 1, 0),
+                    10, 0.5, 0.5, 0.5, 0.1
+                );
+                
+                // Add brief slowness on critical hits
                 player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 0));
             }
                 
@@ -1489,8 +1442,8 @@ public class CombatHandler {
                 targetEntity.damage(0.1);
             }
             
-            // Ensure the hurt effect is played
-            targetEntity.playEffect(org.bukkit.EntityEffect.HURT);
+            // REMOVED: No need to play hurt effect manually - the vanilla damage system handles it
+            // targetEntity.playEffect(org.bukkit.EntityEffect.HURT);
         }
         
         // Continue with our custom damage handling...
@@ -1544,14 +1497,29 @@ public class CombatHandler {
             " health to " + newHealth + "/" + targetStats.getMaxHealth() + 
             " (stored in map and metadata)");
         
-        // Visual and sound effects
-        target.getEntity().getWorld().playSound(
-            target.getEntity().getLocation(),
-            Sound.ENTITY_PLAYER_HURT,
-            0.8f, 1.0f
-        );
+        // SOUND EFFECT COOLDOWN FIX: Only play sound if no recent sound has been played
+        boolean canPlaySound = true;
+        if (target.getEntity().hasMetadata("last_hurt_sound")) {
+            long lastSoundTime = target.getEntity().getMetadata("last_hurt_sound").get(0).asLong();
+            if (System.currentTimeMillis() - lastSoundTime < 300) { // 300ms sound cooldown
+                canPlaySound = false;
+            }
+        }
         
-        // IMPROVED KNOCKBACK SYSTEM with anti-stack protection
+        if (canPlaySound) {
+            // Visual and sound effects
+            target.getEntity().getWorld().playSound(
+                target.getEntity().getLocation(),
+                Sound.ENTITY_PLAYER_HURT,
+                0.8f, 1.0f
+            );
+            
+            // Store last sound time
+            target.getEntity().setMetadata("last_hurt_sound", 
+                new FixedMetadataValue(plugin, System.currentTimeMillis()));
+        }
+        
+        // IMPROVED KNOCKBACK SYSTEM with anti-stack protection and safer vector calculations
         if (target.isSpawned() && attacker != null && attacker.isSpawned()) {
             // Check if entity already has recent knockback applied (within last 0.5 seconds)
             long currentTime = System.currentTimeMillis();
@@ -1563,30 +1531,56 @@ public class CombatHandler {
             
             // Only apply knockback if enough time has passed (500ms = 0.5 seconds)
             if (currentTime - lastKnockbackTime > 500) {
-                // Calculate knockback direction
-                Vector knockback = target.getEntity().getLocation()
-                    .subtract(attacker.getEntity().getLocation())
-                    .toVector()
-                    .normalize();
+                try {
+                    // Calculate knockback direction with safety checks
+                    Location targetLoc = target.getEntity().getLocation();
+                    Location attackerLoc = attacker.getEntity().getLocation();
                     
-                // Scale knockback based on damage but with reasonable limits
-                double knockbackStrength = Math.min(0.3, 0.1 + (finalDamage * 0.01));
-                
-                // Apply horizontal knockback with small vertical component
-                knockback.multiply(knockbackStrength);
-                knockback.setY(0.1); // Reduced vertical component to prevent excessive bouncing
-                
-                if (target.getEntity() instanceof LivingEntity) {
-                    LivingEntity living = (LivingEntity) target.getEntity();
-                    living.setVelocity(living.getVelocity().add(knockback));
-                    
-                    // Update last knockback time
-                    target.getEntity().setMetadata("last_knockback_time", 
-                        new FixedMetadataValue(plugin, currentTime));
-                    
+                    // CRITICAL FIX: Ensure locations are valid and in the same world
+                    if (targetLoc != null && attackerLoc != null && 
+                        targetLoc.getWorld() != null && 
+                        targetLoc.getWorld().equals(attackerLoc.getWorld())) {
+                        
+                        // Calculate direction vector
+                        Vector knockback = targetLoc.toVector().subtract(attackerLoc.toVector());
+                        
+                        // CRITICAL FIX: Check for zero vector (same location)
+                        if (knockback.lengthSquared() < 0.0001) {
+                            // Use a small random offset to prevent zero vector
+                            knockback = new Vector(
+                                Math.random() * 0.2 - 0.1,
+                                0.2,
+                                Math.random() * 0.2 - 0.1
+                            );
+                        } else {
+                            knockback.normalize(); // Normalize the vector
+                        }
+                        
+                        // Scale knockback based on damage but with reasonable limits
+                        double knockbackStrength = Math.min(0.3, 0.1 + (finalDamage * 0.01));
+                        
+                        // Apply horizontal knockback with small vertical component
+                        knockback.multiply(knockbackStrength);
+                        knockback.setY(0.1); // Reduced vertical component to prevent excessive bouncing
+                        
+                        if (target.getEntity() instanceof LivingEntity) {
+                            LivingEntity living = (LivingEntity) target.getEntity();
+                            living.setVelocity(living.getVelocity().add(knockback));
+                            
+                            // Update last knockback time
+                            target.getEntity().setMetadata("last_knockback_time", 
+                                new FixedMetadataValue(plugin, currentTime));
+                            
+                            if (plugin.isDebugMode()) {
+                                plugin.getLogger().info("🔴 APPLIED KNOCKBACK: " + knockback + 
+                                    " with strength " + knockbackStrength);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // Log any errors but don't crash
                     if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("🔴 APPLIED KNOCKBACK: " + knockback + 
-                            " with strength " + knockbackStrength);
+                        plugin.getLogger().warning("Failed to apply knockback: " + e.getMessage());
                     }
                 }
             } else if (plugin.isDebugMode()) {
@@ -1603,8 +1597,7 @@ public class CombatHandler {
         
         // Check if the NPC died
         if (newHealth <= 0) {
-            plugin.getLogger().info("🔴 NPC DEATH: " + target.getName() + 
-                " died from damage by " + (attacker != null ? attacker.getName() : "unknown"));
+            // Handle NPC death
             handleNPCDeath(target, attacker != null ? attacker.getEntity() : null);
         }
     }

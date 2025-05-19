@@ -3,7 +3,6 @@ package com.server.events;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.EntityEffect;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -16,7 +15,6 @@ import org.bukkit.util.Vector;
 
 import com.server.Main;
 import com.server.entities.npc.NPCManager;
-import com.server.entities.npc.NPCStats;
 import com.server.entities.npc.behaviors.CombatBehavior;
 import com.server.entities.npc.types.CombatNPC;
 import com.server.entities.npc.types.PassiveNPC;
@@ -59,7 +57,7 @@ public class NPCDamageListener implements Listener {
         if (npc.getEntity() instanceof LivingEntity) {
             LivingEntity living = (LivingEntity) npc.getEntity();
             living.damage(0.1);
-            living.playEffect(EntityEffect.HURT);
+            
         }
         
         // Let the passive NPC handle the damage with our custom system
@@ -158,7 +156,6 @@ public class NPCDamageListener implements Listener {
         // Get the actual damage amount from the player's stats
         double playerDamage = getDamageFromPlayer(player);
         
-        // Process the damage in our custom system right after the vanilla system
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             // Make sure the NPC is still valid
             if (!npc.isSpawned() || npc.getEntity() == null) return;
@@ -177,25 +174,6 @@ public class NPCDamageListener implements Listener {
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().info("Processing custom damage for NPC " + npcId + 
                         ", handler type: " + (handler != null ? handler.getClass().getSimpleName() : "null"));
-                }
-                
-                // CRITICAL FIX: If handler is null, try to create a PassiveNPC handler on-the-fly
-                if (handler == null) {
-                    plugin.getLogger().warning("No handler found for NPC " + npcId + ". Creating a PassiveNPC handler...");
-                    
-                    // Create a basic PassiveNPC handler
-                    NPCStats stats = new NPCStats();
-                    stats.setMaxHealth(50);
-                    
-                    PassiveNPC passiveNPC = new PassiveNPC(npcId, npc.getName(), stats);
-                    passiveNPC.setNPC(npc);
-                    
-                    // Register it
-                    NPCManager.getInstance().registerInteractionHandler(npcId, passiveNPC);
-                    
-                    // Use it as the handler
-                    handler = passiveNPC;
-                    plugin.getLogger().info("Created PassiveNPC handler for " + npcId);
                 }
                 
                 // Handle damage differently based on NPC type
@@ -235,10 +213,10 @@ public class NPCDamageListener implements Listener {
                 // Update nameplate
                 NPCManager.getInstance().updateNameplate(npc, health, 100.0);
                 
-                // Apply visual effects
-                if (npc.getEntity() instanceof LivingEntity) {
-                    ((LivingEntity)npc.getEntity()).playEffect(EntityEffect.HURT);
-                }
+                // REMOVED: Don't manually trigger hurt effect - vanilla system handles it
+                // if (npc.getEntity() instanceof LivingEntity) {
+                //    ((LivingEntity)npc.getEntity()).playEffect(EntityEffect.HURT);
+                // }
             }
         }, 1L); // Just 1 tick later
     }

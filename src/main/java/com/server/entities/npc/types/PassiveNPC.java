@@ -141,12 +141,27 @@ public class PassiveNPC extends BaseNPC {
         // Update the nameplate
         NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
         
-        // Play hurt sound and animation
-        npc.getEntity().getWorld().playSound(
-            npc.getEntity().getLocation(),
-            Sound.ENTITY_PLAYER_HURT,
-            0.8f, 1.0f
-        );
+        // SOUND EFFECT COOLDOWN FIX: Only play sound if no recent sound has been played
+        boolean canPlaySound = true;
+        if (npc.getEntity().hasMetadata("last_hurt_sound")) {
+            long lastSoundTime = npc.getEntity().getMetadata("last_hurt_sound").get(0).asLong();
+            if (System.currentTimeMillis() - lastSoundTime < 300) { // 300ms sound cooldown
+                canPlaySound = false;
+            }
+        }
+        
+        if (canPlaySound) {
+            // Play hurt sound and animation
+            npc.getEntity().getWorld().playSound(
+                npc.getEntity().getLocation(),
+                Sound.ENTITY_PLAYER_HURT,
+                0.8f, 1.0f
+            );
+            
+            // Store last sound time
+            npc.getEntity().setMetadata("last_hurt_sound", 
+                new FixedMetadataValue(plugin, System.currentTimeMillis()));
+        }
         
         // Display damage indicators
         if (plugin.getDamageIndicatorManager() != null) {
