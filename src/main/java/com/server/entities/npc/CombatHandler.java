@@ -611,6 +611,12 @@ public class CombatHandler {
         // Wind-up animation - prepare to attack
         world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.4f, 1.2f);
         
+        // CRITICAL FIX: Perform the actual arm swing animation
+        if (npc.getEntity() instanceof LivingEntity) {
+            LivingEntity living = (LivingEntity) npc.getEntity();
+            living.swingMainHand();
+        }
+        
         // Schedule the actual attack animation after a short delay (5 ticks = 0.25 seconds)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             try {
@@ -645,26 +651,26 @@ public class CombatHandler {
                     target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_HURT, 0.6f, 1.0f);
                 }
                 
+                // CRITICAL FIX: Add another arm swing at the moment of impact for better visual effect
+                if (npc.getEntity() instanceof LivingEntity) {
+                    LivingEntity living = (LivingEntity) npc.getEntity();
+                    living.swingMainHand();
+                }
+                
                 // Re-enable look trait
                 if (lookTrait != null && wasLooking && npc.isSpawned()) {
                     lookTrait.toggle();
                 }
                 
-                // Complete the animation and apply damage IMMEDIATELY rather than waiting
+                // Complete the animation and apply damage
                 if (onAnimationComplete != null) {
                     onAnimationComplete.run();
                 }
-                
-                // Re-enable look trait AFTER damage is applied
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (lookTrait != null && wasLooking && npc.isSpawned()) {
-                        lookTrait.toggle();
-                    }
-                }, 3L);
             } catch (Exception e) {
                 // Catch any errors to prevent crashes
                 if (plugin.isDebugMode()) {
                     plugin.getLogger().warning("Error in attack animation: " + e.getMessage());
+                    e.printStackTrace();
                 }
                 
                 // Still run the completion callback even if there's an error
@@ -1332,6 +1338,12 @@ public class CombatHandler {
             }
         }
         
+        // CRITICAL FIX: Add the actual arm swing animation
+        if (npc.getEntity() instanceof LivingEntity) {
+            LivingEntity living = (LivingEntity) npc.getEntity();
+            living.swingMainHand();
+        }
+        
         // Play attack sound
         world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.0f);
     }
@@ -1400,8 +1412,12 @@ public class CombatHandler {
         }
         
         try {
-            // Apply damage directly without any health-based restrictions
-            player.damage(0.1, npc.getEntity()); // Minimal direct damage for attribution and hit effects
+            // CRITICAL FIX: Store original damage value for the damage indicator system
+            // This will override the 0.1 that we're using for the vanilla hit effect
+            player.setMetadata("npc_true_damage", new FixedMetadataValue(plugin, finalDamage));
+            
+            // Apply minimal vanilla damage for hit animation and effects
+            player.damage(0.1, npc.getEntity()); // This triggers vanilla hit effects
             
             // Calculate new health directly
             double newHealth = Math.max(0.0, currentHealth - finalDamage);
@@ -1431,6 +1447,15 @@ public class CombatHandler {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 0));
             }
                 
+            // CRITICAL FIX: Manually spawn damage indicator with correct damage value
+            if (plugin.getDamageIndicatorManager() != null) {
+                plugin.getDamageIndicatorManager().spawnDamageIndicator(
+                    player.getLocation().add(0, 1, 0),
+                    (int)Math.round(finalDamage),
+                    isCritical
+                );
+            }
+            
             // Debug log
             if (plugin.isDebugMode()) {
                 plugin.getLogger().info("NPC " + npc.getName() + " -> Player " + player.getName() + 

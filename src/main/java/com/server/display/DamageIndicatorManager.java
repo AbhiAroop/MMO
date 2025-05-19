@@ -18,6 +18,8 @@ import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
+import net.citizensnpcs.api.CitizensAPI;
+
 public class DamageIndicatorManager implements Listener {
     private final Main plugin;
 
@@ -34,6 +36,23 @@ public class DamageIndicatorManager implements Listener {
         if (!(event.getEntity() instanceof LivingEntity)) return;
         
         LivingEntity entity = (LivingEntity) event.getEntity();
+        
+        // CRITICAL FIX: Check if this is damage from an NPC with a custom damage amount
+        if (entity instanceof Player && entity.hasMetadata("npc_true_damage") && 
+                event instanceof EntityDamageByEntityEvent &&
+                CitizensAPI.getNPCRegistry().isNPC(((EntityDamageByEntityEvent) event).getDamager())) {
+            
+            // Use the true damage value from metadata instead of the event damage
+            double trueDamage = entity.getMetadata("npc_true_damage").get(0).asDouble();
+            
+            // Remove the metadata to prevent it from being used again
+            entity.removeMetadata("npc_true_damage", plugin);
+            
+            // Don't create a regular damage indicator since we'll create a custom one
+            return;
+        }
+        
+        // Normal damage handling continues for non-NPC damage...
         double damage = event.getFinalDamage();
         
         // Get damage type symbol and color
