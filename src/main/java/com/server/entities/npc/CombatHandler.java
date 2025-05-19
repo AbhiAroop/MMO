@@ -517,8 +517,6 @@ public class CombatHandler {
         LookClose lookTrait = npc.getTraitNullable(LookClose.class);
         final boolean wasLooking = lookTrait != null ? lookTrait.toggle() : false;
         
-        // Wind-up animation - prepare to attack
-        world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.4f, 1.2f);
         
         // CRITICAL FIX: Perform the arm swing animation
         if (npc.getEntity() instanceof LivingEntity) {
@@ -543,9 +541,6 @@ public class CombatHandler {
                     return;
                 }
                 
-                // Play stronger attack sounds
-                world.playSound(npc.getEntity().getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 0.9f);
-                
                 // Check if target is still valid
                 if (target.isValid() && !target.isDead()) {
                     // Add multiple attack particles for more visual impact
@@ -565,8 +560,6 @@ public class CombatHandler {
                         10, 0.3, 0.3, 0.3, 0.1
                     );
                     
-                    // Impact animation
-                    target.getWorld().playSound(target.getLocation(), Sound.ENTITY_PLAYER_HURT, 0.6f, 1.0f);
                 }
                 
                 // CRITICAL FIX: Perform another arm swing at impact moment
@@ -1504,19 +1497,6 @@ public class CombatHandler {
             if (System.currentTimeMillis() - lastSoundTime < 300) { // 300ms sound cooldown
                 canPlaySound = false;
             }
-        }
-        
-        if (canPlaySound) {
-            // Visual and sound effects
-            target.getEntity().getWorld().playSound(
-                target.getEntity().getLocation(),
-                Sound.ENTITY_PLAYER_HURT,
-                0.8f, 1.0f
-            );
-            
-            // Store last sound time
-            target.getEntity().setMetadata("last_hurt_sound", 
-                new FixedMetadataValue(plugin, System.currentTimeMillis()));
         }
         
         // IMPROVED KNOCKBACK SYSTEM with anti-stack protection and safer vector calculations
