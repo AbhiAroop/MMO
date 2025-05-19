@@ -88,9 +88,8 @@ public class NPCDamageListener implements Listener {
     public void onNPCDamage(EntityDamageByEntityEvent event) {
         // Print debug information
         if (plugin.isDebugMode()) {
-            plugin.getLogger().info("EntityDamageByEntityEvent: Entity=" + event.getEntity().getType() + 
-                                ", Damager=" + event.getDamager().getType() +
-                                ", Damage=" + event.getDamage());
+            plugin.getLogger().info("Entity damaged: " + event.getEntity().getName() + 
+                                " by " + event.getDamager().getName());
         }
 
         Entity target = event.getEntity();
@@ -103,6 +102,14 @@ public class NPCDamageListener implements Listener {
         // Get the NPC
         NPC npc = CitizensAPI.getNPCRegistry().getNPC(target);
         if (npc == null) {
+            return;
+        }
+        
+        // CRITICAL FIX: Check for invulnerable NPCs
+        if (npc.getEntity().hasMetadata("invulnerable") || npc.getEntity().isInvulnerable()) {
+            // Cancel damage for invulnerable NPCs like dialogue NPCs
+            event.setCancelled(true);
+            plugin.getLogger().info("Cancelled damage to invulnerable NPC: " + npc.getName());
             return;
         }
         

@@ -22,6 +22,7 @@ com\server\profiles\skills\abilities\SkillAbility.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
+com\server\entities\npc\story\KaelenEchobound.class
 com\server\profiles\skills\abilities\active\ActiveAbility.class
 com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
@@ -75,6 +76,7 @@ com\server\profiles\PlayerProfile.class
 com\server\entities\npc\CombatHandler$3$1.class
 com\server\profiles\skills\events\MiningListener.class
 com\server\profiles\skills\trees\PlayerSkillTreeData.class
+com\server\entities\npc\story\dialogue\StoryDialogues.class
 com\server\entities\npc\NPCFactory.class
 com\server\profiles\skills\trees\SkillTree.class
 com\server\profiles\skills\skills\fishing\FishingSkill.class
@@ -155,6 +157,7 @@ com\server\commands\AdminStatsCommand.class
 com\server\items\ItemManager.class
 com\server\profiles\skills\gui\SkillsGUI.class
 com\server\entities\MobType.class
+com\server\entities\npc\story\KaelenEchobound$1.class
 com\server\commands\GemCarvingToolCommand.class
 com\server\profiles\skills\abilities\gui\AbilitiesGUI.class
 com\server\commands\MenuCommand.class
@@ -197,6 +200,7 @@ com\server\profiles\skills\gui\SubskillsGUI.class
 com\server\entities\npc\NPCInteractionHandler.class
 com\server\profiles\skills\minigames\GemCarvingMinigame.class
 com\server\entities\npc\CombatHandler$3.class
+com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility$1.class
 com\server\events\PlayerListener$1.class

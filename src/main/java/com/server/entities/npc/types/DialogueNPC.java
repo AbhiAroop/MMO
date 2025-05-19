@@ -2,7 +2,9 @@ package com.server.entities.npc.types;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.FixedMetadataValue;
 
+import com.server.Main;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
 
@@ -35,6 +37,16 @@ public class DialogueNPC extends BaseNPC {
         this.npc = NPCManager.getInstance().createNPC(id, name, location, skin, true);
         applyBaseMetadata();
         
+        // CRITICAL FIX: Make dialogue NPCs invulnerable
+        if (npc.isSpawned()) {
+            npc.getEntity().setInvulnerable(true);
+            npc.getEntity().setMetadata("invulnerable", new FixedMetadataValue(Main.getInstance(), true));
+            npc.getEntity().setMetadata("dialogue_npc", new FixedMetadataValue(Main.getInstance(), true));
+            
+            // Set NPC metadata for better targeting prevention
+            npc.data().setPersistent(NPC.Metadata.DEFAULT_PROTECTED, true);
+        }
+        
         // Create custom nameplate
         NPCManager.getInstance().createHologramNameplate(npc, name, stats.getMaxHealth(), stats.getMaxHealth());
         
@@ -43,12 +55,17 @@ public class DialogueNPC extends BaseNPC {
     
     @Override
     public void onInteract(Player player, NPC npc, boolean rightClick) {
-        if (rightClick) {
-            // Start dialogue on right-click
-            startDialogue(player, dialogueId);
-        } else {
-            // Just a greeting on left-click
-            sendMessage(player, "Hello there! Right-click to talk to me.");
+        // CRITICAL FIX: Add debug logging to track interactions
+        Main.getInstance().getLogger().info("DialogueNPC interaction: " + name + " with " + player.getName() + 
+                                        " - right click: " + rightClick);
+        
+        // CRITICAL FIX: Always initiate dialogue on interact, regardless of click type
+        // This ensures more reliable dialogue triggering
+        startDialogue(player, dialogueId);
+        
+        // Also send a message for left clicks as a fallback
+        if (!rightClick) {
+            sendMessage(player, "Hello there! I'm " + name + ".");
         }
     }
     

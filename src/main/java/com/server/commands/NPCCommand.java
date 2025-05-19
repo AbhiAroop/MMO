@@ -3,6 +3,7 @@ package com.server.commands;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.bukkit.ChatColor;
@@ -19,6 +20,8 @@ import com.server.Main;
 import com.server.entities.npc.NPCFactory;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
+import com.server.entities.npc.dialogue.DialogueManager;
+import com.server.entities.npc.story.StoryNPCRegistry;
 import com.server.entities.npc.types.CombatNPC;
 import com.server.entities.npc.types.DialogueNPC;
 import com.server.entities.npc.types.HostileNPC;
@@ -77,6 +80,8 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             return handleList(player, args);
         } else if (subCommand.equals("equip")) {
             return handleEquip(player, args);
+        } else if (subCommand.equals("story")) {
+            return handleStory(player, args);
         } else {
             sendHelp(player);
             return true;
@@ -183,8 +188,45 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
      * Handle the 'dialogue' subcommand - used by dialogue click events
      */
     private boolean handleDialogue(Player player, String[] args) {
-        // This is handled in the DialogueManager, just a placeholder for tab completion
-        return true;
+        // This should handle dialogue responses from players clicking dialogue options
+        if (args.length < 3) {
+            // Not enough arguments for dialogue command
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Invalid dialogue command format. Expected: /mmonpc dialogue <playerUUID> <responseIndex>");
+            }
+            return true;
+        }
+        
+        try {
+            // Parse player UUID and response index
+            UUID playerUUID = UUID.fromString(args[1]);
+            int responseIndex = Integer.parseInt(args[2]);
+            
+            // Verify this player is the one who issued the command
+            if (!player.getUniqueId().equals(playerUUID)) {
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().warning("Player " + player.getName() + " attempted to respond to dialogue for " + 
+                                            playerUUID + " but UUIDs don't match");
+                }
+                return true;
+            }
+            
+            // Forward the response to the DialogueManager
+            DialogueManager.getInstance().handleResponse(player, responseIndex);
+            
+            // Debug logging
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Player " + player.getName() + " selected dialogue response " + responseIndex);
+            }
+            
+            return true;
+        } catch (IllegalArgumentException e) {
+            // Invalid UUID or response index
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Error parsing dialogue command: " + e.getMessage());
+            }
+            return true;
+        }
     }
     
     /**
@@ -221,9 +263,11 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/mmonpc removeall [radius]" + ChatColor.WHITE + " - Remove all NPCs or those within a radius");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc list" + ChatColor.WHITE + " - List all NPCs");
         player.sendMessage(ChatColor.YELLOW + "/mmonpc equip <id> <slot> <item>" + ChatColor.WHITE + " - Equip an NPC");
+        player.sendMessage(ChatColor.YELLOW + "/mmonpc story <id> [skin]" + ChatColor.WHITE + " - Spawn a story NPC");
         player.sendMessage(ChatColor.GREEN + "===================");
         player.sendMessage(ChatColor.YELLOW + "Available NPC types: talk, passive, combat, hostile");
         player.sendMessage(ChatColor.YELLOW + "Available equipment slots: mainhand, offhand, helmet, chestplate, leggings, boots");
+        player.sendMessage(ChatColor.YELLOW + "Available story NPCs: kaelen_echobound");
     }
     
     @Override
@@ -273,6 +317,17 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
                 for (String radius : radii) {
                     if (radius.startsWith(input)) {
                         completions.add(radius);
+                    }
+                }
+            }
+            else if (args[0].equalsIgnoreCase("story")) {
+                // Story NPC IDs
+                List<String> storyNpcs = Arrays.asList("kaelen_echobound");
+                String input = args[1].toLowerCase();
+                
+                for (String npc : storyNpcs) {
+                    if (npc.startsWith(input)) {
+                        completions.add(npc);
                     }
                 }
             }
@@ -359,6 +414,35 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             }
             
             player.sendMessage(ChatColor.GREEN + "Removed all NPCs (" + count + ").");
+        }
+        
+        return true;
+    }
+
+    /**
+     * Handle the 'story' subcommand - spawns a story NPC
+     */
+    private boolean handleStory(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "Usage: /mmonpc story <id> [skin]");
+            player.sendMessage(ChatColor.YELLOW + "Available story NPCs: kaelen_echobound");
+            return true;
+        }
+        
+        String id = args[1].toLowerCase();
+        String skin = args.length > 2 ? args[2] : null;
+        
+        // Get the story NPC registry
+        StoryNPCRegistry storyRegistry = StoryNPCRegistry.getInstance();
+        
+        // Attempt to spawn the story NPC
+        boolean success = storyRegistry.spawnStoryNPC(id, player.getLocation(), skin);
+        
+        if (success) {
+            player.sendMessage(ChatColor.GREEN + "Spawned story NPC: " + id);
+        } else {
+            player.sendMessage(ChatColor.RED + "Failed to spawn story NPC: " + id);
+            player.sendMessage(ChatColor.YELLOW + "Available story NPCs: kaelen_echobound");
         }
         
         return true;

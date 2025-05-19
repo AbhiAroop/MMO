@@ -150,12 +150,23 @@ public class DialogueManager {
         DialogueState state = playerDialogues.get(playerId);
         
         if (state == null) {
-            return; // No active dialogue
+            // No active dialogue
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Player " + player.getName() + 
+                                        " tried to select dialogue response but has no active dialogue");
+            }
+            return;
         }
         
         DialogueNode dialogue = state.getCurrentDialogue();
         if (!dialogue.hasResponses() || responseIndex < 0 || responseIndex >= dialogue.getResponses().size()) {
-            return; // Invalid response index
+            // Invalid response index
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Invalid dialogue response index " + responseIndex + 
+                                        " for player " + player.getName() + ". Available responses: " + 
+                                        dialogue.getResponses().size());
+            }
+            return;
         }
         
         // Get the selected response
@@ -170,6 +181,10 @@ public class DialogueManager {
         String nextNodeId = response.getNextNodeId();
         if (nextNodeId == null || nextNodeId.isEmpty() || !dialogues.containsKey(nextNodeId)) {
             // End the dialogue if there's no next node
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().info("Ending dialogue for player " + player.getName() + 
+                                    " - no next dialogue node defined for response: " + response.getText());
+            }
             endDialogue(playerId);
             return;
         }

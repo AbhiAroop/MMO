@@ -191,6 +191,12 @@ public class NPCManager {
      * @param rightClick Whether this was a right click interaction
      */
     public void handleInteraction(Player player, NPC npc, boolean rightClick) {
+        // CRITICAL FIX: Add debug logging to track NPC interactions
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("NPC interaction: " + npc.getName() + " with " + player.getName() + 
+                                " - right click: " + rightClick);
+        }
+        
         // Find the NPC ID by UUID
         String npcId = null;
         for (Map.Entry<String, NPC> entry : npcById.entrySet()) {
@@ -203,7 +209,23 @@ public class NPCManager {
         if (npcId != null) {
             NPCInteractionHandler handler = interactionHandlers.get(npcId);
             if (handler != null) {
-                handler.onInteract(player, npc, rightClick);
+                // CRITICAL FIX: Wrap in try-catch to prevent interactions from breaking
+                try {
+                    handler.onInteract(player, npc, rightClick);
+                } catch (Exception e) {
+                    plugin.getLogger().severe("Error handling NPC interaction: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            } else {
+                // CRITICAL FIX: Log when handler is missing
+                if (plugin.isDebugMode()) {
+                    plugin.getLogger().warning("No interaction handler found for NPC: " + npcId);
+                }
+            }
+        } else {
+            // CRITICAL FIX: Log when NPC ID is not found
+            if (plugin.isDebugMode()) {
+                plugin.getLogger().warning("Could not find NPC ID for UUID: " + npc.getUniqueId());
             }
         }
     }
