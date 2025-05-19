@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.EntityEffect;
+import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -16,7 +18,6 @@ import org.bukkit.util.Vector;
 
 import com.server.Main;
 import com.server.entities.npc.NPCManager;
-import com.server.entities.npc.NPCStats;
 import com.server.entities.npc.behaviors.CombatBehavior;
 import com.server.entities.npc.types.CombatNPC;
 import com.server.entities.npc.types.PassiveNPC;
@@ -158,6 +159,34 @@ public class NPCDamageListener implements Listener {
         // Get the actual damage amount from the player's stats
         double playerDamage = getDamageFromPlayer(player);
         
+        // CRITICAL FIX: Apply attack charge scaling to damage
+        float attackCharge = player.getAttackCooldown();
+        
+        // Apply the same damage scaling formula as in CombatListener
+        double scaledDamage;
+        if (attackCharge <= 0.01) {
+            scaledDamage = Math.max(0.5, playerDamage * 0.01); // Minimum 0.5 damage or 1% of full damage
+        } else {
+            scaledDamage = Math.max(0.5, playerDamage * attackCharge); // Scale with attack charge
+        }
+        
+        // Apply critical hit if applicable (same conditions as CombatListener)
+        boolean isCritical = attackCharge >= 0.9f && !player.isOnGround() && player.getFallDistance() > 0.0f;
+        if (isCritical) {
+            scaledDamage *= 2.0; // Apply critical hit multiplier
+        }
+        
+        // Debug logging
+        if (plugin.isDebugMode()) {
+            plugin.getLogger().info("Player " + player.getName() + " attacking NPC with charge: " + 
+                attackCharge + ", base damage: " + playerDamage + 
+                ", scaled damage: " + scaledDamage + ", critical: " + isCritical);
+        }
+        
+        // Use this scaled damage in the following code
+        final double finalPlayerDamage = scaledDamage;
+        final boolean finalIsCritical = isCritical;
+        
         // Process the damage in our custom system right after the vanilla system
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             // Make sure the NPC is still valid
@@ -179,42 +208,28 @@ public class NPCDamageListener implements Listener {
                         ", handler type: " + (handler != null ? handler.getClass().getSimpleName() : "null"));
                 }
                 
-                // CRITICAL FIX: If handler is null, try to create a PassiveNPC handler on-the-fly
-                if (handler == null) {
-                    plugin.getLogger().warning("No handler found for NPC " + npcId + ". Creating a PassiveNPC handler...");
-                    
-                    // Create a basic PassiveNPC handler
-                    NPCStats stats = new NPCStats();
-                    stats.setMaxHealth(50);
-                    
-                    PassiveNPC passiveNPC = new PassiveNPC(npcId, npc.getName(), stats);
-                    passiveNPC.setNPC(npc);
-                    
-                    // Register it
-                    NPCManager.getInstance().registerInteractionHandler(npcId, passiveNPC);
-                    
-                    // Use it as the handler
-                    handler = passiveNPC;
-                    plugin.getLogger().info("Created PassiveNPC handler for " + npcId);
-                }
-                
                 // Handle damage differently based on NPC type
                 if (handler instanceof PassiveNPC) {
                     PassiveNPC passiveNPC = (PassiveNPC) handler;
-                    processDamageForPassiveNPC(passiveNPC, player, playerDamage);
+                    processDamageForPassiveNPC(passiveNPC, player, finalPlayerDamage);
                 } 
                 else if (handler instanceof CombatNPC) {
                     CombatNPC combatNPC = (CombatNPC) handler;
                     CombatBehavior combatBehavior = (CombatBehavior) combatNPC.getBehavior("combat");
                     
                     if (combatBehavior != null) {
-                        combatBehavior.onDamage(player, playerDamage);
+                        combatBehavior.onDamage(player, finalPlayerDamage);
                     } else {
-                        combatNPC.onDamage(player, playerDamage);
+                        combatNPC.onDamage(player, finalPlayerDamage);
                     }
                     
                     // Apply knockback
                     applyKnockback(npc.getEntity(), player, 0.3);
+                    
+                    // Add critical hit visual effects
+                    if (finalIsCritical) {
+                        addCriticalHitEffects(npc.getEntity().getLocation());
+                    }
                 }
             } else {
                 // If no NPC ID found, apply generic damage
@@ -228,19 +243,29 @@ public class NPCDamageListener implements Listener {
                 }
                 
                 // Apply damage
-                health = Math.max(0, health - playerDamage);
+                health = Math.max(0, health - finalPlayerDamage);
                 npc.getEntity().setMetadata("current_health", 
                     new FixedMetadataValue(plugin, health));
                 
                 // Update nameplate
                 NPCManager.getInstance().updateNameplate(npc, health, 100.0);
-                
-                // Apply visual effects
-                if (npc.getEntity() instanceof LivingEntity) {
-                    ((LivingEntity)npc.getEntity()).playEffect(EntityEffect.HURT);
-                }
             }
         }, 1L); // Just 1 tick later
+    }
+
+    // Add this new helper method for critical hit effects
+    private void addCriticalHitEffects(Location location) {
+        location.getWorld().playSound(
+            location,
+            Sound.ENTITY_PLAYER_ATTACK_CRIT,
+            1.0f, 1.0f
+        );
+        
+        location.getWorld().spawnParticle(
+            org.bukkit.Particle.CRIT,
+            location.add(0, 1, 0),
+            10, 0.5, 0.5, 0.5, 0.1
+        );
     }
 
     
