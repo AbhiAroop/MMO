@@ -15,6 +15,7 @@ import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
@@ -279,8 +280,8 @@ public class AdminSkillsCommand implements TabExecutor {
                 for (SkillReward reward : rewards) {
                     reward.grantTo(player);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Applied reward for " + player.getName() + " from " + 
+                    if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                        plugin.debugLog(DebugSystem.SKILLS,"Applied reward for " + player.getName() + " from " + 
                             skill.getDisplayName() + " level " + level + ": " + reward.getClass().getSimpleName());
                     }
                 }
@@ -295,8 +296,8 @@ public class AdminSkillsCommand implements TabExecutor {
                 SkillLevelUpEvent event = new SkillLevelUpEvent(player, skill, level);
                 plugin.getServer().getPluginManager().callEvent(event);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Fired level up event for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                    plugin.debugLog(DebugSystem.SKILLS,"Fired level up event for " + player.getName() + 
                         " reaching " + skill.getDisplayName() + " level " + level);
                 }
             }
@@ -307,8 +308,8 @@ public class AdminSkillsCommand implements TabExecutor {
         } else {
             // FIX: When setting to the same level, don't fire any level up events
             // This prevents duplicate tokens when setting a skill to the level it already has
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Skill level unchanged for " + player.getName() + "'s " + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Skill level unchanged for " + player.getName() + "'s " + 
                     skill.getDisplayName() + " - staying at level " + newLevel);
             }
         }
@@ -336,8 +337,8 @@ public class AdminSkillsCommand implements TabExecutor {
             // Apply the changes to the player
             stats.applyToPlayer(player);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Applied mining fortune +" + String.format("%.2f", fortuneBonus) + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Applied mining fortune +" + String.format("%.2f", fortuneBonus) + 
                     " to " + player.getName() + " from " + skill.getDisplayName() + " level " + newLevel);
             }
         }
@@ -430,8 +431,8 @@ public class AdminSkillsCommand implements TabExecutor {
                         int newTokenCount = Math.max(0, currentTokens - tokensToRemove);
                         treeData.setTokenCount(skill.getId(), newTokenCount);
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Reset " + tokensToRemove + " tokens for " + 
+                        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                            plugin.debugLog(DebugSystem.SKILLS,"Reset " + tokensToRemove + " tokens for " + 
                                 target.getName() + "'s " + skill.getDisplayName() + " skill");
                         }
                     }
@@ -860,8 +861,8 @@ public class AdminSkillsCommand implements TabExecutor {
             // Apply the changes to the player
             stats.applyToPlayer(player);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Applied mining fortune +" + String.format("%.2f", fortuneBonus) + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Applied mining fortune +" + String.format("%.2f", fortuneBonus) + 
                     " to " + player.getName() + " from " + skill.getDisplayName() + " level " + level);
             }
         }
@@ -873,8 +874,8 @@ public class AdminSkillsCommand implements TabExecutor {
                 // Fixed: Actually call the grantTo method
                 reward.grantTo(player);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied reward for " + player.getName() + " from " + 
+                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                    plugin.debugLog(DebugSystem.SKILLS,"Applied reward for " + player.getName() + " from " + 
                         skill.getDisplayName() + " level " + level + ": " + reward.getClass().getSimpleName());
                 }
             }

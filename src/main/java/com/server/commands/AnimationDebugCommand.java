@@ -15,6 +15,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.mobs.CustomMob;
 import com.server.entities.mobs.colossus.RunemarkColossus;
 
@@ -200,8 +201,8 @@ public class AnimationDebugCommand implements CommandExecutor {
      * Diagnose entity animations and output information
      */
     private void diagnoseEntityAnimations(LivingEntity entity, Player player) {
-        plugin.getLogger().info("=== Animation Diagnosis for Entity " + entity.getUniqueId() + " ===");
-        plugin.getLogger().info("Entity Type: " + entity.getType());
+        plugin.debugLog(DebugSystem.ANIMATION,"=== Animation Diagnosis for Entity " + entity.getUniqueId() + " ===");
+        plugin.debugLog(DebugSystem.ANIMATION,"Entity Type: " + entity.getType());
         
         // Check metadata to identify mob type
         StringBuilder metadataInfo = new StringBuilder("Metadata: ");
@@ -210,18 +211,18 @@ public class AnimationDebugCommand implements CommandExecutor {
                 metadataInfo.append(key).append("=true ");
             }
         }
-        plugin.getLogger().info(metadataInfo.toString());
+        plugin.debugLog(DebugSystem.ANIMATION,metadataInfo.toString());
         
         // Attempt to play core animations and log results
         String[] coreAnimations = {"idle", "walk", "hurt", "attack", "attack1", "attack2", "debast", "special2", "death"};
-        plugin.getLogger().info("Testing core animations...");
+        plugin.debugLog(DebugSystem.ANIMATION,"Testing core animations...");
         
         for (String anim : coreAnimations) {
             try {
                 plugin.getCustomEntityManager().playAnimation(entity, anim);
-                plugin.getLogger().info("Animation '" + anim + "': Attempt made (check if visible in-game)");
+                plugin.debugLog(DebugSystem.ANIMATION,"Animation '" + anim + "': Attempt made (check if visible in-game)");
             } catch (Exception e) {
-                plugin.getLogger().warning("Animation '" + anim + "': Failed - " + e.getMessage());
+                plugin.debugLog(DebugSystem.ANIMATION,"Animation '" + anim + "': Failed - " + e.getMessage());
             }
         }
         
@@ -269,7 +270,7 @@ public class AnimationDebugCommand implements CommandExecutor {
                 plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
                 
                 // Log for debugging
-                plugin.getLogger().info("Auto-playing attack1 animation on Runemark Colossus: " + entityId);
+                plugin.debugLog(DebugSystem.ANIMATION,"Auto-playing attack1 animation on Runemark Colossus: " + entityId);
             }
         }.runTaskTimer(plugin, 0L, 40L); // Every 2 seconds (40 ticks)
         
@@ -349,7 +350,7 @@ public class AnimationDebugCommand implements CommandExecutor {
                 plugin.getCustomEntityManager().playAnimation(colossusEntity, "attack1");
                 
                 // Log for debugging
-                plugin.getLogger().info("Auto-playing attack1 animation on " + getColossusDisplayName(metadataKey) + ": " + entityId);
+                plugin.debugLog(DebugSystem.ANIMATION,"Auto-playing attack1 animation on " + getColossusDisplayName(metadataKey) + ": " + entityId);
             }
         }.runTaskTimer(plugin, 0L, 40L); // Every 2 seconds (40 ticks)
         

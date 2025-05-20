@@ -21,6 +21,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -119,8 +120,8 @@ public class StatScanManager {
                     // Scan and update stats
                     scanAndUpdatePlayerStats(player);
                     
-                    if (plugin.isDebugMode() && itemChanged) {
-                        plugin.getLogger().info("Item in hand changed for " + player.getName() + ", updating stats");
+                    if (plugin.isDebugEnabled(DebugSystem.STATS) && itemChanged) {
+                        plugin.debugLog(DebugSystem.STATS,"Item in hand changed for " + player.getName() + ", updating stats");
                     }
                 }
             }
@@ -129,8 +130,8 @@ public class StatScanManager {
         // Store the task reference
         playerScanTasks.put(player.getUniqueId(), task);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Started stat scanning for " + player.getName());
+        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+            plugin.debugLog(DebugSystem.STATS,"Started stat scanning for " + player.getName());
         }
     }
 
@@ -241,8 +242,8 @@ public class StatScanManager {
             lastHeldItemBonuses.remove(player.getUniqueId());
             player.removeMetadata("last_known_armor", plugin); // Clean up armor metadata
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Stopped stat scanning for " + player.getName());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Stopped stat scanning for " + player.getName());
             }
         }
     }
@@ -261,8 +262,8 @@ public class StatScanManager {
                     // Ensure current health is saved before resetting attributes
                     profile.getStats().setCurrentHealth(player.getHealth());
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Saved " + player.getName() + "'s health (" + player.getHealth() + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Saved " + player.getName() + "'s health (" + player.getHealth() + 
                                     ") before attribute reset");
                     }
                 }
@@ -293,8 +294,8 @@ public class StatScanManager {
             
             // Reset other attributes
         } catch (Exception e) {
-            plugin.getLogger().warning("Error resetting attributes: " + e.getMessage());
-            if (plugin.isDebugMode()) {
+            plugin.debugLog(DebugSystem.STATS,"Error resetting attributes: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 e.printStackTrace();
             }
         }
@@ -341,12 +342,12 @@ public class StatScanManager {
             applyAttributesToPlayer(player, stats);
             
             // Debug output
-            if (plugin.isDebugMode()) {
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 logBonuses(player, bonuses);
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error scanning and updating player stats: " + e.getMessage());
-            if (plugin.isDebugMode()) {
+            plugin.debugLog(DebugSystem.STATS,"Error scanning and updating player stats: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 e.printStackTrace();
             }
         }
@@ -360,8 +361,8 @@ public class StatScanManager {
         PlayerInventory inventory = player.getInventory();
         
         // Process armor pieces first
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Scanning equipment for " + player.getName() + ":");
+        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+            plugin.debugLog(DebugSystem.STATS,"Scanning equipment for " + player.getName() + ":");
         }
 
         // Process main hand item ONLY if it's a weapon, not if it's armor or something else that double-processes
@@ -377,17 +378,17 @@ public class StatScanManager {
                     String itemName = mainHandItem.hasItemMeta() && mainHandItem.getItemMeta().hasDisplayName() ? 
                                 mainHandItem.getItemMeta().getDisplayName() : mainHandItem.getType().toString();
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("  Processing main hand: " + itemName);
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"  Processing main hand: " + itemName);
                     }
                     
                     extractStatsFromItem(mainHandItem, bonuses);
-                } else if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("  Skipping non-weapon item in main hand: " + 
+                } else if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"  Skipping non-weapon item in main hand: " + 
                                         mainHandItem.getType().toString());
                 }
-            } else if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Skipping armor item in main hand: " + 
+            } else if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"  Skipping armor item in main hand: " + 
                                     mainHandItem.getType().toString());
             }
         }
@@ -403,8 +404,8 @@ public class StatScanManager {
             String itemName = helmet.hasItemMeta() && helmet.getItemMeta().hasDisplayName() ? 
                             helmet.getItemMeta().getDisplayName() : helmet.getType().toString();
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Processing helmet: " + itemName);
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"  Processing helmet: " + itemName);
             }
             
             extractStatsFromItem(helmet, bonuses);
@@ -414,8 +415,8 @@ public class StatScanManager {
             String itemName = chestplate.hasItemMeta() && chestplate.getItemMeta().hasDisplayName() ? 
                             chestplate.getItemMeta().getDisplayName() : chestplate.getType().toString();
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Processing chestplate: " + itemName);
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"  Processing chestplate: " + itemName);
             }
             
             extractStatsFromItem(chestplate, bonuses);
@@ -425,8 +426,8 @@ public class StatScanManager {
             String itemName = leggings.hasItemMeta() && leggings.getItemMeta().hasDisplayName() ? 
                             leggings.getItemMeta().getDisplayName() : leggings.getType().toString();
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Processing leggings: " + itemName);
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"  Processing leggings: " + itemName);
             }
             
             extractStatsFromItem(leggings, bonuses);
@@ -436,8 +437,8 @@ public class StatScanManager {
             String itemName = boots.hasItemMeta() && boots.getItemMeta().hasDisplayName() ? 
                             boots.getItemMeta().getDisplayName() : boots.getType().toString();
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("  Processing boots: " + itemName);
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"  Processing boots: " + itemName);
             }
             
             extractStatsFromItem(boots, bonuses);
@@ -523,7 +524,7 @@ public class StatScanManager {
             String cleanLine = stripColorCodes(loreLine);
             
             // Debug log for understanding what's being processed
-            if (plugin.isDebugMode()) {
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 if (cleanLine.contains("Health:") || 
                     cleanLine.contains("Armor:") || 
                     cleanLine.contains("Magic Resist:") ||
@@ -533,7 +534,7 @@ public class StatScanManager {
                     cleanLine.contains("Size:") ||
                     cleanLine.contains("Lifesteal:")||
                     cleanLine.contains("Omnivamp:")) {
-                    plugin.getLogger().info("Processing stat line: " + cleanLine);
+                    plugin.debugLog(DebugSystem.STATS,"Processing stat line: " + cleanLine);
                 }
             }
             
@@ -541,37 +542,37 @@ public class StatScanManager {
             int healthBonus = extractIntStat(cleanLine, HEALTH_PATTERN);
             if (healthBonus > 0) {
                 bonuses.health += healthBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added health: " + healthBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added health: " + healthBonus);
             }
             
             int armorBonus = extractIntStat(cleanLine, ARMOR_PATTERN);
             if (armorBonus > 0) {
                 bonuses.armor += armorBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added armor: " + armorBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added armor: " + armorBonus);
             }
             
             int mrBonus = extractIntStat(cleanLine, MAGIC_RESIST_PATTERN);
             if (mrBonus > 0) {
                 bonuses.magicResist += mrBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added magic resist: " + mrBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added magic resist: " + mrBonus);
             }
             
             int pdBonus = extractIntStat(cleanLine, PHYSICAL_DAMAGE_PATTERN);
             if (pdBonus > 0) {
                 bonuses.physicalDamage += pdBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added physical damage: " + pdBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added physical damage: " + pdBonus);
             }
             
             int mdBonus = extractIntStat(cleanLine, MAGIC_DAMAGE_PATTERN);
             if (mdBonus > 0) {
                 bonuses.magicDamage += mdBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added magic damage: " + mdBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added magic damage: " + mdBonus);
             }
             
             int manaBonus = extractIntStat(cleanLine, MANA_PATTERN);
             if (manaBonus > 0) {
                 bonuses.mana += manaBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added mana: " + manaBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added mana: " + manaBonus);
             }
             
             // Process the rest of the stats similarly with debug logging
@@ -583,7 +584,7 @@ public class StatScanManager {
             double sizeBonus = extractDoubleStat(cleanLine, SIZE_PATTERN);
             if (sizeBonus > 0) {
                 bonuses.size += sizeBonus;
-                if (plugin.isDebugMode()) plugin.getLogger().info("Added size: " + sizeBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added size: " + sizeBonus);
             }
                
             // Try specific pattern first
@@ -598,16 +599,16 @@ public class StatScanManager {
             if (miningFortuneBonus > 0) {
                 // We'll add the mining fortune to a new field in ItemStatBonuses
                 bonuses.miningFortune += miningFortuneBonus;
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Added mining fortune: " + miningFortuneBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Added mining fortune: " + miningFortuneBonus);
                 }
             }
 
             double miningSpeedBonus = extractDoubleStat(cleanLine, MINING_SPEED_PATTERN);
             if (miningSpeedBonus > 0) {
                 bonuses.miningSpeed += miningSpeedBonus;
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Added mining speed: " + miningSpeedBonus);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Added mining speed: " + miningSpeedBonus);
                 }
             }
         }
@@ -621,13 +622,13 @@ public class StatScanManager {
         if (matcher.find()) {
             try {
                 String valuePart = matcher.group(1);
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Extracted value: " + valuePart + " from line: " + loreLine);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Extracted value: " + valuePart + " from line: " + loreLine);
                 }
                 return Integer.parseInt(valuePart);
             } catch (NumberFormatException e) {
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Failed to parse int value from: " + loreLine);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Failed to parse int value from: " + loreLine);
                 }
             }
         }
@@ -639,18 +640,18 @@ public class StatScanManager {
         if (matcher.find()) {
             try {
                 String valuePart = matcher.group(1);
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Extracted double value: " + valuePart + " from line: " + loreLine);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Extracted double value: " + valuePart + " from line: " + loreLine);
                 }
                 return Double.parseDouble(valuePart);
             } catch (NumberFormatException e) {
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Failed to parse double value from: " + loreLine);
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Failed to parse double value from: " + loreLine);
                 }
             }
         } else {
-            if (plugin.isDebugMode() && loreLine.toLowerCase().contains("mining speed")) {
-                plugin.getLogger().warning("Mining speed pattern didn't match: " + loreLine);
+            if (plugin.isDebugEnabled(DebugSystem.STATS) && loreLine.toLowerCase().contains("mining speed")) {
+                plugin.debugLog(DebugSystem.STATS,"Mining speed pattern didn't match: " + loreLine);
             }
         }
         return 0;
@@ -777,8 +778,8 @@ public class StatScanManager {
             player.setHealthScaled(true);
             player.setHealthScale(20.0);
         } catch (Exception e) {
-            plugin.getLogger().warning("Error applying attributes to player: " + e.getMessage());
-            if (plugin.isDebugMode()) {
+            plugin.debugLog(DebugSystem.STATS,"Error applying attributes to player: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 e.printStackTrace();
             }
         }
@@ -797,8 +798,8 @@ public class StatScanManager {
                 // Store if this is likely a vanilla reset situation (health exactly 20)
                 boolean isVanillaReset = Math.abs(currentHealth - 20.0) < 0.1;
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Health check for " + player.getName() + ": current=" + currentHealth + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Health check for " + player.getName() + ": current=" + currentHealth + 
                                 ", stored=" + stats.getCurrentHealth() + 
                                 ", vanilla reset=" + isVanillaReset);
                 }
@@ -841,8 +842,8 @@ public class StatScanManager {
                     player.setHealth(healthToSet);
                     stats.setCurrentHealth(healthToSet);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Set respawned player " + player.getName() + "'s health to " + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Set respawned player " + player.getName() + "'s health to " + 
                                     healthToSet + "/" + newMaxHealth);
                     }
                 }
@@ -852,8 +853,8 @@ public class StatScanManager {
                     double healthToSet = Math.min(stats.getCurrentHealth(), newMaxHealth);
                     player.setHealth(healthToSet);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Restored " + player.getName() + "'s health from vanilla reset: " + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Restored " + player.getName() + "'s health from vanilla reset: " + 
                                     currentHealth + " -> " + healthToSet + "/" + newMaxHealth);
                     }
                 }
@@ -863,8 +864,8 @@ public class StatScanManager {
                     player.setHealth(newMaxHealth);
                     stats.setCurrentHealth(newMaxHealth);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Capped " + player.getName() + "'s health from " + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Capped " + player.getName() + "'s health from " + 
                                     currentHealth + " to " + newMaxHealth);
                     }
                 }
@@ -873,8 +874,8 @@ public class StatScanManager {
                     // Update the stored value but don't change player's current health
                     stats.setCurrentHealth(currentHealth);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Preserved " + player.getName() + "'s current health at " + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Preserved " + player.getName() + "'s current health at " + 
                                     currentHealth + "/" + newMaxHealth);
                     }
                 }
@@ -884,7 +885,7 @@ public class StatScanManager {
                 player.setHealthScale(20.0);
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error applying health attribute: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS,"Error applying health attribute: " + e.getMessage());
         }
     }
         
@@ -915,13 +916,13 @@ public class StatScanManager {
                     attackSpeed.addModifier(attackSpeedMod);
                 }
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied attack speed attribute to " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Applied attack speed attribute to " + player.getName() + 
                                 ": " + totalAttackSpeed + " (Final: " + attackSpeed.getValue() + ")");
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error applying attack speed attribute: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS,"Error applying attack speed attribute: " + e.getMessage());
         }
     }
     
@@ -938,13 +939,13 @@ public class StatScanManager {
                 // Just set base value directly for movement speed
                 movementSpeed.setBaseValue(stats.getSpeed());
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied movement speed attribute to " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Applied movement speed attribute to " + player.getName() + 
                                     ": " + stats.getSpeed());
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error applying movement speed attribute: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS,"Error applying movement speed attribute: " + e.getMessage());
         }
     }
     
@@ -981,15 +982,15 @@ public class StatScanManager {
                     scaleAttribute.addModifier(sizeMod);
                 }
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied size attribute to " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Applied size attribute to " + player.getName() + 
                                     ": " + totalSize + " (Final: " + scaleAttribute.getValue() + ")");
                 }
             }
         } catch (Exception e) {
             // Scale attribute might not be available in older versions
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error applying size attribute: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Error applying size attribute: " + e.getMessage());
             }
         }
     }
@@ -1026,15 +1027,15 @@ public class StatScanManager {
                     rangeAttribute.addModifier(rangeMod);
                 }
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied attack range attribute to " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Applied attack range attribute to " + player.getName() + 
                                     ": " + totalRange + " (Final: " + rangeAttribute.getValue() + ")");
                 }
             }
         } catch (Exception e) {
             // Range attribute might not be available in older versions
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Attack range attribute not supported: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Attack range attribute not supported: " + e.getMessage());
             }
         }
     }
@@ -1047,8 +1048,8 @@ public class StatScanManager {
             AttributeInstance miningSpeedAttr = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
             if (miningSpeedAttr != null) {
                 // Debug the current state before modification
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Mining speed attribute before update for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Mining speed attribute before update for " + player.getName() + 
                                 ": base=" + miningSpeedAttr.getBaseValue() + 
                                 ", total=" + miningSpeedAttr.getValue());
                 }
@@ -1078,15 +1079,15 @@ public class StatScanManager {
                     miningSpeedAttr.addModifier(miningSpeedMod);
                 }
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Applied mining speed attribute to " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS,"Applied mining speed attribute to " + player.getName() + 
                                 ": " + totalMiningSpeed + " (Final: " + miningSpeedAttr.getValue() + ")");
                 }
             }
         } catch (Exception e) {
             // Mining speed attribute might not be available in older versions
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error applying mining speed attribute: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Error applying mining speed attribute: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -1096,23 +1097,25 @@ public class StatScanManager {
      * Helper method to log bonuses for debugging
      */
     private void logBonuses(Player player, ItemStatBonuses bonuses) {
-        plugin.getLogger().info("Equipment bonuses for " + player.getName() + ":");
-        plugin.getLogger().info("  Health: +" + bonuses.health);
-        plugin.getLogger().info("  Armor: +" + bonuses.armor);
-        plugin.getLogger().info("  Magic Resist: +" + bonuses.magicResist);
-        plugin.getLogger().info("  Physical Damage: +" + bonuses.physicalDamage);
-        plugin.getLogger().info("  Magic Damage: +" + bonuses.magicDamage);
-        plugin.getLogger().info("  Mana: +" + bonuses.mana);
-        plugin.getLogger().info("  Cooldown Reduction: +" + bonuses.cooldownReduction + "%");
-        plugin.getLogger().info("  Health Regen: +" + bonuses.healthRegen);
-        plugin.getLogger().info("  Attack Speed: +" + bonuses.attackSpeed);
-        plugin.getLogger().info("  Attack Range: +" + bonuses.attackRange);
-        plugin.getLogger().info("  Size: +" + bonuses.size);
-        plugin.getLogger().info("  Life Steal: +" + bonuses.lifeSteal + "%");
-        plugin.getLogger().info("  Omnivamp: +" + bonuses.omnivamp + "%");
-        plugin.getLogger().info("  Crit Chance: +" + bonuses.critChance + "%");
-        plugin.getLogger().info("  Crit Damage: +" + bonuses.critDamage + "x");
-        plugin.getLogger().info("  Mining Speed: +" + bonuses.miningSpeed + "x");
+        if (!plugin.isDebugEnabled(DebugSystem.STATS)) return;
+
+        plugin.debugLog(DebugSystem.STATS,"Equipment bonuses for " + player.getName() + ":");
+        plugin.debugLog(DebugSystem.STATS,"  Health: +" + bonuses.health);
+        plugin.debugLog(DebugSystem.STATS,"  Armor: +" + bonuses.armor);
+        plugin.debugLog(DebugSystem.STATS,"  Magic Resist: +" + bonuses.magicResist);
+        plugin.debugLog(DebugSystem.STATS,"  Physical Damage: +" + bonuses.physicalDamage);
+        plugin.debugLog(DebugSystem.STATS,"  Magic Damage: +" + bonuses.magicDamage);
+        plugin.debugLog(DebugSystem.STATS,"  Mana: +" + bonuses.mana);
+        plugin.debugLog(DebugSystem.STATS,"  Cooldown Reduction: +" + bonuses.cooldownReduction + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Health Regen: +" + bonuses.healthRegen);
+        plugin.debugLog(DebugSystem.STATS,"  Attack Speed: +" + bonuses.attackSpeed);
+        plugin.debugLog(DebugSystem.STATS,"  Attack Range: +" + bonuses.attackRange);
+        plugin.debugLog(DebugSystem.STATS,"  Size: +" + bonuses.size);
+        plugin.debugLog(DebugSystem.STATS,"  Life Steal: +" + bonuses.lifeSteal + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Omnivamp: +" + bonuses.omnivamp + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Crit Chance: +" + bonuses.critChance + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Crit Damage: +" + bonuses.critDamage + "x");
+        plugin.debugLog(DebugSystem.STATS,"  Mining Speed: +" + bonuses.miningSpeed + "x");
     }
     
     

@@ -8,6 +8,7 @@ import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 
 /**
  * Listener for controlling health regeneration mechanics
@@ -36,8 +37,8 @@ public class HealthRegenerationListener implements Listener {
         if (event.getRegainReason() == RegainReason.SATIATED) {
             event.setCancelled(true);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Cancelled vanilla health regeneration for " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Cancelled vanilla health regeneration for " + player.getName() + 
                                    " (amount: " + event.getAmount() + ")");
             }
         }

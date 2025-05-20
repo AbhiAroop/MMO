@@ -19,6 +19,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.CustomMobStats;
 
@@ -173,7 +174,7 @@ public abstract class CustomMob {
                     
                     // Clear all targeting goals
                     availableTargetGoals.clear();
-                    plugin.getLogger().info("Successfully cleared entity target goals for " + getClass().getSimpleName());
+                    plugin.debugLog(DebugSystem.ENTITY,"Successfully cleared entity target goals for " + getClass().getSimpleName());
                 }
             }
             
@@ -197,12 +198,12 @@ public abstract class CustomMob {
                     
                     // Clear all goals - we will handle movement ourselves
                     availableGoals.clear();
-                    plugin.getLogger().info("Successfully cleared entity goals for " + getClass().getSimpleName());
+                    plugin.debugLog(DebugSystem.ENTITY,"Successfully cleared entity goals for " + getClass().getSimpleName());
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Could not modify entity AI via NMS: " + e.getMessage());
-            if (plugin.isDebugMode()) {
+            plugin.debugLog(DebugSystem.ENTITY,"Could not modify entity AI via NMS: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
                 e.printStackTrace();
             }
         }
@@ -260,8 +261,8 @@ public abstract class CustomMob {
                     if (!event.getCause().equals(EntityDamageEvent.DamageCause.CUSTOM)) {
                         // Cancel the damage event completely
                         event.setCancelled(true);
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Cancelled native attack from " + getClass().getSimpleName());
+                        if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                            plugin.debugLog(DebugSystem.ENTITY,"Cancelled native attack from " + getClass().getSimpleName());
                         }
                     }
                 }

@@ -9,6 +9,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType.SlotType;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.gui.ProfileGUI;
 import com.server.profiles.gui.StatsGUI;
@@ -34,8 +35,8 @@ public class GUIListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         
         // Debug the click to help troubleshoot
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("GUI Click: " + player.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+            plugin.debugLog(DebugSystem.GUI,"GUI Click: " + player.getName() + 
                                    ", Title: " + title + 
                                    ", Slot: " + event.getSlot() + 
                                    ", Item: " + (event.getCurrentItem() != null ? 
@@ -116,8 +117,8 @@ public class GUIListener implements Listener {
         int slot = event.getSlot();
         
         // Debug slot information
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Profile selection click: Player=" + player.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+            plugin.debugLog(DebugSystem.GUI,"Profile selection click: Player=" + player.getName() + 
                                    ", Slot=" + slot + 
                                    ", Item=" + event.getCurrentItem().getType().name());
         }
@@ -134,8 +135,8 @@ public class GUIListener implements Listener {
             // Convert GUI slot to profile slot (13 -> 0, 22 -> 1, 31 -> 2)
             int profileSlot = (slot - 13) / 9;
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Profile slot calculation: " + slot + " -> Profile #" + profileSlot);
+            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                plugin.debugLog(DebugSystem.GUI,"Profile slot calculation: " + slot + " -> Profile #" + profileSlot);
             }
             
             if (profileSlot < 0 || profileSlot >= 3) return;
@@ -151,8 +152,8 @@ public class GUIListener implements Listener {
                 // Logic to create or select profile
                 if (profileManager.getProfiles(player.getUniqueId())[profileSlot] == null) {
                     // Create new profile
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Creating new profile for " + player.getName() + " in slot " + profileSlot);
+                    if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                        plugin.debugLog(DebugSystem.GUI,"Creating new profile for " + player.getName() + " in slot " + profileSlot);
                     }
                     
                     boolean success = profileManager.createProfile(player, profileSlot, "Profile " + (profileSlot + 1));

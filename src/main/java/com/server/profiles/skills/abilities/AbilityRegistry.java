@@ -8,6 +8,7 @@ import java.util.Map;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.abilities.active.ActiveAbility;
 import com.server.profiles.skills.abilities.active.mining.MiningSpeedBoostAbility;
 import com.server.profiles.skills.abilities.passive.PassiveAbility;
@@ -61,15 +62,15 @@ public class AbilityRegistry {
      * Initialize all abilities
      */
     private void initializeAbilities() {
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Initializing abilities...");
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"Initializing abilities...");
         }
         
         // Register mining abilities first
         registerMiningAbilities();
         
         // Log all registered abilities for debugging
-        if (plugin.isDebugMode()) {
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
             logRegisteredAbilities();
         }
     }
@@ -98,11 +99,11 @@ public class AbilityRegistry {
         registerAbility(miningSpeedBoost);
         
         // Log registration for debugging
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Registered mining abilities:");
-            plugin.getLogger().info("  - Passive: " + veinMiner.getDisplayName() + " (" + veinMiner.getId() + ") for skill: " + veinMiner.getSkillId());
-            plugin.getLogger().info("  - Passive: " + oreConduit.getDisplayName() + " (" + oreConduit.getId() + ") for skill: " + oreConduit.getSkillId());
-            plugin.getLogger().info("  - Active: " + miningSpeedBoost.getDisplayName() + " (" + miningSpeedBoost.getId() + ") for skill: " + miningSpeedBoost.getSkillId());
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"Registered mining abilities:");
+            plugin.debugLog(DebugSystem.SKILLS,"  - Passive: " + veinMiner.getDisplayName() + " (" + veinMiner.getId() + ") for skill: " + veinMiner.getSkillId());
+            plugin.debugLog(DebugSystem.SKILLS,"  - Passive: " + oreConduit.getDisplayName() + " (" + oreConduit.getId() + ") for skill: " + oreConduit.getSkillId());
+            plugin.debugLog(DebugSystem.SKILLS,"  - Active: " + miningSpeedBoost.getDisplayName() + " (" + miningSpeedBoost.getId() + ") for skill: " + miningSpeedBoost.getSkillId());
         }
     }
 
@@ -123,8 +124,8 @@ public class AbilityRegistry {
         }
         
         if (parentSkillId != null) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Mapping " + ability.getId() + " from " + subskillId + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Mapping " + ability.getId() + " from " + subskillId + 
                                     " to parent skill " + parentSkillId);
             }
             
@@ -154,8 +155,8 @@ public class AbilityRegistry {
                 .add((PassiveAbility) ability);
             
             // Log for debugging
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Registered passive ability " + ability.getDisplayName() + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Registered passive ability " + ability.getDisplayName() + 
                                         " (" + ability.getId() + ") to skill " + ability.getSkillId());
             }
         } else if (ability instanceof ActiveAbility) {
@@ -164,8 +165,8 @@ public class AbilityRegistry {
                 .add((ActiveAbility) ability);
             
             // Log for debugging
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Registered active ability " + ability.getDisplayName() + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Registered active ability " + ability.getDisplayName() + 
                                         " (" + ability.getId() + ") to skill " + ability.getSkillId());
             }
         }
@@ -175,28 +176,28 @@ public class AbilityRegistry {
      * Log all registered abilities for debugging
      */
     private void logRegisteredAbilities() {
-        plugin.getLogger().info("=== Registered Abilities ===");
-        plugin.getLogger().info("Total abilities: " + allAbilities.size());
+        plugin.debugLog(DebugSystem.SKILLS,"=== Registered Abilities ===");
+        plugin.debugLog(DebugSystem.SKILLS,"Total abilities: " + allAbilities.size());
         
         // Log passive abilities by skill
-        plugin.getLogger().info("Passive abilities by skill:");
+        plugin.debugLog(DebugSystem.SKILLS,"Passive abilities by skill:");
         for (Map.Entry<String, List<PassiveAbility>> entry : passiveAbilitiesBySkill.entrySet()) {
             String skillId = entry.getKey();
             List<PassiveAbility> abilities = entry.getValue();
-            plugin.getLogger().info("  Skill " + skillId + ": " + abilities.size() + " abilities");
+            plugin.debugLog(DebugSystem.SKILLS,"  Skill " + skillId + ": " + abilities.size() + " abilities");
             for (PassiveAbility ability : abilities) {
-                plugin.getLogger().info("    - " + ability.getDisplayName() + " (" + ability.getId() + ")");
+                plugin.debugLog(DebugSystem.SKILLS,"    - " + ability.getDisplayName() + " (" + ability.getId() + ")");
             }
         }
         
         // Log active abilities by skill
-        plugin.getLogger().info("Active abilities by skill:");
+        plugin.debugLog(DebugSystem.SKILLS,"Active abilities by skill:");
         for (Map.Entry<String, List<ActiveAbility>> entry : activeAbilitiesBySkill.entrySet()) {
             String skillId = entry.getKey();
             List<ActiveAbility> abilities = entry.getValue();
-            plugin.getLogger().info("  Skill " + skillId + ": " + abilities.size() + " abilities");
+            plugin.debugLog(DebugSystem.SKILLS,"  Skill " + skillId + ": " + abilities.size() + " abilities");
             for (ActiveAbility ability : abilities) {
-                plugin.getLogger().info("    - " + ability.getDisplayName() + " (" + ability.getId() + ")");
+                plugin.debugLog(DebugSystem.SKILLS,"    - " + ability.getDisplayName() + " (" + ability.getId() + ")");
             }
         }
     }

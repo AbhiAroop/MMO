@@ -23,6 +23,7 @@ import static org.bukkit.persistence.PersistentDataType.INTEGER;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomMobStats;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -116,8 +117,8 @@ public class CombatListener implements Listener {
         event.setDamage(scaledDamage);
         
         // Debug information
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info(player.getName() + "'s attack: Charge=" + String.format("%.2f", chargePercent) + 
+        if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+            plugin.debugLog(DebugSystem.COMBAT,player.getName() + "'s attack: Charge=" + String.format("%.2f", chargePercent) + 
                                 ", Base Damage=" + String.format("%.2f", damage) + 
                                 ", Scaled Damage=" + String.format("%.2f", scaledDamage) +
                                 ", Critical=" + isCritical);
@@ -155,8 +156,8 @@ public class CombatListener implements Listener {
                     }
                     
                     // Debug info
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " healed for " + healAmount + 
+                    if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                        plugin.debugLog(DebugSystem.COMBAT,player.getName() + " healed for " + healAmount + 
                                             " from lifesteal (" + lifeStealPercent + "%)");
                     }
                 }
@@ -292,8 +293,8 @@ public class CombatListener implements Listener {
             // Magic damage reduction
             reducedDamage = originalDamage * (100.0 / (100.0 + magicResist));
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Magic damage to " + player.getName() + ": " +
+            if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                plugin.debugLog(DebugSystem.COMBAT,"Magic damage to " + player.getName() + ": " +
                                      "Original: " + originalDamage + 
                                      ", Magic Resist: " + magicResist + 
                                      ", Reduced: " + reducedDamage);
@@ -302,8 +303,8 @@ public class CombatListener implements Listener {
             // Physical damage reduction
             reducedDamage = originalDamage * (100.0 / (100.0 + armor));
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Physical damage to " + player.getName() + ": " +
+            if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                plugin.debugLog(DebugSystem.COMBAT,"Physical damage to " + player.getName() + ": " +
                                      "Original: " + originalDamage + 
                                      ", Armor: " + armor + 
                                      ", Reduced: " + reducedDamage);

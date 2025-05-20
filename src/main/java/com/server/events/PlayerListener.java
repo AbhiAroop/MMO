@@ -22,6 +22,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
 import com.server.cosmetics.CosmeticManager;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.gui.ProfileGUI;
@@ -76,8 +77,8 @@ public class PlayerListener implements Listener {
                     final double storedSize = activeProfile.getStats().getSize();
                     final double storedAttackRange = activeProfile.getStats().getAttackRange();
 
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("JOIN: " + player.getName() + "'s stored health: " + storedHealth + 
+                    if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                        plugin.debugLog(DebugSystem.PROFILE,"JOIN: " + player.getName() + "'s stored health: " + storedHealth + 
                                     ", current: " + player.getHealth() + 
                                     ", stored mining speed: " + storedMiningSpeed +
                                     ", stored size: " + storedSize +
@@ -106,8 +107,8 @@ public class PlayerListener implements Listener {
                             // Set health to saved value immediately
                             player.setHealth(storedHealth);
                             
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info("Applied temporary health fix for " + player.getName() + 
+                            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                plugin.debugLog(DebugSystem.PROFILE,"Applied temporary health fix for " + player.getName() + 
                                             ": " + storedHealth);
                             }
                         }
@@ -135,8 +136,8 @@ public class PlayerListener implements Listener {
                                 );
                                 miningSpeedAttr.addModifier(tempMod);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Applied temporary mining speed fix for " + player.getName() + 
+                                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                    plugin.debugLog(DebugSystem.PROFILE,"Applied temporary mining speed fix for " + player.getName() + 
                                                 ": " + storedMiningSpeed);
                                 }
                             }
@@ -165,8 +166,8 @@ public class PlayerListener implements Listener {
                                 );
                                 scaleAttr.addModifier(tempMod);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Applied temporary size fix for " + player.getName() + 
+                                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                    plugin.debugLog(DebugSystem.PROFILE,"Applied temporary size fix for " + player.getName() + 
                                                 ": " + storedSize);
                                 }
                             }
@@ -195,15 +196,15 @@ public class PlayerListener implements Listener {
                                 );
                                 rangeAttr.addModifier(tempMod);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Applied temporary attack range fix for " + player.getName() + 
+                                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                    plugin.debugLog(DebugSystem.PROFILE,"Applied temporary attack range fix for " + player.getName() + 
                                                 ": " + storedAttackRange);
                                 }
                             }
                         }
                     } catch (Exception e) {
-                        plugin.getLogger().warning("Error fixing attributes on join: " + e.getMessage());
-                        if (plugin.isDebugMode()) {
+                        plugin.debugLog(DebugSystem.PROFILE,"Error fixing attributes on join: " + e.getMessage());
+                        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
                             e.printStackTrace();
                         }
                     }
@@ -227,8 +228,8 @@ public class PlayerListener implements Listener {
                                 player.setHealthScaled(true);
                                 player.setHealthScale(20.0);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Final health restoration for " + player.getName() + 
+                                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                    plugin.debugLog(DebugSystem.PROFILE,"Final health restoration for " + player.getName() + 
                                             ": " + healthToSet + "/" + maxHealth);
                                 }
                             }
@@ -367,13 +368,13 @@ public class PlayerListener implements Listener {
                                             player.sendMessage(ChatColor.GREEN + "Your equipment has been properly initialized!");
                                             
                                             // Add debug logging
-                                            if (plugin.isDebugMode()) {
-                                                plugin.getLogger().info("Forced equipment scan for " + player.getName() + " after profile creation");
+                                            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                                plugin.debugLog(DebugSystem.PROFILE,"Forced equipment scan for " + player.getName() + " after profile creation");
                                                 
                                                 // Log mining speed attribute status
                                                 AttributeInstance miningSpeed = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
                                                 if (miningSpeed != null) {
-                                                    plugin.getLogger().info("Mining speed attribute: base=" + miningSpeed.getBaseValue() + 
+                                                    plugin.debugLog(DebugSystem.PROFILE,"Mining speed attribute: base=" + miningSpeed.getBaseValue() + 
                                                         ", value=" + miningSpeed.getValue() + 
                                                         ", modifiers=" + miningSpeed.getModifiers().size());
                                                 }
@@ -449,8 +450,8 @@ public class PlayerListener implements Listener {
                 // Now save the full profile
                 profile.saveProfile(player);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Saved " + player.getName() + "'s health (" + currentHealth + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Saved " + player.getName() + "'s health (" + currentHealth + 
                                 ") to profile " + activeSlot);
                 }
             }
@@ -498,8 +499,8 @@ public class PlayerListener implements Listener {
                 );
                 healthAttr.addModifier(healthMod);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized health attribute for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Initialized health attribute for " + player.getName() + 
                         " to 100.0 (base 20.0 + modifier 80.0)");
                 }
             }
@@ -524,8 +525,8 @@ public class PlayerListener implements Listener {
                 );
                 miningSpeedAttr.addModifier(baselineMod);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized mining speed attribute for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Initialized mining speed attribute for " + player.getName() + 
                         " to 0.5 (default value)");
                 }
             }
@@ -550,8 +551,8 @@ public class PlayerListener implements Listener {
                 );
                 scaleAttr.addModifier(baselineMod);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized scale attribute for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Initialized scale attribute for " + player.getName() + 
                         " to 1.0 (default value)");
                 }
             }
@@ -576,8 +577,8 @@ public class PlayerListener implements Listener {
                 );
                 rangeAttr.addModifier(baselineMod);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized attack range attribute for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Initialized attack range attribute for " + player.getName() + 
                         " to 3.0 (default value)");
                 }
             }
@@ -602,14 +603,14 @@ public class PlayerListener implements Listener {
                 );
                 attackSpeedAttr.addModifier(baselineMod);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized attack speed attribute for " + player.getName() + 
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Initialized attack speed attribute for " + player.getName() + 
                         " to 0.5 (default value)");
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error initializing attributes: " + e.getMessage());
-            if (plugin.isDebugMode()) {
+            plugin.debugLog(DebugSystem.PROFILE,"Error initializing attributes: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
                 e.printStackTrace();
             }
         }

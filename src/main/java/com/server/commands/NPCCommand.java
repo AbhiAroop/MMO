@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.NPCFactory;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
@@ -124,7 +125,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         
         // Debug log for custom stats
         if (health != 100.0 || damage != 10) {
-            plugin.getLogger().info("Creating NPC with custom stats: Health=" + health + ", Damage=" + damage);
+            plugin.debugLog(DebugSystem.NPC,"Creating NPC with custom stats: Health=" + health + ", Damage=" + damage);
         }
         
         if (type.equals("talk")) {
@@ -192,7 +193,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         if (args.length < 3) {
             // Not enough arguments for dialogue command
             if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Invalid dialogue command format. Expected: /mmonpc dialogue <playerUUID> <responseIndex>");
+                plugin.debugLog(DebugSystem.NPC,"Invalid dialogue command format. Expected: /mmonpc dialogue <playerUUID> <responseIndex>");
             }
             return true;
         }
@@ -205,7 +206,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             // Verify this player is the one who issued the command
             if (!player.getUniqueId().equals(playerUUID)) {
                 if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Player " + player.getName() + " attempted to respond to dialogue for " + 
+                    plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " attempted to respond to dialogue for " + 
                                             playerUUID + " but UUIDs don't match");
                 }
                 return true;
@@ -216,14 +217,14 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             
             // Debug logging
             if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Player " + player.getName() + " selected dialogue response " + responseIndex);
+                plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " selected dialogue response " + responseIndex);
             }
             
             return true;
         } catch (IllegalArgumentException e) {
             // Invalid UUID or response index
             if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error parsing dialogue command: " + e.getMessage());
+                plugin.debugLog(DebugSystem.NPC,"Error parsing dialogue command: " + e.getMessage());
             }
             return true;
         }
@@ -267,7 +268,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.GREEN + "===================");
         player.sendMessage(ChatColor.YELLOW + "Available NPC types: talk, passive, combat, hostile");
         player.sendMessage(ChatColor.YELLOW + "Available equipment slots: mainhand, offhand, helmet, chestplate, leggings, boots");
-        player.sendMessage(ChatColor.YELLOW + "Available story NPCs: kaelen_echobound");
+        player.sendMessage(ChatColor.YELLOW + "Available story NPCs: kaelen_echobound, nell_mossgleam");
     }
     
     @Override
@@ -276,7 +277,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             // Main commands
-            List<String> commands = Arrays.asList("create", "remove", "removeall", "list", "equip");
+            List<String> commands = Arrays.asList("create", "remove", "removeall", "list", "equip","story");
             String input = args[0].toLowerCase();
             
             for (String cmd : commands) {
@@ -322,7 +323,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             }
             else if (args[0].equalsIgnoreCase("story")) {
                 // Story NPC IDs
-                List<String> storyNpcs = Arrays.asList("kaelen_echobound");
+                List<String> storyNpcs = Arrays.asList("kaelen_echobound", "nell_mossgleam");
                 String input = args[1].toLowerCase();
                 
                 for (String npc : storyNpcs) {
@@ -514,7 +515,7 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
         }
         
         // Debug log the item that's being equipped
-        plugin.getLogger().info("Equipping " + itemInfo + " to NPC " + id + " in slot " + slotName);
+        plugin.debugLog(DebugSystem.NPC,"Equipping " + itemInfo + " to NPC " + id + " in slot " + slotName);
         
         // IMPORTANT FIX: Pass false to prevent NPCManager from updating stats - we'll do it ourselves
         manager.setEquipment(id, slot, item, false);
@@ -571,12 +572,12 @@ public class NPCCommand implements CommandExecutor, TabCompleter {
             }
             
             // Log detailed info to console
-            plugin.getLogger().info("NPC " + id + " stats updated for item " + itemName + " in slot " + slotName);
-            plugin.getLogger().info("  Physical Damage: " + baseStats.getPhysicalDamage() + " → " + updatedStats.getPhysicalDamage());
-            plugin.getLogger().info("  Health: " + baseStats.getMaxHealth() + " → " + updatedStats.getMaxHealth());
-            plugin.getLogger().info("  Armor: " + baseStats.getArmor() + " → " + updatedStats.getArmor());
-            plugin.getLogger().info("  Attack Range: " + baseStats.getAttackRange() + " → " + updatedStats.getAttackRange());
-            plugin.getLogger().info("  Attack Speed: " + baseStats.getAttackSpeed() + " → " + updatedStats.getAttackSpeed());
+            plugin.debugLog(DebugSystem.NPC,"NPC " + id + " stats updated for item " + itemName + " in slot " + slotName);
+            plugin.debugLog(DebugSystem.NPC,"  Physical Damage: " + baseStats.getPhysicalDamage() + " → " + updatedStats.getPhysicalDamage());
+            plugin.debugLog(DebugSystem.NPC,"  Health: " + baseStats.getMaxHealth() + " → " + updatedStats.getMaxHealth());
+            plugin.debugLog(DebugSystem.NPC,"  Armor: " + baseStats.getArmor() + " → " + updatedStats.getArmor());
+            plugin.debugLog(DebugSystem.NPC,"  Attack Range: " + baseStats.getAttackRange() + " → " + updatedStats.getAttackRange());
+            plugin.debugLog(DebugSystem.NPC,"  Attack Speed: " + baseStats.getAttackSpeed() + " → " + updatedStats.getAttackSpeed());
         }
         
         return true;

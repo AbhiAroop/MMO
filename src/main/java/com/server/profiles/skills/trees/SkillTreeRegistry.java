@@ -7,6 +7,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SkillType;
@@ -79,19 +80,19 @@ public class SkillTreeRegistry {
         // Initialize trees for all skills
         for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
             // For debugging purposes, log every skill tree creation attempt
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Creating skill tree for: " + skill.getId() + " (" + skill.getDisplayName() + ")");
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Creating skill tree for: " + skill.getId() + " (" + skill.getDisplayName() + ")");
             }
             
             createSkillTree(skill);
         }
         
         // Log total number of skill trees created
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Total skill trees created: " + skillTrees.size());
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"Total skill trees created: " + skillTrees.size());
             // Log each tree that was created
             for (String skillId : skillTrees.keySet()) {
-                plugin.getLogger().info("  - Tree exists for: " + skillId);
+                plugin.debugLog(DebugSystem.SKILLS,"  - Tree exists for: " + skillId);
             }
         }
     }

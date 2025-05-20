@@ -10,6 +10,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.dialogue.DialogueManager;
 import com.server.entities.npc.dialogue.DialogueNode;
 import com.server.entities.npc.dialogue.DialogueResponse;
@@ -180,7 +181,7 @@ public class KaelenEchobound extends DialogueNPC {
     @Override
     public void onInteract(Player player, NPC npc, boolean rightClick) {
         // CRITICAL FIX: Log interaction to debug
-        plugin.getLogger().info("Player " + player.getName() + " interacted with Kaelen the Echobound (" + 
+        plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " interacted with Kaelen the Echobound (" + 
                             (rightClick ? "right" : "left") + " click)");
         
         // Play a mystical sound when player interacts
@@ -193,7 +194,7 @@ public class KaelenEchobound extends DialogueNPC {
         } else {
             // Fallback if dialogue not found
             sendMessage(player, "Ah... another Echo returns. We shall speak more when the time is right.");
-            plugin.getLogger().warning("Dialogue 'dialogue_kaelen' not found for Kaelen the Echobound");
+            plugin.debugLog(DebugSystem.NPC,"Dialogue 'dialogue_kaelen' not found for Kaelen the Echobound");
         }
     }
 

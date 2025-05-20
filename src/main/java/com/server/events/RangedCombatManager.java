@@ -15,6 +15,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 
 /**
  * Handles combat-related events and fixes for attribute issues
@@ -49,8 +50,8 @@ public class RangedCombatManager implements Listener {
                             double currentScale = scaleAttribute.getValue();
                             
                             if (currentScale > 1.8) {
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().warning("Detected abnormal scale value: " + currentScale + 
+                                if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                                    plugin.debugLog(DebugSystem.COMBAT,"Detected abnormal scale value: " + currentScale + 
                                                     " for player: " + player.getName() + ", correcting...");
                                 }
                                 
@@ -76,17 +77,17 @@ public class RangedCombatManager implements Listener {
                                 plugin.getStatScanManager().stopScanning(player);
                                 plugin.getStatScanManager().startScanning(player);
                                 
-                                if (plugin.isDebugMode()) {
+                                if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
                                     // Check if the fix worked
                                     double newScale = player.getAttribute(Attribute.GENERIC_SCALE).getValue();
-                                    plugin.getLogger().info("Corrected scale value from " + currentScale + 
+                                    plugin.debugLog(DebugSystem.COMBAT,"Corrected scale value from " + currentScale + 
                                                 " to " + newScale + " for player: " + player.getName());
                                 }
                             }
                         }
                     } catch (Exception e) {
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().warning("Error fixing scale attribute: " + e.getMessage());
+                        if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                            plugin.debugLog(DebugSystem.COMBAT,"Error fixing scale attribute: " + e.getMessage());
                         }
                     }
                 }
@@ -180,7 +181,7 @@ public class RangedCombatManager implements Listener {
                 attackDamageAttribute.setBaseValue(1.0); // Vanilla default
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error resetting attributes: " + e.getMessage());
+            plugin.debugLog(DebugSystem.COMBAT,"Error resetting attributes: " + e.getMessage());
         }
     }
 }

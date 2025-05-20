@@ -8,6 +8,7 @@ import java.util.Map;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.data.PlayerSkillData;
@@ -93,8 +94,8 @@ public class SkillRegistry {
         if (skill != null && !skills.containsKey(skill.getId())) {
             skills.put(skill.getId(), skill);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Registered skill: " + skill.getDisplayName());
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,"Registered skill: " + skill.getDisplayName());
             }
         }
     }

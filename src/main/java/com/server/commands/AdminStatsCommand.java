@@ -15,6 +15,7 @@ import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.stats.PlayerStats;
@@ -182,7 +183,7 @@ public class AdminStatsCommand implements TabExecutor {
         }
         catch (Exception e) {
             sender.sendMessage(ChatColor.RED + "Error setting stat: " + e.getMessage());
-            plugin.getLogger().warning("Error in AdminStatsCommand: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS,"Error in AdminStatsCommand: " + e.getMessage());
             e.printStackTrace();
             return true;
         }
@@ -406,7 +407,7 @@ public class AdminStatsCommand implements TabExecutor {
             
         } catch (Exception e) {
             sender.sendMessage(ChatColor.RED + "Error resetting stat: " + e.getMessage());
-            plugin.getLogger().warning("Error in AdminStatsCommand: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS,"Error in AdminStatsCommand: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.events.GemCarvingListener;
 
 /**
@@ -35,7 +36,7 @@ public class GemCarvingManager {
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         
         // Log initialization
-        plugin.getLogger().info("GemCarving minigame initialized");
+        plugin.debugLog(DebugSystem.SKILLS,"GemCarving minigame initialized");
     }
     
     /**

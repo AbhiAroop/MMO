@@ -32,8 +32,8 @@ commands:
     usage: /giveitem <itemname> [player]
     aliases: [customitem, ci]
   debugmode:
-    description: Toggle debug mode for the MMO plugin
-    usage: /debugmode
+    description: Toggle debug mode for specific systems or all systems
+    usage: /debugmode [system|list]
     permission: mmo.admin
   fly:
     description: Toggle flight mode for yourself or another player

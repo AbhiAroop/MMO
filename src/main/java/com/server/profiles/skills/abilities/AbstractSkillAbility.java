@@ -9,7 +9,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 

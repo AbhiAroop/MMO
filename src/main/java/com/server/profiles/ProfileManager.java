@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 
 public class ProfileManager {
     private static ProfileManager instance;
@@ -87,8 +88,8 @@ public class ProfileManager {
                         // Force an immediate scan to update all stats from equipment
                         plugin.getStatScanManager().scanAndUpdatePlayerStats(player);
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Applied immediate item scan for new profile creation: " + player.getName());
+                        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                            plugin.debugLog(DebugSystem.PROFILE,"Applied immediate item scan for new profile creation: " + player.getName());
                         }
                     }
                 }
@@ -118,8 +119,8 @@ public class ProfileManager {
                         player.setHealth(0); // Kill the player
                         player.sendMessage(ChatColor.YELLOW + "Starting fresh with your new profile!");
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Killed " + player.getName() + " after creating first profile " + slot);
+                        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                            plugin.debugLog(DebugSystem.PROFILE,"Killed " + player.getName() + " after creating first profile " + slot);
                         }
                     }
                 }
@@ -159,8 +160,8 @@ public class ProfileManager {
             PlayerProfile currentProfile = playerProfiles[currentSlot];
             currentProfile.getStats().setCurrentHealth(player.getHealth());
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Saving " + player.getName() + "'s health (" + player.getHealth() + 
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE,"Saving " + player.getName() + "'s health (" + player.getHealth() + 
                             ") before switching from profile " + currentSlot + " to " + slot);
             }
             
@@ -191,13 +192,13 @@ public class ProfileManager {
                     miningSpeedAttr.setBaseValue(0.5);
                     
                     // Extra debug logging
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Initialized mining speed attribute to 0.5 for first profile access: " + player.getName());
+                    if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                        plugin.debugLog(DebugSystem.PROFILE,"Initialized mining speed attribute to 0.5 for first profile access: " + player.getName());
                     }
                 }
             } catch (Exception e) {
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Error initializing mining speed attribute: " + e.getMessage());
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE,"Error initializing mining speed attribute: " + e.getMessage());
                 }
             }
         }
@@ -225,8 +226,8 @@ public class ProfileManager {
                         player.setHealth(0); // Kill the player
                         player.sendMessage(ChatColor.YELLOW + "Starting fresh with your new profile!");
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Killed " + player.getName() + " for first access of profile " + slot);
+                        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                            plugin.debugLog(DebugSystem.PROFILE,"Killed " + player.getName() + " for first access of profile " + slot);
                         }
                     }
                 }
@@ -387,8 +388,8 @@ public class ProfileManager {
                 attackSpeedAttr.addModifier(baselineMod);
             }
         } catch (Exception e) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error initializing attributes: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE,"Error initializing attributes: " + e.getMessage());
             }
         }
     }

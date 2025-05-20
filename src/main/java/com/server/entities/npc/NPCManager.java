@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.types.CombatNPC;
 
 import net.citizensnpcs.api.CitizensAPI;
@@ -59,7 +60,7 @@ public class NPCManager {
             // Register the interaction listener
             plugin.getServer().getPluginManager().registerEvents(new NPCInteractionListener(instance), plugin);
             
-            plugin.getLogger().info("NPCManager initialized with Citizens integration");
+            plugin.debugLog(DebugSystem.NPC,"NPCManager initialized with Citizens integration");
         }
     }
     
@@ -85,7 +86,7 @@ public class NPCManager {
     public NPC createNPC(String id, String name, Location location, String skinName, boolean lookAtPlayer) {
         // Check if an NPC with this ID already exists
         if (npcById.containsKey(id)) {
-            plugin.getLogger().warning("NPC with ID " + id + " already exists. Removing existing NPC.");
+            plugin.debugLog(DebugSystem.NPC,"NPC with ID " + id + " already exists. Removing existing NPC.");
             removeNPC(id);
         }
         
@@ -112,7 +113,7 @@ public class NPCManager {
         // Spawn the NPC at the specified location
         npc.spawn(location);
         
-        plugin.getLogger().info("Created NPC " + name + " with ID " + id + " at " + location);
+        plugin.debugLog(DebugSystem.NPC,"Created NPC " + name + " with ID " + id + " at " + location);
         return npc;
     }
     
@@ -160,7 +161,7 @@ public class NPCManager {
             npcByUUID.remove(uuid);
             interactionHandlers.remove(id);
             
-            plugin.getLogger().info("Removed NPC with ID: " + id);
+            plugin.debugLog(DebugSystem.NPC,"Removed NPC with ID: " + id);
         }
     }
 
@@ -192,8 +193,8 @@ public class NPCManager {
      */
     public void handleInteraction(Player player, NPC npc, boolean rightClick) {
         // CRITICAL FIX: Add debug logging to track NPC interactions
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPC interaction: " + npc.getName() + " with " + player.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"NPC interaction: " + npc.getName() + " with " + player.getName() + 
                                 " - right click: " + rightClick);
         }
         
@@ -218,14 +219,14 @@ public class NPCManager {
                 }
             } else {
                 // CRITICAL FIX: Log when handler is missing
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("No interaction handler found for NPC: " + npcId);
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"No interaction handler found for NPC: " + npcId);
                 }
             }
         } else {
             // CRITICAL FIX: Log when NPC ID is not found
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Could not find NPC ID for UUID: " + npc.getUniqueId());
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Could not find NPC ID for UUID: " + npc.getUniqueId());
             }
         }
     }
@@ -269,7 +270,7 @@ public class NPCManager {
         equipment.set(slot, item);
         
         // Debug log
-        if (plugin.isDebugMode()) {
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
             String itemInfo = item.getType().name();
             if (item.hasItemMeta()) {
                 if (item.getItemMeta().hasDisplayName()) {
@@ -280,7 +281,7 @@ public class NPCManager {
                 }
             }
             
-            plugin.getLogger().info("NPCManager: Equipped " + itemInfo + " to " + npc.getName() + " in slot " + slot);
+            plugin.debugLog(DebugSystem.NPC,"NPCManager: Equipped " + itemInfo + " to " + npc.getName() + " in slot " + slot);
         }
         
         // Check if this NPC has an interaction handler that's a CombatNPC
@@ -288,7 +289,7 @@ public class NPCManager {
         
         // Only update stats if requested and handler is appropriate
         if (updateStats && handler instanceof CombatNPC) {
-            plugin.getLogger().info("Found CombatNPC handler, updating stats from equipment");
+            plugin.debugLog(DebugSystem.NPC,"Found CombatNPC handler, updating stats from equipment");
             ((CombatNPC) handler).updateStatsFromEquipment();
         }
     }

@@ -20,6 +20,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.CustomMobStats;
 import com.server.entities.MobType;
@@ -80,8 +81,8 @@ public class RunemarkColossus extends CustomMob {
                     playIdleAnimation(entity);
                 }, 5L);
             } catch (Exception e) {
-                plugin.getLogger().warning("Error setting Runemark Colossus attributes: " + e.getMessage());
-                if (plugin.isDebugMode()) {
+                plugin.debugLog(DebugSystem.ENTITY,"Error setting Runemark Colossus attributes: " + e.getMessage());
+                if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
                     e.printStackTrace();
                 }
             }
@@ -152,8 +153,8 @@ public class RunemarkColossus extends CustomMob {
                             // Play debast animation (special area attack)
                             entityManager.playAnimation(entity, "debast");
                             
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info(getCustomName() + " using debast special ability");
+                            if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                                plugin.debugLog(DebugSystem.ENTITY,getCustomName() + " using debast special ability");
                             }
                             
                             // Play special ability sound
@@ -255,8 +256,8 @@ public class RunemarkColossus extends CustomMob {
                         else {
                             // Regular attack
                             entityManager.playAnimation(entity, "attack1");
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info(getCustomName() + " playing attack1 animation at player: " + player.getName());
+                            if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                                plugin.debugLog(DebugSystem.ENTITY,getCustomName() + " playing attack1 animation at player: " + player.getName());
                             }
                             
                             // Deal damage after a delay to match animation
@@ -300,8 +301,8 @@ public class RunemarkColossus extends CustomMob {
                                             player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, 
                                                     player.getLocation().add(0, 1, 0), 1, 0.1, 0.1, 0.1, 0.0);
                                             
-                                            if (plugin.isDebugMode()) {
-                                                plugin.getLogger().info(getCustomName() + " hit " + player.getName() + 
+                                            if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                                                plugin.debugLog(DebugSystem.ENTITY,getCustomName() + " hit " + player.getName() + 
                                                         " for " + finalDamage + " damage (stats say: " + damage + ")");
                                             }
                                         }

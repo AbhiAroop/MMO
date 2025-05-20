@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.gui.ProfileGUI;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
@@ -194,8 +195,8 @@ public class SkillGUIListener implements Listener {
                             SkillRegistry.getInstance().getSkill(finalParentSkillId));
                     }, 1L);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Navigating from skill details back to subskills menu for: " + 
+                    if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                        plugin.debugLog(DebugSystem.GUI,"Navigating from skill details back to subskills menu for: " + 
                             parentSkill.getDisplayName());
                     }
                     
@@ -211,8 +212,8 @@ public class SkillGUIListener implements Listener {
                 SkillsGUI.openSkillsMenu(player);
             }, 1L);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Could not find parent skill from back button, using fallback navigation");
+            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                plugin.debugLog(DebugSystem.GUI,"Could not find parent skill from back button, using fallback navigation");
             }
             
             return;
@@ -390,8 +391,8 @@ public class SkillGUIListener implements Listener {
                     SkillDetailsGUI.openSkillDetailsMenu(player, finalParentSkill);
                 }, 1L);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Navigating from subskills menu to skill details for: " + parentSkill.getDisplayName());
+                if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                    plugin.debugLog(DebugSystem.GUI,"Navigating from subskills menu to skill details for: " + parentSkill.getDisplayName());
                 }
             } else {
                 // Fallback to main skills menu if parent skill not found
@@ -402,8 +403,8 @@ public class SkillGUIListener implements Listener {
                     SkillsGUI.openSkillsMenu(player);
                 }, 1L);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Could not find parent skill - falling back to main skills menu");
+                if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                    plugin.debugLog(DebugSystem.GUI,"Could not find parent skill - falling back to main skills menu");
                 }
             }
             return;
@@ -429,8 +430,8 @@ public class SkillGUIListener implements Listener {
                             String metadataKey = "recent_subskill_" + subskill.getParentSkill().getId();
                             player.setMetadata(metadataKey, new org.bukkit.metadata.FixedMetadataValue(plugin, subskill.getId()));
                             
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info("Stored recent subskill preference for " + player.getName() + 
+                            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                                plugin.debugLog(DebugSystem.GUI,"Stored recent subskill preference for " + player.getName() + 
                                             ": " + metadataKey + "=" + subskill.getId());
                             }
                         }
@@ -657,8 +658,8 @@ public class SkillGUIListener implements Listener {
                         SkillDetailsGUI.openSkillDetailsMenu(player, subskill);
                     }, 2L);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Navigating from subskill details GUI back to skill details for: " + 
+                    if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                        plugin.debugLog(DebugSystem.GUI,"Navigating from subskill details GUI back to skill details for: " + 
                             subskillName);
                     }
                     return;
@@ -678,8 +679,8 @@ public class SkillGUIListener implements Listener {
                     SubskillsGUI.openSubskillsMenu(player, finalParentSkill);
                 }, 2L);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Navigating from subskill details to subskills menu for: " + 
+                if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                    plugin.debugLog(DebugSystem.GUI,"Navigating from subskill details to subskills menu for: " + 
                         parentSkill.getDisplayName());
                 }
             } else {
@@ -690,8 +691,8 @@ public class SkillGUIListener implements Listener {
                     SkillsGUI.openSkillsMenu(player);
                 }, 2L);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Could not find parent skill: " + parentSkillName + 
+                if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                    plugin.debugLog(DebugSystem.GUI,"Could not find parent skill: " + parentSkillName + 
                         " - falling back to main skills menu");
                 }
             }

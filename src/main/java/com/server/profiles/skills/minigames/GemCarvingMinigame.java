@@ -28,6 +28,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
@@ -404,8 +405,8 @@ public class GemCarvingMinigame {
             crystalCooldowns.remove(id);
         }
         
-        if (!toRemove.isEmpty() && plugin.isDebugMode()) {
-            plugin.getLogger().info("Cleaned up " + toRemove.size() + " expired crystal cooldowns");
+        if (!toRemove.isEmpty() && plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"Cleaned up " + toRemove.size() + " expired crystal cooldowns");
         }
     }
     

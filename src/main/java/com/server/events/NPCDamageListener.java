@@ -17,6 +17,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.behaviors.CombatBehavior;
 import com.server.entities.npc.types.CombatNPC;
@@ -46,8 +47,8 @@ public class NPCDamageListener implements Listener {
     private void processDamageForPassiveNPC(PassiveNPC passiveNPC, Player player, double damage) {
         if (passiveNPC == null || !passiveNPC.isSpawned()) return;
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Processing passive NPC damage: " + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Processing passive NPC damage: " + 
                     passiveNPC.getName() + " from player " + player.getName() + 
                     " for " + damage + " damage");
         }
@@ -74,8 +75,8 @@ public class NPCDamageListener implements Listener {
             // Update the CombatHandler's health map with this value
             NPCManager.getInstance().getCombatHandler().setHealth(npc.getUniqueId(), currentHealth);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Updated CombatHandler health tracking for " + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Updated CombatHandler health tracking for " + 
                     passiveNPC.getName() + " to " + currentHealth);
             }
         }
@@ -87,8 +88,8 @@ public class NPCDamageListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onNPCDamage(EntityDamageByEntityEvent event) {
         // Print debug information
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Entity damaged: " + event.getEntity().getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Entity damaged: " + event.getEntity().getName() + 
                                 " by " + event.getDamager().getName());
         }
 
@@ -109,7 +110,7 @@ public class NPCDamageListener implements Listener {
         if (npc.getEntity().hasMetadata("invulnerable") || npc.getEntity().isInvulnerable()) {
             // Cancel damage for invulnerable NPCs like dialogue NPCs
             event.setCancelled(true);
-            plugin.getLogger().info("Cancelled damage to invulnerable NPC: " + npc.getName());
+            plugin.debugLog(DebugSystem.NPC,"Cancelled damage to invulnerable NPC: " + npc.getName());
             return;
         }
         
@@ -133,8 +134,8 @@ public class NPCDamageListener implements Listener {
             
             if (timeSinceLastDamage < DAMAGE_COOLDOWN) {
                 // Still in immunity period
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("NPC in damage cooldown: " + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"NPC in damage cooldown: " + 
                         timeSinceLastDamage + "ms since last hit (needs " + DAMAGE_COOLDOWN + "ms)");
                 }
                 return;
@@ -184,8 +185,8 @@ public class NPCDamageListener implements Listener {
         }
         
         // Debug logging
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Player " + player.getName() + " attacking NPC with charge: " + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " attacking NPC with charge: " + 
                 attackCharge + ", base damage: " + playerDamage + 
                 ", scaled damage: " + scaledDamage + ", critical: " + isCritical);
         }
@@ -210,8 +211,8 @@ public class NPCDamageListener implements Listener {
             if (npcId != null) {
                 Object handler = NPCManager.getInstance().getInteractionHandler(npcId);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Processing custom damage for NPC " + npcId + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Processing custom damage for NPC " + npcId + 
                         ", handler type: " + (handler != null ? handler.getClass().getSimpleName() : "null"));
                 }
                 
@@ -240,7 +241,7 @@ public class NPCDamageListener implements Listener {
                 }
             } else {
                 // If no NPC ID found, apply generic damage
-                plugin.getLogger().warning("NPC ID not found for UUID " + npc.getUniqueId() + 
+                plugin.debugLog(DebugSystem.NPC,"NPC ID not found for UUID " + npc.getUniqueId() + 
                     ". Applying generic damage process.");
                 
                 // Get current health from metadata or default
@@ -298,8 +299,8 @@ public class NPCDamageListener implements Listener {
                 }
             }, 1L);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Applied knockback with strength " + strength + " and vector " + knockback);
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Applied knockback with strength " + strength + " and vector " + knockback);
             }
         }
     }

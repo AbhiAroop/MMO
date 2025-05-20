@@ -24,6 +24,8 @@ import com.server.commands.SkillCommand;
 import com.server.commands.SpawnCustomMobCommand;
 import com.server.commands.StatsCommand;
 import com.server.cosmetics.CosmeticManager;
+import com.server.debug.DebugManager;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
@@ -221,13 +223,22 @@ public class Main extends JavaPlugin {
         return instance;
     }
 
+    /**
+     * Check if global debug mode is enabled
+     * 
+     * @return true if global debug mode is enabled
+     */
     public boolean isDebugMode() {
-        return getConfig().getBoolean("debug-mode", false);
+        return DebugManager.getInstance().isDebugEnabled(DebugSystem.ALL);
     }
 
+    /**
+     * Set global debug mode
+     * 
+     * @param enabled Whether debug mode should be enabled
+     */
     public void setDebugMode(boolean enabled) {
-        getConfig().set("debug-mode", enabled);
-        saveConfig();
+        DebugManager.getInstance().setDebugEnabled(DebugSystem.ALL, enabled);
     }
 
     private void registerCommands() {
@@ -275,9 +286,11 @@ public class Main extends JavaPlugin {
             LOGGER.warning("Command 'giveitem' not registered in plugin.yml file!");
         }
 
+        DebugCommand debugHandler = new DebugCommand(this);
         org.bukkit.command.PluginCommand debugCommand = this.getCommand("debugmode");
         if (debugCommand != null) {
-            debugCommand.setExecutor(new DebugCommand());
+            debugCommand.setExecutor(debugHandler);
+            debugCommand.setTabCompleter(debugHandler);
         } else {
             LOGGER.warning("Command 'debugmode' not registered in plugin.yml file!");
         }
@@ -456,12 +469,23 @@ public class Main extends JavaPlugin {
     }
 
     /**
-     * Check if debug mode is enabled
+     * Check if debugging is enabled for a specific system
      * 
-     * @return true if debug mode is enabled
+     * @param system The system to check
+     * @return true if debugging is enabled for the system
      */
-    public boolean isDebugEnabled() {
-        return isDebugMode();
+    public boolean isDebugEnabled(DebugSystem system) {
+        return DebugManager.getInstance().isDebugEnabled(system);
+    }
+
+    /**
+     * Log a debug message for a specific system
+     * 
+     * @param system The system logging the message
+     * @param message The message to log
+     */
+    public void debugLog(DebugSystem system, String message) {
+        DebugManager.getInstance().debug(system, message);
     }
 
     /**

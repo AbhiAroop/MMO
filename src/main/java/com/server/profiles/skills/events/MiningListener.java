@@ -18,6 +18,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.AbilityRegistry;
@@ -95,8 +96,8 @@ public class MiningListener implements Listener {
             block.removeMetadata("veinminer_processed", plugin);
             
             // Debug logging
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info(player.getName() + " broke vein miner block " + block.getType() + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,player.getName() + " broke vein miner block " + block.getType() + 
                     " with fortune multiplier: " + fortuneMultiplier);
             }
         } else {
@@ -154,8 +155,8 @@ public class MiningListener implements Listener {
         }
         
         // Debug output
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info(player.getName() + " broke " + block.getType() + 
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,player.getName() + " broke " + block.getType() + 
                 " with Mining Fortune multiplier: " + fortuneMultiplier);
         }
         

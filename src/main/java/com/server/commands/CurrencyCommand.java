@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.utils.CurrencyFormatter;
@@ -82,8 +83,8 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
         // Create a copy of the entry set to avoid ConcurrentModificationException
         pendingTransfers.entrySet().removeIf(entry -> {
             boolean expired = entry.getValue().isExpired();
-            if (expired && plugin.isDebugMode()) {
-                plugin.getLogger().info("Removed expired transfer request from " + 
+            if (expired && plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE,"Removed expired transfer request from " + 
                                      entry.getValue().sender.getName());
             }
             return expired;
@@ -92,8 +93,8 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
     
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("CurrencyCommand handling: " + command.getName() + " (label: " + label + ") from " + 
+        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+            plugin.debugLog(DebugSystem.PROFILE,"CurrencyCommand handling: " + command.getName() + " (label: " + label + ") from " + 
                                 sender.getName() + " with " + args.length + " args");
         }
         
@@ -215,8 +216,8 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
             TransferRequest request = new TransferRequest(player, target, currencyType, amount);
             pendingTransfers.put(player.getUniqueId(), request);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Created pending transfer request for " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE,"Created pending transfer request for " + player.getName() + 
                                      " to " + target.getName() + ": " + amount + " " + currencyType);
             }
             
@@ -250,11 +251,11 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
         UUID playerUUID = player.getUniqueId();
         
         // Debug all pending transfers to see what's happening
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Confirm command from " + player.getName() + " (UUID: " + playerUUID + ")");
-            plugin.getLogger().info("All pending transfers: " + pendingTransfers.size());
+        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+            plugin.debugLog(DebugSystem.PROFILE,"Confirm command from " + player.getName() + " (UUID: " + playerUUID + ")");
+            plugin.debugLog(DebugSystem.PROFILE,"All pending transfers: " + pendingTransfers.size());
             for (Map.Entry<UUID, TransferRequest> entry : pendingTransfers.entrySet()) {
-                plugin.getLogger().info("  - Transfer from: " + entry.getValue().sender.getName() + 
+                plugin.debugLog(DebugSystem.PROFILE,"  - Transfer from: " + entry.getValue().sender.getName() + 
                                     " (UUID: " + entry.getKey() + ")");
             }
         }
@@ -284,8 +285,8 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
         // Remove the request first to prevent double-processing
         pendingTransfers.remove(playerUUID);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Processing confirmed transfer from " + player.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+            plugin.debugLog(DebugSystem.PROFILE,"Processing confirmed transfer from " + player.getName() + 
                                 " to " + request.recipient.getName() + ": " + 
                                 request.amount + " " + request.currencyType);
         }
@@ -307,11 +308,11 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
         UUID playerUUID = player.getUniqueId();
         
         // Debug all pending transfers
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Cancel command from " + player.getName() + " (UUID: " + playerUUID + ")");
-            plugin.getLogger().info("All pending transfers: " + pendingTransfers.size());
+        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+            plugin.debugLog(DebugSystem.PROFILE,"Cancel command from " + player.getName() + " (UUID: " + playerUUID + ")");
+            plugin.debugLog(DebugSystem.PROFILE,"All pending transfers: " + pendingTransfers.size());
             for (Map.Entry<UUID, TransferRequest> entry : pendingTransfers.entrySet()) {
-                plugin.getLogger().info("  - Transfer from: " + entry.getValue().sender.getName() + 
+                plugin.debugLog(DebugSystem.PROFILE,"  - Transfer from: " + entry.getValue().sender.getName() + 
                                     " (UUID: " + entry.getKey() + ")");
             }
         }
@@ -394,7 +395,7 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
             recipient.sendMessage(ChatColor.GREEN + "You received " + formattedAmount + ChatColor.GREEN + " from " + sender.getName());
             
             // Log the transaction
-            plugin.getLogger().info("[Currency] " + sender.getName() + " sent " + amount + " " + currencyName + " to " + recipient.getName());
+            plugin.debugLog(DebugSystem.PROFILE,"[Currency] " + sender.getName() + " sent " + amount + " " + currencyName + " to " + recipient.getName());
         }
         
         return true;
@@ -629,7 +630,7 @@ public class CurrencyCommand implements CommandExecutor, TabCompleter {
         }
         
         // Log the currency operation
-        plugin.getLogger().info("[Currency] " + sender.getName() + " " + action + " " + amount + 
+        plugin.debugLog(DebugSystem.PROFILE,"[Currency] " + sender.getName() + " " + action + " " + amount + 
                               " " + currencyName + " " + (action.equals("set") ? "to" : "from/to") + 
                               " " + target.getName() + ". New balance: " + newBalance);
         

@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.stats.PlayerStats;
@@ -66,8 +67,8 @@ public class HealthRegenerationManager {
         // Store the task ID
         regenTasks.put(playerId, taskId);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Started health regeneration tracking for " + player.getName());
+        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+            plugin.debugLog(DebugSystem.STATS,"Started health regeneration tracking for " + player.getName());
         }
     }
     
@@ -85,8 +86,8 @@ public class HealthRegenerationManager {
             // Also remove healing accumulator
             healingAccumulator.remove(playerId);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Stopped health regeneration tracking for " + player.getName());
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS,"Stopped health regeneration tracking for " + player.getName());
             }
         }
     }
@@ -122,8 +123,8 @@ public class HealthRegenerationManager {
                     // Keep the fractional part in the accumulator
                     accumulator -= healthToApply;
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Applied health regeneration to " + player.getName() + 
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS,"Applied health regeneration to " + player.getName() + 
                                             ": +" + healthToApply + " (" + currentHealth + " -> " + newHealth + ")" +
                                             ", remaining accumulator: " + accumulator);
                     }
@@ -147,6 +148,6 @@ public class HealthRegenerationManager {
         }
         regenTasks.clear();
         healingAccumulator.clear();
-        plugin.getLogger().info("Cleaned up all health regeneration tasks");
+        plugin.debugLog(DebugSystem.STATS,"Cleaned up all health regeneration tasks");
     }
 }

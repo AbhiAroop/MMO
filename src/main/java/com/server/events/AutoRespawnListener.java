@@ -10,6 +10,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -33,8 +34,8 @@ public class AutoRespawnListener implements Listener {
         final double deathY = player.getLocation().getY();
         final double deathZ = player.getLocation().getZ();
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Player died: " + player.getName() + " at " + 
+        if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+            plugin.debugLog(DebugSystem.PROFILE,"Player died: " + player.getName() + " at " + 
                               deathX + ", " + deathY + ", " + deathZ);
         }
         
@@ -43,8 +44,8 @@ public class AutoRespawnListener implements Listener {
             @Override
             public void run() {
                 if (player.isOnline() && player.isDead()) {
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Auto-respawning player: " + player.getName());
+                    if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                        plugin.debugLog(DebugSystem.PROFILE,"Auto-respawning player: " + player.getName());
                     }
                     
                     // Use the respawn method to properly respawn the player
@@ -87,8 +88,8 @@ public class AutoRespawnListener implements Listener {
                                 player.setHealth(healthToSet);
                                 profile.getStats().setCurrentHealth(healthToSet);
                                 
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("Set " + player.getName() + 
+                                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                                    plugin.debugLog(DebugSystem.PROFILE,"Set " + player.getName() + 
                                                     "'s health to default value (" + healthToSet + 
                                                     ") after respawn");
                                 }

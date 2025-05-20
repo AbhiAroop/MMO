@@ -10,6 +10,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
 import com.server.entities.npc.NPCType;
@@ -76,8 +77,8 @@ public class HostileNPC extends CombatNPC {
                 combatBehavior.setTargetsNPCs(true);  // Force this to true
                 combatBehavior.setTargetsPlayers(true);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Initialized CombatBehavior for hostile NPC " + name + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Initialized CombatBehavior for hostile NPC " + name + 
                         " [targetsPlayers=true, targetsNPCs=true, isHostile=true]");
                 }
             }
@@ -157,8 +158,8 @@ public class HostileNPC extends CombatNPC {
                         // Target found within range - begin combat
                         combatBehavior.startCombat(nearestPlayer);
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("HostileNPC " + name + " detected player " + 
+                        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                            plugin.debugLog(DebugSystem.NPC,"HostileNPC " + name + " detected player " + 
                                                   nearestPlayer.getName() + " in range and engaging");
                         }
                     } else if (combatBehavior.targetsNPCs()) {
@@ -184,8 +185,8 @@ public class HostileNPC extends CombatNPC {
             behavior.setTargetsPlayers(true);
             
             // Debug message
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Started aggressive behavior for hostile NPC: " + name + " with initial target: " + player.getName());
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Started aggressive behavior for hostile NPC: " + name + " with initial target: " + player.getName());
             }
         }
     }
@@ -274,8 +275,8 @@ public class HostileNPC extends CombatNPC {
             if (combatBehavior != null) {
                 combatBehavior.startCombat(closest.getEntity());
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Hostile NPC " + name + " targeting: " + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Hostile NPC " + name + " targeting: " + 
                         closest.getName() + " at distance: " + closestDistance);
                 }
             }

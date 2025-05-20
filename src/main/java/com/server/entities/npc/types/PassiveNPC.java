@@ -11,6 +11,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
 
@@ -100,8 +101,8 @@ public class PassiveNPC extends BaseNPC {
             long immuneUntil = npc.getEntity().getMetadata("damage_immune_until").get(0).asLong();
             if (System.currentTimeMillis() < immuneUntil) {
                 // Still in immunity period
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Damage ignored: " + name + " - in cooldown period");
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Damage ignored: " + name + " - in cooldown period");
                 }
                 return;
             }
@@ -126,8 +127,8 @@ public class PassiveNPC extends BaseNPC {
         double newHealth = Math.max(0, currentHealth - finalDamage);
         
         // Debug log the damage
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("PassiveNPC " + name + " damaged by " + player.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"PassiveNPC " + name + " damaged by " + player.getName() + 
                 ": health " + currentHealth + " → " + newHealth + 
                 " (damage: " + finalDamage + ")");
         }
@@ -159,7 +160,7 @@ public class PassiveNPC extends BaseNPC {
         // Check if NPC is now dead
         if (newHealth <= 0) {
             // Handle death
-            plugin.getLogger().info("PassiveNPC " + name + " was killed by " + player.getName());
+            plugin.debugLog(DebugSystem.NPC,"PassiveNPC " + name + " was killed by " + player.getName());
             handleDeath(player);
             return;
         }
@@ -224,8 +225,8 @@ public class PassiveNPC extends BaseNPC {
         finalDamage = Math.max(1.0, finalDamage);
         
         // Debug logging
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("💫 PASSIVE NPC MAGIC DAMAGE: " + player.getName() + " -> " + name + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"💫 PASSIVE NPC MAGIC DAMAGE: " + player.getName() + " -> " + name + 
                 ", Raw: " + damage + ", After MR(" + stats.getMagicResist() + 
                 "): " + finalDamage + ", Reduction: " + (magicResistReduction * 100) + "%");
         }
@@ -267,7 +268,7 @@ public class PassiveNPC extends BaseNPC {
         // Check if NPC is now dead
         if (newHealth <= 0) {
             // Handle death
-            plugin.getLogger().info("PassiveNPC " + name + " was killed by magic from " + player.getName());
+            plugin.debugLog(DebugSystem.NPC,"PassiveNPC " + name + " was killed by magic from " + player.getName());
             handleDeath(player);
             return;
         }

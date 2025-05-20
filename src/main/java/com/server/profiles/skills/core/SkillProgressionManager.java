@@ -5,6 +5,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.data.PlayerSkillData;
@@ -67,7 +68,7 @@ public class SkillProgressionManager {
         
         // Stop if already max level
         if (currentLevel.getLevel() >= skill.getMaxLevel()) {
-            if (plugin.isDebugMode()) {
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
                 plugin.getLogger().info(player.getName() + " is already at max level for " + skill.getDisplayName());
             }
             return false;
@@ -96,7 +97,7 @@ public class SkillProgressionManager {
             // Apply the changes to the player
             stats.applyToPlayer(player);
             
-            if (plugin.isDebugMode()) {
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
                 plugin.getLogger().info("Added " + String.format("%.2f", fortuneIncrease) + 
                     " to default mining fortune for " + player.getName() + " from " + 
                     skill.getDisplayName() + " level up (now level " + newLevel.getLevel() + ")");

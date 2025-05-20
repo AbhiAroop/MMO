@@ -6,10 +6,9 @@ import java.util.Map;
 import org.bukkit.Location;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.NPCInteractionHandler;
 import com.server.entities.npc.NPCManager;
-
-import net.citizensnpcs.api.npc.NPC;
 
 /**
  * Registry for all story-related NPCs
@@ -45,6 +44,10 @@ public class StoryNPCRegistry {
         KaelenEchobound kaelen = new KaelenEchobound();
         storyNPCs.put("kaelen_echobound", kaelen);
         
+        // Register Nell Mossgleam
+        NellMossgleam nell = new NellMossgleam();
+        storyNPCs.put("nell_mossgleam", nell);
+        
         // Register additional story NPCs here as they are created
     }
     
@@ -59,20 +62,31 @@ public class StoryNPCRegistry {
     public boolean spawnStoryNPC(String id, Location location, String skin) {
         NPCInteractionHandler handler = storyNPCs.get(id);
         if (handler == null) {
-            plugin.getLogger().warning("Attempted to spawn unknown story NPC: " + id);
+            plugin.debugLog(DebugSystem.DIALOGUE,"Attempted to spawn unknown story NPC: " + id);
             return false;
         }
         
         if (handler instanceof KaelenEchobound) {
             KaelenEchobound kaelen = (KaelenEchobound) handler;
-            NPC npc = kaelen.spawn(location, skin);
+            kaelen.spawn(location, skin);
             
             // CRITICAL FIX: Explicitly register the handler with the NPC manager to ensure interactions work
             NPCManager.getInstance().registerInteractionHandler(id, kaelen);
             
             // Log success
-            plugin.getLogger().info("Successfully spawned story NPC: " + id + " with handler " + 
+            plugin.debugLog(DebugSystem.DIALOGUE,"Successfully spawned story NPC: " + id + " with handler " + 
                                 kaelen.getClass().getSimpleName());
+            return true;
+        } else if (handler instanceof NellMossgleam) {
+            NellMossgleam nell = (NellMossgleam) handler;
+            nell.spawn(location, skin);
+            
+            // CRITICAL FIX: Explicitly register the handler with the NPC manager to ensure interactions work
+            NPCManager.getInstance().registerInteractionHandler(id, nell);
+            
+            // Log success
+            plugin.debugLog(DebugSystem.DIALOGUE,"Successfully spawned story NPC: " + id + " with handler " + 
+                                nell.getClass().getSimpleName());
             return true;
         }
         

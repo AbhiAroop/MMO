@@ -56,6 +56,7 @@ com\server\profiles\skills\data\SkillReward.class
 com\server\profiles\skills\skills\combat\CombatSkill.class
 com\server\events\PlayerListener$6.class
 com\server\profiles\skills\gui\SkillTreeGUI$ConnectionState.class
+com\server\entities\npc\story\NellMossgleam$1.class
 com\server\entities\npc\types\DialogueNPC.class
 com\server\abilities\AbilityManager$1.class
 com\server\events\NPCDamageListener.class
@@ -83,6 +84,7 @@ com\server\profiles\skills\skills\fishing\FishingSkill.class
 com\server\display\ScoreboardManager.class
 com\server\display\ActionBarManager.class
 com\server\profiles\skills\rewards\rewards\CurrencyReward.class
+com\server\debug\DebugManager$DebugSystem.class
 com\server\events\ItemListener.class
 com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
@@ -99,6 +101,7 @@ com\server\commands\AdminSkillsCommand.class
 com\server\display\DamageIndicatorManager.class
 com\server\profiles\skills\rewards\rewards\ItemReward.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
+com\server\debug\DebugManager.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\events\AutoRespawnListener$1.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
@@ -107,6 +110,7 @@ com\server\entities\npc\dialogue\DialogueManager$1.class
 com\server\events\AbilityListener.class
 com\server\items\ItemRarity.class
 com\server\profiles\skills\gui\ConfirmationGUI.class
+com\server\entities\npc\story\NellMossgleam.class
 com\server\entities\npc\dialogue\DialogueResponse.class
 com\server\profiles\skills\tokens\SkillToken$TokenInfo.class
 com\server\events\PlayerListener$2.class

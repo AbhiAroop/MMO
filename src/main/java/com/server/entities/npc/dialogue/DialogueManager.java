@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.types.BaseNPC;
 
 import net.md_5.bungee.api.chat.ClickEvent;
@@ -151,8 +152,8 @@ public class DialogueManager {
         
         if (state == null) {
             // No active dialogue
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Player " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.DIALOGUE)) {
+                plugin.debugLog(DebugSystem.DIALOGUE,"Player " + player.getName() + 
                                         " tried to select dialogue response but has no active dialogue");
             }
             return;
@@ -161,8 +162,8 @@ public class DialogueManager {
         DialogueNode dialogue = state.getCurrentDialogue();
         if (!dialogue.hasResponses() || responseIndex < 0 || responseIndex >= dialogue.getResponses().size()) {
             // Invalid response index
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Invalid dialogue response index " + responseIndex + 
+            if (plugin.isDebugEnabled(DebugSystem.DIALOGUE)) {
+                plugin.debugLog(DebugSystem.DIALOGUE,"Invalid dialogue response index " + responseIndex + 
                                         " for player " + player.getName() + ". Available responses: " + 
                                         dialogue.getResponses().size());
             }
@@ -181,8 +182,8 @@ public class DialogueManager {
         String nextNodeId = response.getNextNodeId();
         if (nextNodeId == null || nextNodeId.isEmpty() || !dialogues.containsKey(nextNodeId)) {
             // End the dialogue if there's no next node
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Ending dialogue for player " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.DIALOGUE)) {
+                plugin.debugLog(DebugSystem.DIALOGUE,"Ending dialogue for player " + player.getName() + 
                                     " - no next dialogue node defined for response: " + response.getText());
             }
             endDialogue(playerId);

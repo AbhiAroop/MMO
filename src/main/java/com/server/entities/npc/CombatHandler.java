@@ -24,6 +24,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.display.DamageIndicatorManager;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -251,8 +252,8 @@ public class CombatHandler {
                         currentTargets.put(npcId, target);
                         
                         // Debug target acquisition
-                        if (plugin.isDebugMode() && tickCounter % 20 == 0) {
-                            plugin.getLogger().info("Hostile NPC " + npc.getName() + " targeting: " + target.getName() + 
+                        if (plugin.isDebugEnabled(DebugSystem.NPC) && tickCounter % 20 == 0) {
+                            plugin.debugLog(DebugSystem.NPC,"Hostile NPC " + npc.getName() + " targeting: " + target.getName() + 
                                                 " at distance: " + npc.getEntity().getLocation().distance(target.getLocation()));
                         }
                     } else {
@@ -284,8 +285,8 @@ public class CombatHandler {
                     
                     // Check if target is out of pursuit range (25 blocks)
                     if (distance > 25.0) {
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Hostile NPC " + npc.getName() + " abandoning target " + 
+                        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                            plugin.debugLog(DebugSystem.NPC,"Hostile NPC " + npc.getName() + " abandoning target " + 
                                                 target.getName() + " - too far away: " + distance);
                         }
                         // Clear target if too far away
@@ -381,8 +382,8 @@ public class CombatHandler {
                                         );
                                         npc.getNavigator().setTarget(intermediateTarget);
                                         
-                                        if (plugin.isDebugMode()) {
-                                            plugin.getLogger().info("NPC " + npc.getName() + " trying alternative path");
+                                        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                            plugin.debugLog(DebugSystem.NPC,"NPC " + npc.getName() + " trying alternative path");
                                         }
                                         
                                         stuckCounter = 0; // Reset counter after trying alternative
@@ -443,8 +444,8 @@ public class CombatHandler {
         combatTasks.put(npcId, task);
         
         // Debug log
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Started aggressive behavior for hostile NPC: " + npc.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Started aggressive behavior for hostile NPC: " + npc.getName() + 
                                 " with initial target: " + (initialTarget != null ? initialTarget.getName() : "none"));
         }
     }
@@ -668,8 +669,8 @@ public class CombatHandler {
                 }
             } catch (Exception e) {
                 // Catch any errors to prevent crashes
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Error in attack animation: " + e.getMessage());
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Error in attack animation: " + e.getMessage());
                     e.printStackTrace();
                 }
                 
@@ -713,14 +714,14 @@ public class CombatHandler {
         if (!npcHealth.containsKey(npcId)) {
             npcHealth.put(npcId, stats.getMaxHealth());
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Initialized missing health for NPC " + npc.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Initialized missing health for NPC " + npc.getName() + 
                     " with max health: " + stats.getMaxHealth());
             }
         } else {
             // Log existing health for debugging
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Preserved existing health for NPC " + npc.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Preserved existing health for NPC " + npc.getName() + 
                     ": " + npcHealth.get(npcId) + "/" + stats.getMaxHealth());
             }
         }
@@ -736,8 +737,8 @@ public class CombatHandler {
         startCombatWithSettings(npc, initialTarget, npcTargetsPlayers, npcTargetsNPCs);
         
         // Debug log
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Starting combat behavior for NPC: " + npc.getName());
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Starting combat behavior for NPC: " + npc.getName());
         }
     }
     
@@ -916,12 +917,12 @@ public class CombatHandler {
         combatTasks.put(npc.getUniqueId(), task);
         
         // Log startup
-        if (plugin.isDebugMode()) {
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
             if (initialTarget != null) {
-                plugin.getLogger().info("Started combat behavior for NPC: " + npc.getName() + 
+                plugin.debugLog(DebugSystem.NPC,"Started combat behavior for NPC: " + npc.getName() + 
                     " targeting player: " + initialTarget.getName());
             } else {
-                plugin.getLogger().info("Auto-started combat behavior for NPC: " + npc.getName() + 
+                plugin.debugLog(DebugSystem.NPC,"Auto-started combat behavior for NPC: " + npc.getName() + 
                     " to look for targets");
             }
         }
@@ -944,8 +945,8 @@ public class CombatHandler {
         NPCStats stats = getNPCStats(respawnedNpcId);
         
         // Debug stats to verify they're correctly preserved
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPC STATS ON RESPAWN: " + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"NPC STATS ON RESPAWN: " + 
                 npc.getName() + " - Health: " + stats.getMaxHealth() + 
                 ", PhysicalDmg: " + stats.getPhysicalDamage() +
                 ", MagicDmg: " + stats.getMagicDamage() +
@@ -955,7 +956,7 @@ public class CombatHandler {
         // Restart combat behavior if this is a hostile NPC
         if (npc.getEntity().hasMetadata("hostile_npc") && 
                 npc.getEntity().getMetadata("hostile_npc").get(0).asBoolean()) {
-            plugin.getLogger().info("Restarted combat behavior for hostile NPC: " + npc.getName() +
+            plugin.debugLog(DebugSystem.NPC,"Restarted combat behavior for hostile NPC: " + npc.getName() +
                     " with targets_npcs=" + targetsNPCs);
             startCombatWithSettings(npc, null, targetsPlayers, targetsNPCs);
         }
@@ -1068,8 +1069,8 @@ public class CombatHandler {
             // Move to the target
             npc.getNavigator().setTarget(targetLoc);
             
-            if (plugin.isDebugMode() && npc.getEntity().getTicksLived() % 100 == 0) {
-                plugin.getLogger().info("Updated navigation for " + npc.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC) && npc.getEntity().getTicksLived() % 100 == 0) {
+                plugin.debugLog(DebugSystem.NPC,"Updated navigation for " + npc.getName() + 
                     " to target " + target.getName() + " at distance " + distance + 
                     " with speed mod " + speedMod);
             }
@@ -1186,7 +1187,7 @@ public class CombatHandler {
         int physicalDamage = stats.getPhysicalDamage();
         
         // Debug logs
-        plugin.getLogger().info("🔸 ATTACK START: NPC " + npc.getName() + 
+        plugin.debugLog(DebugSystem.NPC,"🔸 ATTACK START: NPC " + npc.getName() + 
             " (ID:" + npc.getId() + ") attacking " + target.getName() + 
             " with base damage: " + physicalDamage + ", charge: " + chargePercent);
         
@@ -1206,7 +1207,7 @@ public class CombatHandler {
         double finalDamage = isCritical ? baseDamage * 1.5 : baseDamage;
         
         // Debug logs
-        plugin.getLogger().info("🔸 ATTACKER STATS CHECK: " + npc.getName() + 
+        plugin.debugLog(DebugSystem.NPC,"🔸 ATTACKER STATS CHECK: " + npc.getName() + 
             " - PhysicalDmg: " + physicalDamage + ", Source damage: " + finalDamage +
             ", Critical: " + isCritical);
         
@@ -1215,7 +1216,7 @@ public class CombatHandler {
             try {
                 // Check if everything is still valid
                 if (target == null || target.isDead() || !npc.isSpawned()) {
-                    plugin.getLogger().info("🔸 ATTACK CANCELLED: Target or NPC no longer valid");
+                    plugin.debugLog(DebugSystem.NPC,"🔸 ATTACK CANCELLED: Target or NPC no longer valid");
                     return;
                 }
                 
@@ -1226,7 +1227,7 @@ public class CombatHandler {
                     NPC targetNPC = CitizensAPI.getNPCRegistry().getNPC(target);
                     if (targetNPC != null && targetNPC.isSpawned()) {
                         // Apply damage to the NPC
-                        plugin.getLogger().info("🔸 DAMAGE NPC: " + npc.getName() + 
+                        plugin.debugLog(DebugSystem.NPC,"🔸 DAMAGE NPC: " + npc.getName() + 
                             " -> NPC " + targetNPC.getName() + ", Damage: " + finalDamage);
                         
                         // CRITICAL: Apply direct damage to target NPC
@@ -1235,7 +1236,7 @@ public class CombatHandler {
                 }
                 else if (target instanceof Player) {
                     // Apply damage to player
-                    plugin.getLogger().info("🔸 DAMAGE PLAYER: " + npc.getName() + 
+                    plugin.debugLog(DebugSystem.NPC,"🔸 DAMAGE PLAYER: " + npc.getName() + 
                         " -> Player " + target.getName() + ", Damage: " + finalDamage);
                     applyDamageToPlayer(npc, (Player) target, finalDamage, isCritical);
                 } else if (target instanceof LivingEntity) {
@@ -1245,12 +1246,12 @@ public class CombatHandler {
                 }
                 
                 // Debug info
-                plugin.getLogger().info("🔸 ATTACK COMPLETE: " + npc.getName() + 
+                plugin.debugLog(DebugSystem.NPC,"🔸 ATTACK COMPLETE: " + npc.getName() + 
                     " -> " + target.getName() + ", Damage: " + finalDamage + 
                     ", Critical: " + isCritical);
             } catch (Exception e) {
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().warning("Error in attack completion: " + e.getMessage());
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Error in attack completion: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
@@ -1287,8 +1288,8 @@ public class CombatHandler {
                     // Counter-attack with slightly reduced damage
                     attackTarget(npc, attacker, 0.8f);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("NPC " + npc.getName() + " performed a counter-attack against " + attacker.getName());
+                    if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                        plugin.debugLog(DebugSystem.NPC,"NPC " + npc.getName() + " performed a counter-attack against " + attacker.getName());
                     }
                 }
             }, 5L); // Counter-attack after a short delay
@@ -1361,8 +1362,8 @@ public class CombatHandler {
         
         // Check if NPC is still valid
         if (npc == null || !npc.isSpawned() || npc.getEntity() == null) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Attempted to apply damage from a null or invalid NPC to player: " + player.getName());
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Attempted to apply damage from a null or invalid NPC to player: " + player.getName());
             }
             return;
         }
@@ -1390,23 +1391,23 @@ public class CombatHandler {
                 }
                 
                 // Debug log armor calculation
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Player armor reduction: " + armor + " armor = " + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Player armor reduction: " + armor + " armor = " + 
                         (armorReduction * 100) + "% reduction. Raw damage: " + damage + 
                         ", After armor: " + finalDamage);
                 }
             }
         } catch (Exception e) {
             // If there's any issue with profile or stats, use the raw damage
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error calculating armor reduction: " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Error calculating armor reduction: " + e.getMessage());
             }
         }
         
         // Safety check - if player died during the animation delay
         if (!player.isOnline() || player.isDead()) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Player " + player.getName() + " died before damage could be applied");
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " died before damage could be applied");
             }
             return;
         }
@@ -1457,15 +1458,15 @@ public class CombatHandler {
             }
             
             // Debug log
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("NPC " + npc.getName() + " -> Player " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"NPC " + npc.getName() + " -> Player " + player.getName() + 
                     " Damage: " + finalDamage + ", Critical: " + isCritical + 
                     ", Player Health Before: " + currentHealth + ", After: " + newHealth);
             }
         } catch (Exception e) {
             // Catch any other potential errors to prevent crashing
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().warning("Error applying damage to player " + player.getName() + ": " + e.getMessage());
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Error applying damage to player " + player.getName() + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -1495,7 +1496,7 @@ public class CombatHandler {
         NPCStats targetStats = getNPCStats(targetId);
         
         // Debug logging
-        plugin.getLogger().info("🔴 NPC DAMAGE: " + 
+        plugin.debugLog(DebugSystem.NPC,"🔴 NPC DAMAGE: " + 
             (attacker != null ? attacker.getName() : "null") + " (ID:" + 
             (attacker != null ? attacker.getId() : "null") + ") -> " + 
             target.getName() + " (ID:" + target.getId() + "), Raw damage: " + damage);
@@ -1523,19 +1524,19 @@ public class CombatHandler {
         double currentHealth = 0;
         if (npcHealth.containsKey(targetId)) {
             currentHealth = npcHealth.get(targetId);
-            plugin.getLogger().info("🔴 HEALTH TRACKING: Found existing health for " + 
+            plugin.debugLog(DebugSystem.NPC,"🔴 HEALTH TRACKING: Found existing health for " + 
                 target.getName() + " in npcHealth map: " + currentHealth);
         } else {
             currentHealth = targetStats.getMaxHealth();
             npcHealth.put(targetId, currentHealth);
-            plugin.getLogger().info("🔴 HEALTH TRACKING: Initialized missing health for " + 
+            plugin.debugLog(DebugSystem.NPC,"🔴 HEALTH TRACKING: Initialized missing health for " + 
                 target.getName() + " with max health: " + currentHealth);
         }
         
         // DEBUGGING: Check metadata health
         if (target.getEntity().hasMetadata("current_health")) {
             double metadataHealth = target.getEntity().getMetadata("current_health").get(0).asDouble();
-            plugin.getLogger().info("🔴 HEALTH TRACKING: Found health in metadata for " + 
+            plugin.debugLog(DebugSystem.NPC,"🔴 HEALTH TRACKING: Found health in metadata for " + 
                 target.getName() + ": " + metadataHealth);
             
             // CRITICAL FIX: Use metadata health if it exists, as it's more reliable
@@ -1553,7 +1554,7 @@ public class CombatHandler {
         finalDamage = Math.max(1, finalDamage);
         double newHealth = Math.max(0, currentHealth - finalDamage);
         
-        plugin.getLogger().info("🔴 DAMAGE CALCULATION: NPC " + target.getName() + 
+        plugin.debugLog(DebugSystem.NPC,"🔴 DAMAGE CALCULATION: NPC " + target.getName() + 
             " Health: " + currentHealth + " -> " + newHealth + 
             " (Damage: " + finalDamage + ", Armor Reduction: " + 
             (armorReduction * 100) + "%, Raw: " + damage + ")");
@@ -1565,7 +1566,7 @@ public class CombatHandler {
         // Update nameplate - CRITICAL: Pass the correct current and max health values
         NPCManager.getInstance().updateNameplate(target, newHealth, targetStats.getMaxHealth());
         
-        plugin.getLogger().info("🔴 HEALTH UPDATE: Set " + target.getName() + 
+        plugin.debugLog(DebugSystem.NPC,"🔴 HEALTH UPDATE: Set " + target.getName() + 
             " health to " + newHealth + "/" + targetStats.getMaxHealth() + 
             " (stored in map and metadata)");
         
@@ -1609,13 +1610,13 @@ public class CombatHandler {
                     target.getEntity().setMetadata("last_knockback_time", 
                         new FixedMetadataValue(plugin, currentTime));
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("🔴 APPLIED KNOCKBACK: " + knockback + 
+                    if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                        plugin.debugLog(DebugSystem.NPC,"🔴 APPLIED KNOCKBACK: " + knockback + 
                             " with strength " + knockbackStrength);
                     }
                 }
-            } else if (plugin.isDebugMode()) {
-                plugin.getLogger().info("🔴 KNOCKBACK IGNORED: Too soon since last knockback");
+            } else if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"🔴 KNOCKBACK IGNORED: Too soon since last knockback");
             }
         }
         
@@ -1628,7 +1629,7 @@ public class CombatHandler {
         
         // Check if the NPC died
         if (newHealth <= 0) {
-            plugin.getLogger().info("🔴 NPC DEATH: " + target.getName() + 
+            plugin.debugLog(DebugSystem.NPC,"🔴 NPC DEATH: " + target.getName() + 
                 " died from damage by " + (attacker != null ? attacker.getName() : "unknown"));
             handleNPCDeath(target, attacker != null ? attacker.getEntity() : null);
         }
@@ -1727,8 +1728,8 @@ public class CombatHandler {
                         double maxHealth = finalStats.getMaxHealth();
                         int physicalDamage = finalStats.getPhysicalDamage();
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("Respawning NPC " + npcName + 
+                        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                            plugin.debugLog(DebugSystem.NPC,"Respawning NPC " + npcName + 
                                 " with stats: Health=" + maxHealth + ", Damage=" + physicalDamage);
                         }
                         
@@ -1759,7 +1760,7 @@ public class CombatHandler {
                                             try {
                                                 newNpc.teleport(respawnLocation, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
                                             } catch (Exception e) {
-                                                plugin.getLogger().warning("Error during NPC respawn teleport: " + e.getMessage());
+                                                plugin.debugLog(DebugSystem.NPC,"Error during NPC respawn teleport: " + e.getMessage());
                                             }
                                         }
                                     }
@@ -1767,7 +1768,7 @@ public class CombatHandler {
                             }
                         }
                     } catch (Exception e) {
-                        plugin.getLogger().warning("Error during NPC respawn: " + e.getMessage());
+                        plugin.debugLog(DebugSystem.NPC,"Error during NPC respawn: " + e.getMessage());
                     }
                 }
             }.runTaskLater(plugin, respawnTime * 20L);
@@ -1785,7 +1786,7 @@ public class CombatHandler {
      */
     private void respawnNPC(NPC npc, Location location) {
         if (location == null) {
-            plugin.getLogger().warning("Cannot respawn NPC " + npc.getName() + " - no respawn location");
+            plugin.debugLog(DebugSystem.NPC,"Cannot respawn NPC " + npc.getName() + " - no respawn location");
             return;
         }
         
@@ -1799,8 +1800,8 @@ public class CombatHandler {
         double maxHealth = stats.getMaxHealth();
         npcHealth.put(npcId, maxHealth);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("RESPAWN: Reset health for NPC " + npc.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"RESPAWN: Reset health for NPC " + npc.getName() + 
                 " to max value of " + maxHealth);
         }
         

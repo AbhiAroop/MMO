@@ -7,6 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.mobs.colossus.DuneetchedColossus;
 import com.server.entities.mobs.colossus.RunemarkColossus;
@@ -47,7 +48,7 @@ public class MobRegistry {
         // mobTypes.put("ghost", new Ghost(plugin, entityManager));
         // mobTypes.put("lich", new Lich(plugin, entityManager));
         
-        plugin.getLogger().info("Registered " + mobTypes.size() + " custom mob types");
+        plugin.debugLog(DebugSystem.ENTITY,"Registered " + mobTypes.size() + " custom mob types");
     }
     
     /**
@@ -60,7 +61,7 @@ public class MobRegistry {
     public LivingEntity spawnMob(String mobTypeId, Location location) {
         CustomMob mobType = mobTypes.get(mobTypeId.toLowerCase());
         if (mobType == null) {
-            plugin.getLogger().warning("Unknown mob type: " + mobTypeId);
+            plugin.debugLog(DebugSystem.ENTITY,"Unknown mob type: " + mobTypeId);
             return null;
         }
         

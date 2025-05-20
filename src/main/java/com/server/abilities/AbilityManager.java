@@ -28,6 +28,7 @@ import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.display.DamageIndicatorManager;
 import com.server.entities.npc.NPCInteractionHandler;
 import com.server.entities.npc.NPCManager;
@@ -231,8 +232,8 @@ public class AbilityManager {
         
         // First validate that this is a real target, not a nameplate
         if (!isValidAbilityTarget(target)) {
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Skipping invalid ability target: " + target.getType());
+            if (plugin.isDebugEnabled(DebugSystem.ABILITIES)) {
+                plugin.debugLog(DebugSystem.ABILITIES,"Skipping invalid ability target: " + target.getType());
             }
             return;
         }
@@ -257,8 +258,8 @@ public class AbilityManager {
                                     abilityId.contains("spell") || 
                                     abilityId.contains("beam");
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("💫 ABILITY DAMAGE: " + abilityId + " from " + player.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.ABILITIES)) {
+                plugin.debugLog(DebugSystem.ABILITIES,"💫 ABILITY DAMAGE: " + abilityId + " from " + player.getName() + 
                                     " to " + npc.getName() + " for " + damage + 
                                     " " + (isMagicDamage ? "magic" : "physical") + " damage");
             }
@@ -291,8 +292,8 @@ public class AbilityManager {
             }
             
             // Fallback for NPCs without proper handlers
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Using fallback damage for NPC: " + npc.getName());
+            if (plugin.isDebugEnabled(DebugSystem.ABILITIES)) {
+                plugin.debugLog(DebugSystem.ABILITIES,"Using fallback damage for NPC: " + npc.getName());
             }
             
             // Show damage indicator
@@ -614,8 +615,8 @@ public class AbilityManager {
                     }
                     
                     // Debug info
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " healed for " + healAmount + 
+                    if (plugin.isDebugEnabled(DebugSystem.ABILITIES)) {
+                        plugin.debugLog(DebugSystem.ABILITIES,player.getName() + " healed for " + healAmount + 
                                                 " from omnivamp (" + omnivampPercent + "%)");
                     }
                 }

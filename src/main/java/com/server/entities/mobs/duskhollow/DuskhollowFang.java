@@ -19,6 +19,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.CustomMobStats;
 import com.server.entities.MobType;
@@ -87,8 +88,8 @@ public class DuskhollowFang extends CustomMob {
                     playIdleAnimation(entity);
                 }, 5L);
             } catch (Exception e) {
-                plugin.getLogger().warning("Error setting Duskhollow Fang attributes: " + e.getMessage());
-                if (plugin.isDebugMode()) {
+                plugin.debugLog(DebugSystem.ENTITY,"Error setting Duskhollow Fang attributes: " + e.getMessage());
+                if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
                     e.printStackTrace();
                 }
             }
@@ -176,8 +177,8 @@ public class DuskhollowFang extends CustomMob {
         entityManager.playAnimation(entity, "attack1");
         entity.getWorld().playSound(entity.getLocation(), Sound.ENTITY_WOLF_GROWL, 1.2f, 0.7f);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info(getCustomName() + " playing attack1 animation at player: " + player.getName());
+        if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+            plugin.debugLog(DebugSystem.ENTITY,getCustomName() + " playing attack1 animation at player: " + player.getName());
         }
         
         // Deal damage after a delay to match animation
@@ -226,8 +227,8 @@ public class DuskhollowFang extends CustomMob {
                         // Update nameplate after lifesteal
                         entityManager.updateEntityNameplate(entity);
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(getCustomName() + " hit " + player.getName() + 
+                        if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                            plugin.debugLog(DebugSystem.ENTITY,getCustomName() + " hit " + player.getName() + 
                                     " for " + finalDamage + " damage and healed for " + String.format("%.1f", healAmount));
                         }
                     }

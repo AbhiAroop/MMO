@@ -16,6 +16,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.mobs.MobRegistry;
 import com.ticxo.modelengine.api.ModelEngineAPI;
 import com.ticxo.modelengine.api.model.ActiveModel;
@@ -83,7 +84,7 @@ public class CustomEntityManager {
      */
     public LivingEntity spawnCustomMob(EntityType type, Location location, String modelId, String customName) {
         if (!registeredModels.containsKey(modelId)) {
-            plugin.getLogger().warning("Model ID not found: " + modelId);
+            plugin.debugLog(DebugSystem.ENTITY,"Model ID not found: " + modelId);
             return null;
         }
         
@@ -118,8 +119,8 @@ public class CustomEntityManager {
                 livingEntity.setCustomNameVisible(true);
             }
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Spawned custom entity with model: " + modelId);
+            if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                plugin.debugLog(DebugSystem.ENTITY,"Spawned custom entity with model: " + modelId);
             }
             
             return livingEntity;
@@ -265,7 +266,7 @@ public class CustomEntityManager {
                 try {
                     modeledEntity.destroy();
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Error removing model: " + e.getMessage());
+                    plugin.debugLog(DebugSystem.ENTITY,"Error removing model: " + e.getMessage());
                 }
             }
         }
@@ -299,7 +300,7 @@ public class CustomEntityManager {
             try {
                 modeledEntity.destroy();
             } catch (Exception e) {
-                plugin.getLogger().warning("Error removing models from entity: " + e.getMessage());
+                plugin.debugLog(DebugSystem.ENTITY,"Error removing models from entity: " + e.getMessage());
             }
         }
         
@@ -316,8 +317,8 @@ public class CustomEntityManager {
         modeledEntities.remove(entityId);
         mobStats.remove(entityId);
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Removed tracking for entity: " + entityId);
+        if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+            plugin.debugLog(DebugSystem.ENTITY,"Removed tracking for entity: " + entityId);
         }
     }
     
@@ -363,13 +364,13 @@ public class CustomEntityManager {
                     model.getAnimationHandler().playAnimation(animationName, 1.0, 1.0, 1.0, true);
                     return;
                 } catch (Exception e) {
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().warning("Error playing animation: " + e.getMessage());
+                    if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                        plugin.debugLog(DebugSystem.ENTITY,"Error playing animation: " + e.getMessage());
                     }
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to play animation: " + e.getMessage());
+            plugin.debugLog(DebugSystem.ENTITY,"Failed to play animation: " + e.getMessage());
         }
     }
     

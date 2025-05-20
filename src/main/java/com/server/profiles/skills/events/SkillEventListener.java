@@ -12,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
@@ -40,8 +41,8 @@ public class SkillEventListener implements Listener {
         Material material = block.getType();
         
         // Debug output to track block breaks
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("[SkillEventListener] Processing block break: " + material.name() + " by " + player.getName());
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"[SkillEventListener] Processing block break: " + material.name() + " by " + player.getName());
         }
         
         // Determine which skill should get XP
@@ -60,8 +61,8 @@ public class SkillEventListener implements Listener {
                     // Award XP to main mining skill for non-ore blocks only
                     SkillProgressionManager.getInstance().addExperience(player, miningSkill, xpAmount);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                    if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                        plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + xpAmount + 
                                             " XP in " + skillType.getDisplayName() + 
                                             " for breaking " + material.name());
                     }
@@ -83,8 +84,8 @@ public class SkillEventListener implements Listener {
             if (excavatingSkill != null) {
                 SkillProgressionManager.getInstance().addExperience(player, excavatingSkill, xpAmount);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                    plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + xpAmount + 
                                         " XP in " + skillType.getDisplayName() + 
                                         " for breaking " + material.name());
                 }
@@ -98,8 +99,8 @@ public class SkillEventListener implements Listener {
      */
     public void processBlockBreakDirectly(Player player, Block block, Material originalMaterial) {
         // Debug output to track direct processing
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("[SkillEventListener] Direct processing block: " + originalMaterial.name() + " by " + player.getName());
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"[SkillEventListener] Direct processing block: " + originalMaterial.name() + " by " + player.getName());
         }
         
         // Determine which skill should get XP
@@ -116,8 +117,8 @@ public class SkillEventListener implements Listener {
                     // Award XP to main mining skill for non-ore blocks only
                     SkillProgressionManager.getInstance().addExperience(player, miningSkill, xpAmount);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                    if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                        plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + xpAmount + 
                                             " XP in " + miningSkill.getDisplayName() + 
                                             " for breaking " + originalMaterial.name());
                     }
@@ -139,8 +140,8 @@ public class SkillEventListener implements Listener {
      */
     private void processSubskills(Player player, Skill mainSkill, Material material, double baseXpAmount) {
         // Debug output
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("[SkillEventListener] Processing subskills for " + player.getName() + " - Material: " + material.name());
+        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+            plugin.debugLog(DebugSystem.SKILLS,"[SkillEventListener] Processing subskills for " + player.getName() + " - Material: " + material.name());
         }
         
         SkillRegistry registry = SkillRegistry.getInstance();
@@ -184,8 +185,8 @@ public class SkillEventListener implements Listener {
                                 SkillProgressionManager.getInstance().addExperience(player, mainSkill, mainSkillEvent.getAmount());
                             }
                             
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().info(player.getName() + " gained " + mainSkillXpAmount + 
+                            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                                plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + mainSkillXpAmount + 
                                     " Mining XP from Ore Conduit (" + (miningXpSplit * 100) + "% split)");
                             }
                         }
@@ -204,14 +205,14 @@ public class SkillEventListener implements Listener {
                             SkillProgressionManager.getInstance().addExperience(player, oreSkill, oreEvent.getAmount());
                         }
                         
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(player.getName() + " gained " + subskillXpAmount + 
+                        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                            plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + subskillXpAmount + 
                                     " OreExtraction XP for mining " + material.name() +
                                     (miningXpSplit > 0.0 ? " (with " + (miningXpSplit * 100) + "% split to Mining)" : ""));
                         }
                     } else {
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info(player.getName() + " cannot mine " + material.name() + " yet. No XP awarded.");
+                        if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                            plugin.debugLog(DebugSystem.SKILLS,player.getName() + " cannot mine " + material.name() + " yet. No XP awarded.");
                         }
                     }
                 }
@@ -313,8 +314,8 @@ public class SkillEventListener implements Listener {
         if (Math.random() < findChance) {
             // TODO: Implement actual gem-finding mechanic, maybe open a mini-game GUI
             // For now, just inform in debug mode
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info(player.getName() + " would have found a gem! (Level " + level + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,player.getName() + " would have found a gem! (Level " + level + 
                                      ", Find Chance: " + String.format("%.1f%%", findChance * 100) + ")");
             }
         }
@@ -523,8 +524,8 @@ public class SkillEventListener implements Listener {
                     // Award the subskill XP
                     SkillProgressionManager.getInstance().addExperience(player, subskill, xpAmount);
                     
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " gained " + xpAmount + 
+                    if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                        plugin.debugLog(DebugSystem.SKILLS,player.getName() + " gained " + xpAmount + 
                                             " XP in " + subskill.getDisplayName() + 
                                             " for breaking " + material.name());
                     }

@@ -7,6 +7,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.util.Vector;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.CombatHandler;
 import com.server.entities.npc.NPCManager;
 
@@ -70,8 +71,8 @@ public class CombatBehavior implements NPCBehavior {
             }
         }
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Initialized CombatBehavior for NPC " + npc.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Initialized CombatBehavior for NPC " + npc.getName() + 
                                    " [targetsPlayers=" + targetsPlayers + 
                                    ", targetsNPCs=" + targetsNPCs + 
                                    ", isHostile=" + isHostile + "]");
@@ -152,8 +153,8 @@ public class CombatBehavior implements NPCBehavior {
             // Use hostile behavior for aggressive NPCs
             combatHandler.startHostileCombatBehavior(npc, (Player)target);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Started hostile combat behavior for NPC " + npc.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Started hostile combat behavior for NPC " + npc.getName() + 
                                     " targeting " + target.getName());
             }
         } else {
@@ -170,8 +171,8 @@ public class CombatBehavior implements NPCBehavior {
                 combatHandler.startCombatBehavior(npc, null);
             }
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Started regular combat behavior for NPC " + npc.getName() + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Started regular combat behavior for NPC " + npc.getName() + 
                                     " targeting " + target.getName());
             }
         }
@@ -223,8 +224,8 @@ public class CombatBehavior implements NPCBehavior {
         
         combatHandler.stopCombatBehavior(npc.getUniqueId());
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Stopped combat for NPC " + npc.getName());
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Stopped combat for NPC " + npc.getName());
         }
     }
     

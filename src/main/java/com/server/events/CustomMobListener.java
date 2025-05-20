@@ -17,6 +17,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.CustomMobStats;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -84,8 +85,8 @@ public class CustomMobListener implements Listener {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
             if (profile != null) {
                 // Standard damage calculation already happens in the event
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info(player.getName() + " attacked a custom mob: " + 
+                if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                    plugin.debugLog(DebugSystem.ENTITY,player.getName() + " attacked a custom mob: " + 
                             entity.getCustomName() + " for " + event.getFinalDamage() + " damage");
                 }
             }
@@ -155,8 +156,8 @@ public class CustomMobListener implements Listener {
                     event.getDrops().clear();
                     
                     // Log the kill for debugging
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info(player.getName() + " killed custom mob: " + 
+                    if (plugin.isDebugEnabled(DebugSystem.ENTITY)) {
+                        plugin.debugLog(DebugSystem.ENTITY,player.getName() + " killed custom mob: " + 
                                 stats.getName() + " (Level " + stats.getLevel() + ")");
                     }
                 }

@@ -10,6 +10,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
 
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.entities.npc.CombatHandler;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.NPCStats;
@@ -99,8 +100,8 @@ public class CombatNPC extends BaseNPC {
         // Update stats from equipment immediately upon initialization
         updateStatsFromEquipment();
         
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Initialized behaviors for NPC " + name + ": " + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Initialized behaviors for NPC " + name + ": " + 
                                 behaviors.keySet().toString());
         }
     }
@@ -130,8 +131,8 @@ public class CombatNPC extends BaseNPC {
             equipBehavior.getEquippedItems();
         
         // Log the number of equipped items found for debugging
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("Found " + equippedItems.size() + " equipped items for NPC " + name);
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"Found " + equippedItems.size() + " equipped items for NPC " + name);
         }
         
         // Reset stats to base values - CRITICAL FIX: Use the preserved values instead of defaults
@@ -159,8 +160,8 @@ public class CombatNPC extends BaseNPC {
                 // Update the combat handler with preserved stats
                 combatHandler.setNPCStats(npc.getUniqueId(), stats);
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("No equipped items, using base stats for NPC " + name + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"No equipped items, using base stats for NPC " + name + 
                         ": Health=" + stats.getMaxHealth() + 
                         ", PhysDmg=" + stats.getPhysicalDamage());
                 }
@@ -174,8 +175,8 @@ public class CombatNPC extends BaseNPC {
             net.citizensnpcs.api.trait.trait.Equipment.EquipmentSlot slot = entry.getKey();
             
             if (item != null) {
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Processing item in slot " + slot.name() + ": " + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Processing item in slot " + slot.name() + ": " + 
                         (item.hasItemMeta() && item.getItemMeta().hasDisplayName() ? 
                         item.getItemMeta().getDisplayName() : item.getType().name()));
                 }
@@ -185,8 +186,8 @@ public class CombatNPC extends BaseNPC {
                     int modelData = item.getItemMeta().getCustomModelData();
                     
                     // Log model data for debugging
-                    if (plugin.isDebugMode()) {
-                        plugin.getLogger().info("Processing item with model data: " + modelData);
+                    if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                        plugin.debugLog(DebugSystem.NPC,"Processing item with model data: " + modelData);
                     }
                 }
                 
@@ -200,8 +201,8 @@ public class CombatNPC extends BaseNPC {
                         String cleanLine = line.replaceAll("§[0-9a-fA-Fk-oK-OrR]", "").trim();
                         
                         // Log for debugging
-                        if (plugin.isDebugMode()) {
-                            plugin.getLogger().info("  Processing lore line: " + cleanLine);
+                        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                            plugin.debugLog(DebugSystem.NPC,"  Processing lore line: " + cleanLine);
                         }
                         
                         // Extract stats from lore
@@ -212,8 +213,8 @@ public class CombatNPC extends BaseNPC {
                                 String numericValue = valueStr.replaceAll("[^0-9]", "");
                                 int amount = Integer.parseInt(numericValue);
                                 stats.setPhysicalDamage(stats.getPhysicalDamage() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Physical Damage: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Physical Damage: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Health: +")) {
@@ -222,48 +223,48 @@ public class CombatNPC extends BaseNPC {
                                 String numericValue = valueStr.replaceAll("[^0-9]", "");
                                 int amount = Integer.parseInt(numericValue);
                                 stats.setMaxHealth(stats.getMaxHealth() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Health: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Health: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Armor: +")) {
                                 int amount = Integer.parseInt(cleanLine.substring("Armor: +".length()).trim());
                                 stats.setArmor(stats.getArmor() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Armor: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Armor: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Magic Damage: +")) {
                                 int amount = Integer.parseInt(cleanLine.substring("Magic Damage: +".length()).trim());
                                 stats.setMagicDamage(stats.getMagicDamage() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Magic Damage: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Magic Damage: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Magic Resist: +")) {
                                 int amount = Integer.parseInt(cleanLine.substring("Magic Resist: +".length()).trim());
                                 stats.setMagicResist(stats.getMagicResist() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Magic Resist: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Magic Resist: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Attack Speed: +")) {
                                 double amount = Double.parseDouble(cleanLine.substring("Attack Speed: +".length()).trim());
                                 stats.setAttackSpeed(stats.getAttackSpeed() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Attack Speed: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Attack Speed: +" + amount);
                                 }
                             }
                             else if (cleanLine.startsWith("Attack Range: +")) {
                                 double amount = Double.parseDouble(cleanLine.substring("Attack Range: +".length()).trim());
                                 stats.setAttackRange(stats.getAttackRange() + amount);
-                                if (plugin.isDebugMode()) {
-                                    plugin.getLogger().info("    Added Attack Range: +" + amount);
+                                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                    plugin.debugLog(DebugSystem.NPC,"    Added Attack Range: +" + amount);
                                 }
                             }
                         } catch (NumberFormatException e) {
-                            if (plugin.isDebugMode()) {
-                                plugin.getLogger().warning("    Error parsing stat value from lore: " + cleanLine);
+                            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                                plugin.debugLog(DebugSystem.NPC,"    Error parsing stat value from lore: " + cleanLine);
                             }
                         }
                     }
@@ -274,8 +275,8 @@ public class CombatNPC extends BaseNPC {
         // Update the combat handler with the new stats
         if (npc != null && npc.isSpawned()) {
             // Debug log comparing old vs new stats
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Stats after equipment: " + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Stats after equipment: " + 
                     "Health=" + stats.getMaxHealth() + 
                     ", PhysDmg=" + stats.getPhysicalDamage() + 
                     ", MagicDmg=" + stats.getMagicDamage() + 
@@ -311,8 +312,8 @@ public class CombatNPC extends BaseNPC {
                 double healthIncrease = stats.getMaxHealth() - oldMaxHealth;
                 currentHealth += healthIncrease;
                 
-                if (plugin.isDebugMode()) {
-                    plugin.getLogger().info("Max health increased by " + healthIncrease + 
+                if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                    plugin.debugLog(DebugSystem.NPC,"Max health increased by " + healthIncrease + 
                         ", so current health also increased from " + (currentHealth - healthIncrease) + 
                         " to " + currentHealth);
                 }
@@ -330,8 +331,8 @@ public class CombatNPC extends BaseNPC {
             // Update the nameplate
             NPCManager.getInstance().updateNameplate(npc, currentHealth, stats.getMaxHealth());
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("Updated CombatHandler stats for NPC " + name + 
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"Updated CombatHandler stats for NPC " + name + 
                     " - Physical damage: " + stats.getPhysicalDamage() +
                     ", Health: " + stats.getMaxHealth() + 
                     ", Armor: " + stats.getArmor() +
@@ -469,8 +470,8 @@ public class CombatNPC extends BaseNPC {
             NPCManager.getInstance().updateNameplate(npc, currentHealth, maxHealth);
             
             // Debug health values
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info("CombatNPC damaged: " + name + " health = " + currentHealth + "/" + maxHealth);
+            if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+                plugin.debugLog(DebugSystem.NPC,"CombatNPC damaged: " + name + " health = " + currentHealth + "/" + maxHealth);
             }
         }
     }
@@ -569,8 +570,8 @@ public class CombatNPC extends BaseNPC {
         boolean isCritical = Math.random() < critChance;
         
         // Apply damage using combat handler - using current stats that include equipment bonuses
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("NPC " + name + " attacking NPC " + targetNPC.getName() + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"NPC " + name + " attacking NPC " + targetNPC.getName() + 
                 " with damage: " + stats.getPhysicalDamage() + ", Critical: " + isCritical);
         }
         
@@ -603,10 +604,10 @@ public class CombatNPC extends BaseNPC {
         double currentHealth;
         if (npc.getEntity().hasMetadata("current_health")) {
             currentHealth = npc.getEntity().getMetadata("current_health").get(0).asDouble();
-            plugin.getLogger().info("🟢 HEALTH CHECK: " + name + " current health from metadata: " + currentHealth);
+            plugin.debugLog(DebugSystem.NPC,"🟢 HEALTH CHECK: " + name + " current health from metadata: " + currentHealth);
         } else {
             currentHealth = stats.getMaxHealth();
-            plugin.getLogger().info("🟢 HEALTH CHECK: " + name + " using default max health: " + currentHealth);
+            plugin.debugLog(DebugSystem.NPC,"🟢 HEALTH CHECK: " + name + " using default max health: " + currentHealth);
         }
         
         // Calculate damage reduction from armor
@@ -626,10 +627,10 @@ public class CombatNPC extends BaseNPC {
         
         // Debug info with safe attacker name
         String attackerName = attackerNPC != null ? attackerNPC.getName() : "Player/Environment";
-        plugin.getLogger().info("🟢 DAMAGE PROCESSING: " + attackerName + " damaged NPC " + name + 
+        plugin.debugLog(DebugSystem.NPC,"🟢 DAMAGE PROCESSING: " + attackerName + " damaged NPC " + name + 
             " for " + finalDamage + " damage (raw damage: " + damage + 
             ", armor reduction: " + (armorReduction * 100) + "%)");
-        plugin.getLogger().info("🟢 HEALTH UPDATE: NPC " + name + " health: " + currentHealth + " → " + newHealth);
+        plugin.debugLog(DebugSystem.NPC,"🟢 HEALTH UPDATE: NPC " + name + " health: " + currentHealth + " → " + newHealth);
         
         // CRITICAL FIX: Update health values in both systems
         npc.getEntity().setMetadata("current_health", new FixedMetadataValue(plugin, newHealth));
@@ -639,13 +640,13 @@ public class CombatNPC extends BaseNPC {
         NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
         
         // Check if the entity's nameplate reflects the health change
-        plugin.getLogger().info("🟢 NAMEPLATE UPDATE: " + name + " nameplate updated to show " + 
+        plugin.debugLog(DebugSystem.NPC,"🟢 NAMEPLATE UPDATE: " + name + " nameplate updated to show " + 
             newHealth + "/" + stats.getMaxHealth() + " health");
         
         // IMPROVED: Chance to immediately counter-attack while being attacked
         if (Math.random() < 0.6) { // 60% chance to counter
             if (attackerNPC != null) {
-                plugin.getLogger().info("🟢 COUNTER-ATTACK: " + name + " attempting counter-attack against " + attackerNPC.getName());
+                plugin.debugLog(DebugSystem.NPC,"🟢 COUNTER-ATTACK: " + name + " attempting counter-attack against " + attackerNPC.getName());
                 combatHandler.triggerCounterAttack(npc, attackerNPC.getEntity());
             }
         }
@@ -658,7 +659,7 @@ public class CombatNPC extends BaseNPC {
             // Use combat behavior if available to retaliate
             CombatBehavior combatBehavior = (CombatBehavior) behaviors.get("combat");
             if (combatBehavior != null) {
-                plugin.getLogger().info("🟢 RETALIATION: " + name + " retaliating against " + attackerNPC.getName());
+                plugin.debugLog(DebugSystem.NPC,"🟢 RETALIATION: " + name + " retaliating against " + attackerNPC.getName());
                 combatBehavior.startCombat(attackerNPC.getEntity());
             }
         }
@@ -674,7 +675,7 @@ public class CombatNPC extends BaseNPC {
         // Check if NPC died
         if (newHealth <= 0) {
             // Handle NPC death
-            plugin.getLogger().info("🟢 NPC DEATH: " + name + " was killed by " + attackerName);
+            plugin.debugLog(DebugSystem.NPC,"🟢 NPC DEATH: " + name + " was killed by " + attackerName);
             
             // Use the standard death handling from combat handler
             Entity killerEntity = attackerNPC != null ? attackerNPC.getEntity() : null;
@@ -707,8 +708,8 @@ public class CombatNPC extends BaseNPC {
         finalDamage = Math.max(1.0, finalDamage);
         
         // Debug logging
-        if (plugin.isDebugMode()) {
-            plugin.getLogger().info("💫 MAGIC DAMAGE: " + player.getName() + " -> " + name + 
+        if (plugin.isDebugEnabled(DebugSystem.NPC)) {
+            plugin.debugLog(DebugSystem.NPC,"💫 MAGIC DAMAGE: " + player.getName() + " -> " + name + 
                 ", Raw: " + damage + ", After MR(" + stats.getMagicResist() + 
                 "): " + finalDamage + ", Reduction: " + (magicResistReduction * 100) + "%");
         }
@@ -737,7 +738,7 @@ public class CombatNPC extends BaseNPC {
         
         // IMPROVED: Chance to immediately counter-attack while being attacked by magic
         if (Math.random() < 0.4) { // 40% chance to counter magical attacks
-            plugin.getLogger().info("🟢 MAGIC COUNTER-ATTACK: " + name + " attempting counter-attack against " + player.getName());
+            plugin.debugLog(DebugSystem.NPC,"🟢 MAGIC COUNTER-ATTACK: " + name + " attempting counter-attack against " + player.getName());
             combatHandler.triggerCounterAttack(npc, player);
         }
         

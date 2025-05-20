@@ -8,6 +8,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.events.SkillLevelUpEvent;
@@ -62,8 +63,8 @@ public class SkillLevelupListener implements Listener {
             // Play sound for token reward
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
             
-            if (plugin.isDebugMode()) {
-                plugin.getLogger().info(player.getName() + " received " + tokensToAward + " " + 
+            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                plugin.debugLog(DebugSystem.SKILLS,player.getName() + " received " + tokensToAward + " " + 
                                      tokenInfo.displayName + " Tokens for reaching level " + 
                                      newLevel + " in " + skill.getDisplayName());
             }
