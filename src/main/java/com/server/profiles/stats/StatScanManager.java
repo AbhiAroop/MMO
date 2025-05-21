@@ -55,6 +55,7 @@ public class StatScanManager {
     // Mining-specific patterns
     private static final Pattern MINING_FORTUNE_PATTERN = Pattern.compile("Mining Fortune: \\+(\\d+\\.?\\d*)");
     private static final Pattern MINING_SPEED_PATTERN = Pattern.compile("Mining Speed: \\+(\\d+\\.?\\d*)");
+    private static final Pattern BUILD_RANGE_PATTERN = Pattern.compile("Build Range: \\+(\\d+\\.?\\d*)");
 
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
@@ -63,6 +64,7 @@ public class StatScanManager {
     private static final String MMO_ATTACK_SPEED_MODIFIER = "mmo.attackspeed";
     private static final String MMO_MOVEMENT_SPEED_MODIFIER = "mmo.movementspeed";
     private static final String MMO_MINING_SPEED_MODIFIER = "mmo.mining_speed";
+    private static final String MMO_BUILD_RANGE_MODIFIER = "mmo.build_range";
     
     /**
      * Constructor
@@ -264,7 +266,7 @@ public class StatScanManager {
                     profile.getStats().setCurrentHealth(player.getHealth());
                     
                     if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                        plugin.debugLog(DebugSystem.STATS,"Saved " + player.getName() + "'s health (" + player.getHealth() + 
+                        plugin.debugLog(DebugSystem.STATS, "Saved " + player.getName() + "'s health (" + player.getHealth() + 
                                     ") before attribute reset");
                     }
                 }
@@ -279,23 +281,72 @@ public class StatScanManager {
                 // DO NOT SET BASE VALUE OR CURRENT HEALTH HERE
             }
             
-            // Reset other attributes similarly
+            // Reset attack speed attribute
             AttributeInstance attackSpeedAttribute = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
             if (attackSpeedAttribute != null) {
                 removeModifiersByName(attackSpeedAttribute, MMO_ATTACK_SPEED_MODIFIER);
-                attackSpeedAttribute.setBaseValue(0.5); // Vanilla default
+                attackSpeedAttribute.setBaseValue(0.5); // Our custom default
             }
 
             // Reset mining speed attribute
             AttributeInstance miningSpeedAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_BREAK_SPEED);
             if (miningSpeedAttribute != null) {
                 removeModifiersByName(miningSpeedAttribute, MMO_MINING_SPEED_MODIFIER);
-                miningSpeedAttribute.setBaseValue(0.5); // Vanilla default
+                miningSpeedAttribute.setBaseValue(0.5); // Our custom default
             }
             
-            // Reset other attributes
+            // Reset size attribute
+            AttributeInstance scaleAttribute = player.getAttribute(Attribute.GENERIC_SCALE);
+            if (scaleAttribute != null) {
+                removeModifiersByName(scaleAttribute, MMO_SIZE_MODIFIER);
+                // Don't reset base value as it's handled by baseline modifier
+            }
+
+            AttributeInstance buildRangeAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
+            if (buildRangeAttribute != null) {
+                removeModifiersByName(buildRangeAttribute, MMO_BUILD_RANGE_MODIFIER);
+                // Don't reset base value as it's handled by baseline modifier
+            }
+            
+            // Reset step height attribute
+            try {
+                AttributeInstance stepHeightAttribute = player.getAttribute(Attribute.GENERIC_STEP_HEIGHT);
+                if (stepHeightAttribute != null) {
+                    for (AttributeModifier mod : new HashSet<>(stepHeightAttribute.getModifiers())) {
+                        if (mod.getName().equals("mmo.step_height")) {
+                            stepHeightAttribute.removeModifier(mod);
+                        }
+                    }
+                    stepHeightAttribute.setBaseValue(0.6); // Vanilla default
+                }
+            } catch (Exception e) {
+                // Step height attribute might not be available
+            }
+            
+            // Reset jump strength attribute
+            try {
+                AttributeInstance jumpStrengthAttribute = player.getAttribute(Attribute.GENERIC_JUMP_STRENGTH);
+                if (jumpStrengthAttribute != null) {
+                    for (AttributeModifier mod : new HashSet<>(jumpStrengthAttribute.getModifiers())) {
+                        if (mod.getName().equals("mmo.jump_strength")) {
+                            jumpStrengthAttribute.removeModifier(mod);
+                        }
+                    }
+                    jumpStrengthAttribute.setBaseValue(0.42); // Vanilla default
+                }
+            } catch (Exception e) {
+                // Jump strength attribute might not be available
+            }
+            
+            // Reset attack range attribute
+            AttributeInstance rangeAttribute = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
+            if (rangeAttribute != null) {
+                removeModifiersByName(rangeAttribute, MMO_ATTACK_RANGE_MODIFIER);
+                // Don't reset base value as it's handled by baseline modifier
+            }
+            
         } catch (Exception e) {
-            plugin.debugLog(DebugSystem.STATS,"Error resetting attributes: " + e.getMessage());
+            plugin.debugLog(DebugSystem.STATS, "Error resetting attributes: " + e.getMessage());
             if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 e.printStackTrace();
             }
@@ -621,6 +672,14 @@ public class StatScanManager {
                     plugin.debugLog(DebugSystem.STATS,"Added mining speed: " + miningSpeedBonus);
                 }
             }
+
+            double buildRangeBonus = extractDoubleStat(cleanLine, BUILD_RANGE_PATTERN);
+            if (buildRangeBonus > 0) {
+                bonuses.buildRange += buildRangeBonus;
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS, "Added build range: " + buildRangeBonus);
+                }
+            }
         }
     }
 
@@ -724,6 +783,7 @@ public class StatScanManager {
         // Mining stats
         stats.setMiningFortune(stats.getDefaultMiningFortune() + bonuses.miningFortune);
         stats.setMiningSpeed(stats.getDefaultMiningSpeed() + bonuses.miningSpeed);
+        stats.setBuildRange(stats.getDefaultBuildRange() + bonuses.buildRange);
     }
         
     /**
@@ -762,6 +822,7 @@ public class StatScanManager {
 
         stats.setMiningSpeed(stats.getDefaultMiningSpeed());
         stats.setMiningFortune(stats.getMiningFortune());
+        stats.setBuildRange(stats.getDefaultBuildRange());
     }
     /**
      * Apply stats to player's Minecraft attributes
@@ -785,6 +846,9 @@ public class StatScanManager {
 
             // Apply mining speed
             applyMiningSpeedAttribute(player, stats);
+
+            // Apply build range - add this line
+            applyBuildRangeAttribute(player, stats);
             
             // Ensure health display is always 10 hearts
             player.setHealthScaled(true);
@@ -962,10 +1026,11 @@ public class StatScanManager {
     }
     
     /**
-     * Apply size attribute
+     * Apply size attribute and related effects (step height and jump strength)
      */
     private void applySizeAttribute(Player player, PlayerStats stats) {
         try {
+            // 1. Update the GENERIC_SCALE attribute
             AttributeInstance scaleAttribute = player.getAttribute(Attribute.GENERIC_SCALE);
             if (scaleAttribute != null) {
                 // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
@@ -976,9 +1041,6 @@ public class StatScanManager {
                         scaleAttribute.removeModifier(mod);
                     }
                 }
-                
-                // CRITICAL CHANGE: Don't change base value once initialized
-                // scaleAttribute.setBaseValue(1.0); - REMOVE THIS LINE
                 
                 // Apply bonus size if needed
                 double totalSize = stats.getSize();
@@ -995,14 +1057,96 @@ public class StatScanManager {
                 }
                 
                 if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Applied size attribute to " + player.getName() + 
+                    plugin.debugLog(DebugSystem.STATS, "Applied size attribute to " + player.getName() + 
                                     ": " + totalSize + " (Final: " + scaleAttribute.getValue() + ")");
+                }
+                
+                // 2. Update GENERIC_STEP_HEIGHT attribute based on size (0.6 * size)
+                try {
+                    AttributeInstance stepHeightAttribute = player.getAttribute(Attribute.GENERIC_STEP_HEIGHT);
+                    if (stepHeightAttribute != null) {
+                        // Remove existing modifiers
+                        for (AttributeModifier mod : new HashSet<>(stepHeightAttribute.getModifiers())) {
+                            if (mod.getName().equals("mmo.step_height")) {
+                                stepHeightAttribute.removeModifier(mod);
+                            }
+                        }
+                        
+                        // Calculate new step height (default step height is 0.6)
+                        // Formula: stepHeight = 0.6 * size
+                        double baseStepHeight = 0.6;
+                        double newStepHeight = baseStepHeight * totalSize;
+                        double stepHeightBonus = newStepHeight - baseStepHeight;
+                        
+                        // Apply step height modifier
+                        if (stepHeightBonus != 0) {
+                            AttributeModifier stepHeightMod = new AttributeModifier(
+                                UUID.randomUUID(),
+                                "mmo.step_height",
+                                stepHeightBonus,
+                                AttributeModifier.Operation.ADD_NUMBER
+                            );
+                            stepHeightAttribute.addModifier(stepHeightMod);
+                        }
+                        
+                        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                            plugin.debugLog(DebugSystem.STATS, "Applied step height attribute to " + player.getName() + 
+                                            ": " + newStepHeight + " (base: " + baseStepHeight + 
+                                            ", size: " + totalSize + ")");
+                        }
+                    }
+                } catch (Exception e) {
+                    // Step height attribute might not be available
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS, "Step height attribute not supported: " + e.getMessage());
+                    }
+                }
+                
+                // 3. Update GENERIC_JUMP_STRENGTH attribute based on size (0.42 * sqrt(size))
+                try {
+                    AttributeInstance jumpStrengthAttribute = player.getAttribute(Attribute.GENERIC_JUMP_STRENGTH);
+                    if (jumpStrengthAttribute != null) {
+                        // Remove existing modifiers
+                        for (AttributeModifier mod : new HashSet<>(jumpStrengthAttribute.getModifiers())) {
+                            if (mod.getName().equals("mmo.jump_strength")) {
+                                jumpStrengthAttribute.removeModifier(mod);
+                            }
+                        }
+                        
+                        // Calculate new jump strength (default is 0.42)
+                        // Formula: jumpStrength = 0.42 * sqrt(size)
+                        double baseJumpStrength = 0.42;
+                        double newJumpStrength = baseJumpStrength * Math.sqrt(totalSize);
+                        double jumpStrengthBonus = newJumpStrength - baseJumpStrength;
+                        
+                        // Apply jump strength modifier
+                        if (jumpStrengthBonus != 0) {
+                            AttributeModifier jumpStrengthMod = new AttributeModifier(
+                                UUID.randomUUID(),
+                                "mmo.jump_strength",
+                                jumpStrengthBonus,
+                                AttributeModifier.Operation.ADD_NUMBER
+                            );
+                            jumpStrengthAttribute.addModifier(jumpStrengthMod);
+                        }
+                        
+                        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                            plugin.debugLog(DebugSystem.STATS, "Applied jump strength attribute to " + player.getName() + 
+                                            ": " + newJumpStrength + " (base: " + baseJumpStrength + 
+                                            ", size: " + totalSize + ", sqrt(size): " + Math.sqrt(totalSize) + ")");
+                        }
+                    }
+                } catch (Exception e) {
+                    // Jump strength attribute might not be available
+                    if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                        plugin.debugLog(DebugSystem.STATS, "Jump strength attribute not supported: " + e.getMessage());
+                    }
                 }
             }
         } catch (Exception e) {
             // Scale attribute might not be available in older versions
             if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                plugin.debugLog(DebugSystem.STATS,"Error applying size attribute: " + e.getMessage());
+                plugin.debugLog(DebugSystem.STATS, "Error applying size attribute: " + e.getMessage());
             }
         }
     }
@@ -1048,6 +1192,51 @@ public class StatScanManager {
             // Range attribute might not be available in older versions
             if (plugin.isDebugEnabled(DebugSystem.STATS)) {
                 plugin.debugLog(DebugSystem.STATS,"Attack range attribute not supported: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Apply build range attribute
+     */
+    private void applyBuildRangeAttribute(Player player, PlayerStats stats) {
+        try {
+            AttributeInstance buildRangeAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
+            if (buildRangeAttribute != null) {
+                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                for (AttributeModifier mod : new HashSet<>(buildRangeAttribute.getModifiers())) {
+                    if (mod.getName().equals(MMO_BUILD_RANGE_MODIFIER) || 
+                        mod.getName().equals("mmo.temp_build_range_fix")) {
+                        buildRangeAttribute.removeModifier(mod);
+                    }
+                }
+                
+                // CRITICAL CHANGE: Don't change base value once initialized
+                // buildRangeAttribute.setBaseValue(5.0); - Don't set this
+                
+                // Apply bonus range if needed
+                double totalBuildRange = stats.getBuildRange();
+                double buildRangeBonus = totalBuildRange - 5.0; // Default is 5.0
+                
+                if (buildRangeBonus != 0) {
+                    AttributeModifier buildRangeMod = new AttributeModifier(
+                        UUID.randomUUID(),
+                        MMO_BUILD_RANGE_MODIFIER,
+                        buildRangeBonus,
+                        AttributeModifier.Operation.ADD_NUMBER
+                    );
+                    buildRangeAttribute.addModifier(buildRangeMod);
+                }
+                
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS, "Applied build range attribute to " + player.getName() + 
+                                    ": " + totalBuildRange + " (Final: " + buildRangeAttribute.getValue() + ")");
+                }
+            }
+        } catch (Exception e) {
+            // Build range attribute might not be available in older versions
+            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                plugin.debugLog(DebugSystem.STATS, "Build range attribute not supported: " + e.getMessage());
             }
         }
     }
@@ -1129,6 +1318,7 @@ public class StatScanManager {
         plugin.debugLog(DebugSystem.STATS,"  Crit Chance: +" + bonuses.critChance + "%");
         plugin.debugLog(DebugSystem.STATS,"  Crit Damage: +" + bonuses.critDamage + "x");
         plugin.debugLog(DebugSystem.STATS,"  Mining Speed: +" + bonuses.miningSpeed + "x");
+        plugin.debugLog(DebugSystem.STATS, "  Build Range: +" + bonuses.buildRange);
     }
     
     
@@ -1162,6 +1352,7 @@ public class StatScanManager {
         double omnivamp = 0;
         double miningFortune = 0;
         double miningSpeed = 0;
+        double buildRange = 0;
     }
 
 }

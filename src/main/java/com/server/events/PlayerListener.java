@@ -614,6 +614,68 @@ public class PlayerListener implements Listener {
                 e.printStackTrace();
             }
         }
+        // Initialize step height attribute
+        try {
+            AttributeInstance stepHeightAttr = player.getAttribute(Attribute.GENERIC_STEP_HEIGHT);
+            if (stepHeightAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(stepHeightAttr.getModifiers())) {
+                    stepHeightAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (0.6)
+                stepHeightAttr.setBaseValue(0.6);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.step_height.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                stepHeightAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE, "Initialized step height attribute for " + player.getName() + 
+                        " to default value (0.6)");
+                }
+            }
+        } catch (Exception e) {
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE, "Step height attribute not supported: " + e.getMessage());
+            }
+        }
+        // Initialize jump strength attribute
+        try {
+            AttributeInstance jumpAttr = player.getAttribute(Attribute.GENERIC_JUMP_STRENGTH);
+            if (jumpAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(jumpAttr.getModifiers())) {
+                    jumpAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (0.42)
+                jumpAttr.setBaseValue(0.42);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.jump_strength.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                jumpAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE, "Initialized jump strength attribute for " + player.getName() + 
+                        " to default value (0.42)");
+                }
+            }
+        } catch (Exception e) {
+            if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                plugin.debugLog(DebugSystem.PROFILE, "Jump strength attribute not supported: " + e.getMessage());
+            }
+        }
     }
 
     /**

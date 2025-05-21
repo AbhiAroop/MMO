@@ -201,6 +201,7 @@ com\server\events\AutoRespawnListener.class
 com\server\events\PlayerListener$AttributeInitData.class
 com\server\profiles\skills\events\GemCarvingListener.class
 com\server\profiles\skills\core\SkillProgressionManager.class
+com\server\commands\AdminStatsCommand$StatDefinition.class
 com\server\profiles\skills\gui\SubskillsGUI.class
 com\server\entities\npc\NPCInteractionHandler.class
 com\server\profiles\skills\minigames\GemCarvingMinigame.class

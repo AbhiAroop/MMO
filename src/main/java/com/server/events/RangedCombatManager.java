@@ -95,6 +95,7 @@ public class RangedCombatManager implements Listener {
         }
     }
     
+    
     /**
      * Reset a player's attributes to vanilla defaults
      * Used when resetting a player's state
@@ -180,8 +181,22 @@ public class RangedCombatManager implements Listener {
                 }
                 attackDamageAttribute.setBaseValue(1.0); // Vanilla default
             }
+
+            // Reset build range attribute
+            AttributeInstance buildRangeAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
+            if (buildRangeAttribute != null) {
+                // CRITICAL CHANGE: Only remove non-baseline modifiers
+                for (AttributeModifier modifier : new HashSet<>(buildRangeAttribute.getModifiers())) {
+                    if (!modifier.getName().equals("mmo.build_range.baseline")) {
+                        buildRangeAttribute.removeModifier(modifier);
+                    }
+                }
+                // Don't change the base value once initialized
+        }
+
         } catch (Exception e) {
             plugin.debugLog(DebugSystem.COMBAT,"Error resetting attributes: " + e.getMessage());
         }
     }
+    
 }

@@ -48,6 +48,7 @@ public class PlayerStats {
     private int expLevel;
     private float expProgress;
     private double attackRange;
+    private double buildRange;
     private double size;
     private double miningSpeed;
 
@@ -76,6 +77,7 @@ public class PlayerStats {
     private double defaultLootingFortune = 1.00;
     private double defaultFishingFortune = 1.00;
     private double defaultAttackRange = 3.0;
+    private double defaultBuildRange = 5.0;
     private double defaultSize = 1.0;
     private double defaultMiningSpeed = 0.5;
 
@@ -125,6 +127,7 @@ public class PlayerStats {
         this.attackRange = defaultAttackRange;
         this.size = defaultSize;
         this.miningSpeed = defaultMiningSpeed;
+        this.buildRange = defaultBuildRange;
     }
 
     // Getters and Setters for all stats
@@ -248,7 +251,9 @@ public class PlayerStats {
     // Add getter and setter for healthRegen
     public double getHealthRegen() { return healthRegen; }
     public void setHealthRegen(double healthRegen) { this.healthRegen = Math.max(0, healthRegen); }
-    
+
+    public double getBuildRange() { return buildRange; }
+    public void setBuildRange(double buildRange) { this.buildRange = Math.max(4.5, buildRange); }    
 
     public int getDefaultHealth() {
         return defaultHealth;
@@ -377,6 +382,10 @@ public class PlayerStats {
 
     public double getDefaultHealthRegen() {
             return defaultHealthRegen;
+    }
+    
+    public double getDefaultBuildRange() {
+        return defaultBuildRange;
     }
 
     public double calculatePhysicalDamage() {

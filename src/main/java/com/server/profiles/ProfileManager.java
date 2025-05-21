@@ -387,6 +387,33 @@ public class ProfileManager {
                 );
                 attackSpeedAttr.addModifier(baselineMod);
             }
+
+            // Initialize build range attribute
+            AttributeInstance buildRangeAttr = player.getAttribute(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
+            if (buildRangeAttr != null) {
+                // Remove any existing modifiers
+                for (AttributeModifier mod : new HashSet<>(buildRangeAttr.getModifiers())) {
+                    buildRangeAttr.removeModifier(mod);
+                }
+                
+                // Set base value to default (5.0)
+                buildRangeAttr.setBaseValue(5.0);
+                
+                // Add permanent baseline modifier
+                AttributeModifier baselineMod = new AttributeModifier(
+                    UUID.randomUUID(),
+                    "mmo.build_range.baseline",
+                    0.0,
+                    AttributeModifier.Operation.ADD_NUMBER
+                );
+                buildRangeAttr.addModifier(baselineMod);
+                
+                if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
+                    plugin.debugLog(DebugSystem.PROFILE, "Initialized build range attribute for " + player.getName() + 
+                        " to default value (5.0)");
+                }
+            }
+
         } catch (Exception e) {
             if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
                 plugin.debugLog(DebugSystem.PROFILE,"Error initializing attributes: " + e.getMessage());

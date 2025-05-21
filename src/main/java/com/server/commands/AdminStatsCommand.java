@@ -32,45 +32,46 @@ public class AdminStatsCommand implements TabExecutor {
     // Track original stat values for reset
     private Map<UUID, Map<String, Object>> originalStats = new HashMap<>();
     
-    // Define the available stats with their types
-    private static final Map<String, Class<?>> availableStats = new HashMap<>();
+    // Define the available stats with their types and whether they're default values
+    private static final Map<String, StatDefinition> availableStats = new HashMap<>();
     
     static {
         // Combat Stats
-        availableStats.put("health", Integer.class);
-        availableStats.put("armor", Integer.class);
-        availableStats.put("magicresist", Integer.class);
-        availableStats.put("physicaldamage", Integer.class);
-        availableStats.put("magicdamage", Integer.class);
-        availableStats.put("mana", Integer.class);
-        availableStats.put("speed", Double.class);
-        availableStats.put("criticaldamage", Double.class);
-        availableStats.put("criticalchance", Double.class);
-        availableStats.put("burstdamage", Double.class);
-        availableStats.put("burstchance", Double.class);
-        availableStats.put("cooldownreduction", Integer.class);
-        availableStats.put("lifesteal", Double.class);
-        availableStats.put("rangeddamage", Integer.class);
-        availableStats.put("attackspeed", Double.class);
-        availableStats.put("omnivamp", Double.class);
-        availableStats.put("healthregen", Double.class);
+        availableStats.put("health", new StatDefinition(Integer.class, "defaultHealth"));
+        availableStats.put("armor", new StatDefinition(Integer.class, "defaultArmor"));
+        availableStats.put("magicresist", new StatDefinition(Integer.class, "defaultMR"));
+        availableStats.put("physicaldamage", new StatDefinition(Integer.class, "defaultPhysicalDamage"));
+        availableStats.put("magicdamage", new StatDefinition(Integer.class, "defaultMagicDamage"));
+        availableStats.put("mana", new StatDefinition(Integer.class, "defaultMana"));
+        availableStats.put("speed", new StatDefinition(Double.class, "defaultSpeed"));
+        availableStats.put("criticaldamage", new StatDefinition(Double.class, "defaultCritDmg"));
+        availableStats.put("criticalchance", new StatDefinition(Double.class, "defaultCritChance"));
+        availableStats.put("burstdamage", new StatDefinition(Double.class, "defaultBurstDmg"));
+        availableStats.put("burstchance", new StatDefinition(Double.class, "defaultBurstChance"));
+        availableStats.put("cooldownreduction", new StatDefinition(Integer.class, "defaultCDR"));
+        availableStats.put("lifesteal", new StatDefinition(Double.class, "defaultLifeSteal"));
+        availableStats.put("rangeddamage", new StatDefinition(Integer.class, "defaultRangedDamage"));
+        availableStats.put("attackspeed", new StatDefinition(Double.class, "defaultAttackSpeed"));
+        availableStats.put("omnivamp", new StatDefinition(Double.class, "defaultOmnivamp"));
+        availableStats.put("healthregen", new StatDefinition(Double.class, "defaultHealthRegen"));
         
         // Fortune Stats
-        availableStats.put("miningfortune", Double.class);
-        availableStats.put("farmingfortune", Double.class);
-        availableStats.put("lootingfortune", Double.class);
-        availableStats.put("fishingfortune", Double.class);
+        availableStats.put("miningfortune", new StatDefinition(Double.class, "defaultMiningFortune"));
+        availableStats.put("farmingfortune", new StatDefinition(Double.class, "defaultFarmingFortune"));
+        availableStats.put("lootingfortune", new StatDefinition(Double.class, "defaultLootingFortune"));
+        availableStats.put("fishingfortune", new StatDefinition(Double.class, "defaultFishingFortune"));
         
         // Resource Stats
-        availableStats.put("manaregen", Integer.class);
-        availableStats.put("luck", Integer.class);
+        availableStats.put("manaregen", new StatDefinition(Integer.class, "defaultManaRegen"));
+        availableStats.put("luck", new StatDefinition(Integer.class, "defaultLuck"));
         
         // Size and Range
-        availableStats.put("attackrange", Double.class);
-        availableStats.put("size", Double.class);
+        availableStats.put("attackrange", new StatDefinition(Double.class, "defaultAttackRange"));
+        availableStats.put("size", new StatDefinition(Double.class, "defaultSize"));
 
-        //Mining Stats
-        availableStats.put("miningspeed", Double.class);
+        // Mining Stats
+        availableStats.put("miningspeed", new StatDefinition(Double.class, "defaultMiningSpeed"));
+        availableStats.put("buildrange", new StatDefinition(Double.class, "defaultBuildRange"));
     }
     
     public AdminStatsCommand(Main plugin) {
@@ -144,8 +145,8 @@ public class AdminStatsCommand implements TabExecutor {
         
         // Set the new value
         try {
-            // Determine the type of the stat and parse accordingly
-            Class<?> statType = availableStats.get(statName);
+            // Determine the type of the stat
+            StatDefinition statDef = availableStats.get(statName);
             
             // Store original value if not already tracked
             if (!originalStats.containsKey(target.getUniqueId())) {
@@ -155,25 +156,26 @@ public class AdminStatsCommand implements TabExecutor {
             Map<String, Object> playerOriginals = originalStats.get(target.getUniqueId());
             if (!playerOriginals.containsKey(statName)) {
                 // Store original value for potential reset
-                playerOriginals.put(statName, getStatValue(stats, statName));
+                playerOriginals.put(statName, getDefaultStatValue(stats, statName));
             }
             
             // Parse and set the new value
-            if (statType == Integer.class) {
+            if (statDef.type == Integer.class) {
                 int value = Integer.parseInt(args[2]);
-                setStatValue(stats, statName, value);
-                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s " + 
+                setDefaultStatValue(stats, statName, value);
+                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s default " + 
                                   formatStatName(statName) + " to " + value);
             } 
-            else if (statType == Double.class) {
+            else if (statDef.type == Double.class) {
                 double value = Double.parseDouble(args[2]);
-                setStatValue(stats, statName, value);
-                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s " + 
+                setDefaultStatValue(stats, statName, value);
+                sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s default " + 
                                   formatStatName(statName) + " to " + value);
             }
             
-            // Apply the changes to the player
-            stats.applyToPlayer(target);
+            // After modifying the default values, recalculate and apply current stats
+            // This will use the new default values + equipment bonuses
+            plugin.getStatScanManager().scanAndUpdatePlayerStats(target);
             
             return true;
         } 
@@ -225,18 +227,20 @@ public class AdminStatsCommand implements TabExecutor {
             Object originalValue = entry.getValue();
             
             if (originalValue instanceof Integer) {
-                setStatValue(stats, statName, (Integer) originalValue);
+                setDefaultStatValue(stats, statName, (Integer) originalValue);
             } 
             else if (originalValue instanceof Double) {
-                setStatValue(stats, statName, (Double) originalValue);
+                setDefaultStatValue(stats, statName, (Double) originalValue);
             }
         }
         
-        // Apply changes and clear stored values
-        stats.applyToPlayer(target);
+        // Force a scan and update of stats
+        plugin.getStatScanManager().scanAndUpdatePlayerStats(target);
+        
+        // Clear stored values
         originalStats.remove(target.getUniqueId());
         
-        sender.sendMessage(ChatColor.GREEN + "Reset all modified stats for " + target.getName() + " to original values.");
+        sender.sendMessage(ChatColor.GREEN + "Reset all modified stats for " + target.getName() + " to original default values.");
         return true;
     }
     
@@ -267,35 +271,61 @@ public class AdminStatsCommand implements TabExecutor {
         
         // Combat Stats
         sender.sendMessage(ChatColor.RED + "Combat Stats:");
-        sender.sendMessage(ChatColor.GRAY + "Health: " + ChatColor.WHITE + stats.getHealth());
-        sender.sendMessage(ChatColor.GRAY + "Armor: " + ChatColor.WHITE + stats.getArmor());
-        sender.sendMessage(ChatColor.GRAY + "Magic Resist: " + ChatColor.WHITE + stats.getMagicResist());
-        sender.sendMessage(ChatColor.GRAY + "Physical Damage: " + ChatColor.WHITE + stats.getPhysicalDamage());
-        sender.sendMessage(ChatColor.GRAY + "Magic Damage: " + ChatColor.WHITE + stats.getMagicDamage());
+        sender.sendMessage(ChatColor.GRAY + "Health: " + ChatColor.WHITE + stats.getHealth() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultHealth() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Armor: " + ChatColor.WHITE + stats.getArmor() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultArmor() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Magic Resist: " + ChatColor.WHITE + stats.getMagicResist() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultMagicResist() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Physical Damage: " + ChatColor.WHITE + stats.getPhysicalDamage() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultPhysicalDamage() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Magic Damage: " + ChatColor.WHITE + stats.getMagicDamage() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultMagicDamage() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Ranged Damage: " + ChatColor.WHITE + stats.getRangedDamage() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultRangedDamage() + ")");
         sender.sendMessage(ChatColor.GRAY + "Critical Chance: " + ChatColor.WHITE + 
-                          String.format("%.1f", stats.getCriticalChance() * 100) + "%");
-        sender.sendMessage(ChatColor.GRAY + "Critical Damage: " + ChatColor.WHITE + stats.getCriticalDamage() + "x");
+                          String.format("%.1f", stats.getCriticalChance() * 100) + "%" + 
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.1f", stats.getDefaultCriticalChance() * 100) + "%)");
+        sender.sendMessage(ChatColor.GRAY + "Critical Damage: " + ChatColor.WHITE + stats.getCriticalDamage() + "x" + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultCriticalDamage() + "x)");
         
         // Resource Stats
         sender.sendMessage(ChatColor.GREEN + "Resource Stats:");
-        sender.sendMessage(ChatColor.GRAY + "Mana: " + ChatColor.WHITE + stats.getMana() + "/" + stats.getTotalMana());
-        sender.sendMessage(ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s");
-        sender.sendMessage(ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + stats.getSpeed() + "x");
+        sender.sendMessage(ChatColor.GRAY + "Mana: " + ChatColor.WHITE + stats.getMana() + "/" + stats.getTotalMana() + 
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultMana() + ")");
+        sender.sendMessage(ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s" +
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultManaRegen() + "/s)");
+        sender.sendMessage(ChatColor.GRAY + "Health Regen: " + ChatColor.WHITE + stats.getHealthRegen() + "/s" +
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultHealthRegen() + "/s)");
+        sender.sendMessage(ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + stats.getSpeed() + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultSpeed() + "x)");
         
         // Fortune Stats
         sender.sendMessage(ChatColor.YELLOW + "Fortune Stats:");
         sender.sendMessage(ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + 
-                          String.format("%.2f", stats.getMiningFortune()) + "x");
+                          String.format("%.2f", stats.getMiningFortune()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultMiningFortune()) + "x)");
         sender.sendMessage(ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + 
-                          String.format("%.2f", stats.getFarmingFortune()) + "x");
+                          String.format("%.2f", stats.getFarmingFortune()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultFarmingFortune()) + "x)");
         sender.sendMessage(ChatColor.GRAY + "Looting Fortune: " + ChatColor.WHITE + 
-                          String.format("%.2f", stats.getLootingFortune()) + "x");
+                          String.format("%.2f", stats.getLootingFortune()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultLootingFortune()) + "x)");
         sender.sendMessage(ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + 
-                          String.format("%.2f", stats.getFishingFortune()) + "x");
+                          String.format("%.2f", stats.getFishingFortune()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultFishingFortune()) + "x)");
 
-        //Mining Stats
+        // Mining Stats
+        sender.sendMessage(ChatColor.AQUA + "Other Stats:");
         sender.sendMessage(ChatColor.GRAY + "Mining Speed: " + ChatColor.WHITE + 
-                          String.format("%.2f", stats.getMiningSpeed()) + "x");
+                          String.format("%.2f", stats.getMiningSpeed()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultMiningSpeed()) + "x)");
+        sender.sendMessage(ChatColor.GRAY + "Size: " + ChatColor.WHITE + 
+                          String.format("%.2f", stats.getSize()) + "x" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultSize()) + "x)");
+        sender.sendMessage(ChatColor.GRAY + "Attack Range: " + ChatColor.WHITE + 
+                          String.format("%.2f", stats.getAttackRange()) + "m" +
+                          ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultAttackRange()) + "m)");
         
         return true;
     }
@@ -310,100 +340,102 @@ public class AdminStatsCommand implements TabExecutor {
             Map<String, Object> playerOriginals = originalStats.get(player.getUniqueId());
             if (!playerOriginals.containsKey(statName)) {
                 // Store original value for potential reset to original
-                playerOriginals.put(statName, getStatValue(stats, statName));
+                playerOriginals.put(statName, getDefaultStatValue(stats, statName));
             }
             
-            // Reset to default value
+            // Reset to vanilla default value (not player's default)
             switch (statName) {
                 case "health":
-                    stats.setHealth(stats.getDefaultHealth());
+                    setDefaultStatValue(stats, statName, 100);
                     break;
                 case "armor":
-                    stats.setArmor(stats.getDefaultArmor());
+                    setDefaultStatValue(stats, statName, 0);
                     break;
                 case "magicresist":
-                    stats.setMagicResist(stats.getDefaultMagicResist());
+                    setDefaultStatValue(stats, statName, 0);
                     break;
                 case "physicaldamage":
-                    stats.setPhysicalDamage(stats.getDefaultPhysicalDamage());
+                    setDefaultStatValue(stats, statName, 5);
                     break;
                 case "magicdamage":
-                    stats.setMagicDamage(stats.getDefaultMagicDamage());
+                    setDefaultStatValue(stats, statName, 5);
                     break;
                 case "mana":
-                    stats.setMana(stats.getDefaultMana());
-                    stats.setTotalMana(stats.getDefaultMana());
+                    setDefaultStatValue(stats, statName, 100);
                     break;
                 case "speed":
-                    stats.setSpeed(stats.getDefaultSpeed());
+                    setDefaultStatValue(stats, statName, 0.1);
                     break;
                 case "criticaldamage":
-                    stats.setCriticalDamage(stats.getDefaultCriticalDamage());
+                    setDefaultStatValue(stats, statName, 1.5);
                     break;
                 case "criticalchance":
-                    stats.setCriticalChance(stats.getDefaultCriticalChance());
+                    setDefaultStatValue(stats, statName, 0.0);
                     break;
                 case "burstdamage":
-                    stats.setBurstDamage(stats.getDefaultBurstDamage());
+                    setDefaultStatValue(stats, statName, 2.0);
                     break;
                 case "burstchance":
-                    stats.setBurstChance(stats.getDefaultBurstChance());
+                    setDefaultStatValue(stats, statName, 0.01);
                     break;
                 case "cooldownreduction":
-                    stats.setCooldownReduction(stats.getDefaultCooldownReduction());
+                    setDefaultStatValue(stats, statName, 0);
                     break;
                 case "lifesteal":
-                    stats.setLifeSteal(stats.getDefaultLifeSteal());
+                    setDefaultStatValue(stats, statName, 0.0);
                     break;
                 case "rangeddamage":
-                    stats.setRangedDamage(stats.getDefaultRangedDamage());
+                    setDefaultStatValue(stats, statName, 5);
                     break;
                 case "attackspeed":
-                    stats.setAttackSpeed(stats.getDefaultAttackSpeed());
+                    setDefaultStatValue(stats, statName, 0.5);
                     break;
                 case "omnivamp":
-                    stats.setOmnivamp(stats.getDefaultOmnivamp());
+                    setDefaultStatValue(stats, statName, 0.0);
                     break;
                 case "healthregen":
-                    stats.setHealthRegen(stats.getDefaultHealthRegen());
+                    setDefaultStatValue(stats, statName, 0.3);
                     break;
                 case "miningfortune":
-                    stats.setMiningFortune(stats.getDefaultMiningFortune());
+                    setDefaultStatValue(stats, statName, 1.0);
                     break;
                 case "farmingfortune":
-                    stats.setFarmingFortune(stats.getDefaultFarmingFortune());
+                    setDefaultStatValue(stats, statName, 1.0);
                     break;
                 case "lootingfortune":
-                    stats.setLootingFortune(stats.getDefaultLootingFortune());
+                    setDefaultStatValue(stats, statName, 1.0);
                     break;
                 case "fishingfortune":
-                    stats.setFishingFortune(stats.getDefaultFishingFortune());
+                    setDefaultStatValue(stats, statName, 1.0);
                     break;
                 case "manaregen":
-                    stats.setManaRegen(stats.getDefaultManaRegen());
+                    setDefaultStatValue(stats, statName, 1);
                     break;
                 case "luck":
-                    stats.setLuck(stats.getDefaultLuck());
+                    setDefaultStatValue(stats, statName, 0);
                     break;
                 case "attackrange":
-                    stats.setAttackRange(stats.getDefaultAttackRange());
+                    setDefaultStatValue(stats, statName, 3.0);
                     break;
                 case "size":
-                    stats.setSize(stats.getDefaultSize());
+                    setDefaultStatValue(stats, statName, 1.0);
                     break;
                 case "miningspeed":
-                    stats.setMiningSpeed(stats.getDefaultMiningSpeed());
+                    setDefaultStatValue(stats, statName, 0.5);
+                    break;
+                case "buildrange":
+                    setDefaultStatValue(stats, statName, 5.0); 
                     break;
                 default:
                     sender.sendMessage(ChatColor.RED + "Unknown stat: " + statName);
                     return;
             }
             
-            // Apply changes
-            stats.applyToPlayer(player);
+            // Force a scan and update
+            plugin.getStatScanManager().scanAndUpdatePlayerStats(player);
             
-            sender.sendMessage(ChatColor.GREEN + "Reset " + player.getName() + "'s " + 
-                              formatStatName(statName) + " to default value.");
+            sender.sendMessage(ChatColor.GREEN + "Reset " + player.getName() + "'s default " + 
+                              formatStatName(statName) + " to vanilla default value.");
             
         } catch (Exception e) {
             sender.sendMessage(ChatColor.RED + "Error resetting stat: " + e.getMessage());
@@ -412,119 +444,156 @@ public class AdminStatsCommand implements TabExecutor {
         }
     }
     
-    private Object getStatValue(PlayerStats stats, String statName) {
-        switch (statName) {
-            case "health": return stats.getHealth();
-            case "armor": return stats.getArmor();
-            case "magicresist": return stats.getMagicResist();
-            case "physicaldamage": return stats.getPhysicalDamage();
-            case "magicdamage": return stats.getMagicDamage();
-            case "mana": return stats.getMana();
-            case "speed": return stats.getSpeed();
-            case "criticaldamage": return stats.getCriticalDamage();
-            case "criticalchance": return stats.getCriticalChance();
-            case "burstdamage": return stats.getBurstDamage();
-            case "burstchance": return stats.getBurstChance();
-            case "cooldownreduction": return stats.getCooldownReduction();
-            case "lifesteal": return stats.getLifeSteal();
-            case "rangeddamage": return stats.getRangedDamage();
-            case "attackspeed": return stats.getAttackSpeed();
-            case "omnivamp": return stats.getOmnivamp();
-            case "healthregen": return stats.getHealthRegen();
-            case "miningfortune": return stats.getMiningFortune();
-            case "farmingfortune": return stats.getFarmingFortune();
-            case "lootingfortune": return stats.getLootingFortune();
-            case "fishingfortune": return stats.getFishingFortune();
-            case "manaregen": return stats.getManaRegen();
-            case "luck": return stats.getLuck();
-            case "attackrange": return stats.getAttackRange();
-            case "size": return stats.getSize();
-            case "miningspeed": return stats.getMiningSpeed();
-            default: return null;
+    /**
+     * Get the default value for a stat
+     */
+    private Object getDefaultStatValue(PlayerStats stats, String statName) {
+        StatDefinition statDef = availableStats.get(statName);
+        
+        // Using reflection to get the default field value
+        try {
+            java.lang.reflect.Field field = PlayerStats.class.getDeclaredField(statDef.fieldName);
+            field.setAccessible(true);
+            return field.get(stats);
+        } catch (Exception e) {
+            plugin.debugLog(DebugSystem.STATS,"Error accessing default stat field: " + e.getMessage());
+            
+            // Fallback to regular getters if reflection fails
+            switch (statName) {
+                case "health": return stats.getDefaultHealth();
+                case "armor": return stats.getDefaultArmor();
+                case "magicresist": return stats.getDefaultMagicResist();
+                case "physicaldamage": return stats.getDefaultPhysicalDamage();
+                case "magicdamage": return stats.getDefaultMagicDamage();
+                case "mana": return stats.getDefaultMana();
+                case "speed": return stats.getDefaultSpeed();
+                case "criticaldamage": return stats.getDefaultCriticalDamage();
+                case "criticalchance": return stats.getDefaultCriticalChance();
+                case "burstdamage": return stats.getDefaultBurstDamage();
+                case "burstchance": return stats.getDefaultBurstChance();
+                case "cooldownreduction": return stats.getDefaultCooldownReduction();
+                case "lifesteal": return stats.getDefaultLifeSteal();
+                case "rangeddamage": return stats.getDefaultRangedDamage();
+                case "attackspeed": return stats.getDefaultAttackSpeed();
+                case "omnivamp": return stats.getDefaultOmnivamp();
+                case "healthregen": return stats.getDefaultHealthRegen();
+                case "miningfortune": return stats.getDefaultMiningFortune();
+                case "farmingfortune": return stats.getDefaultFarmingFortune();
+                case "lootingfortune": return stats.getDefaultLootingFortune();
+                case "fishingfortune": return stats.getDefaultFishingFortune();
+                case "manaregen": return stats.getDefaultManaRegen();
+                case "luck": return stats.getDefaultLuck();
+                case "attackrange": return stats.getDefaultAttackRange();
+                case "size": return stats.getDefaultSize();
+                case "miningspeed": return stats.getDefaultMiningSpeed();
+                case "buildrange": return stats.getDefaultBuildRange();
+                default: return null;
+            }
         }
     }
     
-    private void setStatValue(PlayerStats stats, String statName, Object value) {
-        switch (statName) {
-            case "health":
-                stats.setHealth((Integer) value);
-                break;
-            case "armor":
-                stats.setArmor((Integer) value);
-                break;
-            case "magicresist":
-                stats.setMagicResist((Integer) value);
-                break;
-            case "physicaldamage":
-                stats.setPhysicalDamage((Integer) value);
-                break;
-            case "magicdamage":
-                stats.setMagicDamage((Integer) value);
-                break;
-            case "mana":
-                stats.setMana((Integer) value);
-                stats.setTotalMana((Integer) value);
-                break;
-            case "speed":
-                stats.setSpeed((Double) value);
-                break;
-            case "criticaldamage":
-                stats.setCriticalDamage((Double) value);
-                break;
-            case "criticalchance":
-                stats.setCriticalChance((Double) value);
-                break;
-            case "burstdamage":
-                stats.setBurstDamage((Double) value);
-                break;
-            case "burstchance":
-                stats.setBurstChance((Double) value);
-                break;
-            case "cooldownreduction":
-                stats.setCooldownReduction((Integer) value);
-                break;
-            case "lifesteal":
-                stats.setLifeSteal((Double) value);
-                break;
-            case "rangeddamage":
-                stats.setRangedDamage((Integer) value);
-                break;
-            case "attackspeed":
-                stats.setAttackSpeed((Double) value);
-                break;
-            case "omnivamp":
-                stats.setOmnivamp((Double) value);
-                break;
-            case "healthregen":
-                stats.setHealthRegen((Double) value);
-                break;
-            case "miningfortune":
-                stats.setMiningFortune((Double) value);
-                break;
-            case "farmingfortune":
-                stats.setFarmingFortune((Double) value);
-                break;
-            case "lootingfortune":
-                stats.setLootingFortune((Double) value);
-                break;
-            case "fishingfortune":
-                stats.setFishingFortune((Double) value);
-                break;
-            case "manaregen":
-                stats.setManaRegen((Integer) value);
-                break;
-            case "luck":
-                stats.setLuck((Integer) value);
-                break;
-            case "attackrange":
-                stats.setAttackRange((Double) value);
-                break;
-            case "size":
-                stats.setSize((Double) value);
-                break;
-            case "miningspeed":
-                stats.setMiningSpeed((Double) value);
-                break;
+    /**
+     * Set the default value for a stat
+     */
+    private void setDefaultStatValue(PlayerStats stats, String statName, Object value) {
+        StatDefinition statDef = availableStats.get(statName);
+        
+        // Using reflection to set the default field value
+        try {
+            java.lang.reflect.Field field = PlayerStats.class.getDeclaredField(statDef.fieldName);
+            field.setAccessible(true);
+            field.set(stats, value);
+            
+            // We need to also update the current value to match the new default
+            // This ensures the stat is immediately updated
+            switch (statName) {
+                case "health":
+                    stats.setHealth((Integer)value);
+                    stats.setCurrentHealth(Math.min(stats.getCurrentHealth(), (Integer)value));
+                    break;
+                case "armor":
+                    stats.setArmor((Integer)value);
+                    break;
+                case "magicresist":
+                    stats.setMagicResist((Integer)value);
+                    break;
+                case "physicaldamage":
+                    stats.setPhysicalDamage((Integer)value);
+                    break;
+                case "magicdamage":
+                    stats.setMagicDamage((Integer)value);
+                    break;
+                case "mana":
+                    stats.setTotalMana((Integer)value);
+                    stats.setMana(Math.min(stats.getMana(), (Integer)value));
+                    break;
+                case "rangeddamage":
+                    stats.setRangedDamage((Integer)value);
+                    break;
+                case "speed":
+                    stats.setSpeed((Double)value);
+                    break;
+                case "criticaldamage":
+                    stats.setCriticalDamage((Double)value);
+                    break;
+                case "criticalchance":
+                    stats.setCriticalChance((Double)value);
+                    break;
+                case "burstdamage":
+                    stats.setBurstDamage((Double)value);
+                    break;
+                case "burstchance":
+                    stats.setBurstChance((Double)value);
+                    break;
+                case "cooldownreduction":
+                    stats.setCooldownReduction((Integer)value);
+                    break;
+                case "lifesteal":
+                    stats.setLifeSteal((Double)value);
+                    break;
+                case "attackspeed":
+                    stats.setAttackSpeed((Double)value);
+                    break;
+                case "omnivamp":
+                    stats.setOmnivamp((Double)value);
+                    break;
+                case "healthregen":
+                    stats.setHealthRegen((Double)value);
+                    break;
+                case "miningfortune":
+                    stats.setMiningFortune((Double)value);
+                    break;
+                case "farmingfortune":
+                    stats.setFarmingFortune((Double)value);
+                    break;
+                case "lootingfortune":
+                    stats.setLootingFortune((Double)value);
+                    break;
+                case "fishingfortune":
+                    stats.setFishingFortune((Double)value);
+                    break;
+                case "manaregen":
+                    stats.setManaRegen((Integer)value);
+                    break;
+                case "luck":
+                    stats.setLuck((Integer)value);
+                    break;
+                case "attackrange":
+                    stats.setAttackRange((Double)value);
+                    break;
+                case "size":
+                    stats.setSize((Double)value);
+                    break;
+                case "miningspeed":
+                    stats.setMiningSpeed((Double)value);
+                    break;
+                case "buildrange":
+                    stats.setBuildRange((Double)value);
+                    break;
+            }
+        } catch (Exception e) {
+            plugin.debugLog(DebugSystem.STATS,"Error setting default stat field: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -549,9 +618,9 @@ public class AdminStatsCommand implements TabExecutor {
     private void displayHelp(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "===== AdminStats Command Help =====");
         sender.sendMessage(ChatColor.YELLOW + "/adminstats <player> <stat> <value> " + 
-                          ChatColor.WHITE + "- Set a player's stat");
+                          ChatColor.WHITE + "- Set a player's default stat");
         sender.sendMessage(ChatColor.YELLOW + "/adminstats <player> <stat> default " + 
-                          ChatColor.WHITE + "- Reset stat to default value");
+                          ChatColor.WHITE + "- Reset stat to vanilla default value");
         sender.sendMessage(ChatColor.YELLOW + "/adminstats reset <player> " + 
                           ChatColor.WHITE + "- Reset all modified stats to original values");
         sender.sendMessage(ChatColor.YELLOW + "/adminstats list <player> " + 
@@ -567,7 +636,7 @@ public class AdminStatsCommand implements TabExecutor {
         for (int i = 0; i < statNames.size(); i++) {
             statsText.append(formatStatName(statNames.get(i)));
             if (i < statNames.size() - 1) {
-                statsText.append(", ");
+                statsText.append(ChatColor.GRAY).append(", ");
             }
             
             // Add line breaks for readability
@@ -631,7 +700,17 @@ public class AdminStatsCommand implements TabExecutor {
             }
             
             // For common values in some stats
-            if (args[1].equalsIgnoreCase("miningfortune")) {
+            if (args[1].equalsIgnoreCase("miningfortune") ||
+                args[1].equalsIgnoreCase("farmingfortune") ||
+                args[1].equalsIgnoreCase("fishingfortune") ||
+                args[1].equalsIgnoreCase("lootingfortune")) {
+                List<String> suggestions = Arrays.asList("1", "1.5", "2", "2.5", "3", "4", "5");
+                for (String suggestion : suggestions) {
+                    if (suggestion.startsWith(args[2])) {
+                        completions.add(suggestion);
+                    }
+                }
+            } else {
                 List<String> suggestions = Arrays.asList("1", "50", "100", "150", "200", "250", "500", "1000");
                 for (String suggestion : suggestions) {
                     if (suggestion.startsWith(args[2])) {
@@ -642,5 +721,18 @@ public class AdminStatsCommand implements TabExecutor {
         }
         
         return completions;
+    }
+    
+    /**
+     * Inner class to store stat definition information
+     */
+    private static class StatDefinition {
+        final Class<?> type;
+        final String fieldName;
+        
+        StatDefinition(Class<?> type, String fieldName) {
+            this.type = type;
+            this.fieldName = fieldName;
+        }
     }
 }
