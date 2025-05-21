@@ -42,7 +42,6 @@ public class SkillGUIListener implements Listener {
         if (title.equals("✦ Skills Menu ✦") || 
             title.startsWith("Skill Details: ") || 
             title.startsWith("Subskills: ") ||
-            title.startsWith("Skill Tree: ") ||
             title.startsWith("Abilities: ") ||
             title.startsWith("Rewards: ") ||
             title.equals("Rewards") ||
@@ -63,8 +62,6 @@ public class SkillGUIListener implements Listener {
                 handleSkillDetailsClick(player, clickedItem, event);
             } else if (title.startsWith("Subskills: ")) {
                 handleSubskillsMenuClick(player, clickedItem, event);
-            } else if (title.startsWith("Skill Tree: ")) {
-                handleSkillTreeClick(player, clickedItem);
             } else if (title.startsWith("Rewards: ")) {
                 handleRewardsClick(player, clickedItem);
             } else if (title.startsWith("Milestones: ")) {
@@ -87,7 +84,6 @@ public class SkillGUIListener implements Listener {
         if (title.equals("✦ Skills Menu ✦") || 
             title.startsWith("Skill Details: ") || 
             title.startsWith("Subskills: ") ||
-            title.startsWith("Skill Tree: ") ||
             title.startsWith("Abilities: ") ||
             title.startsWith("Rewards: ") ||
             title.equals("Rewards") ||
