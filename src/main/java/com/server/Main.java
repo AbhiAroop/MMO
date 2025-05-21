@@ -42,6 +42,7 @@ import com.server.events.ItemListener;
 import com.server.events.NPCDamageListener;
 import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
+import com.server.events.RangedDamageListener;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.abilities.gui.AbilityGUIListener;
@@ -216,6 +217,8 @@ public class Main extends JavaPlugin {
 
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
+
+        this.getServer().getPluginManager().registerEvents(new RangedDamageListener(this), this);
 
     }
 

@@ -109,6 +109,7 @@ com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\entities\npc\dialogue\DialogueManager$1.class
 com\server\events\AbilityListener.class
 com\server\items\ItemRarity.class
+com\server\entities\npc\story\KaelenEchobound$2.class
 com\server\profiles\skills\gui\ConfirmationGUI.class
 com\server\entities\npc\story\NellMossgleam.class
 com\server\entities\npc\dialogue\DialogueResponse.class
@@ -223,3 +224,4 @@ com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.class
 net\citizensnpcs\api\trait\trait\Attackable.class
 com\server\profiles\ProfileManager.class
 com\server\profiles\skills\rewards\rewards\UnlockReward.class
+com\server\events\RangedDamageListener.class

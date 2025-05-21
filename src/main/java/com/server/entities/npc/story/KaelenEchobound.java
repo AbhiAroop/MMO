@@ -1,5 +1,10 @@
 package com.server.entities.npc.story;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -26,6 +31,9 @@ public class KaelenEchobound extends DialogueNPC {
     
     private final Main plugin;
     private BukkitRunnable particleTask;
+    private BukkitRunnable animationTask;
+    private boolean isAnimating = false;
+    private final Map<UUID, BukkitRunnable> playerAnimationTasks = new HashMap<>();
     
     /**
      * Create a new instance of Kaelen the Echobound
@@ -181,11 +189,14 @@ public class KaelenEchobound extends DialogueNPC {
     @Override
     public void onInteract(Player player, NPC npc, boolean rightClick) {
         // CRITICAL FIX: Log interaction to debug
-        plugin.debugLog(DebugSystem.NPC,"Player " + player.getName() + " interacted with Kaelen the Echobound (" + 
-                            (rightClick ? "right" : "left") + " click)");
+        plugin.debugLog(DebugSystem.NPC, "Player " + player.getName() + " interacted with Kaelen the Echobound (" + 
+                          (rightClick ? "right" : "left") + " click)");
         
         // Play a mystical sound when player interacts
         player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 0.5f);
+        
+        // Start the talking animation
+        startTalkingAnimation(player);
         
         // CRITICAL FIX: Explicitly pass the dialogue through the DialogueManager
         DialogueNode dialogue = DialogueManager.getInstance().getDialogue("dialogue_kaelen");
@@ -194,7 +205,128 @@ public class KaelenEchobound extends DialogueNPC {
         } else {
             // Fallback if dialogue not found
             sendMessage(player, "Ah... another Echo returns. We shall speak more when the time is right.");
-            plugin.debugLog(DebugSystem.NPC,"Dialogue 'dialogue_kaelen' not found for Kaelen the Echobound");
+            plugin.debugLog(DebugSystem.NPC, "Dialogue 'dialogue_kaelen' not found for Kaelen the Echobound");
+        }
+    }
+
+    /**
+     * Start the head and arm nodding animation while talking to a player
+     * 
+     * @param player The player talking to this NPC
+     */
+    private void startTalkingAnimation(Player player) {
+        // Cancel any existing animation task for this player
+        stopTalkingAnimation(player);
+        
+        // Create a new animation task
+        BukkitRunnable task = new BukkitRunnable() {
+            private double angle = 0;
+            private boolean increasing = true;
+            private final double HEAD_NOD_RANGE = 10; // 10 degrees range
+            
+            @Override
+            public void run() {
+                if (!isSpawned() || npc.getEntity() == null) {
+                    this.cancel();
+                    return;
+                }
+                
+                // Update the angle with a gentle nod
+                if (increasing) {
+                    angle += 2;  // Increase by 2 degrees per tick
+                    if (angle >= HEAD_NOD_RANGE) {
+                        increasing = false;
+                    }
+                } else {
+                    angle -= 2;  // Decrease by 2 degrees per tick
+                    if (angle <= -HEAD_NOD_RANGE) {
+                        increasing = true;
+                    }
+                }
+                
+                // For player-type NPCs (which is most likely what Kaelen is)
+                // We can only control head pitch through location updates
+                if (npc.isSpawned()) {
+                    // Convert our angle to radians for the pitch
+                    float headPitch = (float) Math.toRadians(angle);
+                    
+                    // Get current location and only modify pitch
+                    Location loc = npc.getEntity().getLocation().clone();
+                    loc.setPitch(headPitch);
+                    
+                    // Update location to achieve the head nod effect
+                    npc.getEntity().teleport(loc);
+                    
+                    // For arm animation, we can use packet-based animation instead
+                    // Simulate arm movement by playing the SWING_MAIN_ARM animation occasionally
+                    if (Math.random() < 0.15 && npc.getEntity() instanceof org.bukkit.entity.LivingEntity) {
+                        org.bukkit.entity.LivingEntity living = (org.bukkit.entity.LivingEntity) npc.getEntity();
+                        living.swingMainHand();
+                    }
+                }
+                
+                // Occasionally emit a small particle to indicate talking
+                if (Math.random() < 0.2) { // 20% chance each tick
+                    Location mouthLocation = npc.getEntity().getLocation().add(0, 1.8, 0);
+                    mouthLocation.add(npc.getEntity().getLocation().getDirection().multiply(0.2));
+                    
+                    // Spawn small particles near the NPC's head
+                    npc.getEntity().getWorld().spawnParticle(
+                        Particle.END_ROD, 
+                        mouthLocation,
+                        1, 0.05, 0.05, 0.05, 0.01
+                    );
+                }
+            }
+        };
+        
+        // Start the animation task and run it every 2 ticks (0.1 seconds)
+        task.runTaskTimer(plugin, 0, 2);
+        
+        // Store the task for this player
+        playerAnimationTasks.put(player.getUniqueId(), task);
+        
+        // Schedule the task to be cancelled after 30 seconds (failsafe)
+        Bukkit.getScheduler().runTaskLater(plugin, () -> stopTalkingAnimation(player), 30*20);
+    }
+
+    /**
+     * Stop the talking animation for a player
+     * 
+     * @param player The player
+     */
+    private void stopTalkingAnimation(Player player) {
+        BukkitRunnable task = playerAnimationTasks.remove(player.getUniqueId());
+        if (task != null) {
+            task.cancel();
+            
+            // Reset NPC pose
+            if (npc != null && npc.isSpawned()) {
+                // Reset head pitch
+                Location loc = npc.getEntity().getLocation().clone();
+                loc.setPitch(0);
+                npc.getEntity().teleport(loc);
+            }
+        }
+    }
+
+    /**
+     * Stop all talking animations
+     */
+    private void stopAllTalkingAnimations() {
+        for (BukkitRunnable task : playerAnimationTasks.values()) {
+            if (task != null) {
+                task.cancel();
+            }
+        }
+        playerAnimationTasks.clear();
+        
+        // Reset NPC pose
+        if (npc != null && npc.isSpawned()) {
+            // Reset head pitch
+            Location loc = npc.getEntity().getLocation().clone();
+            loc.setPitch(0);
+            npc.getEntity().teleport(loc);
         }
     }
 
@@ -275,5 +407,8 @@ public class KaelenEchobound extends DialogueNPC {
             particleTask.cancel();
             particleTask = null;
         }
+
+        // Clean up any animation tasks
+        stopAllTalkingAnimations();
     }
 }

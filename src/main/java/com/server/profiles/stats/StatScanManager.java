@@ -40,6 +40,7 @@ public class StatScanManager {
     private static final Pattern MAGIC_RESIST_PATTERN = Pattern.compile("Magic Resist: \\+(\\d+)");
     private static final Pattern PHYSICAL_DAMAGE_PATTERN = Pattern.compile("Physical Damage: \\+(\\d+)");
     private static final Pattern MAGIC_DAMAGE_PATTERN = Pattern.compile("Magic Damage: \\+(\\d+)");
+    private static final Pattern RANGED_DAMAGE_PATTERN = Pattern.compile("Ranged Damage: \\+(\\d+)");
     private static final Pattern MANA_PATTERN = Pattern.compile("Mana: \\+(\\d+)");
     private static final Pattern COOLDOWN_REDUCTION_PATTERN = Pattern.compile("Cooldown Reduction: \\+(\\d+)%");
     private static final Pattern HEALTH_REGEN_PATTERN = Pattern.compile("Health Regen: \\+(\\d+\\.?\\d*)");
@@ -530,6 +531,7 @@ public class StatScanManager {
                     cleanLine.contains("Magic Resist:") ||
                     cleanLine.contains("Physical Damage:") ||
                     cleanLine.contains("Magic Damage:") ||
+                    cleanLine.contains("Ranged Damage:") ||
                     cleanLine.contains("Mana:") ||
                     cleanLine.contains("Size:") ||
                     cleanLine.contains("Lifesteal:")||
@@ -561,6 +563,14 @@ public class StatScanManager {
             if (pdBonus > 0) {
                 bonuses.physicalDamage += pdBonus;
                 if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added physical damage: " + pdBonus);
+            }
+
+            int rdBonus = extractIntStat(cleanLine, RANGED_DAMAGE_PATTERN);
+            if (rdBonus > 0) {
+                bonuses.rangedDamage += rdBonus;
+                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+                    plugin.debugLog(DebugSystem.STATS, "Added ranged damage: " + rdBonus);
+                }
             }
             
             int mdBonus = extractIntStat(cleanLine, MAGIC_DAMAGE_PATTERN);
@@ -692,6 +702,7 @@ public class StatScanManager {
         stats.setArmor(stats.getDefaultArmor() + bonuses.armor);
         stats.setMagicResist(stats.getDefaultMagicResist() + bonuses.magicResist);
         stats.setPhysicalDamage(stats.getDefaultPhysicalDamage() + bonuses.physicalDamage);
+        stats.setRangedDamage(stats.getDefaultRangedDamage() + bonuses.rangedDamage);
         stats.setMagicDamage(stats.getDefaultMagicDamage() + bonuses.magicDamage);
         stats.setTotalMana(stats.getDefaultMana() + bonuses.mana);
         stats.setCooldownReduction(stats.getDefaultCooldownReduction() + bonuses.cooldownReduction);
@@ -731,6 +742,7 @@ public class StatScanManager {
         stats.setMagicResist(stats.getDefaultMagicResist());
         stats.setPhysicalDamage(stats.getDefaultPhysicalDamage());
         stats.setMagicDamage(stats.getDefaultMagicDamage());
+        stats.setRangedDamage(stats.getDefaultRangedDamage());
         stats.setTotalMana(stats.getDefaultMana());
         stats.setCooldownReduction(stats.getDefaultCooldownReduction());
         stats.setHealthRegen(stats.getDefaultHealthRegen());
@@ -1105,6 +1117,7 @@ public class StatScanManager {
         plugin.debugLog(DebugSystem.STATS,"  Magic Resist: +" + bonuses.magicResist);
         plugin.debugLog(DebugSystem.STATS,"  Physical Damage: +" + bonuses.physicalDamage);
         plugin.debugLog(DebugSystem.STATS,"  Magic Damage: +" + bonuses.magicDamage);
+        plugin.debugLog(DebugSystem.STATS,"  Ranged Damage: +" + bonuses.rangedDamage);
         plugin.debugLog(DebugSystem.STATS,"  Mana: +" + bonuses.mana);
         plugin.debugLog(DebugSystem.STATS,"  Cooldown Reduction: +" + bonuses.cooldownReduction + "%");
         plugin.debugLog(DebugSystem.STATS,"  Health Regen: +" + bonuses.healthRegen);
@@ -1135,6 +1148,7 @@ public class StatScanManager {
         int armor = 0;
         int magicResist = 0;
         int physicalDamage = 0;
+        int rangedDamage = 0;
         int magicDamage = 0;
         int mana = 0;
         int cooldownReduction = 0;

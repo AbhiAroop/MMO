@@ -12,6 +12,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\trees\GemCarvingTreeBuilder.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\CombatNPC.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\NellMossgleam.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CurrencyCommand.java
@@ -83,6 +84,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCDamageEffects.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\active\ActiveAbility.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\health\HealthRegenerationManager.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\debug\DebugManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\RewardManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminStatsCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\RunemarkColossus.java
