@@ -117,1059 +117,635 @@ public class SubskillDetailsGUI {
      * Open the subskill details GUI for a player
      */
     public static void openSubskillDetailsGUI(Player player, Skill subskill) {
-        // Create inventory with a size of 54 slots (6 rows) for better layout
+        if (subskill.isMainSkill()) {
+            player.sendMessage(ChatColor.RED + "This is not a subskill!");
+            return;
+        }
+        
+        // Create inventory
         String title = GUI_TITLE_PREFIX + subskill.getDisplayName() + " Details" + GUI_TITLE_SUFFIX;
         Inventory gui = Bukkit.createInventory(null, 54, title);
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
-        if (activeSlot == null) {
-            player.sendMessage(ChatColor.RED + "You need to select a profile first!");
-            return;
-        }
+        if (activeSlot == null) return;
         
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Get skill level
         SkillLevel level = profile.getSkillData().getSkillLevel(subskill);
         
-        // Create border
+        // Create decorative border
         createBorder(gui);
         
-        // ===== HEADER =====
-        // Add subskill info at the top center only
-        ItemStack infoItem = createSubskillInfoItem(subskill, level);
-        gui.setItem(4, infoItem);
+        // === HEADER: Subskill title in slot 4 (top row) ===
+        ItemStack headerItem = createSubskillHeaderItem(subskill, level);
+        gui.setItem(4, headerItem);
         
-        // ===== MAIN CONTENT =====
-        // Add specific content based on subskill type
+        // === CONTENT: Ores/gems in 28 slots starting from slot 10 ===
         if (subskill instanceof OreExtractionSubskill) {
-            populateOreExtractionDetails(gui, (OreExtractionSubskill)subskill, level, player, profile);
-        } 
-        else if (subskill instanceof GemCarvingSubskill) {
-            populateGemCarvingDetails(gui, (GemCarvingSubskill)subskill, level, player, profile);
-        }
-        else {
-            // Generic subskill (for future expansion)
-            populateGenericSubskillDetails(gui, subskill, level);
+            populateOreExtractionContent(gui, (OreExtractionSubskill) subskill, level, player, profile);
+        } else if (subskill instanceof GemCarvingSubskill) {
+            populateGemCarvingContent(gui, (GemCarvingSubskill) subskill, level, player, profile);
+        } else {
+            // Generic subskill - show a simple message
+            ItemStack infoItem = new ItemStack(Material.PAPER);
+            ItemMeta meta = infoItem.getItemMeta();
+            meta.setDisplayName(ChatColor.AQUA + "Subskill Information");
+            
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "This subskill is still being developed.");
+            lore.add(ChatColor.GRAY + "More features coming soon!");
+            
+            meta.setLore(lore);
+            infoItem.setItemMeta(meta);
+            gui.setItem(22, infoItem); // Center of available area
         }
         
-        // ===== FOOTER =====
-        // Add back button in bottom left
-        ItemStack backButton = createBackButton(subskill.getParentSkill());
-        gui.setItem(45, backButton);
+        // === BOTTOM NAVIGATION: Back button and help button ===
+        ItemStack backButton = createBackButton(subskill);
+        gui.setItem(45, backButton); // Bottom left corner
         
-        // Add help button in bottom right
         ItemStack helpButton = createHelpButton(subskill);
-        gui.setItem(53, helpButton);
-        
-        // Fill empty slots
-        fillEmptySlots(gui);
+        gui.setItem(53, helpButton); // Bottom right corner
         
         // Open inventory
         player.openInventory(gui);
     }
 
-
     /**
-     * Create a summary stats item for OreExtraction
+     * Populate ore extraction content - COMPACT LAYOUT using 28 slots
      */
-    private static ItemStack createStatSummary(OreExtractionSubskill subskill, SkillLevel level, Player player) {
-        // Get mining speed multiplier from skill tree if available
-        double speedMultiplier = subskill.getMiningSpeedMultiplier(level.getLevel());
-        double fortuneBonus = subskill.getMiningFortuneBonus(level.getLevel());
-        double miningFortuneFromTree = 0;
-        double speedBoostFromTree = 0;
-        
-        if (player != null) {
-            // Get skill tree benefits if available
-            Map<String, Double> benefits = subskill.getSkillTreeBenefits(player);
-            miningFortuneFromTree = benefits.getOrDefault("mining_fortune", 0.0);
-            speedBoostFromTree = benefits.getOrDefault("mining_speed", 0.0);
-        }
-        
-        double totalFortune = fortuneBonus + miningFortuneFromTree;
-        double totalSpeedMultiplier = speedMultiplier + speedBoostFromTree;
-        
-        return createStatDisplay(
-            Material.GOLDEN_PICKAXE,
-            "Mining Efficiency",
-            new String[] {
-                "Your current mining efficiency stats",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Speed Multiplier: " + 
-                ChatColor.GREEN + String.format("%.2fx", totalSpeedMultiplier),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Mining Fortune: " + 
-                ChatColor.GREEN + "+" + String.format("%.1f", totalFortune),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Bonus Drop Chance: " + 
-                ChatColor.GREEN + String.format("%.1f%%", subskill.getBonusDropChance(level.getLevel()) * 100),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Cave-in Risk: " + 
-                (subskill.getCaveInChance(level.getLevel()) <= 0.05 ? ChatColor.GREEN : ChatColor.RED) +
-                String.format("%.1f%%", subskill.getCaveInChance(level.getLevel()) * 100),
-                "",
-                ChatColor.GRAY + "(Includes both level-based stats and skill tree bonuses)"
-            });
-    }
-
-    /**
-     * Create a summary stats item for GemCarving
-     */
-    private static ItemStack createStatSummary(GemCarvingSubskill subskill, SkillLevel level, Player player) {
-        // Get basic stats
-        double gemFindChance = subskill.getGemFindChance(level.getLevel()) * 100;
-        double extractionSuccess = subskill.getExtractionSuccessChance(level.getLevel()) * 100;
-        double qualityMultiplier = subskill.getGemQualityMultiplier(level.getLevel());
-        int bonusXp = 0;
-        
-        // Check skill tree for XP boost
-        if (player != null) {
-            PlayerProfile profile = null;
-            Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
-            if (activeSlot != null) {
-                profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
-                if (profile != null) {
-                    PlayerSkillTreeData skillTreeData = profile.getSkillTreeData();
-                    Map<String, Integer> nodeLevels = skillTreeData.getNodeLevels(subskill.getId());
-                    
-                    // Check for XP boost
-                    if (nodeLevels.containsKey("gemcarving_xp_boost")) {
-                        bonusXp = nodeLevels.get("gemcarving_xp_boost");
-                    }
-                }
-            }
-        }
-        
-        return createStatDisplay(
-            Material.IRON_SWORD,
-            "Carving Precision",
-            new String[] {
-                "Your current gem carving precision stats",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Gem Find Rate: " + 
-                ChatColor.GREEN + String.format("+%.1f%%", gemFindChance),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Extraction Success: " + 
-                ChatColor.GREEN + String.format("%.1f%%", extractionSuccess),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Gem Quality Bonus: " + 
-                ChatColor.GREEN + "+" + String.format("%.2fx", qualityMultiplier),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Bonus XP Per Carve: " + 
-                (bonusXp > 0 ? ChatColor.GREEN + "+" + bonusXp : ChatColor.GRAY + "+0"),
-                "",
-                ChatColor.GRAY + "(Higher level improves extraction chance and quality)"
-            });
-    }
-
-    /**
-     * Create a generic stat summary for other subskills
-     */
-    private static ItemStack createGenericStatSummary(Skill subskill, SkillLevel level) {
-        return createStatDisplay(
-            Material.BOOK,
-            "Skill Progress",
-            new String[] {
-                "Your current progress in this subskill",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Current Level: " + 
-                ChatColor.GREEN + level.getLevel() + "/" + subskill.getMaxLevel(),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Total XP Earned: " + 
-                ChatColor.GREEN + String.format("%,.1f", level.getTotalXp()),
-                "",
-                level.getLevel() < subskill.getMaxLevel() ? 
-                    (ChatColor.GRAY + "Keep training to unlock more benefits!") : 
-                    (ChatColor.GOLD + "Maximum level reached!")
-            });
-    }
-
-    /**
-     * Create a skill tree button
-     */
-    private static ItemStack createSkillTreeButton(Skill subskill, PlayerProfile profile) {
-        // Get skill tree data
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        int tokenCount = treeData.getTokenCount(subskill.getId());
-        
-        ItemStack item = new ItemStack(Material.KNOWLEDGE_BOOK);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.AQUA + "✦ " + subskill.getDisplayName() + " Skill Tree ✦");
-        
-        // Add enchant glow if tokens available
-        if (tokenCount > 0) {
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        }
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.GRAY + "Access the skill tree to unlock");
-        lore.add(ChatColor.GRAY + "new abilities and improvements.");
-        lore.add("");
-        
-        // Add token information
-        if (tokenCount > 0) {
-            lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + tokenCount + ChatColor.YELLOW + " Skill Points Available! ✦");
-        } else {
-            lore.add(ChatColor.GRAY + "No skill points currently available.");
-        }
-        
-        lore.add("");
-        lore.add(ChatColor.GREEN + "Click to open skill tree");
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
-     * Create a decorative item for visual appeal
-     */
-    private static ItemStack createDecorativeItem(Material material, String name, String[] lore) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        
-        if (name != null) {
-            meta.setDisplayName(name);
-        } else {
-            meta.setDisplayName(" ");
-        }
-        
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        
-        if (lore != null && lore.length > 0) {
-            List<String> lorelist = new ArrayList<>();
-            for (String line : lore) {
-                lorelist.add(ChatColor.GRAY + line);
-            }
-            meta.setLore(lorelist);
-        }
-        
-        item.setItemMeta(meta);
-        return item;
-    }
-    
-    /**
-     * Populate OreExtraction-specific details - simplified for cleaner layout
-     */
-    private static void populateOreExtractionDetails(Inventory gui, OreExtractionSubskill subskill, 
+    private static void populateOreExtractionContent(Inventory gui, OreExtractionSubskill subskill, 
                                             SkillLevel level, Player player, PlayerProfile profile) {
-        // Calculate unlocked ore types from skill tree
-        boolean hasBasicOres = true; // Always unlocked
-        boolean hasCopperOres = false; // Always unlocked
-        boolean hasIronOres = level.getLevel() >= 5; // Level requirement
-        boolean hasGoldOres = false;
-        boolean hasRedstoneOres = false;
-        boolean hasLapisOres = false;
-        boolean hasDiamondOres = false;
-        boolean hasEmeraldOres = false;
-        boolean hasNetherOres = false;
-        boolean hasAncientDebris = false;
         
-        if (profile != null) {
-            // Check skill tree nodes
-            PlayerSkillTreeData skillTreeData = profile.getSkillTreeData();
-            Map<String, Integer> nodeLevels = skillTreeData.getNodeLevels(subskill.getId());
+        // Define ore types
+        String[] oreTypes = {
+            "coal", "copper", "iron", "gold", "redstone", 
+            "lapis", "diamond", "emerald", "nether_quartz", 
+            "nether_gold", "ancient_debris"
+        };
+        
+        // Deepslate variants
+        String[] deepslateOres = {
+            "deepslate_coal", "deepslate_copper", "deepslate_iron", 
+            "deepslate_gold", "deepslate_redstone", "deepslate_lapis", 
+            "deepslate_diamond", "deepslate_emerald"
+        };
+        
+        // Use 28 slots in 4 rows of 7 (avoiding border)
+        // Row 2: slots 10-16 (7 slots)
+        // Row 3: slots 19-25 (7 slots) 
+        // Row 4: slots 28-34 (7 slots)
+        // Row 5: slots 37-43 (7 slots)
+        int[] positions = {
+            10, 11, 12, 13, 14, 15, 16,  // Row 2
+            19, 20, 21, 22, 23, 24, 25,  // Row 3
+            28, 29, 30, 31, 32, 33, 34,  // Row 4
+            37, 38, 39, 40, 41, 42, 43   // Row 5
+        };
+        
+        int index = 0;
+        
+        // Place regular ores first
+        for (String oreType : oreTypes) {
+            if (index >= positions.length) break;
             
-            // Check if specific nodes are unlocked
-            hasGoldOres = nodeLevels.containsKey("gold_mining") && nodeLevels.get("gold_mining") > 0;
-            hasRedstoneOres = nodeLevels.containsKey("redstone_mining") && nodeLevels.get("redstone_mining") > 0;
-            hasLapisOres = nodeLevels.containsKey("lapis_mining") && nodeLevels.get("lapis_mining") > 0;
-            hasDiamondOres = nodeLevels.containsKey("diamond_mining") && nodeLevels.get("diamond_mining") > 0;
-            hasEmeraldOres = nodeLevels.containsKey("emerald_mining") && nodeLevels.get("emerald_mining") > 0;
-            hasNetherOres = nodeLevels.containsKey("nether_mining") && nodeLevels.get("nether_mining") > 0;
-            hasAncientDebris = nodeLevels.containsKey("ancient_debris_mining") && nodeLevels.get("ancient_debris_mining") > 0;
-        } else {
-            // Fallback to level-based unlocking if profile unavailable
-            hasGoldOres = level.getLevel() >= 10;
-            hasRedstoneOres = level.getLevel() >= 15;
-            hasLapisOres = level.getLevel() >= 20;
-            hasDiamondOres = level.getLevel() >= 25;
-            hasEmeraldOres = level.getLevel() >= 30;
-            hasNetherOres = level.getLevel() >= 20;
-            hasAncientDebris = level.getLevel() >= 40;
+            boolean unlocked = isOreUnlocked(oreType, level.getLevel(), profile);
+            ItemStack oreItem = createOreItem(oreType, unlocked, level.getLevel());
+            gui.setItem(positions[index], oreItem);
+            index++;
         }
         
-        // Get total mining fortune for calculations
-        double fortuneBonus = subskill.getMiningFortuneBonus(level.getLevel());
-        double miningFortuneFromTree = 0;
-        
-        if (player != null) {
-            Map<String, Double> benefits = subskill.getSkillTreeBenefits(player);
-            miningFortuneFromTree = benefits.getOrDefault("mining_fortune", 0.0);
+        // Place deepslate ores in remaining slots
+        for (String deepslateOre : deepslateOres) {
+            if (index >= positions.length) break;
+            
+            boolean unlocked = isOreUnlocked(deepslateOre, level.getLevel(), profile);
+            ItemStack oreItem = createOreItem(deepslateOre, unlocked, level.getLevel());
+            gui.setItem(positions[index], oreItem);
+            index++;
         }
-        
-        double totalFortune = fortuneBonus + miningFortuneFromTree;
-        
-        // Organize ores in a grid layout for better visualization
-        
-        // Regular Ores - Left Side
-        // Row 1: Common ores
-        gui.setItem(10, createOreInfoItem("coal", true, 1, totalFortune));
-        gui.setItem(11, createOreInfoItem("copper", true, 1, totalFortune));
-        gui.setItem(12, createOreInfoItem("iron", hasIronOres, 5, totalFortune));
-        
-        // Row 2: Uncommon ores
-        gui.setItem(19, createOreInfoItem("gold", hasGoldOres, 10, totalFortune));
-        gui.setItem(20, createOreInfoItem("redstone", hasRedstoneOres, 15, totalFortune));
-        gui.setItem(21, createOreInfoItem("lapis", hasLapisOres, 20, totalFortune));
-        
-        // Row 3: Rare ores
-        gui.setItem(28, createOreInfoItem("diamond", hasDiamondOres, 25, totalFortune));
-        gui.setItem(29, createOreInfoItem("emerald", hasEmeraldOres, 30, totalFortune));
-        
-        // Deepslate Variants - Right Side
-        // Row 1: Common deepslate
-        gui.setItem(14, createOreInfoItem("deepslate_coal", true, 1, totalFortune));
-        gui.setItem(15, createOreInfoItem("deepslate_copper", true, 1, totalFortune));
-        gui.setItem(16, createOreInfoItem("deepslate_iron", hasIronOres, 5, totalFortune));
-        
-        // Row 2: Uncommon deepslate
-        gui.setItem(23, createOreInfoItem("deepslate_gold", hasGoldOres, 10, totalFortune));
-        gui.setItem(24, createOreInfoItem("deepslate_redstone", hasRedstoneOres, 15, totalFortune));
-        gui.setItem(25, createOreInfoItem("deepslate_lapis", hasLapisOres, 20, totalFortune));
-        
-        // Row 3: Rare deepslate
-        gui.setItem(32, createOreInfoItem("deepslate_diamond", hasDiamondOres, 25, totalFortune));
-        gui.setItem(33, createOreInfoItem("deepslate_emerald", hasEmeraldOres, 30, totalFortune));
-        
-        // Nether Ores - Bottom Row
-        gui.setItem(37, createOreInfoItem("nether_quartz", hasNetherOres, 15, totalFortune));
-        gui.setItem(38, createOreInfoItem("nether_gold", hasNetherOres, 20, totalFortune));
-        gui.setItem(40, createOreInfoItem("ancient_debris", hasAncientDebris, 40, totalFortune));
     }
 
     /**
-     * Populate GemCarving-specific details - simplified for cleaner layout
+     * Populate gem carving content - COMPACT LAYOUT using 28 slots
      */
-    private static void populateGemCarvingDetails(Inventory gui, GemCarvingSubskill subskill, 
+    private static void populateGemCarvingContent(Inventory gui, GemCarvingSubskill subskill, 
                                             SkillLevel level, Player player, PlayerProfile profile) {
-        // Get skill tree benefits
-        boolean hasBasicCrystals = true; // Always unlocked (mooncrystal, azuralite)
-        boolean hasIntermediateCrystals = level.getLevel() >= 15; // pyrethine, solvanecystal
-        boolean hasAdvancedCrystals = false; // nyxstone, lucenthar
-        boolean hasMasterCrystals = false; // veyrithcrystal, drakthyst
         
-        // Check skill tree for unlocks
-        if (profile != null) {
-            PlayerSkillTreeData skillTreeData = profile.getSkillTreeData();
-            Map<String, Integer> nodeLevels = skillTreeData.getNodeLevels(subskill.getId());
+        // Define gem types - FIXED: Only include gems that are actually in the GemCarvingSubskill
+        String[] gemTypes = {
+            "mooncrystal", "azuralite", "pyrethine", "solvanecystal", 
+            "nyxstone", "lucenthar", "veyrithcrystal", "drakthyst"
+            // Removed all the extra gems that aren't actually implemented
+        };
+        
+        // Use only the first 8 slots in the first row since we only have 8 gems
+        int[] positions = {
+            10, 11, 12, 13, 14, 15, 16, 19  // First row + one in second row
+        };
+        
+        for (int i = 0; i < gemTypes.length && i < positions.length; i++) {
+            String gemType = gemTypes[i];
+            boolean unlocked = isGemUnlocked(gemType, level.getLevel(), profile);
+            ItemStack gemItem = createGemItem(gemType, unlocked, level.getLevel());
+            gui.setItem(positions[i], gemItem);
+        }
+        
+        // Add a note about additional gems coming soon in the remaining visible slots
+        if (gemTypes.length < 12) { // If we have space for more info
+            ItemStack comingSoonItem = new ItemStack(Material.PAPER);
+            ItemMeta meta = comingSoonItem.getItemMeta();
+            meta.setDisplayName(ChatColor.YELLOW + "More Gems Coming Soon!");
             
-            // Check unlocked crystal tiers
-            hasAdvancedCrystals = nodeLevels.containsKey("advanced_crystals") && nodeLevels.get("advanced_crystals") > 0;
-            hasMasterCrystals = nodeLevels.containsKey("master_crystals") && nodeLevels.get("master_crystals") > 0;
-        } else {
-            // Fallback to level-based unlocking
-            hasAdvancedCrystals = level.getLevel() >= 30;
-            hasMasterCrystals = level.getLevel() >= 50;
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Additional gem types will be");
+            lore.add(ChatColor.GRAY + "added in future updates.");
+            lore.add("");
+            lore.add(ChatColor.AQUA + "Current gems available: " + gemTypes.length);
+            
+            meta.setLore(lore);
+            comingSoonItem.setItemMeta(meta);
+            gui.setItem(20, comingSoonItem); // Place in a visible spot
         }
-        
-        // Get basic stats for calculations
-        double extractionSuccess = subskill.getExtractionSuccessChance(level.getLevel()) * 100;
-        double qualityMultiplier = subskill.getGemQualityMultiplier(level.getLevel());
-        
-        // Organize crystals in a grid layout by tier
-        
-        // Tier 1-2: Basic (Common) Crystals - Top Row
-        gui.setItem(11, createGemInfoItem("mooncrystal", true, 1, extractionSuccess, qualityMultiplier, CrystalTier.COMMON));
-        gui.setItem(15, createGemInfoItem("azuralite", true, 5, extractionSuccess, qualityMultiplier, CrystalTier.COMMON));
-        
-        // Tier 3-4: Intermediate (Uncommon) Crystals - Second Row
-        gui.setItem(20, createGemInfoItem("pyrethine", hasIntermediateCrystals, 15, extractionSuccess, qualityMultiplier, CrystalTier.UNCOMMON));
-        gui.setItem(24, createGemInfoItem("solvanecystal", hasIntermediateCrystals, 20, extractionSuccess, qualityMultiplier, CrystalTier.UNCOMMON));
-        
-        // Tier 5-6: Advanced (Rare/Epic) Crystals - Third Row
-        gui.setItem(29, createGemInfoItem("nyxstone", hasAdvancedCrystals, 30, extractionSuccess - 0.1, qualityMultiplier, CrystalTier.RARE));
-        gui.setItem(33, createGemInfoItem("lucenthar", hasAdvancedCrystals, 40, extractionSuccess - 0.15, qualityMultiplier, CrystalTier.EPIC));
-        
-        // Tier 7-8: Master (Legendary) Crystals - Bottom Row
-        gui.setItem(38, createGemInfoItem("veyrithcrystal", hasMasterCrystals, 50, extractionSuccess - 0.2, qualityMultiplier, CrystalTier.LEGENDARY));
-        gui.setItem(42, createGemInfoItem("drakthyst", hasMasterCrystals, 60, extractionSuccess - 0.25, qualityMultiplier, CrystalTier.LEGENDARY));
     }
 
     /**
-     * Create a tier label for organizing crystal sections
+     * Create a detailed header item for the subskill (slot 4)
      */
-    private static ItemStack createTierLabel(String title, String description) {
-        ItemStack item = new ItemStack(Material.OAK_SIGN);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + title);
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + description);
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
-     * Create decorative border for GUI - Modified to be more subtle with black glass in middle
-     */
-    private static void createBorder(Inventory gui) {
-        ItemStack blue = createGlassPane(Material.BLUE_STAINED_GLASS_PANE);
-        ItemStack lightBlue = createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
-        ItemStack cyan = createGlassPane(Material.CYAN_STAINED_GLASS_PANE);
-        ItemStack black = createGlassPane(Material.BLACK_STAINED_GLASS_PANE);
-        
-        // Set corners with special glass color
-        gui.setItem(0, cyan);
-        gui.setItem(8, cyan);
-        gui.setItem(gui.getSize() - 9, cyan);
-        gui.setItem(gui.getSize() - 1, cyan);
-        
-        // Top and bottom rows
-        for (int i = 1; i < 8; i++) {
-            gui.setItem(i, i % 2 == 0 ? blue : lightBlue);
-            gui.setItem(gui.getSize() - 9 + i, i % 2 == 0 ? blue : lightBlue);
-        }
-        
-        // Side borders only - leave center area free
-        for (int i = 1; i < gui.getSize() / 9 - 1; i++) {
-            gui.setItem(i * 9, i % 2 == 0 ? blue : lightBlue);
-            gui.setItem(i * 9 + 8, i % 2 == 0 ? blue : lightBlue);
-        }
-        
-        // Fill middle of border (slots 9, 17, 18, 26, 27, 35, 36, 44) with black glass
-        // This creates a visual separation between info elements and main content
-        gui.setItem(9, black);
-        gui.setItem(17, black);
-        gui.setItem(18, black);
-        gui.setItem(26, black);
-        gui.setItem(27, black);
-        gui.setItem(35, black);
-        gui.setItem(36, black);
-        gui.setItem(44, black);
-    }
-    
-    /**
-     * Populate generic subskill details (placeholder for future expansion)
-     */
-    private static void populateGenericSubskillDetails(Inventory gui, Skill subskill, SkillLevel level) {
-        // Add a basic description item since this is a generic subskill
-        ItemStack descriptionItem = createStatDisplay(
-            Material.BOOK,
-            "Subskill Information",
-            new String[] {
-                "Details about this subskill",
-                "",
-                ChatColor.GRAY + subskill.getDescription(),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Current Level: " + 
-                ChatColor.WHITE + level.getLevel() + "/" + subskill.getMaxLevel(),
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Total XP Earned: " + 
-                ChatColor.WHITE + String.format("%,.1f", level.getTotalXp()),
-                "",
-                ChatColor.YELLOW + "This subskill doesn't have specialized",
-                ChatColor.YELLOW + "information available yet."
-            });
-        gui.setItem(22, descriptionItem);
-    }
-    
-    /**
-     * Create an item with subskill information
-     */
-    private static ItemStack createSubskillInfoItem(Skill subskill, SkillLevel level) {
-        Material icon;
-        
-        // Choose appropriate icon based on subskill type
-        if (subskill instanceof OreExtractionSubskill) {
-            icon = Material.IRON_ORE;
-        } 
-        else if (subskill instanceof GemCarvingSubskill) {
-            icon = Material.DIAMOND;
-        }
-        else {
-            icon = Material.NETHER_STAR;
-        }
-        
+    private static ItemStack createSubskillHeaderItem(Skill subskill, SkillLevel level) {
+        Material icon = getSubskillIcon(subskill);
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         
-        // Set display name with enhanced formatting
-        meta.setDisplayName(ChatColor.GOLD + "✦ " + subskill.getDisplayName() + " " + 
-                ChatColor.YELLOW + "[Level " + level.getLevel() + "/" + subskill.getMaxLevel() + "]");
-        
-        // Add enchant glow if max level
+        // Add glow effect if max level
         if (level.getLevel() >= subskill.getMaxLevel()) {
             meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         
-        // Hide attributes to keep the tooltip clean
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        meta.setDisplayName(ChatColor.GOLD + "✦ " + ChatColor.AQUA + subskill.getDisplayName() + ChatColor.GOLD + " ✦");
         
-        // Create lore with dividers for better readability
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("");
         
-        // Format description with line breaks for better readability
-        for (String line : subskill.getDescription().split("\\.")) {
-            if (!line.trim().isEmpty()) {
-                lore.add(ChatColor.GRAY + line.trim() + ".");
-            }
+        // Description
+        for (String line : subskill.getDescription().split("\n")) {
+            lore.add(ChatColor.GRAY + line);
         }
         
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Total XP Earned: " + ChatColor.WHITE + 
-                String.format("%,.1f", level.getTotalXp()));
+        lore.add(ChatColor.YELLOW + "Current Level: " + ChatColor.WHITE + level.getLevel() + "/" + subskill.getMaxLevel());
         
-        // Add parent skill
-        lore.add("");
-        lore.add(ChatColor.AQUA + "» Parent Skill: " + ChatColor.YELLOW + subskill.getParentSkill().getDisplayName());
-        
-        // Add progress information
+        // Progress information
         if (level.getLevel() < subskill.getMaxLevel()) {
-            double xpForNextLevel = subskill.getXpForLevel(level.getLevel() + 1);
-            double progress = level.getProgressPercentage(xpForNextLevel);
+            double currentXp = level.getCurrentXp();
+            double neededXp = subskill.getXpForLevel(level.getLevel() + 1);
+            double progress = currentXp / neededXp;
             
-            lore.add("");
-            lore.add(ChatColor.YELLOW + "Progress to Level " + (level.getLevel() + 1) + ":");
-            lore.add(createProgressBar(progress));
-            lore.add(ChatColor.WHITE + "XP: " + ChatColor.AQUA + String.format("%,.1f", level.getCurrentXp()) + 
-                    ChatColor.GRAY + "/" + ChatColor.AQUA + String.format("%,.1f", xpForNextLevel) + 
-                    ChatColor.GRAY + " (" + ChatColor.GREEN + String.format("%.1f", progress * 100) + "%" + 
-                    ChatColor.GRAY + ")");
+            lore.add(ChatColor.YELLOW + "Progress: " + createCompactProgressBar(progress));
+            lore.add(ChatColor.YELLOW + "XP to Next: " + ChatColor.WHITE + String.format("%.0f", neededXp - currentXp));
         } else {
+            lore.add(ChatColor.GOLD + "★ MASTERED ★");
+        }
+        
+        // Next milestone
+        String nextMilestone = getNextMilestone(subskill, level.getLevel());
+        if (nextMilestone != null) {
             lore.add("");
-            lore.add(ChatColor.GREEN + "✦ MAXIMUM LEVEL REACHED! ✦");
+            lore.add(ChatColor.AQUA + "Next Milestone: " + ChatColor.YELLOW + nextMilestone);
         }
         
         meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-    
-    /**
-     * Create a gem information item with crystal tier information
-     */
-    private static ItemStack createGemInfoItem(String gemType, boolean unlocked, int requiredLevel, 
-                                            double extractionSuccess, double qualityMultiplier, CrystalTier tier) {
-        Material material = GEM_MATERIALS.getOrDefault(gemType, Material.DIAMOND);
-        double baseXp = GEM_XP_VALUES.getOrDefault(gemType, 5.0);
-        int quality = GEM_QUALITIES.getOrDefault(gemType, 1);
-        
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        
-        // Format gem name nicely
-        String gemName = formatMaterialName(gemType);
-        
-        // Set color based on whether it's unlocked and tier
-        ChatColor nameColor;
-        switch (tier) {
-            case LEGENDARY:
-                nameColor = ChatColor.LIGHT_PURPLE;
-                break;
-            case EPIC:
-                nameColor = ChatColor.DARK_PURPLE;
-                break;
-            case RARE:
-                nameColor = ChatColor.BLUE;
-                break;
-            case UNCOMMON:
-                nameColor = ChatColor.GREEN;
-                break;
-            default:
-                nameColor = ChatColor.WHITE;
-        }
-        
-        if (unlocked) {
-            meta.setDisplayName(nameColor + gemName);
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        } else {
-            meta.setDisplayName(ChatColor.RED + gemName + ChatColor.GRAY + " (Locked)");
-        }
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
-        if (unlocked) {
-            // Add tier
-            lore.add(ChatColor.YELLOW + "Tier: " + getTierDisplay(tier));
-            
-            // Quality rating
-            lore.add(ChatColor.YELLOW + "Quality: " + getQualityStars(quality));
-            
-            // Success chance - reduced for higher tier gems
-            double tierSuccessModifier = 1.0;
-            switch (tier) {
-                case LEGENDARY:
-                    tierSuccessModifier = 0.7; // 30% reduction for legendary
-                    break;
-                case EPIC:
-                    tierSuccessModifier = 0.8; // 20% reduction for epic
-                    break;
-                case RARE:
-                    tierSuccessModifier = 0.9; // 10% reduction for rare
-                    break;
-                default:
-                    tierSuccessModifier = 1.0; // No reduction for common/uncommon
-            }
-            
-            double adjustedSuccess = extractionSuccess * tierSuccessModifier;
-            lore.add(ChatColor.YELLOW + "Extraction Success: " + 
-                    ChatColor.WHITE + String.format("%.1f%%", adjustedSuccess));
-            
-            // Show XP gained
-            lore.add(ChatColor.YELLOW + "Base XP: " + ChatColor.WHITE + baseXp);
-            
-            double bonusXp = baseXp * (qualityMultiplier - 1.0);
-            if (bonusXp > 0) {
-                lore.add(ChatColor.YELLOW + "Quality Bonus: " + ChatColor.GREEN + "+" + String.format("%.1f", bonusXp));
-            }
-            
-            lore.add(ChatColor.YELLOW + "Total XP per Extraction: " + ChatColor.AQUA + String.format("%.1f", baseXp + bonusXp));
-            
-            // Add extraction difficulty based on tier
-            lore.add("");
-            lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Extraction Difficulty:");
-            
-            switch (tier) {
-                case LEGENDARY:
-                    lore.add(ChatColor.LIGHT_PURPLE + "Extremely Difficult");
-                    lore.add(ChatColor.GRAY + "8-9 carving points");
-                    lore.add(ChatColor.GRAY + "Short time limit");
-                    break;
-                case EPIC:
-                    lore.add(ChatColor.DARK_PURPLE + "Very Difficult");
-                    lore.add(ChatColor.GRAY + "6-7 carving points");
-                    lore.add(ChatColor.GRAY + "Limited time");
-                    break;
-                case RARE:
-                    lore.add(ChatColor.BLUE + "Challenging");
-                    lore.add(ChatColor.GRAY + "5-6 carving points");
-                    lore.add(ChatColor.GRAY + "Moderate time limit");
-                    break;
-                case UNCOMMON:
-                    lore.add(ChatColor.GREEN + "Moderate");
-                    lore.add(ChatColor.GRAY + "4-5 carving points");
-                    lore.add(ChatColor.GRAY + "Comfortable time limit");
-                    break;
-                default:
-                    lore.add(ChatColor.WHITE + "Basic");
-                    lore.add(ChatColor.GRAY + "3-5 carving points");
-                    lore.add(ChatColor.GRAY + "Generous time limit");
-            }
-        } else {
-            // Show that it's locked
-            lore.add(ChatColor.RED + "This crystal type is currently locked.");
-            
-            if (requiredLevel > 0) {
-                lore.add(ChatColor.YELLOW + "Required Level: " + ChatColor.WHITE + requiredLevel);
-            }
-            
-            // Add skill tree hint
-            if (requiredLevel >= 30) {
-                lore.add("");
-                lore.add(ChatColor.YELLOW + "Unlock via Skill Tree:");
-                
-                if (requiredLevel >= 50) {
-                    lore.add(ChatColor.GRAY + "• Master Crystals node");
-                } else {
-                    lore.add(ChatColor.GRAY + "• Advanced Crystals node");
-                }
-            }
-        }
-        
-        meta.setLore(lore);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);
         return item;
     }
 
     /**
-     * Create an ore information item with more detailed info
+     * Create a back button for subskill details GUI
      */
-    private static ItemStack createOreInfoItem(String oreType, boolean unlocked, int requiredLevel, double fortuneBonus) {
-        Material material = ORE_MATERIALS.getOrDefault(oreType, Material.STONE);
-        double baseXp = ORE_XP_VALUES.getOrDefault(oreType, 1.0);
-        
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        
-        // Format ore name nicely
-        String oreName = formatMaterialName(oreType);
-        
-        // Set color based on whether it's unlocked
-        if (unlocked) {
-            meta.setDisplayName(ChatColor.GREEN + oreName);
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        } else {
-            meta.setDisplayName(ChatColor.RED + oreName + ChatColor.GRAY + " (Locked)");
-        }
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
-        if (unlocked) {
-            // Show XP gained and modifiers
-            lore.add(ChatColor.YELLOW + "Base XP: " + ChatColor.WHITE + baseXp);
-            
-            // Calculate fortune bonus for this specific ore
-            double bonusXp = baseXp * (fortuneBonus / 10.0);
-            if (bonusXp > 0) {
-                lore.add(ChatColor.YELLOW + "Fortune Bonus: " + ChatColor.GREEN + "+" + String.format("%.1f", bonusXp));
-            }
-            
-            lore.add(ChatColor.YELLOW + "Total XP per Mine: " + ChatColor.AQUA + String.format("%.1f", baseXp + bonusXp));
-            
-            // Add mining information
-            lore.add("");
-            lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Possible Drops:");
-            
-            // Add common drops
-            if (oreType.contains("deepslate_")) {
-                String baseOreName = oreName.replace("Deepslate ", "");
-                lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + baseOreName);
-                
-                // Higher drop rate and potential bonus drops for deepslate variants
-                lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "+25% " + ChatColor.GRAY + "drop quantity");
-            } else {
-                lore.add(ChatColor.GRAY + "• " + ChatColor.WHITE + oreName.replace(" Ore", ""));
-            }
-            
-            // Add rare drops if applicable
-            if (oreType.equals("diamond") || oreType.equals("deepslate_diamond") || 
-                oreType.equals("emerald") || oreType.equals("deepslate_emerald")) {
-                lore.add(ChatColor.GRAY + "• " + ChatColor.LIGHT_PURPLE + "Rare Gems " + ChatColor.GRAY + "(Low Chance)");
-            }
-            
-            if (oreType.equals("ancient_debris")) {
-                lore.add(ChatColor.GRAY + "• " + ChatColor.LIGHT_PURPLE + "Netherite Scraps");
-                lore.add(ChatColor.GRAY + "• " + ChatColor.GOLD + "Ancient Artifacts " + ChatColor.GRAY + "(Very Low Chance)");
-            }
-            
-            // Add mining time info for deepslate variants
-            if (oreType.contains("deepslate_")) {
-                lore.add("");
-                lore.add(ChatColor.RED + "» " + ChatColor.YELLOW + "Mining Notes:");
-                lore.add(ChatColor.GRAY + "Deepslate variants take longer");
-                lore.add(ChatColor.GRAY + "to mine but give more XP and drops");
-            }
-            
-            // Add nether information for nether ores
-            if (oreType.contains("nether_") || oreType.equals("ancient_debris")) {
-                lore.add("");
-                lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Nether Ore:");
-                lore.add(ChatColor.GRAY + "Found only in the Nether");
-            }
-        } else {
-            // Show that it's locked
-            lore.add(ChatColor.RED + "This ore is currently locked.");
-            
-            // Add skill tree node hint
-            lore.add("");
-            lore.add(ChatColor.YELLOW + "Unlock via Skill Tree:");
-            
-            if (oreType.startsWith("gold") || oreType.startsWith("deepslate_gold")) {
-                lore.add(ChatColor.GRAY + "• Gold Mining node");
-            } else if (oreType.startsWith("redstone") || oreType.startsWith("deepslate_redstone")) {
-                lore.add(ChatColor.GRAY + "• Redstone Mining node");
-            } else if (oreType.startsWith("lapis") || oreType.startsWith("deepslate_lapis")) {
-                lore.add(ChatColor.GRAY + "• Lapis Mining node");
-            } else if (oreType.startsWith("diamond") || oreType.startsWith("deepslate_diamond")) {
-                lore.add(ChatColor.GRAY + "• Diamond Mining node");
-            } else if (oreType.startsWith("emerald") || oreType.startsWith("deepslate_emerald")) {
-                lore.add(ChatColor.GRAY + "• Emerald Mining node");
-            } else if (oreType.contains("nether")) {
-                lore.add(ChatColor.GRAY + "• Nether Mining node");
-            } else if (oreType.equals("ancient_debris")) {
-                lore.add(ChatColor.GRAY + "• Ancient Debris Mining node");
-            } else if (oreType.startsWith("iron") || oreType.startsWith("deepslate_iron")) {
-                lore.add(ChatColor.GRAY + "• Reach level 5 to unlock");
-            }
-        }
-        
-        meta.setLore(lore);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
-     * Get text representation of unlock status
-     */
-    private static String getUnlockStatusText(boolean unlocked) {
-        return unlocked ? ChatColor.GREEN + "Unlocked" : ChatColor.RED + "Locked";
-    }
-
-    /**
-     * Create an info display item
-     */
-    private static ItemStack createInfoItem(Material material, String title, String[] description) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(title);
-        
-        // Add enchant glow for visual appeal
-        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
-        for (String line : description) {
-            lore.add(ChatColor.GRAY + line);
-        }
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-    
-    /**
-     * Create a section title item
-     */
-    private static ItemStack createSectionTitle(String title, String description) {
-        ItemStack item = new ItemStack(Material.OAK_SIGN);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GOLD + "✦ " + title + " ✦");
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.GRAY + description);
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-    
-    /**
-     * Create a stat display item
-     */
-    private static ItemStack createStatDisplay(Material material, String title, String[] description) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.AQUA + "✦ " + title + " ✦");
-        
-        // Add enchant glow for visual appeal
-        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
-        for (String line : description) {
-            lore.add(ChatColor.GRAY + line);
-        }
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-    
-    /**
-     * Create back button with parent skill reference
-     */
-    private static ItemStack createBackButton(Skill parentSkill) {
+    private static ItemStack createBackButton(Skill subskill) {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta meta = backButton.getItemMeta();
-        meta.setDisplayName(ChatColor.RED + "« Back to " + parentSkill.getDisplayName() + " Subskills");
+        meta.setDisplayName(ChatColor.RED + "« Back to " + subskill.getDisplayName() + " Details");
         
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Return to the subskills menu");
+        lore.add(ChatColor.GRAY + "Return to the skill details menu");
+        
+        // FIXED: Store the subskill ID, not the parent skill ID
+        lore.add(ChatColor.BLACK + "SUBSKILL_ID:" + subskill.getId());
         
         meta.setLore(lore);
-        
         backButton.setItemMeta(meta);
         return backButton;
     }
     
+
     /**
-     * Create help button with information about the GUI
+     * Create a help button for subskill details GUI
      */
     private static ItemStack createHelpButton(Skill subskill) {
-        ItemStack helpButton = new ItemStack(Material.KNOWLEDGE_BOOK);
-        ItemMeta meta = helpButton.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + "Information");
+        ItemStack item = new ItemStack(Material.KNOWLEDGE_BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.YELLOW + "✦ Help & Information");
         
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "This screen shows specialized information");
-        lore.add(ChatColor.GRAY + "about the " + ChatColor.YELLOW + subskill.getDisplayName() + ChatColor.GRAY + " subskill.");
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "Learn about " + subskill.getDisplayName() + ":");
         lore.add("");
         
         if (subskill instanceof OreExtractionSubskill) {
-            lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Ore Information:");
-            lore.add(ChatColor.GRAY + "• Green items are unlocked ores");
-            lore.add(ChatColor.GRAY + "• Red items are locked (need higher level)");
-            lore.add(ChatColor.GRAY + "• XP values shown are per block mined");
+            lore.add(ChatColor.AQUA + "Ore Extraction:");
+            lore.add(ChatColor.WHITE + "• Mine different ore types for XP");
+            lore.add(ChatColor.WHITE + "• Higher levels = faster mining");
+            lore.add(ChatColor.WHITE + "• Deepslate ores give +25% XP");
+            lore.add(ChatColor.WHITE + "• Unlock ores via skill tree");
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Tips:");
+            lore.add(ChatColor.GRAY + "• Green checkmark = unlocked");
+            lore.add(ChatColor.GRAY + "• Red X = locked");
+            lore.add(ChatColor.GRAY + "• XP values shown for each ore");
+        } else if (subskill instanceof GemCarvingSubskill) {
+            lore.add(ChatColor.AQUA + "Gem Carving:");
+            lore.add(ChatColor.WHITE + "• Find gems while mining stone");
+            lore.add(ChatColor.WHITE + "• Careful extraction required");
+            lore.add(ChatColor.WHITE + "• Higher levels = better rates");
+            lore.add(ChatColor.WHITE + "• Different gems unlock by level");
+            lore.add("");
+            lore.add(ChatColor.YELLOW + "Rarity Colors:");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.WHITE + "Common");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.GREEN + "Uncommon");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.BLUE + "Rare");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.DARK_PURPLE + "Epic");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.GOLD + "Legendary");
+        } else {
+            lore.add(ChatColor.YELLOW + "• Level up by practicing this skill");
+            lore.add(ChatColor.YELLOW + "• Higher levels provide better bonuses");
+            lore.add(ChatColor.YELLOW + "• Milestone levels award tokens");
         }
-        else if (subskill instanceof GemCarvingSubskill) {
-            lore.add(ChatColor.AQUA + "» " + ChatColor.YELLOW + "Gem Information:");
-            lore.add(ChatColor.GRAY + "• Green items are unlocked gems");
-            lore.add(ChatColor.GRAY + "• Red items are locked (need higher level)");
-            lore.add(ChatColor.GRAY + "• Stars indicate gem quality & value");
+        
+        lore.add("");
+        lore.add(ChatColor.AQUA + "Token System:");
+        lore.add(ChatColor.WHITE + "Tokens from this subskill go to the");
+        lore.add(ChatColor.WHITE + "" + ChatColor.YELLOW + subskill.getParentSkill().getDisplayName() + 
+                ChatColor.WHITE + " skill tree for upgrades.");
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Create a simple ore item showing XP value and unlock status
+     */
+    private static ItemStack createOreItem(String oreType, boolean unlocked, int playerLevel) {
+        Material oreMaterial = ORE_MATERIALS.getOrDefault(oreType, Material.STONE);
+        ItemStack item = new ItemStack(oreMaterial);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Get ore display name
+        String displayName = formatOreName(oreType);
+        double xpValue = ORE_XP_VALUES.getOrDefault(oreType, 0.0);
+        
+        if (unlocked) {
+            meta.setDisplayName(ChatColor.GREEN + "✓ " + ChatColor.WHITE + displayName);
+            
+            // Add glow for unlocked ores
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        } else {
+            meta.setDisplayName(ChatColor.RED + "✗ " + ChatColor.GRAY + displayName + " (Locked)");
+        }
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        
+        if (unlocked) {
+            lore.add(ChatColor.YELLOW + "XP Value: " + ChatColor.GREEN + xpValue);
+            
+            if (oreType.contains("deepslate")) {
+                lore.add(ChatColor.AQUA + "Deepslate Bonus: " + ChatColor.GREEN + "+25% XP");
+            }
+            
+            lore.add("");
+            lore.add(ChatColor.GREEN + "✓ Ready to mine!");
+            lore.add(ChatColor.GRAY + "Break this ore type to gain XP");
+        } else {
+            lore.add(ChatColor.RED + "Locked");
+            lore.add("");
+            lore.add(ChatColor.GRAY + "Unlock this ore type by purchasing");
+            lore.add(ChatColor.GRAY + "the required node in the skill tree.");
+            
+            // Show potential XP value
+            lore.add("");
+            lore.add(ChatColor.DARK_GRAY + "XP Value when unlocked: " + xpValue);
         }
         
         meta.setLore(lore);
-        helpButton.setItemMeta(meta);
-        return helpButton;
+        item.setItemMeta(meta);
+        return item;
     }
-    
+
     /**
-     * Generate quality stars display
+     * Create a simple gem item showing XP value and unlock status
      */
-    private static String getQualityStars(int quality) {
-        StringBuilder stars = new StringBuilder();
+    private static ItemStack createGemItem(String gemType, boolean unlocked, int playerLevel) {
+        Material gemMaterial = GEM_MATERIALS.getOrDefault(gemType, Material.QUARTZ);
+        ItemStack item = new ItemStack(gemMaterial);
+        ItemMeta meta = item.getItemMeta();
         
-        for (int i = 0; i < quality; i++) {
-            stars.append(ChatColor.GOLD + "★");
-        }
-        for (int i = quality; i < 7; i++) {
-            stars.append(ChatColor.GRAY + "★");
+        // Get gem display name and properties
+        String displayName = formatGemName(gemType);
+        double xpValue = GEM_XP_VALUES.getOrDefault(gemType, 100.0);
+        String rarity = getGemRarity(gemType);
+        ChatColor rarityColor = getRarityColor(rarity);
+        
+        if (unlocked) {
+            meta.setDisplayName(ChatColor.GREEN + "✓ " + rarityColor + displayName);
+            
+            // Add glow for unlocked gems
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        } else {
+            meta.setDisplayName(ChatColor.RED + "✗ " + ChatColor.GRAY + displayName + " (Locked)");
         }
         
-        return stars.toString();
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "Rarity: " + rarityColor + rarity);
+        
+        if (unlocked) {
+            lore.add(ChatColor.YELLOW + "XP Value: " + ChatColor.GREEN + String.format("%.0f", xpValue));
+            lore.add("");
+            lore.add(ChatColor.GREEN + "✓ Available for extraction!");
+            lore.add(ChatColor.GRAY + "Found while mining stone blocks");
+            lore.add(ChatColor.GRAY + "Success rate depends on level");
+        } else {
+            lore.add("");
+            lore.add(ChatColor.RED + "Locked");
+            lore.add("");
+            lore.add(ChatColor.GRAY + "Unlock by reaching level " + getGemUnlockLevel(gemType));
+            lore.add(ChatColor.GRAY + "in Gem Carving subskill.");
+            
+            // Show potential XP value
+            lore.add("");
+            lore.add(ChatColor.DARK_GRAY + "XP Value when unlocked: " + String.format("%.0f", xpValue));
+        }
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
-    
+
     /**
-     * Format material name for display
+     * Enhanced method to get expanded gem types with unlock levels
      */
-    private static String formatMaterialName(String materialName) {
-        String[] words = materialName.replaceAll("_", " ").split(" ");
+    private static int getGemUnlockLevel(String gemType) {
+        Map<String, Integer> gemUnlockLevels = new HashMap<>();
+        
+        // Basic gems (early levels)
+        gemUnlockLevels.put("mooncrystal", 1);
+        gemUnlockLevels.put("azuralite", 5);
+        gemUnlockLevels.put("pyrethine", 10);
+        gemUnlockLevels.put("solvanecystal", 15);
+        
+        // Intermediate gems
+        gemUnlockLevels.put("nyxstone", 20);
+        gemUnlockLevels.put("lucenthar", 25);
+        gemUnlockLevels.put("veyrithcrystal", 30);
+        gemUnlockLevels.put("drakthyst", 35);
+                
+        return gemUnlockLevels.getOrDefault(gemType, 1);
+    }
+
+    /**
+     * Enhanced gem name formatting - FIXED to only include actual gems
+     */
+    private static String formatGemName(String gemType) {
+        Map<String, String> gemNames = new HashMap<>();
+        
+        // Only the gems that are actually implemented
+        gemNames.put("mooncrystal", "Mooncrystal");
+        gemNames.put("azuralite", "Azuralite");
+        gemNames.put("pyrethine", "Pyrethine");
+        gemNames.put("solvanecystal", "Solvane Crystal");
+        gemNames.put("nyxstone", "Nyxstone");
+        gemNames.put("lucenthar", "Lucenthar");
+        gemNames.put("veyrithcrystal", "Veyrith Crystal");
+        gemNames.put("drakthyst", "Drakthyst");
+        
+        return gemNames.getOrDefault(gemType, gemType);
+    }
+
+    /**
+     * Enhanced gem rarity system - FIXED to only include actual gems
+     */
+    private static String getGemRarity(String gemType) {
+        Map<String, String> gemRarities = new HashMap<>();
+        
+        // Progression-based rarity for the 8 actual gems
+        gemRarities.put("mooncrystal", "Common");
+        gemRarities.put("azuralite", "Common");
+        gemRarities.put("pyrethine", "Uncommon");
+        gemRarities.put("solvanecystal", "Uncommon");
+        gemRarities.put("nyxstone", "Rare");
+        gemRarities.put("lucenthar", "Rare");
+        gemRarities.put("veyrithcrystal", "Epic");
+        gemRarities.put("drakthyst", "Legendary");
+        
+        return gemRarities.getOrDefault(gemType, "Common");
+    }
+
+    /**
+     * Get the icon material for a specific subskill
+     */
+    private static Material getSubskillIcon(Skill subskill) {
+        switch (subskill.getId()) {
+            case "ore_extraction":
+                return Material.IRON_ORE;
+            case "gem_carving":
+                return Material.DIAMOND;
+            default:
+                return Material.PAPER;
+        }
+    }
+
+    /**
+     * Create decorative border with accent corners
+     */
+    private static void createBorder(Inventory gui) {
+        ItemStack borderItem = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta borderMeta = borderItem.getItemMeta();
+        borderMeta.setDisplayName(" ");
+        borderItem.setItemMeta(borderMeta);
+        
+        // Top and bottom borders
+        for (int i = 0; i < 9; i++) {
+            gui.setItem(i, borderItem);
+            gui.setItem(45 + i, borderItem);
+        }
+        
+        // Side borders
+        for (int i = 1; i < 5; i++) {
+            gui.setItem(i * 9, borderItem);
+            gui.setItem(i * 9 + 8, borderItem);
+        }
+        
+        // Accent corners with colored glass
+        ItemStack accentItem = new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        ItemMeta accentMeta = accentItem.getItemMeta();
+        accentMeta.setDisplayName(" ");
+        accentItem.setItemMeta(accentMeta);
+        
+        gui.setItem(0, accentItem);  // Top left
+        gui.setItem(8, accentItem);  // Top right
+        gui.setItem(45, accentItem); // Will be replaced by back button
+        gui.setItem(53, accentItem); // Will be replaced by help button
+    }
+
+    /**
+     * Check if an ore type is unlocked for the player
+     */
+    private static boolean isOreUnlocked(String oreType, int playerLevel, PlayerProfile profile) {
+        // Basic ores are always unlocked
+        if (oreType.equals("coal") || oreType.equals("deepslate_coal") || 
+            oreType.equals("copper") || oreType.equals("deepslate_copper")) {
+            return true;
+        }
+        
+        // Check skill tree unlocks
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        
+        // Map ore types to their skill tree nodes
+        Map<String, String> oreToNode = new HashMap<>();
+        oreToNode.put("iron", "unlock_iron_ore");
+        oreToNode.put("deepslate_iron", "unlock_iron_ore");
+        oreToNode.put("gold", "unlock_gold_ore");
+        oreToNode.put("deepslate_gold", "unlock_gold_ore");
+        oreToNode.put("redstone", "unlock_redstone_ore");
+        oreToNode.put("deepslate_redstone", "unlock_redstone_ore");
+        oreToNode.put("lapis", "unlock_lapis_ore");
+        oreToNode.put("deepslate_lapis", "unlock_lapis_ore");
+        oreToNode.put("diamond", "unlock_diamond_ore");
+        oreToNode.put("deepslate_diamond", "unlock_diamond_ore");
+        oreToNode.put("emerald", "unlock_emerald_ore");
+        oreToNode.put("deepslate_emerald", "unlock_emerald_ore");
+        oreToNode.put("nether_quartz", "unlock_nether_mining");
+        oreToNode.put("nether_gold", "unlock_nether_mining");
+        oreToNode.put("ancient_debris", "unlock_ancient_debris");
+        
+        String requiredNode = oreToNode.get(oreType);
+        if (requiredNode != null) {
+            return treeData.isNodeUnlocked("mining", requiredNode);
+        }
+        
+        return true; // Default to unlocked if no specific requirement
+    }
+
+    /**
+     * Check if a gem type is unlocked for the player
+     */
+    private static boolean isGemUnlocked(String gemType, int playerLevel, PlayerProfile profile) {
+        // Map gem types to unlock levels
+        Map<String, Integer> gemUnlockLevels = new HashMap<>();
+        gemUnlockLevels.put("mooncrystal", 1);
+        gemUnlockLevels.put("azuralite", 5);
+        gemUnlockLevels.put("pyrethine", 15);
+        gemUnlockLevels.put("solvanecystal", 25);
+        gemUnlockLevels.put("nyxstone", 35);
+        gemUnlockLevels.put("lucenthar", 50);
+        gemUnlockLevels.put("veyrithcrystal", 70);
+        gemUnlockLevels.put("drakthyst", 90);
+        
+        int requiredLevel = gemUnlockLevels.getOrDefault(gemType, 1);
+        return playerLevel >= requiredLevel;
+    }
+
+    /**
+     * Get the unlock level for an ore type
+     */
+    private static int getOreUnlockLevel(String oreType) {
+        // Most ores are unlocked via skill tree, not level
+        return 0;
+    }
+
+    /**
+     * Format ore name for display
+     */
+    private static String formatOreName(String oreType) {
+        String formatted = oreType.replace("_", " ")
+                    .replace("deepslate ", "Deepslate ")
+                    .replace("nether ", "Nether ")
+                    .replace("ancient debris", "Ancient Debris");
+        
         StringBuilder result = new StringBuilder();
-        
-        for (String word : words) {
+        for (String word : formatted.split(" ")) {
             if (!word.isEmpty()) {
                 result.append(Character.toUpperCase(word.charAt(0)))
-                    .append(word.substring(1).toLowerCase())
+                    .append(word.substring(1))
                     .append(" ");
             }
         }
-        
         return result.toString().trim();
     }
-    
+
     /**
-     * Create a progress bar visualization
+     * Get color for gem rarity
      */
-    private static String createProgressBar(double progress) {
+    private static ChatColor getRarityColor(String rarity) {
+        switch (rarity.toLowerCase()) {
+            case "common": return ChatColor.WHITE;
+            case "uncommon": return ChatColor.GREEN;
+            case "rare": return ChatColor.BLUE;
+            case "epic": return ChatColor.DARK_PURPLE;
+            case "legendary": return ChatColor.GOLD;
+            default: return ChatColor.GRAY;
+        }
+    }
+
+    /**
+     * Create a compact progress bar
+     */
+    private static String createCompactProgressBar(double progress) {
         StringBuilder bar = new StringBuilder();
-        int barLength = 24;
+        int barLength = 10;
         int filledBars = (int) Math.round(progress * barLength);
         
-        // Start with bracket
         bar.append(ChatColor.GRAY + "[");
         
-        // Create gradient of colors based on fill
         for (int i = 0; i < barLength; i++) {
             if (i < filledBars) {
-                if (progress < 0.25) {
+                if (progress < 0.33) {
                     bar.append(ChatColor.RED);
-                } else if (progress < 0.5) {
-                    bar.append(ChatColor.GOLD);
-                } else if (progress < 0.75) {
+                } else if (progress < 0.66) {
                     bar.append(ChatColor.YELLOW);
                 } else {
                     bar.append(ChatColor.GREEN);
                 }
-                bar.append("■");
+                bar.append("█");
             } else {
-                bar.append(ChatColor.DARK_GRAY).append("■");
+                bar.append(ChatColor.DARK_GRAY).append("█");
             }
         }
         
-        // Close bracket
-        bar.append(ChatColor.GRAY + "]");
-        
+        bar.append(ChatColor.GRAY + "] " + ChatColor.WHITE + String.format("%.1f%%", progress * 100));
         return bar.toString();
     }
-    
+
     /**
-     * Check if an ore is unlocked at the given level
-     * Implements level requirements for different ore types
+     * Get the next milestone level for a skill
      */
-    private static boolean isOreUnlocked(String oreType, int level) {
-        return level >= getRequiredLevel(oreType);
-    }
-    
-    /**
-     * Get required level for an ore type
-     */
-    private static int getRequiredLevel(String oreType) {
-        switch (oreType) {
-            case "coal": return 1;
-            case "iron": return 5;
-            case "gold": return 10;
-            case "redstone": return 15;
-            case "lapis": return 20;
-            case "diamond": return 25;
-            case "emerald": return 30;
-            case "nether_quartz": return 15;
-            case "nether_gold": return 20;
-            case "ancient_debris": return 40;
-            default: return 1;
-        }
-    }
-    
-    /**
-     * Check if a gem is unlocked at the given level
-     */
-    private static boolean isGemUnlocked(String gemType, int level) {
-        return level >= getGemRequiredLevel(gemType);
-    }
-    
-    /**
-     * Get required level for a gem type
-     */
-    private static int getGemRequiredLevel(String gemType) {
-        switch (gemType) {
-            case "amber": return 1;
-            case "amethyst": return 5;
-            case "sapphire": return 15;
-            case "ruby": return 25;
-            case "emerald_crystal": return 35;
-            case "diamond_crystal": return 45;
-            case "obsidian_crystal": return 50;
-            default: return 1;
-        }
-    }
-    
-    /**
-     * Create glass pane with empty name for decoration
-     */
-    private static ItemStack createGlassPane(Material material) {
-        ItemStack pane = new ItemStack(material);
-        ItemMeta meta = pane.getItemMeta();
-        meta.setDisplayName(" ");
-        pane.setItemMeta(meta);
-        return pane;
-    }
-    
-    /**
-     * Fill empty slots with glass panes
-     */
-    private static void fillEmptySlots(Inventory gui) {
-        ItemStack filler = createGlassPane(Material.BLACK_STAINED_GLASS_PANE);
-        
-        for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, filler);
+    private static String getNextMilestone(Skill skill, int currentLevel) {
+        for (int milestoneLevel : skill.getMilestones()) {
+            if (milestoneLevel > currentLevel) {
+                return "Level " + milestoneLevel;
             }
         }
+        return null; // No more milestones
     }
-
-    /**
-     * Get display text for crystal tiers
-     */
-    private static String getTierDisplay(CrystalTier tier) {
-        switch (tier) {
-            case LEGENDARY:
-                return ChatColor.LIGHT_PURPLE + "Legendary";
-            case EPIC:
-                return ChatColor.DARK_PURPLE + "Epic";
-            case RARE:
-                return ChatColor.BLUE + "Rare";
-            case UNCOMMON:
-                return ChatColor.GREEN + "Uncommon";
-            default:
-                return ChatColor.WHITE + "Common";
-        }
-    }
-
+    
     /**
      * Enum for crystal tiers from the minigame
      */

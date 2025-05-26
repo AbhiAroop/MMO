@@ -168,9 +168,9 @@ public class ScoreboardManager {
         Score emptyLine2 = objective.getScore(spacers[2]);
         emptyLine2.setScore(scoreValue--);
         
-        // Player level
-        Score level = objective.getScore("§e§lLevel: §f" + profile.getStats().getExpLevel());
-        level.setScore(scoreValue--);
+        // UPDATED: Profile level instead of vanilla level
+        Score profileLevel = objective.getScore("§6§lProfile Level: §f" + profile.getProfileLevel());
+        profileLevel.setScore(scoreValue--);
         
         // Empty line
         Score emptyLine3 = objective.getScore(spacers[3]);

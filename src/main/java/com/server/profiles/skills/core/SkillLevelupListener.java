@@ -49,24 +49,50 @@ public class SkillLevelupListener implements Listener {
         int tokensToAward = calculateTokensForLevel(newLevel);
         
         if (tokensToAward > 0) {
-            // Add tokens to the player's skill tree data
-            treeData.addTokens(skill.getId(), tokensToAward);
+            // UPDATED: Determine which skill should receive the tokens
+            Skill targetSkill;
+            String tokenType;
             
-            // Get token display info
-            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(skill);
+            if (skill.isMainSkill()) {
+                // For main skills, award tokens to themselves
+                targetSkill = skill;
+                tokenType = skill.getId();
+            } else {
+                // For subskills, award tokens to the parent skill
+                targetSkill = skill.getParentSkill();
+                tokenType = targetSkill.getId();
+                
+                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                    plugin.debugLog(DebugSystem.SKILLS, 
+                        "Subskill " + skill.getDisplayName() + " level up - awarding tokens to parent skill: " + 
+                        targetSkill.getDisplayName());
+                }
+            }
+            
+            // Add tokens to the appropriate skill's token count
+            treeData.addTokens(tokenType, tokensToAward);
+            
+            // Get token display info for the target skill
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(targetSkill);
+            
+            // Create appropriate notification message
+            String skillContext = skill.isMainSkill() ? 
+                "" : 
+                " (from " + ChatColor.AQUA + skill.getDisplayName() + ChatColor.GREEN + ")";
             
             // Notify the player
             player.sendMessage(ChatColor.GREEN + "You received " + ChatColor.GOLD + tokensToAward + " " + 
-                             tokenInfo.color + tokenInfo.displayName + " Token" + 
-                             (tokensToAward > 1 ? "s" : "") + ChatColor.GREEN + "!");
+                            tokenInfo.color + tokenInfo.displayName + " Token" + 
+                            (tokensToAward > 1 ? "s" : "") + ChatColor.GREEN + "!" + skillContext);
             
             // Play sound for token reward
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
             
             if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                plugin.debugLog(DebugSystem.SKILLS,player.getName() + " received " + tokensToAward + " " + 
-                                     tokenInfo.displayName + " Tokens for reaching level " + 
-                                     newLevel + " in " + skill.getDisplayName());
+                plugin.debugLog(DebugSystem.SKILLS, player.getName() + " received " + tokensToAward + " " + 
+                                    tokenInfo.displayName + " Tokens for reaching level " + 
+                                    newLevel + " in " + skill.getDisplayName() + 
+                                    " (tokens awarded to " + targetSkill.getDisplayName() + ")");
             }
         }
     }

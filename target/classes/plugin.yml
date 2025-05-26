@@ -97,6 +97,11 @@ commands:
     usage: /mmonpc <create|remove|list> [args]
     permission: mmo.admin.npc
     aliases: [mmopnpc, mnpc]
+  adminprofile:
+    description: Admin command to manage player profile levels and XP
+    usage: /<command> <player> <level|xp|add> <value> OR /<command> <list|info> <player>
+    permission: mmo.admin.profile
+    aliases: [aprofile, adminpro]
 
 permissions:
   mmo.admin:
@@ -134,4 +139,7 @@ permissions:
     default: op
   mmo.admin.npc:
     description: Allows creating and managing NPCs
+    default: op
+  mmo.admin.profile:
+    description: Allows managing player profile levels and XP
     default: op

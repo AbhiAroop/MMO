@@ -291,5 +291,113 @@ public class CustomItems {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static ItemStack createWanderersWeaveHood() {
+        ItemStack item = new ItemStack(Material.LEATHER_HELMET);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 30000 base for helmets)
+        meta.setCustomModelData(230002); // 2 for functional item, 3 for helmet, 0002 for second variant
+        
+        // Set name and lore
+        meta.setDisplayName("§6§lWanderer's Weave Hood");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A lightweight hood woven from enchanted cloth",
+            "§7that adapts to any climate.\"",
+            "",
+            "§7Stats:",
+            "§cHealth: §c+3",
+            "§aArmor: §a+1",
+            "",
+            "§8This fabric seems to shimmer slightly when touched,",
+            "§8as if it contains fragments of distant memories.",
+            ""
+        ));
+                
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createWanderersWeaveTunic() {
+        ItemStack item = new ItemStack(Material.LEATHER_CHESTPLATE);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 31000 base for chestplates)
+        meta.setCustomModelData(231001); // 2 for functional item, 31 for chestplate, 001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§6§lWanderer's Weave Tunic");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A comfortable tunic that provides surprising",
+            "§7protection despite its light weight.\"",
+            "",
+            "§7Stats:",
+            "§cHealth: §c+3",
+            "§aArmor: §a+1",
+            "",
+            "§8The intricate weaving pattern seems to shift",
+            "§8and adapt to the wearer's movements.",
+            ""
+        ));
+            
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createWanderersWeaveLeggings() {
+        ItemStack item = new ItemStack(Material.LEATHER_LEGGINGS);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 32000 base for leggings)
+        meta.setCustomModelData(232001); // 2 for functional item, 32 for leggings, 001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§6§lWanderer's Weave Pants");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"Durable pants designed for those who journey",
+            "§7far across all terrains.\"",
+            "",
+            "§7Stats:",
+            "§cHealth: §c+3",
+            "§aArmor: §a+1",
+            "",
+            "§8The fabric never seems to tear or soil,",
+            "§8perfect for extended travels.",
+            ""
+        ));
+               
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createWanderersWeaveBoots() {
+        ItemStack item = new ItemStack(Material.LEATHER_BOOTS);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 33000 base for boots)
+        meta.setCustomModelData(233001); // 2 for functional item, 33 for boots, 001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§6§lWanderer's Weave Boots");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"Comfortable boots that make long journeys",
+            "§7feel like a casual stroll.\"",
+            "",
+            "§7Stats:",
+            "§cHealth: §c+3",
+            "§aArmor: §a+1",
+            "",
+            "§8These boots seem to always find the easiest path,",
+            "§8guiding their wearer through difficult terrain.",
+            ""
+        ));
+              
+        item.setItemMeta(meta);
+        return item;
+    }
     
 }

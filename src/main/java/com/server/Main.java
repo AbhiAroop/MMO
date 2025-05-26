@@ -5,6 +5,7 @@ import java.util.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AdminProfileCommand;
 import com.server.commands.AdminSkillsCommand;
 import com.server.commands.AdminStatsCommand;
 import com.server.commands.AdminTokensCommand;
@@ -420,6 +421,15 @@ public class Main extends JavaPlugin {
             npcCommand.setTabCompleter(npcHandler);
         } else {
             LOGGER.warning("Command 'mmonpc' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand adminProfileCommand = this.getCommand("adminprofile");
+        if (adminProfileCommand != null) {
+            AdminProfileCommand adminProfileHandler = new AdminProfileCommand(this);
+            adminProfileCommand.setExecutor(adminProfileHandler);
+            adminProfileCommand.setTabCompleter(adminProfileHandler);
+        } else {
+            LOGGER.warning("Command 'adminprofile' not registered in plugin.yml file!");
         }
         
     }

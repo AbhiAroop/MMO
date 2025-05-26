@@ -11,10 +11,7 @@ import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SkillType;
-import com.server.profiles.skills.core.SubskillType;
-import com.server.profiles.skills.skills.mining.trees.GemCarvingTreeBuilder;
 import com.server.profiles.skills.skills.mining.trees.MiningTreeBuilder;
-import com.server.profiles.skills.skills.mining.trees.OreExtractionTreeBuilder;
 import com.server.profiles.skills.trees.builders.GenericTreeBuilder;
 import com.server.profiles.skills.trees.builders.SkillTreeBuilder;
 
@@ -46,8 +43,6 @@ public class SkillTreeRegistry {
     private void registerTreeBuilders() {
         // Register mining tree builders
         treeBuilders.put(SkillType.MINING.getId(), new MiningTreeBuilder());
-        treeBuilders.put(SubskillType.ORE_EXTRACTION.getId(), new OreExtractionTreeBuilder());
-        treeBuilders.put(SubskillType.GEM_CARVING.getId(), new GemCarvingTreeBuilder());
         
         // Add more tree builders as they are implemented
         // For example:
@@ -77,20 +72,21 @@ public class SkillTreeRegistry {
      * Initialize all skill trees
      */
     private void initializeSkillTrees() {
-        // Initialize trees for all skills
+        // Initialize trees for main skills only
         for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
-            // For debugging purposes, log every skill tree creation attempt
-            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                plugin.debugLog(DebugSystem.SKILLS,"Creating skill tree for: " + skill.getId() + " (" + skill.getDisplayName() + ")");
+            // Only create trees for main skills, not subskills
+            if (skill.isMainSkill()) {
+                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
+                    plugin.debugLog(DebugSystem.SKILLS,"Creating skill tree for main skill: " + skill.getId() + " (" + skill.getDisplayName() + ")");
+                }
+                
+                createSkillTree(skill);
             }
-            
-            createSkillTree(skill);
         }
         
         // Log total number of skill trees created
         if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
             plugin.debugLog(DebugSystem.SKILLS,"Total skill trees created: " + skillTrees.size());
-            // Log each tree that was created
             for (String skillId : skillTrees.keySet()) {
                 plugin.debugLog(DebugSystem.SKILLS,"  - Tree exists for: " + skillId);
             }

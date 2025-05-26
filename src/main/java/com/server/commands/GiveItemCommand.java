@@ -30,7 +30,16 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
         itemCreators.put("siphonfang", CustomItems::createSiphonFang);
         itemCreators.put("fleshrake", CustomItems::createFleshrake);
         itemCreators.put("shatteredshell", CustomItems::createShatteredShellPickaxe);
+
+        // Add Wanderer's Weave armor pieces individually
+        itemCreators.put("wanderershood", CustomItems::createWanderersWeaveHood);
+        itemCreators.put("wandererstunic", CustomItems::createWanderersWeaveTunic);
+        itemCreators.put("wandererleggings", CustomItems::createWanderersWeaveLeggings);
+        itemCreators.put("wandererboots", CustomItems::createWanderersWeaveBoots);        
+        // Add full set option - special case handling in onCommand
+        itemCreators.put("wandererset", () -> CustomItems.createWanderersWeaveHood());
         // Add more items as they are created
+        
     }
     
     @Override
@@ -42,9 +51,11 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
         }
         
         String itemName = args[0].toLowerCase();
-        Supplier<ItemStack> itemCreator = itemCreators.get(itemName);
         
-        if (itemCreator == null) {
+        // Special case for the Wanderer's Set
+        boolean isWandererSet = itemName.equals("wandererset");
+        
+        if (!isWandererSet && !itemCreators.containsKey(itemName)) {
             sender.sendMessage("§cUnknown item: " + itemName);
             sender.sendMessage("§eAvailable items: §f" + String.join(", ", itemCreators.keySet()));
             return true;
@@ -67,7 +78,28 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
-        // Create the item and give it to the player
+        // Handle special case for Wanderer's Set
+        if (isWandererSet) {
+            // Give all Wanderer's Weave armor pieces
+            ItemStack hood = CustomItems.createWanderersWeaveHood();
+            ItemStack tunic = CustomItems.createWanderersWeaveTunic();
+            ItemStack leggings = CustomItems.createWanderersWeaveLeggings();
+            ItemStack boots = CustomItems.createWanderersWeaveBoots();
+            
+            // Give each piece
+            targetPlayer.getInventory().addItem(hood, tunic, leggings, boots);
+            
+            // Notify sender and receiver
+            sender.sendMessage("§aGave §6§lWanderer's Weave Set §ato " + targetPlayer.getName());
+            if (sender != targetPlayer) {
+                targetPlayer.sendMessage("§aYou received: §6§lWanderer's Weave Set");
+            }
+            
+            return true;
+        }
+        
+        // Handle normal single item case
+        Supplier<ItemStack> itemCreator = itemCreators.get(itemName);
         ItemStack item = itemCreator.get();
         targetPlayer.getInventory().addItem(item);
         

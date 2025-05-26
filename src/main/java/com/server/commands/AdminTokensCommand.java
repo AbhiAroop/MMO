@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -258,57 +259,52 @@ public class AdminTokensCommand implements TabExecutor {
      * Get a skill ID from a more flexible input format
      */
     private String getSkillIdFromInput(String input) {
-        // First check for exact main skill ID match
-        for (SkillType type : SkillType.values()) {
-            if (type.getId().equalsIgnoreCase(input)) {
-                return type.getId();
+        // Convert to lowercase for case-insensitive matching
+        String lowerInput = input.toLowerCase();
+                
+        // Direct skill ID match (main skills only)
+        for (SkillType skillType : SkillType.values()) {
+            if (skillType.getId().equals(lowerInput)) {
+                return skillType.getId();
             }
         }
         
-        // Then check for exact subskill ID match
-        for (SubskillType type : SubskillType.values()) {
-            if (type.getId().equalsIgnoreCase(input)) {
-                return type.getId();
+        // Display name match (main skills only)
+        for (SkillType skillType : SkillType.values()) {
+            if (skillType.getDisplayName().toLowerCase().equals(lowerInput)) {
+                return skillType.getId();
+            }
+            
+            // Also check without spaces
+            if (skillType.getDisplayName().toLowerCase().replace(" ", "").equals(lowerInput)) {
+                return skillType.getId();
             }
         }
         
-        // Check for main skill name match (more user-friendly)
-        for (SkillType type : SkillType.values()) {
-            if (type.getDisplayName().replace(" ", "").equalsIgnoreCase(input)) {
-                return type.getId();
-            }
-        }
+        // Partial matches for main skills only
+        Map<String, String> partialMatches = new HashMap<>();
+        partialMatches.put("mine", "mining");
+        partialMatches.put("dig", "excavating");
+        partialMatches.put("fish", "fishing");
+        partialMatches.put("farm", "farming");
+        partialMatches.put("fight", "combat");
+        partialMatches.put("combat", "combat");
         
-        // Check for subskill name match
-        for (SubskillType type : SubskillType.values()) {
-            if (type.getDisplayName().replace(" ", "").equalsIgnoreCase(input)) {
-                return type.getId();
-            }
-        }
-        
-        // No match found
-        return null;
+        return partialMatches.get(lowerInput);
     }
-    
+
     /**
      * Get a skill's display name from its ID
      */
     private String getSkillDisplayName(String skillId) {
-        // Check main skills
-        for (SkillType type : SkillType.values()) {
-            if (type.getId().equals(skillId)) {
-                return type.getDisplayName();
+        // UPDATED: Only handle main skills
+        for (SkillType skillType : SkillType.values()) {
+            if (skillType.getId().equals(skillId)) {
+                return skillType.getDisplayName();
             }
         }
         
-        // Check subskills
-        for (SubskillType type : SubskillType.values()) {
-            if (type.getId().equals(skillId)) {
-                return type.getDisplayName();
-            }
-        }
-        
-        // If not found, use the ID with better formatting
+        // If not found, format the ID nicely
         return formatSkillName(skillId);
     }
     
@@ -337,52 +333,31 @@ public class AdminTokensCommand implements TabExecutor {
     private void displayHelp(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "===== AdminTokens Command Help =====");
         sender.sendMessage(ChatColor.YELLOW + "/admintokens <player> <skill> <amount> " + 
-                          ChatColor.WHITE + "- Set a player's skill tokens");
+                        ChatColor.WHITE + "- Set skill tokens");
         sender.sendMessage(ChatColor.YELLOW + "/admintokens reset <player> " + 
-                          ChatColor.WHITE + "- Reset all modified tokens to original values");
+                        ChatColor.WHITE + "- Reset all tokens to original values");
         sender.sendMessage(ChatColor.YELLOW + "/admintokens list <player> " + 
-                          ChatColor.WHITE + "- Show all token counts for a player");
+                        ChatColor.WHITE + "- List all token counts");
         
-        // Display available skills
-        sender.sendMessage(ChatColor.GOLD + "Available Main Skills:");
-        StringBuilder mainSkills = new StringBuilder();
-        for (SkillType type : SkillType.values()) {
-            mainSkills.append(ChatColor.GRAY).append(type.getDisplayName())
-                      .append(ChatColor.DARK_GRAY).append(" (").append(type.getId()).append(")")
-                      .append(ChatColor.WHITE).append(", ");
-        }
-        // Remove trailing comma and space
-        if (mainSkills.length() > 2) {
-            mainSkills.setLength(mainSkills.length() - 2);
-        }
-        sender.sendMessage(mainSkills.toString());
+        sender.sendMessage(ChatColor.GRAY + "Available Skills (Main Skills Only):");
+        sender.sendMessage(ChatColor.WHITE + "  mining, excavating, fishing, farming, combat");
         
-        sender.sendMessage(ChatColor.GOLD + "Available Subskills:");
-        StringBuilder subSkills = new StringBuilder();
-        for (SubskillType type : SubskillType.values()) {
-            subSkills.append(ChatColor.GRAY).append(type.getDisplayName())
-                     .append(ChatColor.DARK_GRAY).append(" (").append(type.getId()).append(")")
-                     .append(ChatColor.WHITE).append(", ");
-            
-            // Add line breaks for readability after every 2 subskills
-            if (subSkills.length() > 80) {
-                sender.sendMessage(subSkills.toString());
-                subSkills = new StringBuilder();
-            }
-        }
-        // Send any remaining subskills
-        if (subSkills.length() > 2) {
-            subSkills.setLength(subSkills.length() - 2);
-            sender.sendMessage(subSkills.toString());
-        }
+        sender.sendMessage(ChatColor.GRAY + "Examples:");
+        sender.sendMessage(ChatColor.WHITE + "  /admintokens Steve mining 10");
+        sender.sendMessage(ChatColor.WHITE + "  /admintokens Steve combat 5");
+        sender.sendMessage(ChatColor.WHITE + "  /admintokens list Steve");
     }
-    
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         List<String> completions = new ArrayList<>();
         
+        if (!sender.hasPermission("mmo.admin.tokens")) {
+            return completions;
+        }
+        
         if (args.length == 1) {
-            // First argument is player name or special command
+            // First argument: player name or special commands
             List<String> specialCommands = Arrays.asList("reset", "list");
             for (String special : specialCommands) {
                 if (special.startsWith(args[0].toLowerCase())) {
@@ -391,49 +366,32 @@ public class AdminTokensCommand implements TabExecutor {
             }
             
             // Add online player names
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                if (player.getName().toLowerCase().startsWith(args[0].toLowerCase())) {
-                    completions.add(player.getName());
-                }
-            }
+            completions.addAll(Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))
+                            .collect(Collectors.toList()));
         }
         else if (args.length == 2) {
             if (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("list")) {
                 // Second argument is player name for special commands
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    if (player.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
-                        completions.add(player.getName());
-                    }
-                }
+                completions.addAll(Bukkit.getOnlinePlayers().stream()
+                                .map(Player::getName)
+                                .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                                .collect(Collectors.toList()));
             } else {
-                // Second argument is skill ID
-                // Add main skills
-                for (SkillType type : SkillType.values()) {
-                    if (type.getId().toLowerCase().startsWith(args[1].toLowerCase()) ||
-                        type.getDisplayName().toLowerCase().replace(" ", "").startsWith(args[1].toLowerCase())) {
-                        completions.add(type.getId());
-                    }
-                }
-                
-                // Add subskills
-                for (SubskillType type : SubskillType.values()) {
-                    if (type.getId().toLowerCase().startsWith(args[1].toLowerCase()) ||
-                        type.getDisplayName().toLowerCase().replace(" ", "").startsWith(args[1].toLowerCase())) {
-                        completions.add(type.getId());
-                    }
-                }
+                // UPDATED: Only suggest main skills
+                List<String> mainSkills = Arrays.asList("mining", "excavating", "fishing", "farming", "combat");
+                completions.addAll(mainSkills.stream()
+                                .filter(skill -> skill.startsWith(args[1].toLowerCase()))
+                                .collect(Collectors.toList()));
             }
         }
         else if (args.length == 3) {
-            // Third argument is amount
-            if (!args[0].equalsIgnoreCase("reset") && !args[0].equalsIgnoreCase("list")) {
-                List<String> suggestions = Arrays.asList("0", "1", "5", "10", "25", "50", "100");
-                for (String suggestion : suggestions) {
-                    if (suggestion.startsWith(args[2])) {
-                        completions.add(suggestion);
-                    }
-                }
-            }
+            // Third argument is the amount
+            List<String> suggestions = Arrays.asList("1", "5", "10", "25", "50", "100");
+            completions.addAll(suggestions.stream()
+                            .filter(suggestion -> suggestion.startsWith(args[2]))
+                            .collect(Collectors.toList()));
         }
         
         return completions;

@@ -20,9 +20,7 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.data.SkillLevel;
-import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
-import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
-import com.server.profiles.skills.trees.SkillTreeRegistry;
+import com.server.profiles.skills.tokens.SkillToken;
 
 /**
  * GUI for displaying subskills for a main skill
@@ -287,95 +285,94 @@ public class SubskillsGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         
-        // Determine level color based on level progression
-        ChatColor levelColor = ChatColor.RED;
-        if (level.getLevel() >= subskill.getMaxLevel()) levelColor = ChatColor.AQUA;
-        else if (level.getLevel() > 50) levelColor = ChatColor.GREEN;
-        else if (level.getLevel() > 25) levelColor = ChatColor.YELLOW;
-        else if (level.getLevel() > 10) levelColor = ChatColor.GOLD;
-        
-        // Set display name with enhanced formatting
-        meta.setDisplayName(ChatColor.GOLD + subskill.getDisplayName() + " " + 
-                levelColor + "[Lvl " + level.getLevel() + "/" + subskill.getMaxLevel() + "]");
-        
-        // Add enchant glow for max level
+        // Add glow effect for max level subskills
         if (level.getLevel() >= subskill.getMaxLevel()) {
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
         }
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         
-        // Create lore with enhanced formatting
+        // Set display name with level
+        meta.setDisplayName(ChatColor.AQUA + "✦ " + subskill.getDisplayName() + " " + 
+                        ChatColor.YELLOW + "[Lvl " + level.getLevel() + "]");
+        
         List<String> lore = new ArrayList<>();
-        // Add skill ID at the beginning for easy extraction
-        lore.add(ChatColor.BLACK + "SKILL_ID:" + subskill.getId());
         
-        lore.add(ChatColor.GRAY + subskill.getDescription());
+        // Add divider
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        
+        // Description
+        for (String line : subskill.getDescription().split("\n")) {
+            lore.add(ChatColor.GRAY + line);
+        }
         lore.add("");
         
-        // Progress to next level or max level reached
-        double xpForNextLevel = subskill.getXpForLevel(level.getLevel() + 1);
-        double progress = level.getProgressPercentage(xpForNextLevel);
-        
+        // Progress information
         if (level.getLevel() < subskill.getMaxLevel()) {
-            lore.add(ChatColor.YELLOW + "Progress to Level " + (level.getLevel() + 1) + ":");
-            lore.add(createProgressBar(progress));
-            lore.add(ChatColor.WHITE + "XP: " + ChatColor.AQUA + String.format("%,.1f", level.getCurrentXp()) + 
-                    ChatColor.GRAY + "/" + ChatColor.AQUA + String.format("%,.1f", xpForNextLevel) + 
-                    ChatColor.GRAY + " (" + ChatColor.GREEN + String.format("%.1f%%", progress * 100) + ChatColor.GRAY + ")");
+            double xpCurrent = level.getCurrentXp();
+            double xpNeeded = subskill.getXpForLevel(level.getLevel() + 1);
+            double progress = xpCurrent / xpNeeded;
+            
+            lore.add(ChatColor.YELLOW + "» Level: " + ChatColor.WHITE + level.getLevel() + "/" + subskill.getMaxLevel());
+            lore.add(ChatColor.YELLOW + "» Progress: " + createProgressBar(progress));
+            lore.add(ChatColor.YELLOW + "» XP: " + ChatColor.WHITE + 
+                    format("%.0f", xpCurrent) + "/" + format("%.0f", xpNeeded));
         } else {
-            lore.add(ChatColor.GREEN + "✦ MAXIMUM LEVEL REACHED! ✦");
-            lore.add(ChatColor.GRAY + "Total XP: " + ChatColor.AQUA + String.format("%,.1f", level.getTotalXp()));
-        }
-
-        // Add subskill-specific info with better formatting
-        if (subskill instanceof OreExtractionSubskill) {
-            OreExtractionSubskill oreSkill = (OreExtractionSubskill) subskill;
-            lore.add("");
-            lore.add(ChatColor.AQUA + "» Current Bonuses:");
-            lore.add(ChatColor.GRAY + "• Mining Speed: " + 
-                    ChatColor.YELLOW + String.format("%.2fx", oreSkill.getMiningSpeedMultiplier(level.getLevel())));
-            lore.add(ChatColor.GRAY + "• Mining Fortune: " + 
-                    ChatColor.YELLOW + String.format("+%.1f", oreSkill.getMiningFortuneBonus(level.getLevel())));
-            lore.add(ChatColor.GRAY + "• Bonus Drops: " + 
-                    ChatColor.YELLOW + format("%.1f%%", oreSkill.getBonusDropChance(level.getLevel()) * 100));
-        }
-        else if (subskill instanceof GemCarvingSubskill) {
-            GemCarvingSubskill gemSkill = (GemCarvingSubskill) subskill;
-            lore.add("");
-            lore.add(ChatColor.AQUA + "» Current Bonuses:");
-            lore.add(ChatColor.GRAY + "• Extraction Success: " + 
-                    ChatColor.YELLOW + String.format("%.1f%%", gemSkill.getExtractionSuccessChance(level.getLevel()) * 100));
-            lore.add(ChatColor.GRAY + "• Gem Quality: " + 
-                    ChatColor.YELLOW + String.format("%.2fx", gemSkill.getGemQualityMultiplier(level.getLevel())));
+            lore.add(ChatColor.GOLD + "» MAX LEVEL REACHED!");
+            lore.add(ChatColor.GOLD + "» All abilities unlocked");
         }
         
-        // Show next milestone level with improved formatting
         lore.add("");
+        
+        // Milestones
         String nextMilestone = getNextMilestone(subskill, level.getLevel());
         if (nextMilestone != null) {
             lore.add(ChatColor.AQUA + "» Next Milestone: " + ChatColor.YELLOW + nextMilestone);
+            
+            // Show what the next milestone will award
+            int nextMilestoneLevel = Integer.parseInt(nextMilestone.replaceAll("[^0-9]", ""));
+            int tokenReward = calculateTokensForLevel(nextMilestoneLevel);
+            if (tokenReward > 0) {
+                SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(subskill.getParentSkill());
+                lore.add(ChatColor.GRAY + "  Rewards: " + ChatColor.GOLD + tokenReward + " " + 
+                        tokenInfo.color + tokenInfo.displayName + " Token" + 
+                        (tokenReward > 1 ? "s" : ""));
+            }
         } else {
             lore.add(ChatColor.AQUA + "» " + ChatColor.GREEN + "All Milestones Completed!");
         }
         
-        // Check if skill tree exists for this subskill
-        boolean hasSkillTree = SkillTreeRegistry.getInstance().getSkillTree(subskill) != null;
-        
-        // Add interaction instructions
+        // UPDATED: Add interaction instructions
         lore.add("");
         lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "LEFT-CLICK: " + ChatColor.YELLOW + "View Subskill Details");
+        lore.add(ChatColor.GREEN + "Left-click" + ChatColor.GRAY + " for skill details");
+        lore.add(ChatColor.GREEN + "Right-click" + ChatColor.GRAY + " for specialized info");
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Tokens from this subskill contribute to");
+        lore.add(ChatColor.GRAY + "your " + ChatColor.YELLOW + subskill.getParentSkill().getDisplayName() + 
+                ChatColor.GRAY + " skill tree progression.");
         
-        if (hasSkillTree) {
-            lore.add(ChatColor.LIGHT_PURPLE + "• " + ChatColor.WHITE + "RIGHT-CLICK: " + ChatColor.YELLOW + "Open Skill Tree");
-        } else {
-            lore.add(ChatColor.GRAY + "• Skill Tree unavailable for this subskill");
-        }
+        // Add subskill ID for click handler
+        lore.add(ChatColor.BLACK + "SUBSKILL_ID:" + subskill.getId());
         
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    /**
+     * Calculate tokens for a specific level (helper method)
+     */
+    private static int calculateTokensForLevel(int level) {
+        // Special milestones get more tokens
+        if (level % 25 == 0) {
+            return 5; // Every 25 levels: 25, 50, 75, 100
+        } else if (level % 10 == 0) {
+            return 3; // Every 10 levels: 10, 20, 30, etc. (except those already covered)
+        } else if (level % 5 == 0) {
+            return 2; // Every 5 levels: 5, 15, etc. (except those already covered)
+        } else {
+            return 1; // All other levels
+        }
     }
         
     /**
@@ -439,7 +436,9 @@ public class SubskillsGUI {
         helpLore.add("");
         helpLore.add(ChatColor.YELLOW + "• " + ChatColor.WHITE + "Each subskill has unique bonuses");
         helpLore.add(ChatColor.YELLOW + "• " + ChatColor.WHITE + "Level them up separately");
-        helpLore.add(ChatColor.YELLOW + "• " + ChatColor.WHITE + "Check their skill trees for upgrades");
+        helpLore.add(ChatColor.YELLOW + "• " + ChatColor.WHITE + "Upgrades are now in the main skill tree");
+        helpLore.add("");
+        helpLore.add(ChatColor.GREEN + "Left-click" + ChatColor.GRAY + " any subskill to view details");
         
         helpMeta.setLore(helpLore);
         helpButton.setItemMeta(helpMeta);

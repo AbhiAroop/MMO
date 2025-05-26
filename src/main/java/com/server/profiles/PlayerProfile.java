@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.items.ItemType;
 import com.server.profiles.skills.data.PlayerSkillData;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
@@ -44,6 +46,12 @@ public class PlayerProfile {
     private int premiumUnits;   // Rare currency for special items
     private int essence;        // Progression currency, non-tradeable
     private int bits;           // Premium currency from store, for cosmetics
+
+    // Profile Level System
+    private int profileLevel;           // Current profile level
+    private double profileCurrentXp;   // Current XP towards next profile level
+    private double profileTotalXp;     // Total XP earned for this profile
+    private static final int MAX_PROFILE_LEVEL = 100; // Maximum profile level
 
     private final Map<ItemType, ItemStack> cosmetics = new HashMap<>();
     private final Set<String> unlockedAbilities = new HashSet<>();
@@ -74,6 +82,11 @@ public class PlayerProfile {
         this.premiumUnits = 0;
         this.essence = 0;
         this.bits = 0;
+
+        // Initialize profile level system
+        this.profileLevel = 1;      // Start at level 1
+        this.profileCurrentXp = 0;  // No XP towards next level
+        this.profileTotalXp = 0;    // No total XP earned
     }
 
     public void saveInventory(Player player) {
@@ -453,5 +466,260 @@ public class PlayerProfile {
      */
     public Set<String> getEnabledAbilities() {
         return new HashSet<>(enabledAbilities);
+    }
+
+    // =============================================================================
+    // PROFILE LEVEL SYSTEM METHODS
+    // =============================================================================
+
+    /**
+     * Get the current profile level
+     * @return The current profile level (1-100)
+     */
+    public int getProfileLevel() {
+        return profileLevel;
+    }
+
+    /**
+     * Get the current XP towards the next profile level
+     * @return The current XP progress
+     */
+    public double getProfileCurrentXp() {
+        return profileCurrentXp;
+    }
+
+    /**
+     * Get the total XP earned for this profile
+     * @return The total XP earned
+     */
+    public double getProfileTotalXp() {
+        return profileTotalXp;
+    }
+
+    /**
+     * Get the maximum profile level
+     * @return The maximum profile level
+     */
+    public static int getMaxProfileLevel() {
+        return MAX_PROFILE_LEVEL;
+    }
+
+    /**
+     * Calculate XP required for a specific profile level
+     * Uses a scaled formula that starts at 10 XP for level 2 and reaches 1000 XP for level 100
+     * @param level The level to calculate XP for
+     * @return The XP required for that level
+     */
+    public static double getXpForProfileLevel(int level) {
+        if (level <= 1) return 0; // Level 1 requires no XP
+        
+        // Use a formula that scales from 10 XP (level 2) to 1000 XP (level 100)
+        // Formula: 10 + (level - 2) * (990 / 98)
+        // This creates a linear progression from level 2 to 100
+        double baseXp = 10.0;
+        double maxXp = 1000.0;
+        double levelRange = 98.0; // From level 2 to level 100
+        
+        double xpIncrease = (maxXp - baseXp) / levelRange;
+        return baseXp + ((level - 2) * xpIncrease);
+    }
+
+    /**
+     * Get XP required for the next profile level
+     * @return XP needed for next level, or 0 if already max level
+     */
+    public double getXpForNextProfileLevel() {
+        if (profileLevel >= MAX_PROFILE_LEVEL) {
+            return 0; // Already at max level
+        }
+        return getXpForProfileLevel(profileLevel + 1);
+    }
+
+    /**
+     * Get the progress towards the next profile level as a percentage (0.0 to 1.0)
+     * @return Progress percentage
+     */
+    public double getProfileLevelProgress() {
+        if (profileLevel >= MAX_PROFILE_LEVEL) {
+            return 1.0; // 100% if at max level
+        }
+        
+        double xpForNext = getXpForNextProfileLevel();
+        if (xpForNext <= 0) return 1.0;
+        
+        return Math.min(1.0, profileCurrentXp / xpForNext);
+    }
+
+    /**
+     * Add experience to the profile level
+     * @param amount The amount of XP to add
+     * @return True if the profile leveled up, false otherwise
+     */
+    public boolean addProfileExperience(double amount) {
+        if (amount <= 0 || profileLevel >= MAX_PROFILE_LEVEL) {
+            return false; // No XP to add or already max level
+        }
+
+        // Add to total XP
+        profileTotalXp += amount;
+        profileCurrentXp += amount;
+
+        boolean leveledUp = false;
+        
+        // Check for level ups (can level up multiple times in one go)
+        while (profileLevel < MAX_PROFILE_LEVEL) {
+            double xpForNext = getXpForNextProfileLevel();
+            
+            if (profileCurrentXp >= xpForNext) {
+                // Level up!
+                profileLevel++;
+                profileCurrentXp -= xpForNext;
+                leveledUp = true;
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.PROFILE)) {
+                    Main.getInstance().debugLog(DebugSystem.PROFILE, 
+                        "Profile " + name + " leveled up to " + profileLevel);
+                }
+            } else {
+                break; // No more level ups possible
+            }
+        }
+
+        // Cap current XP if at max level
+        if (profileLevel >= MAX_PROFILE_LEVEL) {
+            profileCurrentXp = 0;
+        }
+
+        return leveledUp;
+    }
+
+    /**
+     * Remove experience from the profile level
+     * Note: This will not reduce the profile level, only the current XP progress
+     * @param amount The amount of XP to remove
+     * @return The actual amount removed
+     */
+    public double removeProfileExperience(double amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        double actualRemoved = Math.min(amount, profileCurrentXp);
+        profileCurrentXp -= actualRemoved;
+        profileTotalXp -= actualRemoved;
+
+        // Ensure values don't go negative
+        profileCurrentXp = Math.max(0, profileCurrentXp);
+        profileTotalXp = Math.max(0, profileTotalXp);
+
+        return actualRemoved;
+    }
+
+    /**
+     * Set the profile level directly (for admin commands)
+     * @param level The level to set (1-100)
+     * @param resetXp Whether to reset current XP to 0
+     * @return True if the level was changed, false otherwise
+     */
+    public boolean setProfileLevel(int level, boolean resetXp) {
+        if (level < 1 || level > MAX_PROFILE_LEVEL) {
+            return false;
+        }
+
+        int oldLevel = this.profileLevel;
+        this.profileLevel = level;
+
+        if (resetXp) {
+            this.profileCurrentXp = 0;
+        }
+
+        // Recalculate total XP based on new level
+        if (level > 1) {
+            double totalXpForLevel = 0;
+            for (int i = 2; i <= level; i++) {
+                totalXpForLevel += getXpForProfileLevel(i);
+            }
+            this.profileTotalXp = totalXpForLevel + this.profileCurrentXp;
+        } else {
+            this.profileTotalXp = this.profileCurrentXp;
+        }
+
+        if (Main.getInstance().isDebugEnabled(DebugSystem.PROFILE)) {
+            Main.getInstance().debugLog(DebugSystem.PROFILE, 
+                "Profile " + name + " level changed from " + oldLevel + " to " + level);
+        }
+
+        return true;
+    }
+
+    /**
+     * Add profile experience and handle level up notifications
+     * This is the main method that should be called when granting profile XP
+     * @param player The player to grant XP to (for notifications)
+     * @param amount The amount of XP to add
+     * @param source A description of what granted the XP (for logging/notifications)
+     * @return True if leveled up, false otherwise
+     */
+    public boolean addProfileExperienceWithNotification(Player player, double amount, String source) {
+        if (amount <= 0 || profileLevel >= MAX_PROFILE_LEVEL) {
+            return false;
+        }
+
+        int oldLevel = profileLevel;
+        boolean leveledUp = addProfileExperience(amount);
+
+        // Log the XP gain
+        if (Main.getInstance().isDebugEnabled(DebugSystem.PROFILE)) {
+            Main.getInstance().debugLog(DebugSystem.PROFILE, 
+                "Added " + amount + " profile XP to " + player.getName() + " from " + source);
+        }
+
+        // Handle level up notifications
+        if (leveledUp && player != null && player.isOnline()) {
+            int newLevel = profileLevel;
+            
+            // Send level up message
+            player.sendMessage(ChatColor.GREEN + "✦ " + ChatColor.GOLD + "PROFILE LEVEL UP" + 
+                              ChatColor.GREEN + " ✦ " + ChatColor.YELLOW + "Profile Level " + 
+                              ChatColor.GREEN + oldLevel + " → " + ChatColor.YELLOW + newLevel);
+
+            // Play level up sound
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
+
+            // Show title
+            player.sendTitle(
+                ChatColor.GOLD + "PROFILE LEVEL UP!",
+                ChatColor.YELLOW + "Level " + newLevel,
+                10, 70, 20
+            );
+
+            // Log level up
+            Main.getInstance().getLogger().info("Profile " + name + " (" + player.getName() + 
+                                              ") leveled up to " + newLevel + " from " + source);
+        }
+
+        return leveledUp;
+    }
+
+    /**
+     * Get a formatted string showing profile level progress
+     * @return Formatted string like "Level 15 (450/2250 XP)"
+     */
+    public String getFormattedProfileProgress() {
+        if (profileLevel >= MAX_PROFILE_LEVEL) {
+            return "Level " + profileLevel + " (MAX)";
+        }
+        
+        return "Level " + profileLevel + " (" + 
+               String.format("%.0f", profileCurrentXp) + "/" + 
+               String.format("%.0f", getXpForNextProfileLevel()) + " XP)";
+    }
+
+    /**
+     * Check if the profile is at maximum level
+     * @return True if at max level, false otherwise
+     */
+    public boolean isMaxProfileLevel() {
+        return profileLevel >= MAX_PROFILE_LEVEL;
     }
 }

@@ -26,6 +26,7 @@ import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.events.SkillLevelUpEvent;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.skills.tokens.SkillToken;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.profiles.stats.PlayerStats;
 
@@ -262,91 +263,65 @@ public class AdminSkillsCommand implements TabExecutor {
      * Apply all rewards and benefits for levels between oldLevel and newLevel
      */
     private void applyAccumulatedRewards(Player player, Skill skill, int oldLevel, int newLevel, PlayerProfile profile) {
-        // First, reset any stat-specific bonuses to avoid stacking
-        if (skill instanceof OreExtractionSubskill) {
-            PlayerStats stats = profile.getStats();
-            stats.setMiningFortune(stats.getDefaultMiningFortune());
-            stats.setMiningSpeed(stats.getDefaultMiningSpeed());
-            
-            // Apply stats to player
-            stats.applyToPlayer(player);
-        }
+        if (newLevel <= oldLevel) return;
         
-        // Apply all rewards from level 1 to newLevel
-        // This ensures we don't miss any rewards and all appropriate bonuses are applied
-        for (int level = 1; level <= newLevel; level++) {
+        // Apply stat rewards for each level gained
+        PlayerStats stats = profile.getStats();
+        
+        for (int level = oldLevel + 1; level <= newLevel; level++) {
+            // Apply direct skill rewards
             List<SkillReward> rewards = skill.getRewardsForLevel(level);
-            if (rewards != null && !rewards.isEmpty()) {
+            if (rewards != null) {
                 for (SkillReward reward : rewards) {
                     reward.grantTo(player);
-                    
-                    if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                        plugin.debugLog(DebugSystem.SKILLS,"Applied reward for " + player.getName() + " from " + 
-                            skill.getDisplayName() + " level " + level + ": " + reward.getClass().getSimpleName());
-                    }
                 }
             }
+            
+            // Apply level-based benefits for the specific skill type
+            applySkillLevelBenefits(player, skill, level, profile);
+            
+            // Fire level up event for each level gained
+            SkillLevelUpEvent event = new SkillLevelUpEvent(player, skill, level);
+            Bukkit.getPluginManager().callEvent(event);
         }
         
-        // CRITICAL FIX: Fire level up events for each level achieved
-        // This ensures skill tokens are properly awarded
-        if (newLevel > oldLevel) {
-            // When leveling up, fire events for each level achieved
-            for (int level = oldLevel + 1; level <= newLevel; level++) {
-                SkillLevelUpEvent event = new SkillLevelUpEvent(player, skill, level);
-                plugin.getServer().getPluginManager().callEvent(event);
-                
-                if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                    plugin.debugLog(DebugSystem.SKILLS,"Fired level up event for " + player.getName() + 
-                        " reaching " + skill.getDisplayName() + " level " + level);
-                }
-            }
-        } else if (newLevel < oldLevel) {
-            // When leveling down to a specific level, fire just one event for the final level
-            SkillLevelUpEvent event = new SkillLevelUpEvent(player, skill, newLevel);
-            plugin.getServer().getPluginManager().callEvent(event);
-        } else {
-            // FIX: When setting to the same level, don't fire any level up events
-            // This prevents duplicate tokens when setting a skill to the level it already has
-            if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                plugin.debugLog(DebugSystem.SKILLS,"Skill level unchanged for " + player.getName() + "'s " + 
-                    skill.getDisplayName() + " - staying at level " + newLevel);
-            }
-        }
-        
-        // Make sure we update the player's UI
-        if (plugin.getScoreboardManager() != null) {
-            plugin.getScoreboardManager().startTracking(player);
-        }
-        
-        // Apply skill-specific stat bonuses
-        if (skill instanceof OreExtractionSubskill) {
-            OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
-            PlayerStats stats = profile.getStats();
+        // UPDATED: Calculate total tokens gained and award to appropriate skill
+        int totalTokensGained = calculateTokensGained(oldLevel, newLevel);
+        if (totalTokensGained > 0) {
+            // Determine which skill should receive the tokens
+            Skill tokenRecipient = skill.isMainSkill() ? skill : skill.getParentSkill();
+            String tokenType = tokenRecipient.getId();
             
-            // Add bonus from current level
-            double fortuneBonus = oreSkill.getMiningFortuneBonus(newLevel);
-            stats.setMiningFortune(stats.getDefaultMiningFortune() + fortuneBonus);
+            // Add tokens to skill tree data
+            PlayerSkillTreeData treeData = profile.getSkillTreeData();
+            treeData.addTokens(tokenType, totalTokensGained);
             
-            // Apply mining speed bonuses too
-            double speedMultiplier = oreSkill.getMiningSpeedMultiplier(newLevel);
-            if (speedMultiplier > 1.0) {
-                stats.setMiningSpeed(stats.getDefaultMiningSpeed() * speedMultiplier);
-            }
+            // Get token info for display
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(tokenRecipient);
             
-            // Apply the changes to the player
-            stats.applyToPlayer(player);
+            // Create appropriate message
+            String skillContext = skill.isMainSkill() ? 
+                "" : 
+                " (from " + ChatColor.AQUA + skill.getDisplayName() + ChatColor.GREEN + " progression)";
+            
+            player.sendMessage(ChatColor.GREEN + "Gained " + ChatColor.GOLD + totalTokensGained + " " + 
+                            tokenInfo.color + tokenInfo.displayName + " Token" + 
+                            (totalTokensGained > 1 ? "s" : "") + ChatColor.GREEN + "!" + skillContext);
             
             if (plugin.isDebugEnabled(DebugSystem.SKILLS)) {
-                plugin.debugLog(DebugSystem.SKILLS,"Applied mining fortune +" + String.format("%.2f", fortuneBonus) + 
-                    " to " + player.getName() + " from " + skill.getDisplayName() + " level " + newLevel);
+                plugin.debugLog(DebugSystem.SKILLS, 
+                    "AdminSkills: Awarded " + totalTokensGained + " " + tokenInfo.displayName + 
+                    " tokens to " + player.getName() + " for " + skill.getDisplayName() + 
+                    " (tokens went to " + tokenRecipient.getDisplayName() + ")");
             }
         }
         
-        // Notify the player of the admin command's effect
-        player.sendMessage(ChatColor.GREEN + "An admin has adjusted your " + 
-                        ChatColor.GOLD + skill.getDisplayName() + 
-                        ChatColor.GREEN + " skill to level " + newLevel + ".");
+        // Apply stats to player
+        stats.applyToPlayer(player);
+        
+        // Notify of completion
+        player.sendMessage(ChatColor.GREEN + "Applied rewards for " + skill.getDisplayName() + 
+                        " levels " + (oldLevel + 1) + "-" + newLevel);
     }
     
     private boolean handleReset(CommandSender sender, String playerName) {

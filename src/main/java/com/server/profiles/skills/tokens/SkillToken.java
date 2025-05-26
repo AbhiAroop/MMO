@@ -23,35 +23,19 @@ public class SkillToken {
     private static final Map<String, TokenInfo> TOKEN_TYPES = new HashMap<>();
     
     static {
-        // Main skills tokens
-        TOKEN_TYPES.put("mining", new TokenInfo("Mining Crystal", Material.DIAMOND, ChatColor.AQUA));
-        TOKEN_TYPES.put("excavating", new TokenInfo("Earth Shard", Material.CLAY_BALL, ChatColor.GOLD));
-        TOKEN_TYPES.put("fishing", new TokenInfo("Aquatic Essence", Material.PRISMARINE_CRYSTALS, ChatColor.BLUE));
-        TOKEN_TYPES.put("farming", new TokenInfo("Growth Seed", Material.WHEAT_SEEDS, ChatColor.GREEN));
-        TOKEN_TYPES.put("combat", new TokenInfo("Warrior Mark", Material.BLAZE_POWDER, ChatColor.RED));
-        
-        // Mining subskill tokens
-        TOKEN_TYPES.put("ore_extraction", new TokenInfo("Ore Fragment", Material.RAW_IRON, ChatColor.YELLOW));
-        TOKEN_TYPES.put("gem_carving", new TokenInfo("Gem Dust", Material.EMERALD, ChatColor.GREEN));
-        
-        // Excavating subskill tokens
-        TOKEN_TYPES.put("treasure_hunter", new TokenInfo("Ancient Coin", Material.GOLD_NUGGET, ChatColor.GOLD));
-        TOKEN_TYPES.put("soil_master", new TokenInfo("Rich Soil", Material.DIRT, ChatColor.DARK_GREEN));
-        
-        // Fishing subskill tokens
-        TOKEN_TYPES.put("fisherman", new TokenInfo("Fishing Hook", Material.TRIPWIRE_HOOK, ChatColor.BLUE));
-        TOKEN_TYPES.put("aquatic_treasures", new TokenInfo("Pearl Fragment", Material.NAUTILUS_SHELL, ChatColor.AQUA));
-        
-        // Farming subskill tokens
-        TOKEN_TYPES.put("crop_growth", new TokenInfo("Nurturing Pollen", Material.BONE_MEAL, ChatColor.GREEN));
-        TOKEN_TYPES.put("animal_breeder", new TokenInfo("Vital Essence", Material.EGG, ChatColor.YELLOW));
-        
-        // Combat subskill tokens
-        TOKEN_TYPES.put("swordsmanship", new TokenInfo("Blade Shard", Material.IRON_SWORD, ChatColor.GRAY));
-        TOKEN_TYPES.put("archery", new TokenInfo("Bowstring Fiber", Material.STRING, ChatColor.WHITE));
-        TOKEN_TYPES.put("defense", new TokenInfo("Shield Fragment", Material.IRON_INGOT, ChatColor.DARK_GRAY));
+        // Main skill tokens only
+        TOKEN_TYPES.put("mining", new TokenInfo("Mining Token", Material.IRON_INGOT, ChatColor.GRAY));
+        TOKEN_TYPES.put("combat", new TokenInfo("Combat Token", Material.IRON_SWORD, ChatColor.RED));
+        TOKEN_TYPES.put("farming", new TokenInfo("Farming Token", Material.WHEAT, ChatColor.GREEN));
+        TOKEN_TYPES.put("fishing", new TokenInfo("Fishing Token", Material.FISHING_ROD, ChatColor.BLUE));
+        TOKEN_TYPES.put("excavation", new TokenInfo("Excavation Token", Material.IRON_SHOVEL, ChatColor.YELLOW));
+        TOKEN_TYPES.put("woodcutting", new TokenInfo("Woodcutting Token", Material.IRON_AXE, ChatColor.DARK_GREEN));
+        TOKEN_TYPES.put("archery", new TokenInfo("Archery Token", Material.BOW, ChatColor.GOLD));
+        TOKEN_TYPES.put("alchemy", new TokenInfo("Alchemy Token", Material.BREWING_STAND, ChatColor.DARK_PURPLE));
+        TOKEN_TYPES.put("enchanting", new TokenInfo("Enchanting Token", Material.ENCHANTING_TABLE, ChatColor.LIGHT_PURPLE));
+        TOKEN_TYPES.put("taming", new TokenInfo("Taming Token", Material.BONE, ChatColor.AQUA));
     }
-    
+        
     private final String tokenType;
     private final UUID tokenId;
     

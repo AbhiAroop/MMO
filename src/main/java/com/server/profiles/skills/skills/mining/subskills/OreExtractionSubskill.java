@@ -9,28 +9,23 @@ import java.util.logging.Level;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.abilities.passive.mining.OreConduitAbility;
 import com.server.profiles.skills.core.AbstractSkill;
 import com.server.profiles.skills.core.Skill;
-import com.server.profiles.skills.core.SkillRegistry;
-import com.server.profiles.skills.core.SkillType;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
-import com.server.profiles.skills.trees.SkillTree;
-import com.server.profiles.skills.trees.SkillTreeNode;
-import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.PlayerStats;
 
 /**
@@ -363,15 +358,14 @@ public class OreExtractionSubskill extends AbstractSkill {
     }
 
     /**
-     * Apply skill tree benefits to a player when a node is upgraded
-     * This should be called when a node is unlocked or upgraded
-     * 
-     * @param player The player to apply benefits to
-     * @param nodeId The ID of the node being upgraded
-     * @param oldLevel The previous level of the node
-     * @param newLevel The new level of the node
+     * Apply node upgrade benefits - now called from the main Mining skill tree
      */
     public void applyNodeUpgrade(Player player, String nodeId, int oldLevel, int newLevel) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                "[OreExtraction] Applying node upgrade: " + nodeId + " from " + oldLevel + " to " + newLevel);
+        }
+        
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
@@ -381,67 +375,34 @@ public class OreExtractionSubskill extends AbstractSkill {
         
         PlayerStats stats = profile.getStats();
         
-        // Calculate the incremental benefit
-        int levelDifference = newLevel - oldLevel;
-        
-        if (nodeId.equals("mining_fortune")) {
-            // Add 0.5 mining fortune per level
-            double fortuneBonus = levelDifference * 0.5;
-            stats.increaseDefaultMiningFortune(fortuneBonus);
-            
-            // Log for debugging
-            if (Main.getInstance().isDebugMode()) {
-                Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
-                    player.getName() + " (now " + stats.getMiningFortune() + ") from skill tree node upgrade");
-            }
-        } else if (nodeId.equals("mining_xp_boost")) {
-            // Calculate XP to award - 100 XP per level
-            int xpAmount = levelDifference * 100;
-            
-            // Get the Mining parent skill
-            Skill miningSkill = SkillRegistry.getInstance().getSkill(SkillType.MINING);
-            
-            if (miningSkill != null) {
-                // Log before giving XP (for debugging)
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Awarding " + xpAmount + " Mining XP from mining_xp_boost to " + 
-                        player.getName() + " (level diff: " + levelDifference + ")");
-                }
-            
-                // Add XP to the Mining skill directly
-                boolean leveledUp = miningSkill.addExperience(player, xpAmount);
+        switch (nodeId) {
+            case "mining_fortune_1":
+            case "mining_fortune_2":
+                // Apply mining fortune bonus
+                double fortuneIncrease = nodeId.equals("mining_fortune_1") ? 0.5 : 1.0;
+                stats.addMiningFortune(fortuneIncrease);
                 
-                // Notify the player
-                player.sendMessage(ChatColor.GREEN + "You gained " + xpAmount + " Mining XP from your Mining Knowledge!");
+                player.sendMessage(ChatColor.GREEN + "Mining Fortune increased by " + 
+                                ChatColor.GOLD + "+" + fortuneIncrease);
+                break;
                 
-                // Play sound effect
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+            case "mining_xp_boost":
+                // This is handled by the mining XP calculation, no immediate stat change needed
+                player.sendMessage(ChatColor.GREEN + "Mining XP bonus increased to " + 
+                                ChatColor.GOLD + "+" + (newLevel * 10) + " XP per block");
+                break;
                 
-                // Log for debugging
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Added " + xpAmount + " Mining XP to " + 
-                        player.getName() + " from mining_xp_boost node upgrade");
-                }
+            case "unlock_iron_ore":
+                player.sendMessage(ChatColor.GREEN + "You can now mine " + 
+                                ChatColor.WHITE + "Iron Ore" + ChatColor.GREEN + "!");
+                break;
                 
-                // Also ensure this node is marked as special for preservation during resets
-                PlayerSkillTreeData treeData = profile.getSkillTreeData();
-                SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(getId());
-                if (tree != null) {
-                    SkillTreeNode node = tree.getNode("mining_xp_boost");
-                    if (node != null) {
-                        // Always mark it as special, just to be sure
-                        if (!node.isSpecialNode()) {
-                            node.setSpecialNode(true);
-                            
-                            if (Main.getInstance().isDebugMode()) {
-                                Main.getInstance().getLogger().info("Marked mining_xp_boost node as special for " + player.getName());
-                            }
-                        }
-                    }
-                }
-            }
+            case "unlock_deepslate_mining":
+                player.sendMessage(ChatColor.GREEN + "You can now mine " + 
+                                ChatColor.DARK_GRAY + "Deepslate Coal Ore" + ChatColor.GREEN + 
+                                " for double XP!");
+                break;
         }
-        // Add other node types here as needed
     }
 
     /**
@@ -528,25 +489,17 @@ public class OreExtractionSubskill extends AbstractSkill {
         
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         
-        // Check for deepslate variants - require deepslate mining unlock
-        if (material.name().contains("DEEPSLATE_")) {
-            if (!treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining")) {
-                return false; // Player hasn't unlocked deepslate mining yet
-            }
-            
-            // For deepslate coal, only need deepslate unlock (coal itself is always allowed)
-            if (material == Material.DEEPSLATE_COAL_ORE) {
-                return true;
-            }
-            
-            // For other deepslate variants, need both deepslate unlock and the specific ore unlock
+        // Check for deepslate coal ore - require deepslate mining unlock
+        if (material == Material.DEEPSLATE_COAL_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
         }
         
-        // Check for specific ore types
-        if (material == Material.IRON_ORE || material == Material.DEEPSLATE_IRON_ORE) {
+        // Check for iron ore - require iron mining unlock
+        if (material == Material.IRON_ORE) {
             return treeData.isNodeUnlocked(this.getId(), "unlock_iron_ore");
         }
         
+        // Check for specific ore types - add more as needed
         // For now, all other ores are locked until we add their specific unlock nodes
         
         // Debug logging

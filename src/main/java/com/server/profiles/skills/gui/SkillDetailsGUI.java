@@ -22,7 +22,6 @@ import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.tokens.SkillToken;
-import com.server.profiles.skills.trees.PlayerSkillTreeData;
 
 /**
  * GUI for displaying detailed information about a skill
@@ -256,7 +255,7 @@ public class SkillDetailsGUI {
             List<String> lore = new ArrayList<>();
             lore.add(ChatColor.GRAY + "Return to " + skill.getParentSkill().getDisplayName() + " subskills");
             
-            // Add parent skill ID for the handler to use
+            // Use the format that the subskills menu handler expects
             lore.add(ChatColor.BLACK + "PARENT_SKILL:" + skill.getParentSkill().getId());
             
             meta.setLore(lore);
@@ -618,46 +617,62 @@ public class SkillDetailsGUI {
      * Create a button for accessing the skill tree
      */
     private static ItemStack createSkillTreeItem(Skill skill, PlayerProfile profile) {
-        // Get skill tree data
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        int tokenCount = treeData.getTokenCount(skill.getId());
-        
-        // Get token display information
-        SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(skill);
-        
-        // Create item
-        ItemStack item = new ItemStack(tokenInfo.material);
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.AQUA + "✦ Skill Tree");
-        
-        // Add enchant glow if tokens available
-        if (tokenCount > 0) {
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        }
+        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Skill Tree");
         
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.GRAY + "Unlock special abilities and");
-        lore.add(ChatColor.GRAY + "bonuses for " + ChatColor.YELLOW + skill.getDisplayName());
-        lore.add("");
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         
-        // Token display with animation if available
-        if (tokenCount > 0) {
-            lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Available Tokens:");
-            lore.add(tokenInfo.color + "✦ " + tokenCount + " " + 
-                tokenInfo.displayName + " Token" + (tokenCount != 1 ? "s" : "") + " ✦");
+        // Only main skills have skill trees now
+        if (skill.isMainSkill()) {
+            lore.add(ChatColor.GRAY + "Access the skill tree to unlock");
+            lore.add(ChatColor.GRAY + "new abilities and improvements.");
+            lore.add(ChatColor.GRAY + "Includes upgrades for all subskills!");
+            lore.add("");
+            
+            // Add token information
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(skill);
+            int tokenCount = profile.getSkillTreeData().getTokenCount(skill.getId());
+            
+            if (tokenCount > 0) {
+                lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + tokenCount + 
+                        ChatColor.YELLOW + " " + tokenInfo.displayName + "s Available! ✦");
+            } else {
+                lore.add(ChatColor.GRAY + "No skill tokens currently available.");
+                lore.add(ChatColor.GRAY + "Level up to earn more tokens!");
+            }
+            
+            lore.add("");
+            lore.add(ChatColor.GREEN + "Click to open skill tree");
         } else {
-            lore.add(ChatColor.YELLOW + "Available Tokens:");
-            lore.add(ChatColor.GRAY + "None available");
+            // This is a subskill - redirect to parent skill tree
+            Skill parentSkill = skill.getParentSkill();
+            lore.add(ChatColor.GRAY + "This subskill's upgrades are part");
+            lore.add(ChatColor.GRAY + "of the main " + ChatColor.YELLOW + parentSkill.getDisplayName() + 
+                    ChatColor.GRAY + " skill tree.");
+            lore.add("");
+            
+            // Add token information for parent skill
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(parentSkill);
+            int tokenCount = profile.getSkillTreeData().getTokenCount(parentSkill.getId());
+            
+            if (tokenCount > 0) {
+                lore.add(ChatColor.GOLD + "✦ " + ChatColor.GREEN + tokenCount + 
+                        ChatColor.YELLOW + " " + tokenInfo.displayName + "s Available! ✦");
+            } else {
+                lore.add(ChatColor.GRAY + "No skill tokens currently available.");
+            }
+            
+            lore.add("");
+            lore.add(ChatColor.GREEN + "Click to open " + parentSkill.getDisplayName() + " skill tree");
+            
+            // Store parent skill ID for navigation
+            lore.add(ChatColor.BLACK + "PARENT_SKILL_ID:" + parentSkill.getId());
         }
-        
-        lore.add("");
-        lore.add(ChatColor.GREEN + "Click to access Skill Tree");
         
         meta.setLore(lore);
         item.setItemMeta(meta);
-        
         return item;
     }
     

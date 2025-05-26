@@ -30,7 +30,6 @@ com\server\display\DamageIndicatorManager$3.class
 com\server\profiles\gui\StatsGUI.class
 com\server\entities\npc\dialogue\DialogueManager.class
 com\server\commands\CurrencyCommand$1.class
-com\server\profiles\skills\skills\mining\trees\GemCarvingTreeBuilder.class
 com\server\profiles\skills\data\SkillLevel.class
 com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.class
 com\server\events\PlayerListener$4.class
@@ -46,6 +45,7 @@ com\server\profiles\skills\gui\RewardsGUI.class
 com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
+com\server\commands\AdminProfileCommand.class
 com\server\commands\NPCCommand.class
 com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
@@ -194,7 +194,6 @@ com\server\commands\CurrencyCommand$TransferRequest.class
 com\server\profiles\skills\gui\SubskillDetailsGUI$CrystalTier.class
 com\server\display\ActionBarManager$1.class
 com\server\entities\npc\behaviors\EquipmentBehavior.class
-com\server\profiles\skills\skills\mining\trees\OreExtractionTreeBuilder.class
 com\server\profiles\skills\core\SubskillType.class
 com\server\profiles\gui\ProfileGUI.class
 com\server\events\AutoRespawnListener.class

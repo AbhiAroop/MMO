@@ -9,10 +9,10 @@ import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.AbstractSkill;
@@ -208,10 +208,14 @@ public class GemCarvingSubskill extends AbstractSkill {
     }
 
     /**
-     * Apply effects from node upgrades
-     * This method is called when a player unlocks or upgrades a skill tree node
+     * Apply node upgrade benefits from the main Mining skill tree
      */
     public void applyNodeUpgrade(Player player, String nodeId, int oldLevel, int newLevel) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                "[GemCarving] Applying node upgrade: " + nodeId + " from " + oldLevel + " to " + newLevel);
+        }
+        
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
@@ -221,75 +225,30 @@ public class GemCarvingSubskill extends AbstractSkill {
         
         PlayerStats stats = profile.getStats();
         
-        // Calculate the incremental benefit
-        int levelDifference = newLevel - oldLevel;
-        
         switch (nodeId) {
             case "gem_mining_fortune":
-                // Add 0.5 mining fortune per level
-                double fortuneBonus = levelDifference * 0.5;
+                // Apply gem-specific mining fortune
+                double fortuneIncrease = 0.5; // 0.5 per level
+                stats.addMiningFortune(fortuneIncrease);
                 
-                // Get current tracking value
-                double currentBonus = miningFortuneMap.getOrDefault(player.getUniqueId(), 0.0);
-                double newTotalBonus = currentBonus + fortuneBonus;
+                // Track this for reset purposes
+                UUID playerId = player.getUniqueId();
+                miningFortuneMap.put(playerId, miningFortuneMap.getOrDefault(playerId, 0.0) + fortuneIncrease);
                 
-                // Update the stats directly
-                stats.addMiningFortune(fortuneBonus);
-                
-                // Update our tracking map
-                miningFortuneMap.put(player.getUniqueId(), newTotalBonus);
-                
-                // Tell the player about the bonus
-                player.sendMessage(ChatColor.AQUA + "Your gem fortune has increased by " + 
-                                ChatColor.YELLOW + String.format("%.1f", fortuneBonus) + 
-                                ChatColor.AQUA + " to " + 
-                                ChatColor.YELLOW + String.format("%.1f", newTotalBonus));
-                
-                // Log for debugging
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Added " + fortuneBonus + " mining fortune to " + 
-                        player.getName() + " (now " + stats.getMiningFortune() + ") from GemCarving skill tree node upgrade");
-                }
+                player.sendMessage(ChatColor.GREEN + "Gem Mining Fortune increased by " + 
+                                ChatColor.AQUA + "+" + fortuneIncrease);
                 break;
                 
-            case "gemcarving_xp_boost":
-                // Store the new bonus XP level for this player
-                bonusXpMap.put(player.getUniqueId(), newLevel);
-                
-                // Tell the player about the bonus
-                player.sendMessage(ChatColor.GREEN + "Your gem carving XP bonus is now " + 
-                                ChatColor.YELLOW + "+" + newLevel + 
-                                ChatColor.GREEN + " XP per extraction");
-                
-                // Play sound effect
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-                
-                if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("Set GemCarving XP bonus to " + newLevel + " for " + player.getName());
-                }
+            case "advanced_gem_cutting":
+                player.sendMessage(ChatColor.GREEN + "Advanced gem cutting techniques unlocked!");
+                // Additional gem carving bonuses can be implemented here
                 break;
                 
-            case "basic_crystals":
-                // This node unlocks the ability to carve Azuralite crystals
-                // Only send message if this is a new unlock
-                if (oldLevel == 0 && newLevel > 0) {
-                    player.sendMessage(ChatColor.BLUE + "✦ " + ChatColor.AQUA + "You've unlocked access to " + 
-                        ChatColor.BLUE + "Azuralite Crystals" + ChatColor.AQUA + "!");
-                    player.sendMessage(ChatColor.GRAY + "Find these blue crystals in caves and right-click them to begin carving.");
-                    
-                    // Play special effect for unlocking
-                    player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.2f);
-                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
-                    
-                    if (Main.getInstance().isDebugMode()) {
-                        Main.getInstance().getLogger().info("Unlocked Azuralite crystal carving for " + player.getName());
-                    }
-                }
+            case "gem_carving_mastery":
+                player.sendMessage(ChatColor.GREEN + "Gem carving mastery unlocked! " +
+                                "You can now access advanced gem carving features.");
                 break;
         }
-        
-        // Always update cached skill tree benefits
-        updateCachedSkillTreeBenefits(player);
     }
 
     

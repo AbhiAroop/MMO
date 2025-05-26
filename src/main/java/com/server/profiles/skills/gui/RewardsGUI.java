@@ -22,6 +22,7 @@ import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.data.SkillLevel;
 import com.server.profiles.skills.data.SkillReward;
 import com.server.profiles.skills.rewards.SkillRewardType;
+import com.server.profiles.skills.tokens.SkillToken;
 
 /**
  * GUI for displaying all rewards for a skill
@@ -242,29 +243,97 @@ public class RewardsGUI {
     }
 
     /**
+     * Create milestone rewards display item
+     */
+    private static ItemStack createMilestoneRewardsItem(Skill skill, int level, boolean earned, 
+                                                    PlayerProfile profile) {
+        ItemStack item = new ItemStack(Material.BEACON);
+        ItemMeta meta = item.getItemMeta();
+        
+        if (earned) {
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+        }
+        
+        meta.setDisplayName((earned ? ChatColor.GREEN : ChatColor.YELLOW) + 
+                        "✦ Level " + level + " Milestone Rewards");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        
+        if (earned) {
+            lore.add(ChatColor.GREEN + "✓ Milestone Completed!");
+        } else {
+            lore.add(ChatColor.YELLOW + "Milestone not yet reached");
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.GOLD + "» Milestone Rewards:");
+        
+        // Show direct rewards from the skill
+        List<SkillReward> rewards = skill.getRewardsForLevel(level);
+        if (rewards != null && !rewards.isEmpty()) {
+            for (SkillReward reward : rewards) {
+                lore.add(ChatColor.WHITE + "• " + reward.getDescription());
+            }
+        } else {
+            lore.add(ChatColor.GRAY + "• No direct stat rewards");
+        }
+        
+        // UPDATED: Show token rewards - always reference the appropriate skill
+        int tokenReward = calculateTokensForLevel(level);
+        if (tokenReward > 0) {
+            // Determine which skill receives the tokens
+            Skill tokenRecipient = skill.isMainSkill() ? skill : skill.getParentSkill();
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(tokenRecipient);
+            
+            String tokenDescription = tokenReward + " " + tokenInfo.color + tokenInfo.displayName + 
+                                    ChatColor.WHITE + " Token" + (tokenReward > 1 ? "s" : "");
+            
+            if (!skill.isMainSkill()) {
+                // For subskills, clarify that tokens go to parent
+                tokenDescription += ChatColor.GRAY + " (for " + tokenRecipient.getDisplayName() + " tree)";
+            }
+            
+            lore.add(ChatColor.WHITE + "• " + tokenDescription);
+        }
+        
+        // Add current token count if milestone is earned
+        if (earned) {
+            Skill tokenRecipient = skill.isMainSkill() ? skill : skill.getParentSkill();
+            int currentTokens = profile.getSkillTreeData().getTokenCount(tokenRecipient.getId());
+            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(tokenRecipient);
+            
+            lore.add("");
+            lore.add(ChatColor.AQUA + "Current " + tokenInfo.displayName + " Tokens: " + 
+                    ChatColor.WHITE + currentTokens);
+        }
+        
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
      * Create a milestone info item explaining the milestone reward system
      * @param isMainSkill Whether the skill is a main skill (affects milestone level cap)
      */
     private static ItemStack createMilestoneInfoItem(boolean isMainSkill) {
-        ItemStack item = new ItemStack(Material.BEACON);
+        ItemStack item = new ItemStack(Material.KNOWLEDGE_BOOK);
         ItemMeta meta = item.getItemMeta();
-        
-        // Add enchant glow
-        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        
-        meta.setDisplayName(ChatColor.GOLD + "✦ " + ChatColor.YELLOW + "Milestone Rewards");
+        meta.setDisplayName(ChatColor.YELLOW + "✦ Milestone Information");
         
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.GRAY + "Every 5 levels, you earn special milestone");
-        lore.add(ChatColor.GRAY + "rewards and bonus skill tokens!");
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.GRAY + "Milestones are special levels that");
+        lore.add(ChatColor.GRAY + "provide extra rewards when reached.");
+        lore.add("");
         
-        // Add information about the milestone level cap
         if (isMainSkill) {
             lore.add(ChatColor.GRAY + "Main skills have milestones up to level 50.");
         } else {
             lore.add(ChatColor.GRAY + "Subskills have milestones up to level 100.");
+            lore.add(ChatColor.GRAY + "Subskill tokens are awarded to the parent skill.");
         }
         
         lore.add("");
@@ -276,7 +345,11 @@ public class RewardsGUI {
         lore.add("");
         
         lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "How to Use Tokens:");
-        lore.add(ChatColor.GRAY + "Spend tokens in the Skill Tree");
+        if (isMainSkill) {
+            lore.add(ChatColor.GRAY + "Spend tokens in this skill's tree");
+        } else {
+            lore.add(ChatColor.GRAY + "Spend tokens in the parent skill tree");
+        }
         lore.add(ChatColor.GRAY + "to unlock powerful abilities and");
         lore.add(ChatColor.GRAY + "permanent upgrades for your skills.");
         
