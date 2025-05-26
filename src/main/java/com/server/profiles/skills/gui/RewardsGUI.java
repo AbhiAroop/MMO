@@ -280,82 +280,62 @@ public class RewardsGUI {
             lore.add(ChatColor.GRAY + "• No direct stat rewards");
         }
         
-        // UPDATED: Show token rewards - always reference the appropriate skill
-        int tokenReward = calculateTokensForLevel(level);
-        if (tokenReward > 0) {
+        // Show token rewards - always reference the appropriate skill
+        Map<SkillToken.TokenTier, Integer> tokenRewards = calculateTokensForLevel(level);
+        int totalTokens = 0;
+        for (Integer count : tokenRewards.values()) {
+            totalTokens += count;
+        }
+        
+        if (totalTokens > 0) {
             // Determine which skill receives the tokens
             Skill tokenRecipient = skill.isMainSkill() ? skill : skill.getParentSkill();
-            SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(tokenRecipient);
             
-            String tokenDescription = tokenReward + " " + tokenInfo.color + tokenInfo.displayName + 
-                                    ChatColor.WHITE + " Token" + (tokenReward > 1 ? "s" : "");
+            lore.add(ChatColor.WHITE + "• " + ChatColor.YELLOW + "Skill Tokens:");
+            
+            // Add entry for each token tier
+            for (Map.Entry<SkillToken.TokenTier, Integer> entry : tokenRewards.entrySet()) {
+                SkillToken.TokenTier tier = entry.getKey();
+                int count = entry.getValue();
+                if (count > 0) {
+                    lore.add("  " + tier.getColor() + tier.getSymbol() + " " + count + " " + 
+                            tier.getDisplayName() + ChatColor.WHITE + " Token" + (count > 1 ? "s" : ""));
+                }
+            }
             
             if (!skill.isMainSkill()) {
                 // For subskills, clarify that tokens go to parent
-                tokenDescription += ChatColor.GRAY + " (for " + tokenRecipient.getDisplayName() + " tree)";
+                lore.add(ChatColor.GRAY + "  (for " + tokenRecipient.getDisplayName() + " tree)");
             }
-            
-            lore.add(ChatColor.WHITE + "• " + tokenDescription);
         }
         
         // Add current token count if milestone is earned
         if (earned) {
             Skill tokenRecipient = skill.isMainSkill() ? skill : skill.getParentSkill();
-            int currentTokens = profile.getSkillTreeData().getTokenCount(tokenRecipient.getId());
+            Map<SkillToken.TokenTier, Integer> currentTokens = profile.getSkillTreeData().getAllTokenCounts(tokenRecipient.getId());
             SkillToken.TokenInfo tokenInfo = SkillToken.getTokenInfo(tokenRecipient);
             
             lore.add("");
-            lore.add(ChatColor.AQUA + "Current " + tokenInfo.displayName + " Tokens: " + 
-                    ChatColor.WHITE + currentTokens);
+            lore.add(ChatColor.AQUA + "Current " + tokenInfo.displayName + " Tokens:");
+            
+            boolean hasTokens = false;
+            for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+                int count = currentTokens.getOrDefault(tier, 0);
+                if (count > 0) {
+                    hasTokens = true;
+                    lore.add("  " + tier.getColor() + tier.getSymbol() + " " + count + " " + 
+                            tier.getDisplayName() + ChatColor.WHITE + " Token" + (count > 1 ? "s" : ""));
+                }
+            }
+            
+            if (!hasTokens) {
+                lore.add(ChatColor.GRAY + "  No tokens available");
+                lore.add(ChatColor.YELLOW + "  Reach milestones to earn tokens!");
+            }
         }
         
         meta.setLore(lore);
         item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
-     * Create a milestone info item explaining the milestone reward system
-     * @param isMainSkill Whether the skill is a main skill (affects milestone level cap)
-     */
-    private static ItemStack createMilestoneInfoItem(boolean isMainSkill) {
-        ItemStack item = new ItemStack(Material.KNOWLEDGE_BOOK);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + "✦ Milestone Information");
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.GRAY + "Milestones are special levels that");
-        lore.add(ChatColor.GRAY + "provide extra rewards when reached.");
-        lore.add("");
-        
-        if (isMainSkill) {
-            lore.add(ChatColor.GRAY + "Main skills have milestones up to level 50.");
-        } else {
-            lore.add(ChatColor.GRAY + "Subskills have milestones up to level 100.");
-            lore.add(ChatColor.GRAY + "Subskill tokens are awarded to the parent skill.");
-        }
-        
-        lore.add("");
-        
-        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Milestone Token Rewards:");
-        lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 5, 15, etc.: " + ChatColor.YELLOW + "2 Tokens");
-        lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 10, 20, etc.: " + ChatColor.YELLOW + "3 Tokens");
-        lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 25, 50" + (isMainSkill ? "" : ", 75, 100") + ": " + ChatColor.YELLOW + "5 Tokens");
-        lore.add("");
-        
-        lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "How to Use Tokens:");
-        if (isMainSkill) {
-            lore.add(ChatColor.GRAY + "Spend tokens in this skill's tree");
-        } else {
-            lore.add(ChatColor.GRAY + "Spend tokens in the parent skill tree");
-        }
-        lore.add(ChatColor.GRAY + "to unlock powerful abilities and");
-        lore.add(ChatColor.GRAY + "permanent upgrades for your skills.");
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        
         return item;
     }
     
@@ -490,139 +470,200 @@ public class RewardsGUI {
     }
     
     /**
-     * Create an item for a level reward
-     */
-    private static ItemStack createRewardItem(int level, List<SkillReward> rewards, boolean unlocked) {
-        Material icon = Material.PAPER;
-        // Changed to allow milestones up to level 100
-        boolean isMilestone = level % 5 == 0 && level >= 5 && level <= 100;
-        boolean isEmpty = rewards.isEmpty();
-        
-        // Choose icon based on milestone level and whether there are rewards
-        if (isMilestone) {
-            // Updated to handle levels up to 100
-            if (level % 25 == 0) {
-                // Major milestone (25, 50, 75, 100)
-                icon = Material.END_CRYSTAL;
-            } else if (level % 10 == 0) {
-                // Medium milestone (10, 20, 30, etc.)
-                icon = Material.BEACON;
-            } else {
-                // Minor milestone (5, 15, etc.)
-                icon = Material.ENDER_CHEST;
-            }
-        } else if (rewards.size() == 1) {
-            // Single reward - use specific icon
-            icon = REWARD_TYPE_ICONS.getOrDefault(rewards.get(0).getType(), Material.PAPER);
-        } else if (rewards.size() > 1) {
-            // Multiple rewards
-            icon = Material.CHEST;
+ * Calculate tokens for a specific level with tier distribution
+ */
+private static Map<SkillToken.TokenTier, Integer> calculateTokensForLevel(int level) {
+    Map<SkillToken.TokenTier, Integer> tokens = new HashMap<>();
+    
+    // Different milestone ranges give different token tiers
+    if (level >= 90) {
+        // Very high levels: Mix of all tiers, emphasis on Master
+        tokens.put(SkillToken.TokenTier.BASIC, 1);
+        tokens.put(SkillToken.TokenTier.ADVANCED, 2);
+        tokens.put(SkillToken.TokenTier.MASTER, 3);
+    } else if (level >= 70) {
+        // High levels: Advanced and Master tokens
+        tokens.put(SkillToken.TokenTier.ADVANCED, 2);
+        tokens.put(SkillToken.TokenTier.MASTER, 1);
+    } else if (level >= 50) {
+        // Mid-high levels: Mix of Advanced and some Master
+        tokens.put(SkillToken.TokenTier.BASIC, 1);
+        tokens.put(SkillToken.TokenTier.ADVANCED, 2);
+        if (level % 20 == 0) { // Every 20 levels gets a Master token
+            tokens.put(SkillToken.TokenTier.MASTER, 1);
         }
-        
-        // For locked items, use different appearance
-        ItemStack item = unlocked ? new ItemStack(icon) : 
-                    (isMilestone ? new ItemStack(Material.GILDED_BLACKSTONE) : new ItemStack(Material.BARRIER));
-        ItemMeta meta = item.getItemMeta();
-        
-        // Add enchant glow for unlocked items (unless it's a barrier)
-        if (unlocked && !isEmpty) {
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+    } else if (level >= 25) {
+        // Mid levels: Basic and Advanced tokens
+        tokens.put(SkillToken.TokenTier.BASIC, 1);
+        tokens.put(SkillToken.TokenTier.ADVANCED, 1);
+    } else if (level >= 10) {
+        // Early-mid levels: Mostly Basic, some Advanced
+        tokens.put(SkillToken.TokenTier.BASIC, 2);
+        if (level % 15 == 0) { // Every 15 levels gets an Advanced token
+            tokens.put(SkillToken.TokenTier.ADVANCED, 1);
         }
-        
-        // Set display name with level - special formatting for milestones
-        if (isMilestone) {
-            meta.setDisplayName((unlocked ? ChatColor.GOLD : ChatColor.RED) + "✦ " + 
-                "Level " + level + " Milestone" + (unlocked ? ChatColor.GOLD + " ✦" : ""));
-        } else {
-            meta.setDisplayName((unlocked ? ChatColor.GREEN : ChatColor.RED) + "Level " + level + " Rewards");
-        }
-        
-        // Create lore with better formatting
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
-        // Add status badge with milestone-specific styling
-        if (unlocked) {
-            lore.add(isMilestone ? ChatColor.GOLD + "✓ MILESTONE UNLOCKED" : ChatColor.GREEN + "✓ UNLOCKED");
-            
-            // Add skill tokens info for milestones
-            if (isMilestone) {
-                int tokens = calculateTokensForLevel(level);
-                lore.add(ChatColor.YELLOW + "Awarded " + ChatColor.GOLD + tokens + ChatColor.YELLOW + " Skill Token" + 
-                        (tokens > 1 ? "s" : ""));
-            }
-        } else {
-            lore.add(isMilestone ? ChatColor.RED + "✗ MILESTONE LOCKED" : ChatColor.RED + "✗ LOCKED");
-            
-            // Show token info for locked milestones too
-            if (isMilestone) {
-                int tokens = calculateTokensForLevel(level);
-                lore.add(ChatColor.GRAY + "Will award " + ChatColor.YELLOW + tokens + ChatColor.GRAY + " Skill Token" + 
-                        (tokens > 1 ? "s" : ""));
-            }
-        }
-        
-        lore.add("");
-        
-        // Show rewards section or placeholder text for empty milestones
-        if (isEmpty && isMilestone) {
-            lore.add(ChatColor.YELLOW + "» " + ChatColor.GOLD + "Milestone Rewards:");
-            lore.add(ChatColor.GRAY + "• " + ChatColor.YELLOW + calculateTokensForLevel(level) + " Skill Tokens");
-            lore.add(ChatColor.GRAY + "• " + ChatColor.YELLOW + "Core XP Bonus");
-        } else if (isEmpty) {
-            lore.add(ChatColor.YELLOW + "» " + ChatColor.GOLD + "No specific rewards");
-            lore.add(ChatColor.GRAY + "Continue leveling up to unlock");
-            lore.add(ChatColor.GRAY + "more powerful rewards!");
-        } else {
-            // Display actual rewards
-            lore.add(ChatColor.YELLOW + "» Rewards:");
-            
-            // Group rewards by type for better organization
-            Map<String, List<String>> rewardsByType = new HashMap<>();
-            
-            for (SkillReward reward : rewards) {
-                SkillRewardType typeEnum = reward.getType();
-                String type = typeEnum.toString(); // Convert enum to String
-                ChatColor color = REWARD_TYPE_COLORS.getOrDefault(typeEnum, ChatColor.GRAY);
-                
-                if (!rewardsByType.containsKey(type)) {
-                    rewardsByType.put(type, new ArrayList<>());
-                }
-                
-                rewardsByType.get(type).add(color + "• " + reward.getDescription());
-            }
-            
-            // Add rewards grouped by type
-            for (Map.Entry<String, List<String>> entry : rewardsByType.entrySet()) {
-                for (String rewardText : entry.getValue()) {
-                    lore.add(rewardText);
-                }
-            }
-        }
-        
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        
-        return item;
+    } else {
+        // Early levels: Only Basic tokens
+        tokens.put(SkillToken.TokenTier.BASIC, 1);
     }
+    
+    return tokens;
+}
 
-    /**
-     * Calculate tokens for a specific level
-     * This should match the formula in SkillLevelupListener
-     */
-    private static int calculateTokensForLevel(int level) {
-        // Special milestones get more tokens
-        if (level % 25 == 0) {
-            return 5; // Every 25 levels: 25, 50, 75, 100
-        } else if (level % 10 == 0) {
-            return 3; // Every 10 levels: 10, 20, 30, etc. (except those already covered)
-        } else if (level % 5 == 0) {
-            return 2; // Every 5 levels: 5, 15, etc. (except those already covered)
-        } else {
-            return 1; // All other levels (shouldn't happen in milestone context)
+/**
+ * Update reward item creation to show tiered token information
+ */
+private static ItemStack createRewardItem(int level, List<SkillReward> rewards, boolean unlocked) {
+    boolean isMilestone = level % 5 == 0;
+    boolean isEmpty = rewards == null || rewards.isEmpty();
+    
+    // Choose icon based on content
+    Material icon = Material.PAPER;
+    if (isEmpty && isMilestone) {
+        // Milestone with no rewards - use token icon
+        icon = Material.GOLD_NUGGET;
+    } else if (isEmpty) {
+        // No rewards - use placeholder
+        icon = Material.LIGHT_GRAY_STAINED_GLASS_PANE;
+    } else if (rewards.size() == 1) {
+        // Single reward - use specific icon
+        icon = REWARD_TYPE_ICONS.getOrDefault(rewards.get(0).getType(), Material.PAPER);
+    } else if (rewards.size() > 1) {
+        // Multiple rewards
+        icon = Material.CHEST;
+    }
+    
+    // For locked items, use different appearance
+    ItemStack item = unlocked ? new ItemStack(icon) : 
+                (isMilestone ? new ItemStack(Material.GILDED_BLACKSTONE) : new ItemStack(Material.BARRIER));
+    ItemMeta meta = item.getItemMeta();
+    
+    // Add enchant glow for unlocked items (unless it's a barrier)
+    if (unlocked && !isEmpty) {
+        meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+    }
+    
+    // Set display name with level - special formatting for milestones
+    if (isMilestone) {
+        meta.setDisplayName((unlocked ? ChatColor.GOLD : ChatColor.RED) + "✦ " + 
+            "Level " + level + " Milestone" + (unlocked ? ChatColor.GOLD + " ✦" : ""));
+    } else {
+        meta.setDisplayName((unlocked ? ChatColor.GREEN : ChatColor.RED) + "Level " + level + " Rewards");
+    }
+    
+    // Create lore with better formatting
+    List<String> lore = new ArrayList<>();
+    lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+    
+    // Add status badge with milestone-specific styling
+    if (unlocked) {
+        lore.add(isMilestone ? ChatColor.GOLD + "✓ MILESTONE UNLOCKED" : ChatColor.GREEN + "✓ UNLOCKED");
+        
+        // Add skill tokens info for milestones with tier breakdown
+        if (isMilestone) {
+            Map<SkillToken.TokenTier, Integer> tokenRewards = calculateTokensForLevel(level);
+            lore.add(ChatColor.YELLOW + "Token Rewards Received:");
+            
+            for (Map.Entry<SkillToken.TokenTier, Integer> entry : tokenRewards.entrySet()) {
+                SkillToken.TokenTier tier = entry.getKey();
+                int count = entry.getValue();
+                
+                lore.add("  " + tier.getColor() + tier.getSymbol() + " " + count + " " + 
+                         tier.getDisplayName() + ChatColor.WHITE + " Token" + (count > 1 ? "s" : ""));
+            }
+        }
+    } else {
+        lore.add(isMilestone ? ChatColor.RED + "✗ MILESTONE LOCKED" : ChatColor.RED + "✗ LOCKED");
+        
+        // Show token info for locked milestones too
+        if (isMilestone) {
+            Map<SkillToken.TokenTier, Integer> tokenRewards = calculateTokensForLevel(level);
+            lore.add(ChatColor.GRAY + "Token Rewards:");
+            
+            for (Map.Entry<SkillToken.TokenTier, Integer> entry : tokenRewards.entrySet()) {
+                SkillToken.TokenTier tier = entry.getKey();
+                int count = entry.getValue();
+                
+                lore.add("  " + tier.getColor() + tier.getSymbol() + " " + count + " " + 
+                         tier.getDisplayName() + ChatColor.GRAY + " Token" + (count > 1 ? "s" : ""));
+            }
         }
     }
+    
+    lore.add("");
+    
+    // Add specific rewards if any
+    if (!isEmpty) {
+        lore.add(ChatColor.AQUA + "Rewards:");
+        for (SkillReward reward : rewards) {
+            lore.add(ChatColor.WHITE + "• " + reward.getDescription());
+        }
+        lore.add("");
+    }
+    
+    // Add requirement information for locked rewards
+    if (!unlocked) {
+        lore.add(ChatColor.RED + "Requirement: Reach level " + level);
+    }
+    
+    meta.setLore(lore);
+    item.setItemMeta(meta);
+    return item;
+}
+
+/**
+ * Create a milestone info item explaining the NEW tiered milestone reward system
+ */
+private static ItemStack createMilestoneInfoItem(boolean isMainSkill) {
+    ItemStack infoItem = new ItemStack(Material.KNOWLEDGE_BOOK);
+    ItemMeta meta = infoItem.getItemMeta();
+    meta.setDisplayName(ChatColor.GOLD + "✦ Milestone System ✦");
+    
+    List<String> lore = new ArrayList<>();
+    lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+    lore.add(ChatColor.YELLOW + "Every 5 levels grants milestone rewards!");
+    lore.add("");
+    
+    lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "Token Rewards by Level:");
+    lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 5-9: " + 
+             SkillToken.TokenTier.BASIC.getColor() + "Basic Tokens");
+    lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 10-24: " + 
+             SkillToken.TokenTier.BASIC.getColor() + "Basic + " + 
+             SkillToken.TokenTier.ADVANCED.getColor() + "Advanced");
+    lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 25-49: " + 
+             SkillToken.TokenTier.BASIC.getColor() + "Basic + " + 
+             SkillToken.TokenTier.ADVANCED.getColor() + "Advanced");
+    lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 50-69: " + 
+             SkillToken.TokenTier.ADVANCED.getColor() + "Advanced + " + 
+             SkillToken.TokenTier.MASTER.getColor() + "Master");
+    lore.add(ChatColor.GRAY + "• " + ChatColor.GREEN + "Level 70+: " + 
+             SkillToken.TokenTier.ADVANCED.getColor() + "Advanced + " + 
+             SkillToken.TokenTier.MASTER.getColor() + "Master");
+    lore.add("");
+    
+    lore.add(ChatColor.GOLD + "» " + ChatColor.YELLOW + "How to Use Tokens:");
+    if (isMainSkill) {
+        lore.add(ChatColor.GRAY + "Spend tokens in this skill's tree");
+    } else {
+        lore.add(ChatColor.GRAY + "Tokens contribute to parent skill tree");
+    }
+    lore.add(ChatColor.GRAY + "Higher tier tokens can unlock lower tier nodes");
+    lore.add(ChatColor.GRAY + "Each node requires specific token tiers");
+    lore.add("");
+    
+    lore.add(ChatColor.AQUA + "Token Tiers:");
+    lore.add("  " + SkillToken.TokenTier.BASIC.getColor() + SkillToken.TokenTier.BASIC.getSymbol() + 
+             " Basic: Foundation abilities");
+    lore.add("  " + SkillToken.TokenTier.ADVANCED.getColor() + SkillToken.TokenTier.ADVANCED.getSymbol() + 
+             " Advanced: Specialized skills");
+    lore.add("  " + SkillToken.TokenTier.MASTER.getColor() + SkillToken.TokenTier.MASTER.getSymbol() + 
+             " Master: Elite abilities");
+    
+    meta.setLore(lore);
+    infoItem.setItemMeta(meta);
+    return infoItem;
+}
     
     /**
      * Create an explanation item for the rewards menu

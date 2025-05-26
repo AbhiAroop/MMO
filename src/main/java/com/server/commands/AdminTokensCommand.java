@@ -1,7 +1,6 @@
 package com.server.commands;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,7 @@ import com.server.Main;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.SkillType;
-import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.tokens.SkillToken;
 import com.server.profiles.skills.trees.PlayerSkillTreeData;
 
 /**
@@ -61,9 +60,14 @@ public class AdminTokensCommand implements TabExecutor {
             return handleList(sender, args[1]);
         }
         
-        // Regular token commands
+        // NEW: Handle tiered token commands
+        if (args.length >= 4) {
+            return handleTieredTokenCommand(sender, args);
+        }
+        
+        // Regular token commands (backwards compatibility)
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "Usage: /admintokens <player> <skill> <amount>");
+            displayHelp(sender);
             return true;
         }
         
@@ -80,7 +84,7 @@ public class AdminTokensCommand implements TabExecutor {
         
         if (skillId == null) {
             sender.sendMessage(ChatColor.RED + "Unknown skill: " + args[1]);
-            sender.sendMessage(ChatColor.YELLOW + "Use /admintokens list " + target.getName() + " to see available skills.");
+            sender.sendMessage(ChatColor.YELLOW + "Available skills: " + String.join(", ", getAvailableSkillIds()));
             return true;
         }
         
@@ -89,27 +93,27 @@ public class AdminTokensCommand implements TabExecutor {
         try {
             amount = Integer.parseInt(args[2]);
         } catch (NumberFormatException e) {
-            sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[2] + ". Please provide a number.");
+            sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[2]);
             return true;
         }
         
         // Get player's active profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(target.getUniqueId());
         if (activeSlot == null) {
-            sender.sendMessage(ChatColor.RED + target.getName() + " doesn't have an active profile.");
+            sender.sendMessage(ChatColor.RED + "Player has no active profile.");
             return true;
         }
         
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(target.getUniqueId())[activeSlot];
         if (profile == null) {
-            sender.sendMessage(ChatColor.RED + "Failed to get " + target.getName() + "'s profile.");
+            sender.sendMessage(ChatColor.RED + "Player profile not found.");
             return true;
         }
         
         // Get the skill tree data
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         if (treeData == null) {
-            sender.sendMessage(ChatColor.RED + "Failed to get skill tree data for " + target.getName());
+            sender.sendMessage(ChatColor.RED + "Player skill tree data not found.");
             return true;
         }
         
@@ -120,22 +124,129 @@ public class AdminTokensCommand implements TabExecutor {
         
         Map<String, Integer> playerOriginals = originalTokens.get(target.getUniqueId());
         if (!playerOriginals.containsKey(skillId)) {
-            // Store original value for potential reset
             playerOriginals.put(skillId, treeData.getTokenCount(skillId));
         }
         
-        // Set the new token amount
-        treeData.setTokenCount(skillId, amount);
+        // Set the new token amount (defaults to Basic tier for backwards compatibility)
+        treeData.setTokenCount(skillId, SkillToken.TokenTier.BASIC, amount);
         
         // Get skill display name for nicer messages
         String skillName = getSkillDisplayName(skillId);
         
         // Notify admin and player
         sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s " + 
-                ChatColor.GOLD + skillName + ChatColor.GREEN + " tokens to " + amount);
+                ChatColor.GOLD + skillName + ChatColor.GREEN + " Basic tokens to " + amount);
         
-        target.sendMessage(ChatColor.YELLOW + "Your " + ChatColor.GOLD + skillName + 
-                ChatColor.YELLOW + " tokens have been set to " + ChatColor.WHITE + amount);
+        if (!sender.equals(target)) {
+            target.sendMessage(ChatColor.GREEN + "Your " + ChatColor.GOLD + skillName + 
+                            ChatColor.GREEN + " Basic tokens have been set to " + amount);
+        }
+        
+        return true;
+    }
+
+    /**
+     * Handle tiered token commands
+     * Usage: /admintokens <player> <skill> <tier> <amount>
+     */
+    private boolean handleTieredTokenCommand(CommandSender sender, String[] args) {
+        // Get target player
+        Player target = Bukkit.getPlayer(args[0]);
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Player not found: " + args[0]);
+            return true;
+        }
+        
+        // Get skill ID
+        String skillArg = args[1].toLowerCase();
+        String skillId = getSkillIdFromInput(skillArg);
+        
+        if (skillId == null) {
+            sender.sendMessage(ChatColor.RED + "Unknown skill: " + args[1]);
+            return true;
+        }
+        
+        // Get tier
+        SkillToken.TokenTier tier = null;
+        String tierArg = args[2].toLowerCase();
+        switch (tierArg) {
+            case "basic":
+            case "b":
+            case "1":
+                tier = SkillToken.TokenTier.BASIC;
+                break;
+            case "advanced":
+            case "adv":
+            case "a":
+            case "2":
+                tier = SkillToken.TokenTier.ADVANCED;
+                break;
+            case "master":
+            case "m":
+            case "3":
+                tier = SkillToken.TokenTier.MASTER;
+                break;
+            default:
+                sender.sendMessage(ChatColor.RED + "Invalid tier: " + args[2]);
+                sender.sendMessage(ChatColor.YELLOW + "Available tiers: basic, advanced, master");
+                return true;
+        }
+        
+        // Validate amount
+        int amount;
+        try {
+            amount = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[3]);
+            return true;
+        }
+        
+        // Get player's profile and tree data
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(target.getUniqueId());
+        if (activeSlot == null) {
+            sender.sendMessage(ChatColor.RED + "Player has no active profile.");
+            return true;
+        }
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(target.getUniqueId())[activeSlot];
+        if (profile == null) {
+            sender.sendMessage(ChatColor.RED + "Player profile not found.");
+            return true;
+        }
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        if (treeData == null) {
+            sender.sendMessage(ChatColor.RED + "Player skill tree data not found.");
+            return true;
+        }
+        
+        // Store original value for reset functionality
+        String resetKey = skillId + "_" + tier.name().toLowerCase();
+        if (!originalTokens.containsKey(target.getUniqueId())) {
+            originalTokens.put(target.getUniqueId(), new HashMap<>());
+        }
+        
+        Map<String, Integer> playerOriginals = originalTokens.get(target.getUniqueId());
+        if (!playerOriginals.containsKey(resetKey)) {
+            playerOriginals.put(resetKey, treeData.getTokenCount(skillId, tier));
+        }
+        
+        // Set the new token amount for the specific tier
+        treeData.setTokenCount(skillId, tier, amount);
+        
+        // Get skill display name for nicer messages
+        String skillName = getSkillDisplayName(skillId);
+        
+        // Notify admin and player
+        sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s " + 
+                ChatColor.GOLD + skillName + " " + tier.getColor() + tier.getDisplayName() + 
+                ChatColor.GREEN + " tokens to " + amount);
+        
+        if (!sender.equals(target)) {
+            target.sendMessage(ChatColor.GREEN + "Your " + ChatColor.GOLD + skillName + " " + 
+                            tier.getColor() + tier.getDisplayName() + ChatColor.GREEN + 
+                            " tokens have been set to " + amount);
+        }
         
         return true;
     }
@@ -199,56 +310,42 @@ public class AdminTokensCommand implements TabExecutor {
             return true;
         }
         
-        // Get player's active profile
+        // Get player's profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(target.getUniqueId());
         if (activeSlot == null) {
-            sender.sendMessage(ChatColor.RED + target.getName() + " doesn't have an active profile.");
+            sender.sendMessage(ChatColor.RED + "Player has no active profile.");
             return true;
         }
         
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(target.getUniqueId())[activeSlot];
         if (profile == null) {
-            sender.sendMessage(ChatColor.RED + "Failed to get " + target.getName() + "'s profile.");
+            sender.sendMessage(ChatColor.RED + "Player profile not found.");
             return true;
         }
         
-        // Get the skill tree data
         PlayerSkillTreeData treeData = profile.getSkillTreeData();
         if (treeData == null) {
-            sender.sendMessage(ChatColor.RED + "Failed to get skill tree data for " + target.getName());
+            sender.sendMessage(ChatColor.RED + "Player skill tree data not found.");
             return true;
         }
         
-        // Display all token counts
-        sender.sendMessage(ChatColor.GOLD + "===== " + target.getName() + "'s Skill Tokens =====");
+        sender.sendMessage(ChatColor.GOLD + "=== " + target.getName() + "'s Skill Tokens ===");
         
-        // Display main skills first
-        sender.sendMessage(ChatColor.YELLOW + "Main Skills:");
-        
-        // List token counts for main skills
-        for (SkillType type : SkillType.values()) {
-            String skillId = type.getId();
-            String displayName = getSkillDisplayName(skillId);
-            int tokens = treeData.getTokenCount(skillId);
+        // List tokens for each skill
+        for (String skillId : getAvailableSkillIds()) {
+            String skillName = getSkillDisplayName(skillId);
+            Map<SkillToken.TokenTier, Integer> tokenCounts = treeData.getAllTokenCounts(skillId);
+            int totalTokens = treeData.getTokenCount(skillId);
             
-            // Skip skills with 0 tokens to keep the list clean
-            if (tokens > 0 || sender.hasPermission("mmo.admin.tokens.showempty")) {
-                sender.sendMessage(ChatColor.GRAY + displayName + ": " + ChatColor.WHITE + tokens);
-            }
-        }
-        
-        // Display subskills
-        sender.sendMessage(ChatColor.YELLOW + "Subskills:");
-        
-        // List token counts for subskills
-        for (SubskillType type : SubskillType.values()) {
-            String skillId = type.getId();
-            String displayName = getSkillDisplayName(skillId);
-            int tokens = treeData.getTokenCount(skillId);
-            
-            // Skip skills with 0 tokens to keep the list clean
-            if (tokens > 0 || sender.hasPermission("mmo.admin.tokens.showempty")) {
-                sender.sendMessage(ChatColor.GRAY + displayName + ": " + ChatColor.WHITE + tokens);
+            if (totalTokens > 0) {
+                sender.sendMessage(ChatColor.YELLOW + skillName + ":");
+                for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+                    int count = tokenCounts.getOrDefault(tier, 0);
+                    if (count > 0) {
+                        sender.sendMessage("  " + tier.getColor() + tier.getSymbol() + " " + 
+                                        tier.getDisplayName() + ": " + ChatColor.WHITE + count);
+                    }
+                }
             }
         }
         
@@ -331,69 +428,80 @@ public class AdminTokensCommand implements TabExecutor {
     }
     
     private void displayHelp(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "===== AdminTokens Command Help =====");
-        sender.sendMessage(ChatColor.YELLOW + "/admintokens <player> <skill> <amount> " + 
-                        ChatColor.WHITE + "- Set skill tokens");
-        sender.sendMessage(ChatColor.YELLOW + "/admintokens reset <player> " + 
-                        ChatColor.WHITE + "- Reset all tokens to original values");
-        sender.sendMessage(ChatColor.YELLOW + "/admintokens list <player> " + 
-                        ChatColor.WHITE + "- List all token counts");
-        
-        sender.sendMessage(ChatColor.GRAY + "Available Skills (Main Skills Only):");
-        sender.sendMessage(ChatColor.WHITE + "  mining, excavating, fishing, farming, combat");
-        
-        sender.sendMessage(ChatColor.GRAY + "Examples:");
-        sender.sendMessage(ChatColor.WHITE + "  /admintokens Steve mining 10");
-        sender.sendMessage(ChatColor.WHITE + "  /admintokens Steve combat 5");
-        sender.sendMessage(ChatColor.WHITE + "  /admintokens list Steve");
+        sender.sendMessage(ChatColor.GOLD + "=== Admin Tokens Command Help ===");
+        sender.sendMessage(ChatColor.YELLOW + "/admintokens <player> <skill> <amount>");
+        sender.sendMessage(ChatColor.GRAY + "  Set Basic tier tokens for a skill (backwards compatible)");
+        sender.sendMessage(ChatColor.YELLOW + "/admintokens <player> <skill> <tier> <amount>");
+        sender.sendMessage(ChatColor.GRAY + "  Set specific tier tokens for a skill");
+        sender.sendMessage(ChatColor.GRAY + "  Tiers: basic, advanced, master");
+        sender.sendMessage(ChatColor.YELLOW + "/admintokens list <player>");
+        sender.sendMessage(ChatColor.GRAY + "  List all tokens for a player");
+        sender.sendMessage(ChatColor.YELLOW + "/admintokens reset <player>");
+        sender.sendMessage(ChatColor.GRAY + "  Reset all tokens to original values");
+        sender.sendMessage("");
+        sender.sendMessage(ChatColor.AQUA + "Available skills: " + String.join(", ", getAvailableSkillIds()));
+        sender.sendMessage(ChatColor.AQUA + "Available tiers: " + 
+                        SkillToken.TokenTier.BASIC.getDisplayName() + ", " +
+                        SkillToken.TokenTier.ADVANCED.getDisplayName() + ", " +
+                        SkillToken.TokenTier.MASTER.getDisplayName());
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         List<String> completions = new ArrayList<>();
         
-        if (!sender.hasPermission("mmo.admin.tokens")) {
-            return completions;
-        }
-        
         if (args.length == 1) {
-            // First argument: player name or special commands
-            List<String> specialCommands = Arrays.asList("reset", "list");
-            for (String special : specialCommands) {
-                if (special.startsWith(args[0].toLowerCase())) {
-                    completions.add(special);
+            // Player names + special commands
+            completions.add("list");
+            completions.add("reset");
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                completions.add(player.getName());
+            }
+        } else if (args.length == 2) {
+            if (args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("reset")) {
+                // Player names for list/reset commands
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    completions.add(player.getName());
                 }
-            }
-            
-            // Add online player names
-            completions.addAll(Bukkit.getOnlinePlayers().stream()
-                            .map(Player::getName)
-                            .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))
-                            .collect(Collectors.toList()));
-        }
-        else if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("list")) {
-                // Second argument is player name for special commands
-                completions.addAll(Bukkit.getOnlinePlayers().stream()
-                                .map(Player::getName)
-                                .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
-                                .collect(Collectors.toList()));
             } else {
-                // UPDATED: Only suggest main skills
-                List<String> mainSkills = Arrays.asList("mining", "excavating", "fishing", "farming", "combat");
-                completions.addAll(mainSkills.stream()
-                                .filter(skill -> skill.startsWith(args[1].toLowerCase()))
-                                .collect(Collectors.toList()));
+                // Skill names
+                completions.addAll(getAvailableSkillIds());
             }
-        }
-        else if (args.length == 3) {
-            // Third argument is the amount
-            List<String> suggestions = Arrays.asList("1", "5", "10", "25", "50", "100");
-            completions.addAll(suggestions.stream()
-                            .filter(suggestion -> suggestion.startsWith(args[2]))
-                            .collect(Collectors.toList()));
+        } else if (args.length == 3) {
+            if (!args[0].equalsIgnoreCase("list") && !args[0].equalsIgnoreCase("reset")) {
+                // Could be tier or amount (old format)
+                completions.add("basic");
+                completions.add("advanced");
+                completions.add("master");
+                completions.add("1");
+                completions.add("5");
+                completions.add("10");
+            }
+        } else if (args.length == 4) {
+            // Amount for tiered command
+            completions.add("1");
+            completions.add("5");
+            completions.add("10");
+            completions.add("25");
+            completions.add("50");
         }
         
-        return completions;
+        return completions.stream()
+                .filter(completion -> completion.toLowerCase().startsWith(args[args.length - 1].toLowerCase()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get available skill IDs for tab completion
+     */
+    private List<String> getAvailableSkillIds() {
+        List<String> skillIds = new ArrayList<>();
+        
+        // Add main skill IDs
+        for (SkillType type : SkillType.values()) {
+            skillIds.add(type.getId());
+        }
+        
+        return skillIds;
     }
 }

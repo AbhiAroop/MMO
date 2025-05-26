@@ -6,6 +6,8 @@ import java.util.Map;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
+import com.server.profiles.skills.tokens.SkillToken;
+
 /**
  * Represents a node in a skill tree
  */
@@ -20,21 +22,32 @@ public class SkillTreeNode {
     private final int maxLevel; // Maximum upgrade level for this node
     private final Map<Integer, String> levelDescriptions; // Descriptions for each level
     private final Map<Integer, Integer> levelCosts; // Token costs for each level
+    private final SkillToken.TokenTier requiredTokenTier; // NEW: Required token tier
     private boolean isSpecialNode;
     
     /**
-     * Create a simple non-upgradable node
+     * Create a simple non-upgradable node with token tier requirement
      */
     public SkillTreeNode(String id, String name, String description, Material icon, 
-                         ChatColor color, int gridX, int gridY, int tokenCost) {
-        this(id, name, description, icon, color, gridX, gridY, tokenCost, 1);
+                         ChatColor color, int gridX, int gridY, int tokenCost, 
+                         SkillToken.TokenTier requiredTier) {
+        this(id, name, description, icon, color, gridX, gridY, tokenCost, 1, requiredTier);
     }
     
     /**
-     * Create an upgradable node with the same description for all levels
+     * Create a simple non-upgradable node (defaults to Basic tier)
      */
     public SkillTreeNode(String id, String name, String description, Material icon, 
-                         ChatColor color, int gridX, int gridY, int tokenCost, int maxLevel) {
+                         ChatColor color, int gridX, int gridY, int tokenCost) {
+        this(id, name, description, icon, color, gridX, gridY, tokenCost, 1, SkillToken.TokenTier.BASIC);
+    }
+    
+    /**
+     * Create an upgradable node with token tier requirement
+     */
+    public SkillTreeNode(String id, String name, String description, Material icon, 
+                         ChatColor color, int gridX, int gridY, int tokenCost, int maxLevel,
+                         SkillToken.TokenTier requiredTier) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -43,22 +56,31 @@ public class SkillTreeNode {
         this.gridPosition = new TreeGridPosition(gridX, gridY);
         this.tokenCost = tokenCost;
         this.maxLevel = Math.max(1, maxLevel);
+        this.requiredTokenTier = requiredTier;
         this.levelDescriptions = new HashMap<>();
         this.levelCosts = new HashMap<>();
         
         // Set default descriptions and costs
         for (int i = 1; i <= maxLevel; i++) {
-            this.levelDescriptions.put(i, description + (maxLevel > 1 ? " (Level " + i + ")" : ""));
+            this.levelDescriptions.put(i, description);
             this.levelCosts.put(i, tokenCost * i); // Default cost scales linearly
         }
     }
     
     /**
-     * Create a fully customized upgradable node
+     * Create an upgradable node (defaults to Basic tier)
+     */
+    public SkillTreeNode(String id, String name, String description, Material icon, 
+                         ChatColor color, int gridX, int gridY, int tokenCost, int maxLevel) {
+        this(id, name, description, icon, color, gridX, gridY, tokenCost, maxLevel, SkillToken.TokenTier.BASIC);
+    }
+    
+    /**
+     * Create a fully customized upgradable node with token tier
      */
     public SkillTreeNode(String id, String name, Material icon, ChatColor color, 
                         int gridX, int gridY, Map<Integer, String> levelDescriptions,
-                        Map<Integer, Integer> levelCosts) {
+                        Map<Integer, Integer> levelCosts, SkillToken.TokenTier requiredTier) {
         this.id = id;
         this.name = name;
         this.description = levelDescriptions.getOrDefault(1, "");
@@ -69,6 +91,16 @@ public class SkillTreeNode {
         this.levelDescriptions = new HashMap<>(levelDescriptions);
         this.levelCosts = new HashMap<>(levelCosts);
         this.maxLevel = Math.max(1, levelCosts.size());
+        this.requiredTokenTier = requiredTier;
+    }
+
+    /**
+     * Create a fully customized upgradable node (defaults to Basic tier)
+     */
+    public SkillTreeNode(String id, String name, Material icon, ChatColor color, 
+                        int gridX, int gridY, Map<Integer, String> levelDescriptions,
+                        Map<Integer, Integer> levelCosts) {
+        this(id, name, icon, color, gridX, gridY, levelDescriptions, levelCosts, SkillToken.TokenTier.BASIC);
     }
     
     /**
@@ -178,5 +210,19 @@ public class SkillTreeNode {
      */
     public boolean isSpecialNode() {
         return isSpecialNode;
+    }
+
+    /**
+     * Get the required token tier for this node
+     */
+    public SkillToken.TokenTier getRequiredTokenTier() {
+        return requiredTokenTier;
+    }
+    
+    /**
+     * Check if a token tier meets the requirement for this node
+     */
+    public boolean acceptsTokenTier(SkillToken.TokenTier tier) {
+        return tier.getLevel() >= requiredTokenTier.getLevel();
     }
 }

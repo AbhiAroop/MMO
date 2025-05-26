@@ -16,6 +16,7 @@ import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.skills.tokens.SkillToken;
 
 /**
  * Stores a player's progress in skill trees
@@ -30,11 +31,161 @@ public class PlayerSkillTreeData {
     
     // Map of skill ID to token count
     private final Map<String, Integer> skillTokens;
+    private final Map<String, Map<String, Integer>> tieredSkillTokens;
     
     public PlayerSkillTreeData() {
         this.unlockedNodeLevels = new HashMap<>();
         this.skillTokens = new HashMap<>();
+        this.tieredSkillTokens = new HashMap<>();
         this.permanentSpecialNodeLevels = new HashMap<>();
+    }
+
+    /**
+     * Get the number of tokens a player has for a skill and tier
+     */
+    public int getTokenCount(String skillId, SkillToken.TokenTier tier) {
+        String tierKey = skillId + "_tier_" + tier.getLevel();
+        return tieredSkillTokens
+            .getOrDefault(skillId, new HashMap<>())
+            .getOrDefault(tierKey, 0);
+    }
+    
+    /**
+     * Get the number of tokens a player has for a skill (all tiers combined)
+     * Used for backward compatibility and display purposes
+     */
+    public int getTokenCount(String skillId) {
+        int total = 0;
+        for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+            total += getTokenCount(skillId, tier);
+        }
+        return total;
+    }
+    
+    /**
+     * Add tokens for a specific skill and tier
+     */
+    public void addTokens(String skillId, SkillToken.TokenTier tier, int count) {
+        if (!tieredSkillTokens.containsKey(skillId)) {
+            tieredSkillTokens.put(skillId, new HashMap<>());
+        }
+        
+        String tierKey = skillId + "_tier_" + tier.getLevel();
+        int current = tieredSkillTokens.get(skillId).getOrDefault(tierKey, 0);
+        tieredSkillTokens.get(skillId).put(tierKey, current + count);
+    }
+    
+    /**
+     * Add tokens for a skill (defaults to Basic tier for backward compatibility)
+     */
+    public void addTokens(String skillId, int count) {
+        addTokens(skillId, SkillToken.TokenTier.BASIC, count);
+    }
+    
+    /**
+     * Use tokens for a specific skill and tier
+     * @return true if enough tokens were available, false otherwise
+     */
+    public boolean useTokens(String skillId, SkillToken.TokenTier tier, int count) {
+        String tierKey = skillId + "_tier_" + tier.getLevel();
+        int current = tieredSkillTokens
+            .getOrDefault(skillId, new HashMap<>())
+            .getOrDefault(tierKey, 0);
+            
+        if (current < count) {
+            return false;
+        }
+        
+        if (!tieredSkillTokens.containsKey(skillId)) {
+            tieredSkillTokens.put(skillId, new HashMap<>());
+        }
+        
+        tieredSkillTokens.get(skillId).put(tierKey, current - count);
+        return true;
+    }
+    
+    /**
+     * Use tokens for a skill (tries tiers from highest to lowest)
+     * @return true if enough tokens were available, false otherwise
+     */
+    public boolean useTokens(String skillId, int count) {
+        // Try to use tokens starting from the highest tier
+        SkillToken.TokenTier[] tiers = {
+            SkillToken.TokenTier.MASTER,
+            SkillToken.TokenTier.ADVANCED,
+            SkillToken.TokenTier.BASIC
+        };
+        
+        int remaining = count;
+        Map<SkillToken.TokenTier, Integer> toDeduct = new HashMap<>();
+        
+        // Plan the deduction
+        for (SkillToken.TokenTier tier : tiers) {
+            int available = getTokenCount(skillId, tier);
+            int toUse = Math.min(remaining, available);
+            
+            if (toUse > 0) {
+                toDeduct.put(tier, toUse);
+                remaining -= toUse;
+            }
+            
+            if (remaining <= 0) break;
+        }
+        
+        // Check if we have enough tokens total
+        if (remaining > 0) {
+            return false;
+        }
+        
+        // Actually deduct the tokens
+        for (Map.Entry<SkillToken.TokenTier, Integer> entry : toDeduct.entrySet()) {
+            useTokens(skillId, entry.getKey(), entry.getValue());
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Set the token count for a specific skill and tier
+     */
+    public void setTokenCount(String skillId, SkillToken.TokenTier tier, int count) {
+        if (!tieredSkillTokens.containsKey(skillId)) {
+            tieredSkillTokens.put(skillId, new HashMap<>());
+        }
+        
+        String tierKey = skillId + "_tier_" + tier.getLevel();
+        tieredSkillTokens.get(skillId).put(tierKey, Math.max(0, count));
+    }
+    
+    /**
+     * Get all token counts for a skill (by tier)
+     */
+    public Map<SkillToken.TokenTier, Integer> getAllTokenCounts(String skillId) {
+        Map<SkillToken.TokenTier, Integer> result = new HashMap<>();
+        
+        for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+            result.put(tier, getTokenCount(skillId, tier));
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Check if a player can afford a node upgrade
+     */
+    public boolean canAffordNode(SkillTreeNode node, int currentLevel) {
+        int cost = node.getTokenCost(currentLevel + 1);
+        SkillToken.TokenTier requiredTier = node.getRequiredTokenTier();
+        
+        // Check if player has enough tokens of the required tier or higher
+        int availableTokens = 0;
+        for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+            if (tier.getLevel() >= requiredTier.getLevel()) {
+                availableTokens += getTokenCount(node.getId().split("_")[0], tier); // Extract skill from node ID
+            }
+        }
+        
+        return availableTokens >= cost;
     }
     
     /**
@@ -199,123 +350,109 @@ public class PlayerSkillTreeData {
      * Special nodes will keep their progress but will be locked until prerequisites are met again
      * 
      * @param skillId The skill ID to reset
-     * @return The number of tokens refunded
+     * @return The number of tokens refunded (for backwards compatibility)
      */
     public int resetSkillTree(String skillId) {
-        int tokensRefunded = 0;
-        
-        // Get the skill tree
-        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skillId);
-        if (tree == null) return 0;
-        
-        // Get all current nodes data
-        Set<String> unlockedNodes = getUnlockedNodes(skillId);
-        
-        // IMPORTANT: Create a deep copy of nodeLevels to prevent modification issues
-        Map<String, Integer> nodeLevels = new HashMap<>();
-        for (Map.Entry<String, Integer> entry : getNodeLevels(skillId).entrySet()) {
-            nodeLevels.put(entry.getKey(), entry.getValue());
-        }
-        
-        // Debug log before resetting
         if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset tree " + skillId + 
-                ", nodes before: " + nodeLevels);
-        }
-
-        // Handle special cleanup BEFORE clearing nodes
-        Player player = findPlayerForSkillTree();
-        if (player != null) {
-            // Handle OreExtraction subskill
-            if (skillId.equals("ore_extraction")) {
-                try {
-                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) 
-                        SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
-                        
-                    if (oreSkill != null) {
-                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Calling OreExtraction handleSkillTreeReset for player " + player.getName());
-                        oreSkill.handleSkillTreeReset(player, nodeLevels);
-                    } else {
-                        Main.getInstance().getLogger().warning("[PlayerSkillTreeData] OreExtractionSubskill not found");
-                    }
-                } catch (Exception e) {
-                    Main.getInstance().getLogger().severe("[PlayerSkillTreeData] Error handling OreExtraction reset: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-            // Handle GemCarving subskill
-            else if (skillId.equals("gem_carving")) {
-                try {
-                    GemCarvingSubskill gemSkill = (GemCarvingSubskill) 
-                        SkillRegistry.getInstance().getSubskill(SubskillType.GEM_CARVING);
-                        
-                    if (gemSkill != null) {
-                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Calling GemCarving handleSkillTreeReset for player " + player.getName());
-                        gemSkill.handleSkillTreeReset(player, nodeLevels);
-                    } else {
-                        Main.getInstance().getLogger().warning("[PlayerSkillTreeData] GemCarvingSubskill not found");
-                    }
-                } catch (Exception e) {
-                    Main.getInstance().getLogger().severe("[PlayerSkillTreeData] Error handling GemCarving reset: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-        } else {
-            Main.getInstance().getLogger().warning("[PlayerSkillTreeData] Player not found for skill tree reset");
+            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Starting reset for skill: " + skillId);
         }
         
-        // First: Ensure our permanent storage has the latest special node levels
-        for (String nodeId : new HashSet<>(nodeLevels.keySet())) {
-            SkillTreeNode node = tree.getNode(nodeId);
-            if (node != null && node.isSpecialNode()) {
-                int level = nodeLevels.get(nodeId);
-                if (level > 0) {
-                    // Store in our permanent storage
-                    storeSpecialNodeLevel(skillId, nodeId, level);
-                    
-                    if (Main.getInstance().isDebugMode()) {
-                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Stored special node " + 
-                            nodeId + " at level " + level + " in permanent storage");
-                    }
-                }
+        // Get skill tree for proper token calculation
+        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skillId);
+        if (tree == null) {
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().warning("[PlayerSkillTreeData] No skill tree found for: " + skillId);
             }
+            return 0;
         }
         
-        // Second: Calculate refunds for non-special nodes only
+        // Get current progress before clearing
+        Set<String> unlockedNodes = getUnlockedNodes(skillId);
+        Map<String, Integer> nodeLevels = getNodeLevels(skillId);
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Nodes before reset: " + unlockedNodes);
+            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Node levels before reset: " + nodeLevels);
+        }
+        
+        // Calculate tokens to refund by tier
+        Map<SkillToken.TokenTier, Integer> tierRefunds = new HashMap<>();
+        for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
+            tierRefunds.put(tier, 0);
+        }
+        
+        int totalTokensRefunded = 0;
+        
+        // Calculate refunds for each unlocked node
         for (String nodeId : unlockedNodes) {
             SkillTreeNode node = tree.getNode(nodeId);
             if (node == null) continue;
             
-            // Skip refund for special nodes
-            if (node.isSpecialNode()) {
+            // Skip root node and special nodes for token refund
+            if (nodeId.equals("root") || node.isSpecialNode()) {
                 if (Main.getInstance().isDebugMode()) {
-                    Main.getInstance().getLogger().info("[PlayerSkillTreeData] Skipping refund for special node: " + nodeId);
+                    Main.getInstance().getLogger().info("[PlayerSkillTreeData] Skipping refund for special/root node: " + nodeId);
                 }
                 continue;
             }
             
-            // Calculate refund for normal nodes
+            // Calculate refund for normal nodes by tier
             int level = nodeLevels.getOrDefault(nodeId, 0);
-            for (int i = 1; i <= level; i++) {
-                tokensRefunded += node.getTokenCost(i);
+            SkillToken.TokenTier requiredTier = node.getRequiredTokenTier();
+            
+            if (node.isUpgradable()) {
+                // For upgradable nodes, refund cost for each level
+                for (int i = 1; i <= level; i++) {
+                    int cost = node.getTokenCost(i);
+                    tierRefunds.put(requiredTier, tierRefunds.get(requiredTier) + cost);
+                    totalTokensRefunded += cost;
+                }
+            } else {
+                // For non-upgradable nodes, refund the base cost
+                int cost = node.getTokenCost();
+                tierRefunds.put(requiredTier, tierRefunds.get(requiredTier) + cost);
+                totalTokensRefunded += cost;
             }
         }
-
-        // Third: Completely clear the regular node storage
+        
+        // Clear the regular node storage (but preserve special nodes)
         if (unlockedNodeLevels.containsKey(skillId)) {
-            unlockedNodeLevels.get(skillId).clear();
+            Map<String, Integer> skillNodes = unlockedNodeLevels.get(skillId);
+            
+            // Remove only non-special nodes
+            skillNodes.entrySet().removeIf(entry -> {
+                String nodeId = entry.getKey();
+                SkillTreeNode node = tree.getNode(nodeId);
+                return node != null && !node.isSpecialNode() && !nodeId.equals("root");
+            });
+            
+            // If no nodes remain, remove the skill entry entirely
+            if (skillNodes.isEmpty()) {
+                unlockedNodeLevels.remove(skillId);
+            }
         }
         
-        // Debug log after resetting
+        // Add the refunded tokens by tier
+        for (Map.Entry<SkillToken.TokenTier, Integer> entry : tierRefunds.entrySet()) {
+            SkillToken.TokenTier tier = entry.getKey();
+            int count = entry.getValue();
+            
+            if (count > 0) {
+                addTokens(skillId, tier, count);
+                
+                if (Main.getInstance().isDebugMode()) {
+                    Main.getInstance().getLogger().info("[PlayerSkillTreeData] Refunded " + count + 
+                                                    " " + tier.getDisplayName() + " tokens for " + skillId);
+                }
+            }
+        }
+        
         if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset tree " + skillId + 
-                ", nodes after reset (should be empty): " + getNodeLevels(skillId));
+            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset complete for " + skillId + 
+                                            ", total tokens refunded: " + totalTokensRefunded);
         }
         
-        // Add the refunded tokens
-        addTokens(skillId, tokensRefunded);
-        
-        return tokensRefunded;
+        return totalTokensRefunded;
     }
 
     /**
@@ -468,34 +605,6 @@ public class PlayerSkillTreeData {
             unlockedNodeLevels.put(skillId, new HashMap<>());
         }
         unlockedNodeLevels.get(skillId).put(nodeId, level);
-    }
-    
-    /**
-     * Get the number of tokens a player has for a skill
-     */
-    public int getTokenCount(String skillId) {
-        return skillTokens.getOrDefault(skillId, 0);
-    }
-    
-    /**
-     * Add tokens for a skill
-     */
-    public void addTokens(String skillId, int count) {
-        int current = skillTokens.getOrDefault(skillId, 0);
-        skillTokens.put(skillId, current + count);
-    }
-    
-    /**
-     * Use tokens for a skill
-     * @return true if enough tokens were available, false otherwise
-     */
-    public boolean useTokens(String skillId, int count) {
-        int current = skillTokens.getOrDefault(skillId, 0);
-        if (current < count) {
-            return false;
-        }
-        skillTokens.put(skillId, current - count);
-        return true;
     }
     
     /**

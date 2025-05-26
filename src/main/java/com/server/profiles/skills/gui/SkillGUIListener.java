@@ -547,7 +547,14 @@ public class SkillGUIListener implements Listener {
                     return;
                 }
                 if (lore.contains(ChatColor.BLACK + "RESET_BUTTON")) {
-                    SkillTreeGUI.handleResetClick(player);
+                    // Extract the skill name from the inventory title
+                    String title = player.getOpenInventory().getTitle();
+                    
+                    // Assuming the title format is "Skill Tree: SkillName"
+                    if (title != null && title.startsWith("Skill Tree: ")) {
+                        String skillName = title.substring("Skill Tree: ".length());
+                        SkillTreeGUI.handleResetClick(player, skillName);
+                    }
                     return;
                 }
             }

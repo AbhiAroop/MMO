@@ -4,6 +4,7 @@ com\server\profiles\skills\abilities\gui\AbilityGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
 com\server\events\CustomMobListener.class
 com\server\entities\mobs\CustomMob$1.class
+com\server\profiles\skills\gui\SkillTreeGUI$1.class
 com\server\entities\npc\CombatHandler$1.class
 com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
@@ -42,6 +43,7 @@ com\server\entities\npc\behaviors\FleeingBehavior$2.class
 com\server\profiles\ProfileManager$3.class
 com\server\abilities\AbilityManager$3.class
 com\server\profiles\skills\gui\RewardsGUI.class
+com\server\profiles\skills\tokens\SkillToken$1.class
 com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
@@ -50,6 +52,7 @@ com\server\commands\NPCCommand.class
 com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
 com\server\profiles\skills\data\PlayerSkillData.class
+com\server\profiles\skills\tokens\SkillToken$TokenTier.class
 com\server\profiles\skills\trees\SkillTreeRegistry.class
 com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.class
 com\server\profiles\skills\data\SkillReward.class

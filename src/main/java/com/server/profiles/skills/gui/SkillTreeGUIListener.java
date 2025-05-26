@@ -17,9 +17,6 @@ import com.server.profiles.skills.core.SkillRegistry;
  */
 public class SkillTreeGUIListener implements Listener {
 
-    /**
-     * Handle inventory clicks in skill tree GUIs
-     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
@@ -40,27 +37,29 @@ public class SkillTreeGUIListener implements Listener {
             ItemStack clickedItem = event.getCurrentItem();
             String itemName = clickedItem.getItemMeta().getDisplayName();
             
-            // Back button - UPDATED to go back to main skill details only
-            if (itemName.equals(ChatColor.RED + "Back to Skills")) {
-                player.closeInventory();
-                
-                // Extract the skill name from the GUI title
-                String skillName = title.substring(SkillTreeGUI.GUI_TITLE_PREFIX.length());
-                Skill skill = findSkillByDisplayName(skillName);
-                
-                // Always open the main skill details (since only main skills have trees)
-                if (skill != null && skill.isMainSkill()) {
-                    org.bukkit.Bukkit.getScheduler().runTaskLater(
-                        com.server.Main.getInstance(), 
-                        () -> SkillDetailsGUI.openSkillDetailsMenu(player, skill), 
-                        1L);
-                } else {
-                    // Fallback to main skills menu if skill not found
-                    org.bukkit.Bukkit.getScheduler().runTaskLater(
-                        com.server.Main.getInstance(), 
-                        () -> SkillsGUI.openSkillsMenu(player), 
-                        1L);
+            // Handle the corrected back button that goes to skill details
+            if (itemName.contains("« Back to") && itemName.contains("Details")) {
+                // Extract skill ID from lore
+                String skillId = getSkillIdFromBackButton(clickedItem);
+                if (skillId != null) {
+                    Skill skill = SkillRegistry.getInstance().getSkill(skillId);
+                    if (skill != null) {
+                        player.closeInventory();
+                        SkillDetailsGUI.openSkillDetailsMenu(player, skill);
+                        return;
+                    }
                 }
+                
+                // Fallback: go to skills menu if skill ID not found
+                player.closeInventory();
+                SkillsGUI.openSkillsMenu(player);
+                return;
+            }
+            
+            // Handle old format back button for backward compatibility
+            if (itemName.equals(ChatColor.RED + "« Back to Skills")) {
+                player.closeInventory();
+                SkillsGUI.openSkillsMenu(player);
                 return;
             }
             
@@ -72,7 +71,9 @@ public class SkillTreeGUIListener implements Listener {
             
             // Check if this is the reset button
             if (isResetButton(clickedItem)) {
-                SkillTreeGUI.handleResetClick(player);
+                // Extract skill name from title
+                String skillName = title.substring(SkillTreeGUI.GUI_TITLE_PREFIX.length());
+                SkillTreeGUI.handleResetClick(player, skillName);
                 return;
             }
             
@@ -82,6 +83,24 @@ public class SkillTreeGUIListener implements Listener {
                 return;
             }
         }
+    }
+
+    /**
+     * Extract skill ID from back button lore
+     */
+    private String getSkillIdFromBackButton(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+            return null;
+        }
+        
+        List<String> lore = item.getItemMeta().getLore();
+        for (String line : lore) {
+            if (line.startsWith(ChatColor.BLACK + "SKILL_ID:")) {
+                return line.substring((ChatColor.BLACK + "SKILL_ID:").length());
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -95,6 +114,42 @@ public class SkillTreeGUIListener implements Listener {
         List<String> lore = item.getItemMeta().getLore();
         for (String line : lore) {
             if (line.equals(ChatColor.BLACK + "RESET_BUTTON")) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if an item is a navigation button
+     */
+    private boolean isNavigationButton(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+            return false;
+        }
+        
+        List<String> lore = item.getItemMeta().getLore();
+        for (String line : lore) {
+            if (line.startsWith(ChatColor.BLACK + "NAVIGATION:")) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if an item is a skill tree node
+     */
+    private boolean isSkillTreeNode(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+            return false;
+        }
+        
+        List<String> lore = item.getItemMeta().getLore();
+        for (String line : lore) {
+            if (line.startsWith(ChatColor.BLACK + "ID:")) {
                 return true;
             }
         }
@@ -157,41 +212,5 @@ public class SkillTreeGUIListener implements Listener {
             }
         }
         return null;
-    }
-    
-    /**
-     * Check if an item is a navigation button
-     */
-    private boolean isNavigationButton(ItemStack item) {
-        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
-            return false;
-        }
-        
-        List<String> lore = item.getItemMeta().getLore();
-        for (String line : lore) {
-            if (line.startsWith(ChatColor.BLACK + "DIRECTION:")) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Check if an item is a skill tree node
-     */
-    private boolean isSkillTreeNode(ItemStack item) {
-        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
-            return false;
-        }
-        
-        List<String> lore = item.getItemMeta().getLore();
-        for (String line : lore) {
-            if (line.startsWith(ChatColor.BLACK + "ID:")) {
-                return true;
-            }
-        }
-        
-        return false;
     }
 }
