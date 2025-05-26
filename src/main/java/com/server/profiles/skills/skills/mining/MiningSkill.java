@@ -159,6 +159,25 @@ public class MiningSkill extends AbstractSkill {
                         " to " + player.getName() + " (old: " + oldSpeed + ", new: " + newSpeed + ")");
                 }
                 break;
+
+            case "mining_armor":
+                // Apply mining armor bonus (+3 default armor)
+                int armorIncrease = (newLevel - oldLevel) * 3;
+                int oldArmor = stats.getArmor();
+                stats.increaseDefaultArmor(armorIncrease);
+                int newArmor = stats.getArmor();
+                
+                player.sendMessage(ChatColor.GREEN + "Mining Armor increased by " + 
+                                ChatColor.GRAY + "+" + armorIncrease + 
+                                ChatColor.GREEN + " (Total: " + ChatColor.GRAY + 
+                                newLevel * 3 + ChatColor.GREEN + ")");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Applied armor increase: " + armorIncrease + 
+                        " to " + player.getName() + " (old: " + oldArmor + ", new: " + newArmor + ")");
+                }
+                break;
                 
             default:
                 if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
@@ -220,6 +239,24 @@ public class MiningSkill extends AbstractSkill {
             if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
                 Main.getInstance().debugLog(DebugSystem.SKILLS, 
                     "[Mining] Removed speed bonus: " + speedToRemove + 
+                    " from " + player.getName());
+            }
+        }
+
+        // Remove mining armor bonuses
+        if (oldNodeLevels.containsKey("mining_armor")) {
+            int armorLevel = oldNodeLevels.get("mining_armor");
+            int armorToRemove = armorLevel * 3;
+            
+            stats.increaseDefaultArmor(-armorToRemove);
+            
+            player.sendMessage(ChatColor.GRAY + "Mining Armor bonus of " + 
+                            ChatColor.GRAY + armorToRemove + 
+                            ChatColor.GRAY + " has been removed");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Removed armor bonus: " + armorToRemove + 
                     " from " + player.getName());
             }
         }

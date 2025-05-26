@@ -92,5 +92,24 @@ public class MiningTreeBuilder implements SkillTreeBuilder {
         );
         tree.addNode(miningSpeedNode);
         tree.addConnection("root", "mining_speed");
+
+        // =====================================================================
+        // MINING ARMOR NODE (FAR RIGHT)
+        // =====================================================================
+        
+        SkillTreeNode miningArmorNode = new SkillTreeNode(
+            "mining_armor",
+            "Mining Armor",
+            "Increases your default armor by 3 points\n" +
+            "Better protection while mining in dangerous areas\n" +
+            "Single upgrade node",
+            Material.IRON_CHESTPLATE,
+            ChatColor.GRAY,
+            4, 0, // Far right side with 1 slot gap from mining_speed
+            2, // Costs 2 basic tokens
+            SkillToken.TokenTier.BASIC
+        );
+        tree.addNode(miningArmorNode);
+        tree.addConnection("mining_speed", "mining_armor");
     }
 }

@@ -690,4 +690,20 @@ public class PlayerStats {
         this.miningFortune += amount;
     }
 
+    /**
+     * Increase the default armor by a specific amount
+     * This method ensures both default and current values are updated properly
+     */
+    public void increaseDefaultArmor(int amount) {
+        this.defaultArmor += amount;
+        this.armor += amount;
+        
+        // Ensure values don't go below 0 (minimum armor)
+        if (this.defaultArmor < 0) {
+            this.defaultArmor = 0;
+        }
+        if (this.armor < 0) {
+            this.armor = 0;
+        }
+    }
 }

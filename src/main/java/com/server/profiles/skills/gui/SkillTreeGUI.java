@@ -803,92 +803,287 @@ public class SkillTreeGUI {
     }
 
     /**
-     * Handle a node click in the skill tree
-     */
-    public static void handleNodeClick(Player player, ItemStack clickedItem) {
-        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasLore()) return;
-        
-        String nodeId = null;
-        for (String lore : clickedItem.getItemMeta().getLore()) {
-            if (lore.startsWith(ChatColor.BLACK + "ID:")) {
-                nodeId = lore.substring((ChatColor.BLACK + "ID:").length());
-                break;
-            }
-        }
-        
-        if (nodeId == null) return;
-        
-        // Get skill from GUI title
-        String title = player.getOpenInventory().getTitle();
-        if (!title.startsWith(GUI_TITLE_PREFIX)) return;
-        
-        String skillName = title.substring(GUI_TITLE_PREFIX.length());
-        Skill skill = findSkillByDisplayName(skillName);
-        if (skill == null) return;
-        
-        // Get player profile
-        PlayerProfile profile = getPlayerProfile(player);
-        if (profile == null) return;
-        
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
-        if (tree == null) return;
-        
-        SkillTreeNode node = tree.getNode(nodeId);
-        if (node == null) return;
-        
-        // Check if node is available
-        Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
-        Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
-        
-        if (!tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
-            player.sendMessage(ChatColor.RED + "You must unlock prerequisite nodes first!");
-            return;
-        }
-        
-        // Get current level and check if we can upgrade
-        int currentLevel = nodeLevels.getOrDefault(nodeId, 0);
-        int nextLevel = currentLevel + 1;
-        
-        if (nextLevel > node.getMaxLevel()) {
-            player.sendMessage(ChatColor.YELLOW + "This node is already at maximum level!");
-            return;
-        }
-        
-        // Get token cost for the next level
-        int tokenCost = node.getTokenCost(nextLevel);
-        SkillToken.TokenTier requiredTier = node.getRequiredTokenTier();
-        
-        // Check if player has enough tokens
-        if (!treeData.useTokens(skill.getId(), requiredTier, tokenCost)) {
-            player.sendMessage(ChatColor.RED + "You need " + tokenCost + " " + 
-                            requiredTier.getColor() + requiredTier.getDisplayName() + 
-                            ChatColor.RED + " tokens to upgrade this node!");
-            return;
-        }
-        
-        // FIXED: Use setNodeLevel directly instead of upgradeNode to avoid double processing
-        treeData.setNodeLevel(skill.getId(), nodeId, nextLevel);
-        
-        // Apply node benefits directly through the main skill
-        if (skill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
-            com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
-                (com.server.profiles.skills.skills.mining.MiningSkill) skill;
-            miningSkill.applyNodeUpgrade(player, nodeId, currentLevel, nextLevel);
-        }
-        // Add other main skills here as they are implemented
-        
-        // Play success sound
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2.0f);
-        
-        // Refresh the GUI
-        openSkillTreeGUI(player, skill);
-        
-        if (Main.getInstance().isDebugMode()) {
-            Main.getInstance().getLogger().info("[SkillTreeGUI] Node " + nodeId + 
-                                            " upgraded to level " + nextLevel + " for " + player.getName());
+ * Handle a node click in the skill tree
+ */
+public static void handleNodeClick(Player player, ItemStack clickedItem) {
+    if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasLore()) return;
+    
+    String nodeId = null;
+    for (String lore : clickedItem.getItemMeta().getLore()) {
+        if (lore.startsWith(ChatColor.BLACK + "ID:")) {
+            nodeId = lore.substring((ChatColor.BLACK + "ID:").length());
+            break;
         }
     }
+    
+    if (nodeId == null) return;
+    
+    // Get skill from GUI title
+    String title = player.getOpenInventory().getTitle();
+    if (!title.startsWith(GUI_TITLE_PREFIX)) return;
+    
+    String skillName = title.substring(GUI_TITLE_PREFIX.length());
+    Skill skill = findSkillByDisplayName(skillName);
+    if (skill == null) return;
+    
+    // Get player profile
+    PlayerProfile profile = getPlayerProfile(player);
+    if (profile == null) return;
+    
+    PlayerSkillTreeData treeData = profile.getSkillTreeData();
+    SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
+    if (tree == null) return;
+    
+    SkillTreeNode node = tree.getNode(nodeId);
+    if (node == null) return;
+    
+    // Check if node is available
+    Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
+    Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
+    
+    if (!tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
+        player.sendMessage(ChatColor.RED + "You must unlock prerequisite nodes first!");
+        return;
+    }
+    
+    // Get current level and check if we can upgrade
+    int currentLevel = nodeLevels.getOrDefault(nodeId, 0);
+    int nextLevel = currentLevel + 1;
+    
+    if (nextLevel > node.getMaxLevel()) {
+        player.sendMessage(ChatColor.YELLOW + "This node is already at maximum level!");
+        return;
+    }
+    
+    // Get token cost for the next level
+    int tokenCost = node.getTokenCost(nextLevel);
+    SkillToken.TokenTier requiredTier = node.getRequiredTokenTier();
+    
+    // Check if player has enough tokens
+    if (!treeData.useTokens(skill.getId(), requiredTier, tokenCost)) {
+        player.sendMessage(ChatColor.RED + "You need " + tokenCost + " " + 
+                          requiredTier.getColor() + requiredTier.getDisplayName() + 
+                          ChatColor.RED + " tokens to upgrade this node!");
+        return;
+    }
+    
+    // PRESERVE CURRENT VIEW POSITION
+    TreeGridPosition currentPos = playerViewPositions.get(player);
+    int centerX = 0, centerY = 0;
+    if (currentPos != null) {
+        centerX = currentPos.getX();
+        centerY = currentPos.getY();
+    }
+    
+    // Use setNodeLevel directly instead of upgradeNode to avoid double processing
+    treeData.setNodeLevel(skill.getId(), nodeId, nextLevel);
+    
+    // Apply node benefits directly through the main skill
+    if (skill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
+        com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
+            (com.server.profiles.skills.skills.mining.MiningSkill) skill;
+        miningSkill.applyNodeUpgrade(player, nodeId, currentLevel, nextLevel);
+    }
+    // Add other main skills here as they are implemented
+    
+    // Play success sound
+    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2.0f);
+    
+    // FIXED: Refresh the GUI at the same position instead of resetting to (0,0)
+    openSkillTreeAtPosition(player, skill, centerX, centerY);
+    
+    if (Main.getInstance().isDebugMode()) {
+        Main.getInstance().getLogger().info("[SkillTreeGUI] Node " + nodeId + 
+                                          " upgraded to level " + nextLevel + " for " + player.getName() + 
+                                          " at view position (" + centerX + "," + centerY + ")");
+    }
+}
+
+/**
+ * Handle a navigation button click
+ */
+public static void handleNavigationClick(Player player, ItemStack clickedItem) {
+    if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasLore()) return;
+    
+    String direction = null;
+    for (String lore : clickedItem.getItemMeta().getLore()) {
+        if (lore.startsWith(ChatColor.BLACK + "NAVIGATION:")) {
+            direction = lore.substring((ChatColor.BLACK + "NAVIGATION:").length());
+            break;
+        }
+    }
+    
+    if (direction == null) return;
+    
+    // Get current position
+    TreeGridPosition currentPos = playerViewPositions.get(player);
+    if (currentPos == null) {
+        currentPos = new TreeGridPosition(0, 0);
+    }
+    
+    // Calculate new position
+    int newX = currentPos.getX();
+    int newY = currentPos.getY();
+    
+    switch (direction.toLowerCase()) {
+        case "north":
+            newY--;
+            break;
+        case "south":
+            newY++;
+            break;
+        case "west":
+            newX--;
+            break;
+        case "east":
+            newX++;
+            break;
+    }
+    
+    // Get skill from GUI title
+    String title = player.getOpenInventory().getTitle();
+    if (!title.startsWith(GUI_TITLE_PREFIX)) return;
+    
+    String skillName = title.substring(GUI_TITLE_PREFIX.length());
+    Skill skill = findSkillByDisplayName(skillName);
+    if (skill == null) return;
+    
+    // Open at new position
+    openSkillTreeAtPosition(player, skill, newX, newY);
+    
+    if (Main.getInstance().isDebugMode()) {
+        Main.getInstance().getLogger().info("[SkillTreeGUI] Navigation: " + direction + 
+                                          " for " + player.getName() + 
+                                          " to position (" + newX + "," + newY + ")");
+    }
+}
+
+/**
+ * Handle reset button click with position preservation
+ */
+public static void handleResetClick(Player player, String skillName) {
+    // Find the skill
+    Skill skill = findSkillByDisplayName(skillName);
+    if (skill == null) {
+        player.sendMessage(ChatColor.RED + "Error: Skill not found.");
+        return;
+    }
+    
+    // Get player profile
+    PlayerProfile profile = getPlayerProfile(player);
+    if (profile == null) return;
+    
+    PlayerSkillTreeData treeData = profile.getSkillTreeData();
+    if (treeData == null) return;
+    
+    // Get skill tree
+    SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
+    if (tree == null) {
+        player.sendMessage(ChatColor.RED + "Error: Skill tree not found.");
+        return;
+    }
+    
+    // Calculate what tokens would be refunded
+    Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
+    Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
+    Map<SkillToken.TokenTier, Integer> tokensToRefund = calculateTokensToRefund(tree, unlockedNodes, nodeLevels);
+    
+    // Calculate total tokens to refund
+    int totalTokensToRefund = 0;
+    for (int count : tokensToRefund.values()) {
+        totalTokensToRefund += count;
+    }
+    
+    if (totalTokensToRefund == 0) {
+        player.sendMessage(ChatColor.YELLOW + "No tokens to refund - no unlocked nodes found.");
+        return;
+    }
+    
+    // Open confirmation GUI
+    ConfirmationGUI.openResetConfirmationGUI(player, skill);
+}
+
+/**
+ * Handle reset confirmation - FIXED to preserve view position
+ */
+public static boolean handleResetConfirmation(Player player) {
+    // Get skill from metadata
+    if (!player.hasMetadata("pending_reset_skill")) {
+        player.sendMessage(ChatColor.RED + "No pending reset found.");
+        return false;
+    }
+    
+    String skillId = player.getMetadata("pending_reset_skill").get(0).asString();
+    Skill skill = SkillRegistry.getInstance().getSkill(skillId);
+    if (skill == null) {
+        player.sendMessage(ChatColor.RED + "Skill not found.");
+        return false;
+    }
+    
+    // Get player profile
+    PlayerProfile profile = getPlayerProfile(player);
+    if (profile == null) return false;
+    
+    PlayerSkillTreeData treeData = profile.getSkillTreeData();
+    
+    // PRESERVE CURRENT VIEW POSITION BEFORE RESET
+    TreeGridPosition currentPos = playerViewPositions.get(player);
+    int centerX = 0, centerY = 0;
+    if (currentPos != null) {
+        centerX = currentPos.getX();
+        centerY = currentPos.getY();
+    }
+    
+    // Perform reset with tiered token support
+    Map<SkillToken.TokenTier, Integer> refundedTokens = resetSkillTreeWithTierRefund(treeData, skillId);
+    
+    // Calculate total refunded
+    int totalRefunded = 0;
+    for (Map.Entry<SkillToken.TokenTier, Integer> entry : refundedTokens.entrySet()) {
+        SkillToken.TokenTier tier = entry.getKey();
+        int count = entry.getValue();
+        
+        if (count > 0) {
+            totalRefunded += count;
+            player.sendMessage(ChatColor.GREEN + "Refunded " + 
+                             tier.getColor() + count + " " + tier.getDisplayName() + 
+                             ChatColor.GREEN + " tokens");
+        }
+    }
+    
+    if (totalRefunded == 0) {
+        player.sendMessage(ChatColor.YELLOW + "No tokens were refunded (no unlocked nodes found).");
+    }
+    
+    // Clean up metadata
+    player.removeMetadata("pending_reset_skill", Main.getInstance());
+    
+    // FIXED: Open the skill tree again at the preserved position
+    openSkillTreeAtPosition(player, skill, centerX, centerY);
+    
+    return true;
+}
+
+/**
+ * Clear a player's view position when they close the GUI
+ */
+public static void clearPlayerViewPosition(Player player) {
+    playerViewPositions.remove(player);
+}
+
+/**
+ * Get a player's current view position
+ */
+public static TreeGridPosition getPlayerViewPosition(Player player) {
+    return playerViewPositions.get(player);
+}
+
+/**
+ * Set a player's view position
+ */
+public static void setPlayerViewPosition(Player player, TreeGridPosition position) {
+    playerViewPositions.put(player, position);
+}
 
     /**
      * Smart token usage that tries to use tokens efficiently
@@ -972,69 +1167,6 @@ public class SkillTreeGUI {
         }
         
         return tokensToRefund;
-    }
-
-    /**
-     * Handle the confirmation of a skill tree reset with tiered tokens
-     */
-    public static boolean handleResetConfirmation(Player player) {
-        UUID playerId = player.getUniqueId();
-        if (!resetConfirmations.containsKey(playerId)) {
-            return false;
-        }
-        
-        PlayerProfile profile = getPlayerProfile(player);
-        if (profile == null) return false;
-        
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        if (treeData == null) return false;
-        
-        // Get the reset data from the confirmation system
-        String skillId = null;
-        ResetData resetData = null;
-        
-        Map<String, ResetData> playerResets = resetConfirmations.get(playerId);
-        for (Map.Entry<String, ResetData> entry : playerResets.entrySet()) {
-            skillId = entry.getKey();
-            resetData = entry.getValue();
-            break; // Get the first (and should be only) entry
-        }
-        
-        if (skillId == null || resetData == null) return false;
-        
-        Skill skill = SkillRegistry.getInstance().getSkill(skillId);
-        if (skill == null) return false;
-        
-        // Perform the reset with tiered token refunds
-        Map<SkillToken.TokenTier, Integer> refundedTokens = resetSkillTreeWithTierRefund(treeData, skillId);
-        
-        // Clear the reset confirmation
-        resetConfirmations.remove(playerId);
-        
-        // Notify the player with detailed refund information
-        player.sendMessage(ChatColor.GREEN + "Your " + ChatColor.GOLD + skill.getDisplayName() + 
-                        ChatColor.GREEN + " skill tree has been reset.");
-        
-        int totalRefunded = 0;
-        for (Map.Entry<SkillToken.TokenTier, Integer> entry : refundedTokens.entrySet()) {
-            SkillToken.TokenTier tier = entry.getKey();
-            int count = entry.getValue();
-            
-            if (count > 0) {
-                totalRefunded += count;
-                player.sendMessage(ChatColor.GREEN + "Refunded " + ChatColor.YELLOW + count + " " + 
-                                tier.getColor() + tier.getDisplayName() + ChatColor.GREEN + " tokens");
-            }
-        }
-        
-        if (totalRefunded == 0) {
-            player.sendMessage(ChatColor.YELLOW + "No tokens were refunded (no unlocked nodes found).");
-        }
-        
-        // Open the skill tree again
-        openSkillTreeGUI(player, skill);
-        
-        return true;
     }
 
     /**
@@ -1145,66 +1277,6 @@ public class SkillTreeGUI {
         if (activeSlot == null) return null;
         
         return ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
-    }
-
-    /**
-     * Handle a navigation button click
-     */
-    public static void handleNavigationClick(Player player, ItemStack clickedItem) {
-        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasLore()) return;
-        
-        String direction = null;
-        for (String lore : clickedItem.getItemMeta().getLore()) {
-            if (lore.startsWith(ChatColor.BLACK + "NAVIGATION:")) {
-                direction = lore.substring((ChatColor.BLACK + "NAVIGATION:").length());
-                break;
-            }
-        }
-        
-        if (direction == null) return;
-        
-        // Get current position
-        TreeGridPosition currentPos = playerViewPositions.get(player);
-        if (currentPos == null) {
-            currentPos = new TreeGridPosition(0, 0);
-        }
-        
-        // Calculate new position
-        int newX = currentPos.getX();
-        int newY = currentPos.getY();
-        
-        switch (direction.toLowerCase()) {
-            case "north":
-                newY--;
-                break;
-            case "south":
-                newY++;
-                break;
-            case "west":
-                newX--;
-                break;
-            case "east":
-                newX++;
-                break;
-        }
-        
-        // Get skill from GUI title
-        String title = player.getOpenInventory().getTitle();
-        if (!title.startsWith(GUI_TITLE_PREFIX)) return;
-        
-        String skillName = title.substring(GUI_TITLE_PREFIX.length());
-        Skill skill = findSkillByDisplayName(skillName);
-        if (skill == null) return;
-        
-        // Open at new position
-        openSkillTreeAtPosition(player, skill, newX, newY);
-    }
-
-    /**
-     * Clear a player's view position
-     */
-    public static void clearPlayerViewPosition(Player player) {
-        playerViewPositions.remove(player);
     }
     
    /**
@@ -1663,50 +1735,6 @@ public class SkillTreeGUI {
         return x < minX || x > maxX || y < minY || y > maxY;
     }
 
-    /**
-     * Handle reset button click with tiered token support
-     */
-    public static void handleResetClick(Player player, String skillName) {
-        // Find the skill
-        Skill skill = findSkillByDisplayName(skillName);
-        if (skill == null) {
-            player.sendMessage(ChatColor.RED + "Error: Skill not found.");
-            return;
-        }
-        
-        // Get player profile
-        PlayerProfile profile = getPlayerProfile(player);
-        if (profile == null) return;
-        
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        if (treeData == null) return;
-        
-        // Get skill tree
-        SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
-        if (tree == null) {
-            player.sendMessage(ChatColor.RED + "Error: Skill tree not found.");
-            return;
-        }
-        
-        // Calculate what tokens would be refunded
-        Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
-        Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
-        Map<SkillToken.TokenTier, Integer> tokensToRefund = calculateTokensToRefund(tree, unlockedNodes, nodeLevels);
-        
-        // Calculate total tokens to refund
-        int totalTokensToRefund = 0;
-        for (int count : tokensToRefund.values()) {
-            totalTokensToRefund += count;
-        }
-        
-        if (totalTokensToRefund == 0) {
-            player.sendMessage(ChatColor.YELLOW + "No tokens to refund - no unlocked nodes found.");
-            return;
-        }
-        
-        // Open confirmation GUI
-        ConfirmationGUI.openResetConfirmationGUI(player, skill);
-}
 
     /**
      * Find a skill by its display name

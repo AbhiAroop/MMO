@@ -722,4 +722,6 @@ public class PlayerProfile {
     public boolean isMaxProfileLevel() {
         return profileLevel >= MAX_PROFILE_LEVEL;
     }
+
+    
 }
