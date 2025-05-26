@@ -6,6 +6,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
+
+import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.AbstractSkill;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillType;
@@ -16,6 +23,7 @@ import com.server.profiles.skills.rewards.rewards.ItemReward;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * The Mining skill - focused on mining ores and stone to collect valuable resources
@@ -50,81 +58,171 @@ public class MiningSkill extends AbstractSkill {
     }
     
     private void initializeSubskills() {
-        // Create the subskills
-        OreExtractionSubskill oreExtraction = new OreExtractionSubskill(this);
-        GemCarvingSubskill gemCarving = new GemCarvingSubskill(this);
-        
-        // Add them to the AbstractSkill's subskills list using the addSubskill method
-        addSubskill(oreExtraction);
-        addSubskill(gemCarving);
-        
-        // Future subskills
-        // addSubskill(new OreEfficiencySubskill(this));
-        // addSubskill(new RareFindsSubskill(this));
-        // addSubskill(new StoneBreakerSubskill(this));
+        // Add subskills
+        this.subskills.add(new OreExtractionSubskill(this));
+        this.subskills.add(new GemCarvingSubskill(this));
     }
     
     /**
      * Initialize the rewards for each level
      */
     private void initializeRewards() {
-        // Level 5: Mining Fortune +0.20, Currency +100 (Milestone level)
+        // Level 5: Basic stat boost
         List<SkillReward> level5Rewards = new ArrayList<>();
-        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.20));
-        level5Rewards.add(new CurrencyReward(100));
+        level5Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.1));
+        level5Rewards.add(new CurrencyReward("coins", 100));
         rewardsByLevel.put(5, level5Rewards);
         
-        // Level 10: Mining Fortune +0.30, Luck +1 (Milestone level)
+        // Level 10: Item reward
         List<SkillReward> level10Rewards = new ArrayList<>();
-        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.30));
-        level10Rewards.add(new StatReward(SkillRewardType.LUCK, 1));
+        level10Rewards.add(new ItemReward("iron_pickaxe", 1));
+        level10Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.2));
         rewardsByLevel.put(10, level10Rewards);
         
-        // Level 15: Mining Fortune +0.25 (Milestone level)
-        List<SkillReward> level15Rewards = new ArrayList<>();
-        level15Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.25));
-        rewardsByLevel.put(15, level15Rewards);
+        // Add more rewards for other milestone levels
+        for (int level : MILESTONE_LEVELS) {
+            if (level > 10) {
+                List<SkillReward> rewards = new ArrayList<>();
+                rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.1 * (level / 5)));
+                rewards.add(new CurrencyReward("coins", 50 * level));
+                rewardsByLevel.put(level, rewards);
+            }
+        }
+    }
+    
+    /**
+     * Handle skill tree node upgrades for the Mining skill
+     */
+    public void applyNodeUpgrade(Player player, String nodeId, int oldLevel, int newLevel) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                "[Mining] Applying node upgrade: " + nodeId + " from " + oldLevel + " to " + newLevel);
+        }
         
-        // Level 20: Mining Fortune +0.30, Currency +250 (Milestone level)
-        List<SkillReward> level20Rewards = new ArrayList<>();
-        level20Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.30));
-        level20Rewards.add(new CurrencyReward(250));
-        rewardsByLevel.put(20, level20Rewards);
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, "[Mining] No active profile for " + player.getName());
+            }
+            return;
+        }
         
-        // Level 25: Mining Fortune +0.50, Currency +500 (Milestone level)
-        List<SkillReward> level25Rewards = new ArrayList<>();
-        level25Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.50));
-        level25Rewards.add(new CurrencyReward(500));
-        level25Rewards.add(new ItemReward("miners_toolkit", 1));
-        rewardsByLevel.put(25, level25Rewards);
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, "[Mining] No profile found for " + player.getName());
+            }
+            return;
+        }
         
-        // Level 30: Mining Fortune +0.35 (Milestone level)
-        List<SkillReward> level30Rewards = new ArrayList<>();
-        level30Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.35));
-        rewardsByLevel.put(30, level30Rewards);
+        PlayerStats stats = profile.getStats();
         
-        // Level 35: Mining Fortune +0.40 (Milestone level)
-        List<SkillReward> level35Rewards = new ArrayList<>();
-        level35Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.40));
-        rewardsByLevel.put(35, level35Rewards);
+        switch (nodeId) {
+            case "mining_fortune":
+                // Apply mining fortune bonus (0.5 per level)
+                double fortuneIncrease = (newLevel - oldLevel) * 0.5;
+                double oldFortune = stats.getMiningFortune();
+                stats.increaseDefaultMiningFortune(fortuneIncrease);
+                double newFortune = stats.getMiningFortune();
+                
+                player.sendMessage(ChatColor.GREEN + "Mining Fortune increased by " + 
+                                ChatColor.GOLD + "+" + fortuneIncrease + 
+                                ChatColor.GREEN + " (Total: " + ChatColor.GOLD + 
+                                String.format("%.1f", newLevel * 0.5) + ChatColor.GREEN + ")");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Applied fortune increase: " + fortuneIncrease + 
+                        " to " + player.getName() + " (old: " + oldFortune + ", new: " + newFortune + ")");
+                }
+                break;
+                
+            case "mining_speed":
+                // Apply mining speed bonus (0.01 per level)
+                double speedIncrease = (newLevel - oldLevel) * 0.01;
+                double oldSpeed = stats.getMiningSpeed();
+                stats.increaseDefaultMiningSpeed(speedIncrease);
+                double newSpeed = stats.getMiningSpeed();
+                
+                double totalSpeedBonus = newLevel * 0.01;
+                double percentageBonus = totalSpeedBonus * 100;
+                
+                player.sendMessage(ChatColor.GREEN + "Mining Speed increased by " + 
+                                ChatColor.AQUA + "+" + String.format("%.0f", speedIncrease * 100) + "%" +
+                                ChatColor.GREEN + " (Total: " + ChatColor.AQUA + 
+                                String.format("%.0f", percentageBonus) + "%" + ChatColor.GREEN + ")");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Applied speed increase: " + speedIncrease + 
+                        " to " + player.getName() + " (old: " + oldSpeed + ", new: " + newSpeed + ")");
+                }
+                break;
+                
+            default:
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Unknown node ID: " + nodeId);
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Handle skill tree reset for the Mining skill
+     */
+    public void handleSkillTreeReset(Player player, Map<String, Integer> oldNodeLevels) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                "[Mining] Handling skill tree reset for " + player.getName());
+        }
         
-        // Level 40: Mining Fortune +0.45, Currency +750 (Milestone level)
-        List<SkillReward> level40Rewards = new ArrayList<>();
-        level40Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.45));
-        level40Rewards.add(new CurrencyReward(750));
-        rewardsByLevel.put(40, level40Rewards);
+        // Get player profile
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return;
         
-        // Level 45: Mining Fortune +0.50 (Milestone level)
-        List<SkillReward> level45Rewards = new ArrayList<>();
-        level45Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 0.50));
-        rewardsByLevel.put(45, level45Rewards);
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return;
         
-        // Level 50: Mining Fortune +1.00, Currency +1000 (Milestone level - max level)
-        List<SkillReward> level50Rewards = new ArrayList<>();
-        level50Rewards.add(new StatReward(SkillRewardType.MINING_FORTUNE, 1.00));
-        level50Rewards.add(new CurrencyReward(1000));
-        level50Rewards.add(new ItemReward("masterful_pickaxe", 1));
-        rewardsByLevel.put(50, level50Rewards);
+        PlayerStats stats = profile.getStats();
+        
+        // Remove mining fortune bonuses
+        if (oldNodeLevels.containsKey("mining_fortune")) {
+            int fortuneLevel = oldNodeLevels.get("mining_fortune");
+            double fortuneToRemove = fortuneLevel * 0.5;
+            
+            stats.increaseDefaultMiningFortune(-fortuneToRemove);
+            
+            player.sendMessage(ChatColor.GRAY + "Mining Fortune bonus of " + 
+                             ChatColor.GOLD + fortuneToRemove + 
+                             ChatColor.GRAY + " has been removed");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Removed fortune bonus: " + fortuneToRemove + 
+                    " from " + player.getName());
+            }
+        }
+        
+        // Remove mining speed bonuses
+        if (oldNodeLevels.containsKey("mining_speed")) {
+            int speedLevel = oldNodeLevels.get("mining_speed");
+            double speedToRemove = speedLevel * 0.01;
+            
+            stats.increaseDefaultMiningSpeed(-speedToRemove);
+            
+            double percentageRemoved = speedToRemove * 100;
+            player.sendMessage(ChatColor.GRAY + "Mining Speed bonus of " + 
+                             ChatColor.AQUA + String.format("%.0f", percentageRemoved) + "%" +
+                             ChatColor.GRAY + " has been removed");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Removed speed bonus: " + speedToRemove + 
+                    " from " + player.getName());
+            }
+        }
     }
     
     @Override
@@ -134,7 +232,7 @@ public class MiningSkill extends AbstractSkill {
     
     @Override
     public Skill getParentSkill() {
-        return null; // This is a main skill, no parent
+        return null; // This is a main skill
     }
     
     @Override
@@ -159,7 +257,7 @@ public class MiningSkill extends AbstractSkill {
     
     @Override
     public double getXpForLevel(int level) {
-        return XP_REQUIREMENTS.getOrDefault(level, 9999999.0);
+        return XP_REQUIREMENTS.getOrDefault(level, 0.0);
     }
     
     /**
@@ -168,15 +266,12 @@ public class MiningSkill extends AbstractSkill {
      * @return A multiplier for mining fortune (1.0 = normal fortune)
      */
     public double getMiningFortuneBonus(int level) {
-        // Base bonus from main skill level: 0.01 per level
-        double bonus = 1.0 + (level * 0.01);
+        // Base bonus from main skill level
+        double bonus = 1.0 + (level * 0.01); // 1% per level
         
-        // Additional bonuses for milestone levels
-        if (level >= 10) bonus += 0.10;
-        if (level >= 25) bonus += 0.15;
-        if (level >= 50) bonus += 0.25;
+        // Add subskill bonuses if needed
+        // This can be extended later
         
-        // Return with full precision
         return bonus;
     }
 }

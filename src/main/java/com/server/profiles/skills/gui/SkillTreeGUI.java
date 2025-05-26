@@ -92,6 +92,9 @@ public class SkillTreeGUI {
         
         // REMOVED: No longer auto-unlock the root node
         // We want the player to click on it to unlock it first
+
+        // Fill empty slots
+        fillEmptySlots(gui);
         
         // Fill with skill tree nodes
         fillSkillTreeNodes(gui, tree, unlockedNodes, nodeLevels, centerX, centerY, treeData);
@@ -101,9 +104,6 @@ public class SkillTreeGUI {
         
         // Add info button
         addInfoButton(gui, skill, tokenCount);
-        
-        // Fill empty slots
-        fillEmptySlots(gui);
         
         // Open the inventory
         player.openInventory(gui);
@@ -512,7 +512,7 @@ public class SkillTreeGUI {
         }
         
         // Fill the rest with black panes
-        for (int i = 0; i < gui.getSize()-1; i++) {
+        for (int i = 0; i < gui.getSize(); i++) {
             if (gui.getItem(i) == null) {
                 gui.setItem(i, filler);
             }
@@ -803,29 +803,22 @@ public class SkillTreeGUI {
     }
 
     /**
-     * Handle a node click in the skill tree with tiered token support
+     * Handle a node click in the skill tree
      */
     public static void handleNodeClick(Player player, ItemStack clickedItem) {
-        PlayerProfile profile = getPlayerProfile(player);
-        if (profile == null) return;
+        if (!clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasLore()) return;
         
-        PlayerSkillTreeData treeData = profile.getSkillTreeData();
-        if (treeData == null) return;
-        
-        // Extract node ID from the item lore
         String nodeId = null;
-        if (clickedItem.hasItemMeta() && clickedItem.getItemMeta().hasLore()) {
-            for (String lore : clickedItem.getItemMeta().getLore()) {
-                if (lore.startsWith(ChatColor.BLACK + "ID:")) {
-                    nodeId = lore.substring((ChatColor.BLACK + "ID:").length());
-                    break;
-                }
+        for (String lore : clickedItem.getItemMeta().getLore()) {
+            if (lore.startsWith(ChatColor.BLACK + "ID:")) {
+                nodeId = lore.substring((ChatColor.BLACK + "ID:").length());
+                break;
             }
         }
         
         if (nodeId == null) return;
         
-        // Get the skill from the GUI title
+        // Get skill from GUI title
         String title = player.getOpenInventory().getTitle();
         if (!title.startsWith(GUI_TITLE_PREFIX)) return;
         
@@ -833,87 +826,67 @@ public class SkillTreeGUI {
         Skill skill = findSkillByDisplayName(skillName);
         if (skill == null) return;
         
+        // Get player profile
+        PlayerProfile profile = getPlayerProfile(player);
+        if (profile == null) return;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
         SkillTree tree = SkillTreeRegistry.getInstance().getSkillTree(skill);
         if (tree == null) return;
         
         SkillTreeNode node = tree.getNode(nodeId);
         if (node == null) return;
         
-        // Get current progress
+        // Check if node is available
         Set<String> unlockedNodes = treeData.getUnlockedNodes(skill.getId());
         Map<String, Integer> nodeLevels = treeData.getNodeLevels(skill.getId());
         
-        boolean isUnlocked = unlockedNodes.contains(nodeId);
+        if (!tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
+            player.sendMessage(ChatColor.RED + "You must unlock prerequisite nodes first!");
+            return;
+        }
+        
+        // Get current level and check if we can upgrade
         int currentLevel = nodeLevels.getOrDefault(nodeId, 0);
+        int nextLevel = currentLevel + 1;
         
-        // Check if the node can be upgraded
-        if (isUnlocked && currentLevel >= node.getMaxLevel()) {
-            player.sendMessage(ChatColor.RED + "This node is already at maximum level!");
+        if (nextLevel > node.getMaxLevel()) {
+            player.sendMessage(ChatColor.YELLOW + "This node is already at maximum level!");
             return;
         }
         
-        // Check if the node is available (prerequisites met)
-        if (!isUnlocked && !nodeId.equals("root") && !tree.isNodeAvailable(nodeId, unlockedNodes, nodeLevels)) {
-            player.sendMessage(ChatColor.RED + "You must unlock the prerequisite nodes first!");
-            return;
-        }
-        
-        // Calculate token cost
-        int targetLevel = isUnlocked ? currentLevel + 1 : 1;
-        int tokenCost = node.getTokenCost(targetLevel);
+        // Get token cost for the next level
+        int tokenCost = node.getTokenCost(nextLevel);
         SkillToken.TokenTier requiredTier = node.getRequiredTokenTier();
         
-        // Check if player can afford this with the required tier or higher
-        boolean canAfford = false;
-        int availableTokens = 0;
-        for (SkillToken.TokenTier tier : SkillToken.TokenTier.values()) {
-            if (tier.getLevel() >= requiredTier.getLevel()) {
-                availableTokens += treeData.getTokenCount(skill.getId(), tier);
-            }
-        }
-        canAfford = availableTokens >= tokenCost;
-        
-        if (!canAfford) {
+        // Check if player has enough tokens
+        if (!treeData.useTokens(skill.getId(), requiredTier, tokenCost)) {
             player.sendMessage(ChatColor.RED + "You need " + tokenCost + " " + 
                             requiredTier.getColor() + requiredTier.getDisplayName() + 
-                            ChatColor.RED + " tier tokens (or higher) to unlock this node!");
-            player.sendMessage(ChatColor.GRAY + "You have " + availableTokens + " compatible tokens.");
+                            ChatColor.RED + " tokens to upgrade this node!");
             return;
         }
         
-        // Use tokens (prioritize using exact tier first, then higher tiers)
-        boolean success = false;
-        if (treeData.getTokenCount(skill.getId(), requiredTier) >= tokenCost) {
-            // Use exact tier tokens first
-            success = treeData.useTokens(skill.getId(), requiredTier, tokenCost);
-        } else {
-            // Use higher tier tokens if needed
-            success = useTokensSmartly(treeData, skill.getId(), requiredTier, tokenCost);
-        }
+        // FIXED: Use setNodeLevel directly instead of upgradeNode to avoid double processing
+        treeData.setNodeLevel(skill.getId(), nodeId, nextLevel);
         
-        if (!success) {
-            player.sendMessage(ChatColor.RED + "Failed to use tokens. Please try again.");
-            return;
+        // Apply node benefits directly through the main skill
+        if (skill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
+            com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
+                (com.server.profiles.skills.skills.mining.MiningSkill) skill;
+            miningSkill.applyNodeUpgrade(player, nodeId, currentLevel, nextLevel);
         }
-        
-        // Unlock/upgrade the node
-        treeData.unlockNodeAtLevel(skill.getId(), nodeId, targetLevel);
+        // Add other main skills here as they are implemented
         
         // Play success sound
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2.0f);
         
-        // Send success message
-        String action = isUnlocked ? "upgraded" : "unlocked";
-        player.sendMessage(ChatColor.GREEN + "Successfully " + action + " " + 
-                        ChatColor.GOLD + node.getName() + ChatColor.GREEN + 
-                        " to level " + targetLevel + "!");
+        // Refresh the GUI
+        openSkillTreeGUI(player, skill);
         
-        // Reopen the GUI to show changes
-        TreeGridPosition currentPos = playerViewPositions.get(player);
-        if (currentPos != null) {
-            openSkillTreeAtPosition(player, skill, currentPos.getX(), currentPos.getY());
-        } else {
-            openSkillTreeGUI(player, skill);
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("[SkillTreeGUI] Node " + nodeId + 
+                                            " upgraded to level " + nextLevel + " for " + player.getName());
         }
     }
 

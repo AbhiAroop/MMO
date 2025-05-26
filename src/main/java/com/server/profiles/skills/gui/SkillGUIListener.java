@@ -35,7 +35,22 @@ public class SkillGUIListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         String title = event.getView().getTitle();
         
-        // Check if this is any of our skills-related GUI titles
+        // Debug output
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            ItemStack clickedItem = event.getCurrentItem();
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[DEBUG:GUI] GUI Click: " + player.getName() + 
+                ", Title: " + title + 
+                ", Slot: " + event.getRawSlot() + 
+                ", Item: " + (clickedItem != null ? clickedItem.getType() : "NULL"));
+        }
+        
+        // FIXED: Exclude Skill Tree GUI from this listener - let SkillTreeGUIListener handle it exclusively
+        if (title.startsWith(SkillTreeGUI.GUI_TITLE_PREFIX)) {
+            return;
+        }
+        
+        // Handle all other skill-related GUIs
         if (title.equals("✦ Skills Menu ✦") || 
             title.startsWith("Skill Details: ") || 
             title.startsWith("Subskills: ") ||
@@ -44,14 +59,15 @@ public class SkillGUIListener implements Listener {
             title.equals("Rewards") ||
             title.equals("Reset Confirmation") ||
             title.startsWith("Milestones: ") ||
-            title.startsWith(SkillTreeGUI.GUI_TITLE_PREFIX) ||
-            // FIXED: Better detection for SubskillDetails GUI
             (title.contains("Details") && (title.contains("Ore Extraction") || title.contains("Gem Carving"))) ||
             title.startsWith(ChatColor.GOLD + "✦")) {
             
             event.setCancelled(true);
             
-            if (event.getCurrentItem() == null) return;
+            // Handle clicks on items
+            if (event.getCurrentItem() == null || !event.getCurrentItem().hasItemMeta()) {
+                return;
+            }
             
             ItemStack clickedItem = event.getCurrentItem();
             
@@ -62,20 +78,14 @@ public class SkillGUIListener implements Listener {
                 handleSkillDetailsClick(player, clickedItem, event);
             } else if (title.startsWith("Subskills: ")) {
                 handleSubskillsMenuClick(player, clickedItem, event);
-            } else if (title.startsWith("Abilities: ")) {
-                // Handle abilities menu clicks
-                player.sendMessage(ChatColor.YELLOW + "Abilities system coming soon!");
+            } else if (title.startsWith(ChatColor.GOLD + "✦") && title.contains("Details")) {
+                handleSubskillDetailGUIClick(player, clickedItem);
             } else if (title.startsWith("Rewards: ") || title.equals("Rewards")) {
                 handleRewardsClick(player, clickedItem);
             } else if (title.startsWith("Milestones: ")) {
                 handleMilestonesClick(player, clickedItem, event);
-            } else if (title.startsWith(SkillTreeGUI.GUI_TITLE_PREFIX)) {
-                handleSkillTreeClick(player, clickedItem);
-            } 
-            // FIXED: Comprehensive SubskillDetails GUI detection
-            else if ((title.contains("Details") && (title.contains("Ore Extraction") || title.contains("Gem Carving"))) ||
-                    title.startsWith(ChatColor.GOLD + "✦")) {
-                handleSubskillDetailGUIClick(player, clickedItem);
+            } else if (title.equals("Reset Confirmation")) {
+                ConfirmationGUI.handleConfirmAction(player, clickedItem);
             }
         }
     }

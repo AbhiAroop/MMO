@@ -13,9 +13,6 @@ import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
-import com.server.profiles.skills.core.SubskillType;
-import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
-import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.profiles.skills.tokens.SkillToken;
 
 /**
@@ -239,8 +236,8 @@ public class PlayerSkillTreeData {
         unlockedNodeLevels.get(skillId).put(nodeId, level);
     }
     
-   /**
-     * Upgrade a node to the next level
+    /**
+     * Upgrade a node to the next level - SIMPLIFIED for main skills only
      * For special nodes, also update the permanent storage
      * @return The new level, or 0 if the node is not unlocked
      */
@@ -290,32 +287,22 @@ public class PlayerSkillTreeData {
         if (player != null) {
             // Apply benefits based on the skill tree type
             
-            // OreExtraction skill tree
-            if (skillId.equals("ore_extraction")) {
-                // Get the OreExtraction skill
-                Skill skill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
-                if (skill instanceof OreExtractionSubskill) {
-                    OreExtractionSubskill oreSkill = (OreExtractionSubskill) skill;
-                    // Apply the benefits from the upgrade
-                    oreSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
+            // Main skill upgrades - delegate to the skill class
+            Skill skill = SkillRegistry.getInstance().getSkill(skillId);
+            if (skill != null && skill.isMainSkill()) {
+                // Apply upgrades through the main skill
+                if (skill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
+                    com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
+                        (com.server.profiles.skills.skills.mining.MiningSkill) skill;
+                    miningSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
                 }
+                // Add other main skills here as they are implemented
             }
-            // GemCarving skill tree
-            else if (skillId.equals("gem_carving")) {
-                // Get the GemCarving skill
-                Skill skill = SkillRegistry.getInstance().getSubskill(SubskillType.GEM_CARVING);
-                if (skill instanceof GemCarvingSubskill) {
-                    GemCarvingSubskill gemSkill = (GemCarvingSubskill) skill;
-                    // Apply the benefits from the upgrade
-                    gemSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
-                    
-                    if (Main.getInstance().isDebugMode()) {
-                        Main.getInstance().getLogger().info("[PlayerSkillTreeData] Applied GemCarving node upgrade for " + 
-                                                    nodeId + " from level " + oldLevel + " to " + newLevel);
-                    }
-                }
+            
+            if (Main.getInstance().isDebugMode()) {
+                Main.getInstance().getLogger().info("[PlayerSkillTreeData] Applied upgrade for " + 
+                                                nodeId + " from level " + oldLevel + " to " + newLevel);
             }
-            // Add additional skill trees here as needed
         }
         
         return newLevel;
@@ -597,14 +584,19 @@ public class PlayerSkillTreeData {
     }
 
     /**
-     * Set the level of a node directly without unlocking it
+     * Set the level of a node directly - PUBLIC method for SkillTreeGUI
      */
-    private void setNodeLevel(String skillId, String nodeId, int level) {
+    public void setNodeLevel(String skillId, String nodeId, int level) {
         // Make sure the maps exist
         if (!unlockedNodeLevels.containsKey(skillId)) {
             unlockedNodeLevels.put(skillId, new HashMap<>());
         }
         unlockedNodeLevels.get(skillId).put(nodeId, level);
+        
+        if (Main.getInstance().isDebugMode()) {
+            Main.getInstance().getLogger().info("[PlayerSkillTreeData] Set node " + nodeId + 
+                                            " to level " + level + " for skill " + skillId);
+        }
     }
     
     /**
