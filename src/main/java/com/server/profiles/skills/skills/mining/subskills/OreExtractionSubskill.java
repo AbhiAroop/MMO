@@ -499,8 +499,83 @@ public class OreExtractionSubskill extends AbstractSkill {
             return treeData.isNodeUnlocked(this.getId(), "unlock_iron_ore");
         }
         
-        // Check for specific ore types - add more as needed
-        // For now, all other ores are locked until we add their specific unlock nodes
+        // Check for deepslate iron ore - require BOTH iron unlock AND deepslate unlock
+        if (material == Material.DEEPSLATE_IRON_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_iron_ore") && 
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        // NEW: Check for copper ore - use MAIN MINING skill tree, not subskill tree
+        if (material == Material.COPPER_ORE) {
+            // Get the main mining skill to check its tree
+            Skill miningSkill = this.getParentSkill();
+            if (miningSkill != null) {
+                return treeData.isNodeUnlocked(miningSkill.getId(), "unlock_copper_mining");
+            }
+            return false;
+        }
+        
+        // NEW: Check for deepslate copper ore - require BOTH copper unlock AND deepslate unlock
+        if (material == Material.DEEPSLATE_COPPER_ORE) {
+            Skill miningSkill = this.getParentSkill();
+            if (miningSkill != null) {
+                return treeData.isNodeUnlocked(miningSkill.getId(), "unlock_copper_mining") &&
+                    treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+            }
+            return false;
+        }
+        
+        // Check for gold ore and higher tier ores (for future implementation)
+        if (material == Material.GOLD_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_gold_ore");
+        }
+        
+        if (material == Material.DEEPSLATE_GOLD_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_gold_ore") &&
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        if (material == Material.REDSTONE_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_redstone_ore");
+        }
+        
+        if (material == Material.DEEPSLATE_REDSTONE_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_redstone_ore") &&
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        if (material == Material.LAPIS_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_lapis_ore");
+        }
+        
+        if (material == Material.DEEPSLATE_LAPIS_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_lapis_ore") &&
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        if (material == Material.DIAMOND_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_diamond_ore");
+        }
+        
+        if (material == Material.DEEPSLATE_DIAMOND_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_diamond_ore") &&
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        if (material == Material.EMERALD_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_emerald_ore");
+        }
+        
+        if (material == Material.DEEPSLATE_EMERALD_ORE) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_emerald_ore") &&
+                treeData.isNodeUnlocked(this.getId(), "unlock_deepslate_mining");
+        }
+        
+        // Nether ores (for future implementation)
+        if (material == Material.NETHER_GOLD_ORE || material == Material.NETHER_QUARTZ_ORE || 
+            material == Material.ANCIENT_DEBRIS) {
+            return treeData.isNodeUnlocked(this.getId(), "unlock_nether_mining");
+        }
         
         // Debug logging
         if (Main.getInstance().isDebugMode()) {
@@ -509,6 +584,27 @@ public class OreExtractionSubskill extends AbstractSkill {
         }
         
         return false;
+    }
+
+    /**
+     * Check if a material is an ore that this subskill affects
+     */
+    public boolean affectsOre(Material material) {
+        return AFFECTED_MATERIALS.contains(material);
+    }
+
+    /**
+     * Check if a player can gain XP from a specific ore material
+     * This combines both the ore unlock check and the affected materials check
+     */
+    public boolean canGainXpFromOre(Player player, Material material) {
+        // First check if we can mine this ore at all
+        if (!canMineOre(player, material)) {
+            return false;
+        }
+        
+        // Then check if this subskill affects this material
+        return affectsOre(material);
     }
 
     /**

@@ -111,5 +111,24 @@ public class MiningTreeBuilder implements SkillTreeBuilder {
         );
         tree.addNode(miningArmorNode);
         tree.addConnection("mining_speed", "mining_armor");
-    }
+
+        // =====================================================================
+        // COPPER ORE UNLOCK NODE (ABOVE MINING ARMOR)
+        // =====================================================================
+        
+        SkillTreeNode copperUnlockNode = new SkillTreeNode(
+            "unlock_copper_mining",
+            "Copper Mining",
+            "Unlocks the ability to mine Copper Ore and Deepslate Copper Ore\n" +
+            "Enables XP gain from copper-based materials\n" +
+            "Prerequisite for advanced ore mining techniques",
+            Material.COPPER_ORE,
+            ChatColor.GOLD,
+            4, -2, // Above the mining armor node
+            1, // Costs 2 basic tokens
+            SkillToken.TokenTier.ADVANCED
+        );
+        tree.addNode(copperUnlockNode);
+        tree.addConnection("mining_armor", "unlock_copper_mining");
+    }    
 }

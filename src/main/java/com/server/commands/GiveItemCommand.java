@@ -30,6 +30,14 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
         itemCreators.put("siphonfang", CustomItems::createSiphonFang);
         itemCreators.put("fleshrake", CustomItems::createFleshrake);
         itemCreators.put("shatteredshell", CustomItems::createShatteredShellPickaxe);
+         itemCreators.put("rustypickaxe", CustomItems::createRustyCrumbledPickaxe);
+        itemCreators.put("rustycrumbled", CustomItems::createRustyCrumbledPickaxe);
+        itemCreators.put("rootpickaxe", CustomItems::createRootCrackedPickaxe);
+        itemCreators.put("rootcracked", CustomItems::createRootCrackedPickaxe);
+        itemCreators.put("copperheadpickaxe", CustomItems::createCopperheadPickaxe);
+        itemCreators.put("copperhead", CustomItems::createCopperheadPickaxe);
+        itemCreators.put("forgedcopper", CustomItems::createForgedCopperPickaxe);
+        itemCreators.put("forgedcopperpickaxe", CustomItems::createForgedCopperPickaxe);
 
         // Add Wanderer's Weave armor pieces individually
         itemCreators.put("wanderershood", CustomItems::createWanderersWeaveHood);

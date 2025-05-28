@@ -399,5 +399,120 @@ public class CustomItems {
         item.setItemMeta(meta);
         return item;
     }
+
+    public static ItemStack createRustyCrumbledPickaxe() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 13000 base for pickaxes)
+        meta.setCustomModelData(213002); // 2 for functional item, 13 for pickaxe, 002 for second variant
+        
+        // Set name and lore
+        meta.setDisplayName("§7§lRusty-Crumbled Pickaxe");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"An old mining tool showing signs of wear,",
+            "§7yet still functional for basic excavation work.\"",
+            "",
+            "§7Stats:",
+            "§9Mining Speed: §9+0.1",
+            "§6Mining Fortune: §6+1",
+            "",
+            "§8Despite its weathered appearance, this pickaxe",
+            "§8has seen countless hours in the mines and",
+            "§8still serves its purpose with reliable durability.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createRootCrackedPickaxe() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 13000 base for pickaxes)
+        meta.setCustomModelData(213003); // 2 for functional item, 13 for pickaxe, 003 for third variant
+        
+        // Set name and lore
+        meta.setDisplayName("§7§lRoot-Cracked Pickaxe");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A pickaxe with a wooden handle split by",
+            "§7ancient tree roots, surprisingly enhancing its grip.\"",
+            "",
+            "§7Stats:",
+            "§9Mining Speed: §9+0.2",
+            "§6Mining Fortune: §6+2",
+            "",
+            "§8The organic cracks in the handle seem to channel",
+            "§8natural energy, making each swing more precise",
+            "§8and effective than expected.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createCopperheadPickaxe() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 13000 base for pickaxes)
+        meta.setCustomModelData(213004); // 2 for functional item, 13 for pickaxe, 004 for fourth variant
+        
+        // Set name and lore
+        meta.setDisplayName("§7§lCopperhead Pickaxe");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A sturdy pickaxe with a copper-tinted head",
+            "§7that gleams with hidden potential.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+5",
+            "§9Mining Speed: §9+0.3",
+            "§6Mining Fortune: §6+5",
+            "",
+            "§8The copper alloy head not only enhances mining",
+            "§8efficiency but also makes this tool effective",
+            "§8as a weapon when the situation demands it.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack createForgedCopperPickaxe() {
+        ItemStack item = new ItemStack(Material.CARROT_ON_A_STICK);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 13000 base for pickaxes)
+        meta.setCustomModelData(213005); // 2 for functional item, 13 for pickaxe, 005 for fifth variant
+        
+        // Set name and lore
+        meta.setDisplayName("§7§lForged Copper Pickaxe");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A masterfully crafted pickaxe forged from",
+            "§7refined copper, balanced for both combat and mining.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+7",
+            "§9Mining Speed: §9+0.3",
+            "§6Mining Fortune: §6+7",
+            "",
+            "§8Expertly forged in the fires of experienced",
+            "§8smiths, this pickaxe represents the pinnacle",
+            "§8of copper craftsmanship and utility.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
     
 }

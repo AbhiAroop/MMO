@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import com.server.Main;
@@ -23,6 +24,7 @@ import com.server.profiles.skills.rewards.rewards.ItemReward;
 import com.server.profiles.skills.rewards.rewards.StatReward;
 import com.server.profiles.skills.skills.mining.subskills.GemCarvingSubskill;
 import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
+import com.server.profiles.skills.trees.PlayerSkillTreeData;
 import com.server.profiles.stats.PlayerStats;
 
 /**
@@ -178,6 +180,19 @@ public class MiningSkill extends AbstractSkill {
                         " to " + player.getName() + " (old: " + oldArmor + ", new: " + newArmor + ")");
                 }
                 break;
+
+            case "unlock_copper_mining":
+                // Unlock copper ore mining
+                player.sendMessage(ChatColor.GREEN + "You can now mine " + 
+                                ChatColor.GOLD + "Copper Ore" + ChatColor.GREEN + " and " +
+                                ChatColor.DARK_GRAY + "Deepslate Copper Ore" + ChatColor.GREEN + "!");
+                player.sendMessage(ChatColor.YELLOW + "You will now gain XP from mining copper-based materials.");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Unlocked copper mining for " + player.getName());
+                }
+                break;
                 
             default:
                 if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
@@ -260,6 +275,79 @@ public class MiningSkill extends AbstractSkill {
                     " from " + player.getName());
             }
         }
+
+        // Handle copper mining unlock reset
+        if (oldNodeLevels.containsKey("unlock_copper_mining")) {
+            player.sendMessage(ChatColor.GRAY + "Copper ore mining access has been " + 
+                            ChatColor.RED + "LOCKED" + ChatColor.GRAY + 
+                            ". You can no longer gain XP from copper materials.");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Locked copper mining for " + player.getName());
+            }
+        }
+    }
+
+    /**
+     * Check if a player has unlocked copper mining
+     * @param player The player to check
+     * @return true if copper mining is unlocked, false otherwise
+     */
+    public boolean isCopperMiningUnlocked(Player player) {
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
+        
+        return nodeLevels.getOrDefault("unlock_copper_mining", 0) > 0;
+    }
+
+    /**
+     * Check if a player can mine a specific material
+     * This delegates to the appropriate subskill for detailed checks
+     */
+    public boolean canMineBlock(Player player, Material material) {
+        // For copper ore (both variants), check the main mining skill tree first
+        if (material == Material.COPPER_ORE || material == Material.DEEPSLATE_COPPER_ORE) {
+            // For regular copper ore, only need the main mining unlock
+            if (material == Material.COPPER_ORE) {
+                return isCopperMiningUnlocked(player);
+            }
+            
+            // For deepslate copper ore, need both copper unlock AND deepslate unlock from subskill
+            if (material == Material.DEEPSLATE_COPPER_ORE) {
+                if (!isCopperMiningUnlocked(player)) {
+                    return false; // Need copper unlock first
+                }
+                
+                // Then check deepslate unlock in the OreExtraction subskill
+                for (Skill subskill : getSubskills()) {
+                    if (subskill instanceof OreExtractionSubskill) {
+                        OreExtractionSubskill oreExtraction = (OreExtractionSubskill) subskill;
+                        return oreExtraction.canMineOre(player, material);
+                    }
+                }
+                return false;
+            }
+        }
+        
+        // For other ores, delegate to the OreExtraction subskill
+        for (Skill subskill : getSubskills()) {
+            if (subskill instanceof OreExtractionSubskill) {
+                OreExtractionSubskill oreExtraction = (OreExtractionSubskill) subskill;
+                if (oreExtraction.affectsOre(material)) {
+                    return oreExtraction.canMineOre(player, material);
+                }
+            }
+        }
+        
+        // Default to allowing non-ore materials
+        return true;
     }
     
     @Override
