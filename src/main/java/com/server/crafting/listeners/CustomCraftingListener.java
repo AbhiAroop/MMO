@@ -30,7 +30,7 @@ public class CustomCraftingListener implements Listener {
         this.plugin = plugin;
     }
     
-    @EventHandler(priority = EventPriority.HIGH)
+   @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         
@@ -48,15 +48,29 @@ public class CustomCraftingListener implements Listener {
         if (slot >= inventory.getSize()) {
             // Check if this is a shift-click that might move items to crafting slots
             if (event.getClick().isShiftClick() && event.getCurrentItem() != null && event.getCurrentItem().getType() != Material.AIR) {
-                // Schedule update for potential shift-click movement to crafting slots
+                // CRITICAL FIX: Handle shift-click from player inventory manually to prevent items going to output slot
+                event.setCancelled(true);
+                
+                ItemStack clickedItem = event.getCurrentItem();
+                ItemStack remainingItem = tryMoveToCustomCraftingGrid(inventory, clickedItem);
+                
+                // Update the original stack
+                if (remainingItem == null || remainingItem.getAmount() == 0) {
+                    event.getClickedInventory().setItem(event.getSlot(), null);
+                } else {
+                    event.getClickedInventory().setItem(event.getSlot(), remainingItem);
+                }
+                
+                // Schedule update for crafting result
                 plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                     CustomCraftingGUI.updateCraftingResult(inventory, player);
-                }, 2L); // Use 2 ticks delay for shift-clicks
+                }, 1L);
             }
-            // Allow normal interaction with player inventory
+            // Allow normal interaction with player inventory for non-shift clicks
             return;
         }
         
+        // Rest of the method remains the same...
         // Check if clicking on a crafting slot
         if (CustomCraftingGUI.isCraftingSlot(slot)) {
             // Allow normal item placement/removal in crafting slots
@@ -96,6 +110,44 @@ public class CustomCraftingListener implements Listener {
         
         // For all other slots (borders, decorations), cancel the event
         event.setCancelled(true);
+    }
+
+    /**
+     * Helper method to manually move items to the crafting grid only
+     */
+    private ItemStack tryMoveToCustomCraftingGrid(Inventory craftingInventory, ItemStack itemToMove) {
+        ItemStack remaining = itemToMove.clone();
+        
+        // Try to add to existing stacks in the crafting grid first
+        for (int craftingSlot : CustomCraftingGUI.CRAFTING_SLOTS) {
+            ItemStack existing = craftingInventory.getItem(craftingSlot);
+            
+            if (existing != null && existing.isSimilar(remaining)) {
+                int canAdd = existing.getMaxStackSize() - existing.getAmount();
+                if (canAdd > 0) {
+                    int toAdd = Math.min(canAdd, remaining.getAmount());
+                    existing.setAmount(existing.getAmount() + toAdd);
+                    remaining.setAmount(remaining.getAmount() - toAdd);
+                    
+                    if (remaining.getAmount() <= 0) {
+                        return null; // All moved
+                    }
+                }
+            }
+        }
+        
+        // Try to place in empty crafting slots
+        for (int craftingSlot : CustomCraftingGUI.CRAFTING_SLOTS) {
+            ItemStack existing = craftingInventory.getItem(craftingSlot);
+            
+            if (existing == null || existing.getType() == Material.AIR) {
+                craftingInventory.setItem(craftingSlot, remaining.clone());
+                return null; // All moved
+            }
+        }
+        
+        // Return remaining items if crafting grid is full
+        return remaining;
     }
     
     @EventHandler

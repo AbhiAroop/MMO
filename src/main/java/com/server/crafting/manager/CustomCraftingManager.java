@@ -1,7 +1,6 @@
 package com.server.crafting.manager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -15,6 +14,7 @@ import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 
 import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.items.CustomItems;
 
 /**
@@ -164,10 +164,43 @@ public class CustomCraftingManager {
         String[] shape = recipe.getShape();
         Map<Character, ItemStack> ingredients = recipe.getIngredientMap();
         
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            // Debug the recipe structure
+            if (recipe.getResult().getType() == Material.BUCKET) {
+                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] === BUCKET RECIPE DEBUG ===");
+                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Recipe shape array length: " + shape.length);
+                for (int i = 0; i < shape.length; i++) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Recipe Debug] Shape[" + i + "]: '" + shape[i] + "' (length: " + shape[i].length() + ")");
+                }
+                
+                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Ingredient mapping:");
+                for (Map.Entry<Character, ItemStack> entry : ingredients.entrySet()) {
+                    ItemStack item = entry.getValue();
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Recipe Debug] '" + entry.getKey() + "' -> " + (item == null ? "NULL" : item.getType()));
+                }
+            }
+        }
+        
+        // FIXED: Calculate max width properly
+        int maxWidth = 0;
+        for (String row : shape) {
+            maxWidth = Math.max(maxWidth, row.length());
+        }
+        
         // Try all possible positions in the 3x3 grid
         for (int startRow = 0; startRow <= 3 - shape.length; startRow++) {
-            for (int startCol = 0; startCol <= 3 - (shape.length > 0 ? shape[0].length() : 0); startCol++) {
+            for (int startCol = 0; startCol <= 3 - maxWidth; startCol++) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && recipe.getResult().getType() == Material.BUCKET) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Recipe Debug] Trying bucket recipe at position (" + startRow + "," + startCol + ")");
+                }
+                
                 if (matchesShapedRecipeAt(grid, shape, ingredients, startRow, startCol)) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && recipe.getResult().getType() == Material.BUCKET) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] BUCKET RECIPE MATCHED!");
+                    }
                     return true;
                 }
             }
@@ -180,42 +213,110 @@ public class CustomCraftingManager {
      * Check if the shaped recipe matches at a specific position
      */
     private boolean matchesShapedRecipeAt(ItemStack[] grid, String[] shape, 
-                                         Map<Character, ItemStack> ingredients, int startRow, int startCol) {
-        // Create a boolean array to track which slots should be empty
-        boolean[] shouldBeEmpty = new boolean[9];
-        Arrays.fill(shouldBeEmpty, true);
+                                        Map<Character, ItemStack> ingredients, int startRow, int startCol) {
+        // Create a boolean array to track which slots are covered by the recipe pattern
+        boolean[] patternCovered = new boolean[9];
         
-        // Check the recipe pattern
+        // Check the recipe pattern and mark covered slots
         for (int row = 0; row < shape.length; row++) {
-            for (int col = 0; col < shape[row].length(); col++) {
+            String currentRow = shape[row];
+            for (int col = 0; col < currentRow.length(); col++) {
                 int gridIndex = (startRow + row) * 3 + (startCol + col);
-                shouldBeEmpty[gridIndex] = false;
                 
-                char recipeChar = shape[row].charAt(col);
+                // SAFETY CHECK: Ensure we don't go out of bounds
+                if (gridIndex >= 9) {
+                    return false;
+                }
+                
+                // Mark this slot as covered by the pattern
+                patternCovered[gridIndex] = true;
+                
+                char recipeChar = currentRow.charAt(col);
                 ItemStack requiredItem = ingredients.get(recipeChar);
                 ItemStack gridItem = grid[gridIndex];
                 
-                if (recipeChar == ' ') {
-                    // Empty space in recipe
-                    if (gridItem.getType() != Material.AIR) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Recipe Debug] Checking slot " + gridIndex + 
+                        " - Recipe char: '" + recipeChar + "'" +
+                        " - Required: " + (requiredItem == null ? "NULL" : requiredItem.getType()) +
+                        " - Found: " + (gridItem == null ? "NULL" : gridItem.getType()));
+                }
+                
+                if (recipeChar == ' ' || requiredItem == null) {
+                    // Empty space in recipe (either explicit space or unmapped character) - this slot MUST be empty
+                    if (gridItem != null && gridItem.getType() != Material.AIR) {
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[Recipe Debug] FAILED - Empty slot " + gridIndex + " should be empty but contains: " + gridItem.getType());
+                        }
                         return false;
                     }
                 } else {
                     // Required ingredient
-                    if (requiredItem == null) continue;
-                    
                     if (!itemsMatch(gridItem, requiredItem)) {
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[Recipe Debug] FAILED - Ingredient mismatch at slot " + gridIndex + 
+                                " - Expected: " + requiredItem.getType() + ", Found: " + (gridItem == null ? "NULL" : gridItem.getType()));
+                        }
                         return false;
                     }
                 }
             }
         }
         
-        // Check that all other slots are empty
+        // CRITICAL FIX: Check that all slots NOT covered by the pattern are empty (null or AIR)
         for (int i = 0; i < 9; i++) {
-            if (shouldBeEmpty[i] && grid[i].getType() != Material.AIR) {
-                return false;
+            if (!patternCovered[i]) {
+                ItemStack slotItem = grid[i];
+                // FIXED: Check for both null AND AIR
+                if (slotItem != null && slotItem.getType() != Material.AIR) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Recipe Debug] FAILED - Non-pattern slot " + i + " should be empty but contains: " + slotItem.getType());
+                    }
+                    return false; // Found item in slot not covered by recipe pattern
+                }
             }
+        }
+
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            StringBuilder patternDebug = new StringBuilder("[Recipe Debug] Pattern coverage: ");
+            for (int i = 0; i < 9; i++) {
+                patternDebug.append(i).append(":").append(patternCovered[i] ? "✓" : "✗").append(" ");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, patternDebug.toString());
+            
+            // Add debug for actual slot contents
+            StringBuilder slotDebug = new StringBuilder("[Recipe Debug] Slot contents: ");
+            for (int i = 0; i < 9; i++) {
+                ItemStack slotItem = grid[i];
+                String content = slotItem == null ? "NULL" : 
+                            slotItem.getType() == Material.AIR ? "AIR" : slotItem.getType().name();
+                slotDebug.append(i).append(":").append(content).append(" ");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, slotDebug.toString());
+            
+            // Add debug for recipe shape analysis with more detail
+            StringBuilder shapeDebug = new StringBuilder("[Recipe Debug] Shape analysis: ");
+            for (int row = 0; row < shape.length; row++) {
+                for (int col = 0; col < shape[row].length(); col++) {
+                    int gridIndex = (startRow + row) * 3 + (startCol + col);
+                    char recipeChar = shape[row].charAt(col);
+                    shapeDebug.append("(").append(gridIndex).append(":").append(recipeChar).append(") ");
+                }
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, shapeDebug.toString());
+            
+            // Add debug for ingredient mapping
+            StringBuilder ingredientDebug = new StringBuilder("[Recipe Debug] Ingredient mapping: ");
+            for (Map.Entry<Character, ItemStack> entry : ingredients.entrySet()) {
+                ItemStack item = entry.getValue();
+                ingredientDebug.append(entry.getKey()).append("=")
+                            .append(item == null ? "NULL" : item.getType()).append(" ");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, ingredientDebug.toString());
         }
         
         return true;
