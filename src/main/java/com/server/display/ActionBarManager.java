@@ -1,6 +1,10 @@
 package com.server.display;
 
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
@@ -12,7 +16,7 @@ import com.server.profiles.stats.PlayerStats;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
-public class ActionBarManager {
+public class ActionBarManager implements Listener {
     private final Main plugin;
     private BukkitRunnable actionBarTask;
     private int tickCounter = 0;
@@ -20,6 +24,34 @@ public class ActionBarManager {
 
     public ActionBarManager(Main plugin) {
         this.plugin = plugin;
+        // Register this class as a listener for gamemode change events
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
+
+    /**
+     * Handle gamemode changes to immediately clear action bar for spectators
+     */
+    @EventHandler
+    public void onGameModeChange(PlayerGameModeChangeEvent event) {
+        Player player = event.getPlayer();
+        GameMode newGameMode = event.getNewGameMode();
+        
+        // Immediately clear action bar when entering spectator mode
+        if (newGameMode == GameMode.SPECTATOR) {
+            // Clear action bar immediately
+            player.spigot().sendMessage(
+                ChatMessageType.ACTION_BAR,
+                TextComponent.fromLegacyText("")
+            );
+            
+            // Also clear any custom action bars from SkillActionBarManager
+            SkillActionBarManager skillActionBarManager = SkillActionBarManager.getInstance();
+            if (skillActionBarManager.hasCustomActionBar(player)) {
+                skillActionBarManager.clearCustomActionBar(player);
+            }
+        }
+        // Note: When leaving spectator mode, the action bar will automatically 
+        // resume on the next tick cycle due to the existing logic
     }
 
     public void startActionBarUpdates() {
@@ -30,6 +62,11 @@ public class ActionBarManager {
                 
                 // Process all online players
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
+                    // Skip action bar and mana regeneration for spectators
+                    if (player.getGameMode() == GameMode.SPECTATOR) {
+                        continue;
+                    }
+                    
                     // Update action bar every tick
                     updateActionBar(player);
                     
@@ -58,6 +95,11 @@ public class ActionBarManager {
     }
 
     private void regeneratePlayerMana(Player player) {
+        // Additional check - don't regenerate mana for spectators
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
+        
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         if (activeSlot == null) return;
 
@@ -81,6 +123,11 @@ public class ActionBarManager {
     }
 
     private void updateActionBar(Player player) {
+        // Don't show action bar for spectators
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
+        
         // Check if there's a custom action bar from a minigame
         SkillActionBarManager skillActionBarManager = SkillActionBarManager.getInstance();
         if (skillActionBarManager.hasCustomActionBar(player)) {

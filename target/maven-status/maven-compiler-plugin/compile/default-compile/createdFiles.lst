@@ -30,6 +30,7 @@ com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
 com\server\display\DamageIndicatorManager$3.class
 com\server\profiles\gui\StatsGUI.class
+com\server\cosmetics\CosmeticManager$2.class
 com\server\entities\npc\dialogue\DialogueManager.class
 com\server\commands\CurrencyCommand$1.class
 com\server\profiles\skills\data\SkillLevel.class

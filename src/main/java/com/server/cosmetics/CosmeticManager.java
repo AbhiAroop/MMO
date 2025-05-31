@@ -4,22 +4,29 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.GameMode;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.server.Main;
 import com.server.items.ItemType;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
-public class CosmeticManager {
+public class CosmeticManager implements Listener {
     private static CosmeticManager instance;
     private final Main plugin;
     private final Map<UUID, ArmorStand> cosmeticStands = new HashMap<>();
 
     private CosmeticManager(Main plugin) {
         this.plugin = plugin;
+        // Register this class as a listener
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     public static void initialize(Main plugin) {
@@ -35,7 +42,67 @@ public class CosmeticManager {
         return instance;
     }
 
+    /**
+     * Handle gamemode changes to show/hide cosmetics
+     */
+    @EventHandler
+    public void onGameModeChange(PlayerGameModeChangeEvent event) {
+        Player player = event.getPlayer();
+        GameMode newGameMode = event.getNewGameMode();
+        
+        // Delay the cosmetic update to ensure gamemode change is complete
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (newGameMode == GameMode.SPECTATOR) {
+                    // Remove cosmetics in spectator mode
+                    hideCosmetics(player);
+                } else if (newGameMode == GameMode.SURVIVAL || newGameMode == GameMode.CREATIVE || newGameMode == GameMode.ADVENTURE) {
+                    // Show cosmetics in non-spectator modes
+                    showCosmetics(player);
+                }
+            }
+        }.runTaskLater(plugin, 1L); // 1 tick delay to ensure gamemode change is processed
+    }
+
+    /**
+     * Hide cosmetics by removing the armor stand passenger
+     */
+    private void hideCosmetics(Player player) {
+        ArmorStand stand = cosmeticStands.get(player.getUniqueId());
+        if (stand != null && stand.isValid()) {
+            // Remove the stand as a passenger but don't delete it
+            if (stand.isInsideVehicle()) {
+                player.removePassenger(stand);
+            }
+            // Move the stand far away and make it invisible
+            stand.teleport(player.getLocation().add(0, -100, 0));
+            stand.setVisible(false);
+        }
+    }
+
+    /**
+     * Show cosmetics by re-adding the armor stand passenger
+     */
+    private void showCosmetics(Player player) {
+        ArmorStand stand = cosmeticStands.get(player.getUniqueId());
+        if (stand != null && stand.isValid()) {
+            // Teleport the stand back to the player and make it a passenger again
+            stand.teleport(player.getLocation());
+            stand.setVisible(false); // Keep it invisible (only equipment shows)
+            player.addPassenger(stand);
+        } else {
+            // If no stand exists or it's invalid, create a new one
+            updateCosmeticDisplay(player);
+        }
+    }
+
     public void updateCosmeticDisplay(Player player) {
+        // Don't show cosmetics if player is in spectator mode
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
+
         // Remove existing stand if present
         ArmorStand oldStand = cosmeticStands.get(player.getUniqueId());
         if (oldStand != null) {
@@ -103,6 +170,11 @@ public class CosmeticManager {
     }
 
     public void handlePlayerTeleport(Player player) {
+        // Don't handle teleports for spectators
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
+
         // For teleports, sometimes we need to reapply the passenger
         // Wait a tick for teleport to complete
         ArmorStand stand = cosmeticStands.get(player.getUniqueId());
