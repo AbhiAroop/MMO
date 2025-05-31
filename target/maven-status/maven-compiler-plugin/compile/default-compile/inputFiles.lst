@@ -41,6 +41,7 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SubskillsGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\RangedDamageListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\ProfileManager.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CraftingCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\display\DamageIndicatorManager.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SubskillType.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\GiveHatCommand.java
@@ -77,6 +78,8 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\AbstractSkillAbility.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\SpawnCustomMobCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminSkillsCommand.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\manager\CustomCraftingManager.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\listeners\VanillaCraftingReplacer.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\DebugCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\CustomMob.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCInteractionListener.java
@@ -118,8 +121,10 @@ c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\serv
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\CustomItems.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminTokensCommand.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\Skill.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\listeners\CustomCraftingListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\data\PlayerSkillData.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\CombatHandler.java
+c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\gui\CustomCraftingGUI.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillEventListener.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\active\AbstractActiveAbility.java
 c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\display\SkillActionBarManager.java

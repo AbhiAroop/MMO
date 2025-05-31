@@ -11,6 +11,7 @@ import com.server.commands.AdminStatsCommand;
 import com.server.commands.AdminTokensCommand;
 import com.server.commands.AnimationDebugCommand;
 import com.server.commands.CosmeticCommand;
+import com.server.commands.CraftingCommand;
 import com.server.commands.CrystalCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
@@ -25,6 +26,9 @@ import com.server.commands.SkillCommand;
 import com.server.commands.SpawnCustomMobCommand;
 import com.server.commands.StatsCommand;
 import com.server.cosmetics.CosmeticManager;
+import com.server.crafting.listeners.CustomCraftingListener;
+import com.server.crafting.listeners.VanillaCraftingReplacer;
+import com.server.crafting.manager.CustomCraftingManager;
 import com.server.debug.DebugManager;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.display.ActionBarManager;
@@ -131,6 +135,9 @@ public class Main extends JavaPlugin {
         // Initialize DialogueManager after NPCManager
         DialogueManager.getInstance();
 
+        // Initialize custom crafting system
+        CustomCraftingManager.getInstance();
+
         // Register commands and event listeners
         registerCommands();
         registerListeners();
@@ -220,6 +227,9 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
 
         this.getServer().getPluginManager().registerEvents(new RangedDamageListener(this), this);
+
+        this.getServer().getPluginManager().registerEvents(new CustomCraftingListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new VanillaCraftingReplacer(), this);
 
     }
 
@@ -430,6 +440,13 @@ public class Main extends JavaPlugin {
             adminProfileCommand.setTabCompleter(adminProfileHandler);
         } else {
             LOGGER.warning("Command 'adminprofile' not registered in plugin.yml file!");
+        }
+
+        org.bukkit.command.PluginCommand craftingCommand = this.getCommand("crafting");
+        if (craftingCommand != null) {
+            craftingCommand.setExecutor(new CraftingCommand());
+        } else {
+            LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
         }
         
     }

@@ -102,6 +102,10 @@ commands:
     usage: /<command> <player> <level|xp|add> <value> OR /<command> <list|info> <player>
     permission: mmo.admin.profile
     aliases: [aprofile, adminpro]
+  crafting:
+    description: Open the custom crafting table
+    usage: /crafting
+    aliases: [craft, workbench]
 
 permissions:
   mmo.admin:
