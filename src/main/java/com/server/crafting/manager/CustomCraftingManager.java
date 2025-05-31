@@ -46,6 +46,7 @@ public class CustomCraftingManager {
     private void initializeCustomRecipes() {
         // Add Copperhead Pickaxe recipe
         addCopperheadPickaxeRecipe();
+        addForgedCopperPickaxeRecipe();
         
         // Add more custom recipes here in the future
     }
@@ -81,6 +82,49 @@ public class CustomCraftingManager {
         addCustomRecipe(recipe, result);
         
         Main.getInstance().getLogger().info("Added custom recipe: Copperhead Pickaxe");
+    }
+
+    /**
+     * Add the Forged Copper Pickaxe custom recipe
+     * This recipe can be positioned in different rows due to its 2-row pattern
+     * Pattern 1 (top/middle):        Pattern 2 (middle/bottom):
+     * [64 Copper] [64 Copper] [64 Copper]    [   Air   ] [   Air   ] [   Air   ]
+     * [   Air   ] [Copperhead] [   Air   ]    [64 Copper] [64 Copper] [64 Copper]
+     * [   Air   ] [   Air   ] [   Air   ]     [   Air   ] [Copperhead] [   Air   ]
+     */
+    private void addForgedCopperPickaxeRecipe() {
+        // Pattern 1: Top row copper, middle row copperhead pickaxe
+        ItemStack[] recipe1 = new ItemStack[9];
+        recipe1[0] = new ItemStack(Material.COPPER_INGOT, 64);  // Top left
+        recipe1[1] = new ItemStack(Material.COPPER_INGOT, 64);  // Top middle
+        recipe1[2] = new ItemStack(Material.COPPER_INGOT, 64);  // Top right
+        recipe1[3] = new ItemStack(Material.AIR);               // Middle left
+        recipe1[4] = CustomItems.createCopperheadPickaxe();     // Middle center
+        recipe1[5] = new ItemStack(Material.AIR);               // Middle right
+        recipe1[6] = new ItemStack(Material.AIR);               // Bottom left
+        recipe1[7] = new ItemStack(Material.AIR);               // Bottom middle
+        recipe1[8] = new ItemStack(Material.AIR);               // Bottom right
+        
+        // Pattern 2: Middle row copper, bottom row copperhead pickaxe
+        ItemStack[] recipe2 = new ItemStack[9];
+        recipe2[0] = new ItemStack(Material.AIR);               // Top left
+        recipe2[1] = new ItemStack(Material.AIR);               // Top middle
+        recipe2[2] = new ItemStack(Material.AIR);               // Top right
+        recipe2[3] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle left
+        recipe2[4] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle middle
+        recipe2[5] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle right
+        recipe2[6] = new ItemStack(Material.AIR);               // Bottom left
+        recipe2[7] = CustomItems.createCopperheadPickaxe();     // Bottom middle
+        recipe2[8] = new ItemStack(Material.AIR);               // Bottom right
+        
+        // Result: Forged Copper Pickaxe
+        ItemStack result = CustomItems.createForgedCopperPickaxe();
+        
+        // Add both patterns
+        addCustomRecipe(recipe1, result);
+        addCustomRecipe(recipe2, result);
+        
+        Main.getInstance().getLogger().info("Added custom recipe: Forged Copper Pickaxe (2 patterns)");
     }
     
     /**
@@ -255,10 +299,56 @@ public class CustomCraftingManager {
                 return false;
             }
             
+            // Skip amount and custom data checks for AIR
+            if (recipeItem.getType() == Material.AIR) {
+                continue;
+            }
+            
             // Check amount (grid must have at least the required amount)
-            if (recipeItem.getType() != Material.AIR && gridItem.getAmount() < recipeItem.getAmount()) {
+            if (gridItem.getAmount() < recipeItem.getAmount()) {
                 return false;
             }
+            
+            // Special handling for custom items (check display name and custom model data)
+            if (isCustomItem(recipeItem)) {
+                if (!isCustomItem(gridItem)) {
+                    return false; // Recipe requires custom item but grid has vanilla item
+                }
+                
+                // Check if they're the same custom item by comparing display names and model data
+                if (!areCustomItemsSame(gridItem, recipeItem)) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Check if an item is a custom item (has custom model data)
+     */
+    private boolean isCustomItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        return item.getItemMeta().hasCustomModelData();
+    }
+
+    /**
+     * Check if two custom items are the same type
+     */
+    private boolean areCustomItemsSame(ItemStack item1, ItemStack item2) {
+        if (!item1.hasItemMeta() || !item2.hasItemMeta()) return false;
+        
+        // Compare custom model data
+        if (item1.getItemMeta().hasCustomModelData() && item2.getItemMeta().hasCustomModelData()) {
+            if (item1.getItemMeta().getCustomModelData() != item2.getItemMeta().getCustomModelData()) {
+                return false;
+            }
+        }
+        
+        // Compare display names
+        if (item1.getItemMeta().hasDisplayName() && item2.getItemMeta().hasDisplayName()) {
+            return item1.getItemMeta().getDisplayName().equals(item2.getItemMeta().getDisplayName());
         }
         
         return true;
@@ -286,12 +376,16 @@ public class CustomCraftingManager {
             if (recipe instanceof ShapedRecipe) {
                 ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
                 if (matchesShapedRecipe(cleanGrid, shapedRecipe)) {
-                    return recipe.getResult().clone();
+                    ItemStack result = recipe.getResult().clone();
+                    // Apply rarity to vanilla crafted items
+                    return com.server.items.ItemManager.applyRarity(result);
                 }
             } else if (recipe instanceof ShapelessRecipe) {
                 ShapelessRecipe shapelessRecipe = (ShapelessRecipe) recipe;
                 if (matchesShapelessRecipe(cleanGrid, shapelessRecipe)) {
-                    return recipe.getResult().clone();
+                    ItemStack result = recipe.getResult().clone();
+                    // Apply rarity to vanilla crafted items
+                    return com.server.items.ItemManager.applyRarity(result);
                 }
             }
         }
@@ -320,10 +414,16 @@ public class CustomCraftingManager {
                         craftingGrid[i] != null && craftingGrid[i].getType() != Material.AIR) {
                         
                         int consumeAmount = pattern[i].getAmount();
-                        craftingGrid[i].setAmount(craftingGrid[i].getAmount() - consumeAmount);
                         
-                        if (craftingGrid[i].getAmount() <= 0) {
+                        // For custom items, consume the entire item regardless of amount
+                        if (isCustomItem(pattern[i])) {
                             craftingGrid[i] = new ItemStack(Material.AIR);
+                        } else {
+                            // For regular items, consume the specified amount
+                            craftingGrid[i].setAmount(craftingGrid[i].getAmount() - consumeAmount);
+                            if (craftingGrid[i].getAmount() <= 0) {
+                                craftingGrid[i] = new ItemStack(Material.AIR);
+                            }
                         }
                     }
                 }
@@ -369,9 +469,17 @@ public class CustomCraftingManager {
                             return 0; // Missing required ingredient
                         }
                         
-                        int availableAmount = craftingGrid[i].getAmount();
-                        int requiredAmount = pattern[i].getAmount();
-                        int possibleCrafts = availableAmount / requiredAmount;
+                        int possibleCrafts;
+                        
+                        // For custom items, can only craft once (they're consumed entirely)
+                        if (isCustomItem(pattern[i])) {
+                            possibleCrafts = areCustomItemsSame(craftingGrid[i], pattern[i]) ? 1 : 0;
+                        } else {
+                            // For regular items, calculate based on amounts
+                            int availableAmount = craftingGrid[i].getAmount();
+                            int requiredAmount = pattern[i].getAmount();
+                            possibleCrafts = availableAmount / requiredAmount;
+                        }
                         
                         maxCrafts = Math.min(maxCrafts, possibleCrafts);
                     }
