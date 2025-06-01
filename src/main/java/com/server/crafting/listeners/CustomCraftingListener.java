@@ -15,6 +15,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
+import com.server.crafting.gui.AdvancedCraftingGUI;
 import com.server.crafting.gui.CustomCraftingGUI;
 import com.server.crafting.manager.CustomCraftingManager;
 import com.server.debug.DebugManager.DebugSystem;
@@ -105,6 +106,20 @@ public class CustomCraftingListener implements Listener {
                 // Handle single item crafting
                 handleSingleCrafting(player, inventory, outputItem);
             }
+            return;
+        }
+
+        if (CustomCraftingGUI.isAdvancedNavigationSlot(slot)) {
+            event.setCancelled(true);
+            
+            // Clear the 3x3 crafting grid and return items
+            CustomCraftingGUI.clearCraftingGrid(inventory, player);
+            
+            // Remove the 3x3 GUI
+            CustomCraftingGUI.removeActiveCraftingGUI(player);
+            
+            // Open the 4x4 advanced crafting GUI
+            AdvancedCraftingGUI.openAdvancedCraftingTable(player);
             return;
         }
         
@@ -315,4 +330,5 @@ public class CustomCraftingListener implements Listener {
             player.sendMessage("§aCrafted " + totalToCraft + " " + outputItem.getType().name().toLowerCase().replace('_', ' ') + "!");
         }
     }
+    
 }

@@ -218,17 +218,31 @@ public class CustomCraftingManager {
      */
     private boolean matchesShapedRecipeAt(ItemStack[] grid, String[] shape, 
                                         Map<Character, ItemStack> ingredients, int startRow, int startCol) {
+        // Determine grid size based on array length
+        int gridSize = grid.length == 9 ? 3 : 4; // 3x3 or 4x4
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Recipe Debug] Checking shaped recipe at position (" + startRow + "," + startCol + ") in " + gridSize + "x" + gridSize + " grid");
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Recipe Debug] Recipe shape: " + String.join(" | ", shape));
+        }
+        
         // Create a boolean array to track which slots are covered by the recipe pattern
-        boolean[] patternCovered = new boolean[9];
+        boolean[] patternCovered = new boolean[grid.length];
         
         // Check the recipe pattern and mark covered slots
         for (int row = 0; row < shape.length; row++) {
             String currentRow = shape[row];
             for (int col = 0; col < currentRow.length(); col++) {
-                int gridIndex = (startRow + row) * 3 + (startCol + col);
+                int gridIndex = (startRow + row) * gridSize + (startCol + col);
                 
                 // SAFETY CHECK: Ensure we don't go out of bounds
-                if (gridIndex >= 9) {
+                if (gridIndex >= grid.length || (startRow + row) >= gridSize || (startCol + col) >= gridSize) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Recipe Debug] FAILED - Recipe extends beyond grid bounds at (" + (startRow + row) + "," + (startCol + col) + ")");
+                    }
                     return false;
                 }
                 
@@ -242,6 +256,7 @@ public class CustomCraftingManager {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI, 
                         "[Recipe Debug] Checking slot " + gridIndex + 
+                        " (row=" + (startRow + row) + ",col=" + (startCol + col) + ")" +
                         " - Recipe char: '" + recipeChar + "'" +
                         " - Required: " + (requiredItem == null ? "NULL" : requiredItem.getType()) +
                         " - Found: " + (gridItem == null ? "NULL" : gridItem.getType()));
@@ -271,7 +286,7 @@ public class CustomCraftingManager {
         }
         
         // CRITICAL FIX: Check that all slots NOT covered by the pattern are empty (null or AIR)
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < grid.length; i++) {
             if (!patternCovered[i]) {
                 ItemStack slotItem = grid[i];
                 // FIXED: Check for both null AND AIR
@@ -287,14 +302,14 @@ public class CustomCraftingManager {
 
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             StringBuilder patternDebug = new StringBuilder("[Recipe Debug] Pattern coverage: ");
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < grid.length; i++) {
                 patternDebug.append(i).append(":").append(patternCovered[i] ? "✓" : "✗").append(" ");
             }
             Main.getInstance().debugLog(DebugSystem.GUI, patternDebug.toString());
             
             // Add debug for actual slot contents
             StringBuilder slotDebug = new StringBuilder("[Recipe Debug] Slot contents: ");
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < grid.length; i++) {
                 ItemStack slotItem = grid[i];
                 String content = slotItem == null ? "NULL" : 
                             slotItem.getType() == Material.AIR ? "AIR" : slotItem.getType().name();
@@ -302,25 +317,7 @@ public class CustomCraftingManager {
             }
             Main.getInstance().debugLog(DebugSystem.GUI, slotDebug.toString());
             
-            // Add debug for recipe shape analysis with more detail
-            StringBuilder shapeDebug = new StringBuilder("[Recipe Debug] Shape analysis: ");
-            for (int row = 0; row < shape.length; row++) {
-                for (int col = 0; col < shape[row].length(); col++) {
-                    int gridIndex = (startRow + row) * 3 + (startCol + col);
-                    char recipeChar = shape[row].charAt(col);
-                    shapeDebug.append("(").append(gridIndex).append(":").append(recipeChar).append(") ");
-                }
-            }
-            Main.getInstance().debugLog(DebugSystem.GUI, shapeDebug.toString());
-            
-            // Add debug for ingredient mapping
-            StringBuilder ingredientDebug = new StringBuilder("[Recipe Debug] Ingredient mapping: ");
-            for (Map.Entry<Character, ItemStack> entry : ingredients.entrySet()) {
-                ItemStack item = entry.getValue();
-                ingredientDebug.append(entry.getKey()).append("=")
-                            .append(item == null ? "NULL" : item.getType()).append(" ");
-            }
-            Main.getInstance().debugLog(DebugSystem.GUI, ingredientDebug.toString());
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] ✅ RECIPE MATCH SUCCESS!");
         }
         
         return true;
@@ -463,45 +460,126 @@ public class CustomCraftingManager {
      * Get the result of a recipe from a 3x3 crafting grid
      */
     public ItemStack getRecipeResult(ItemStack[] craftingGrid, Player player) {
-        // Clean the grid (convert null to air)
+        if (craftingGrid.length != 9) return null;
+        
+        // Clean the grid first
         ItemStack[] cleanGrid = new ItemStack[9];
         for (int i = 0; i < 9; i++) {
             cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
         }
         
-        // First check custom recipes with pattern matching
-        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
-            if (matchesCustomRecipe(cleanGrid, entry.getValue().pattern)) {
-                ItemStack result = entry.getValue().result.clone();
-                
-                // Check if player has unlocked this recipe
-                if (isRecipeUnlocked(player, result)) {
-                    return result;
-                }
-                // If not unlocked, continue checking other recipes (don't return null yet)
+        // Count non-air items to help with prioritization
+        int nonAirCount = 0;
+        for (ItemStack item : cleanGrid) {
+            if (item != null && item.getType() != Material.AIR) {
+                nonAirCount++;
             }
         }
         
-        // Then check vanilla recipes
-        for (Recipe recipe : vanillaRecipes) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Looking for recipes with " + nonAirCount + " ingredients");
+        }
+        
+        // PRIORITY 1: Check custom recipes first (they have explicit patterns)
+        String recipeKey = createRecipeKey(cleanGrid);
+        if (customRecipes.containsKey(recipeKey)) {
+            ItemStack result = customRecipes.get(recipeKey);
+            if (isRecipeUnlocked(player, result)) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found custom recipe: " + result.getType());
+                }
+                return result;
+            }
+        }
+        
+        // Check custom recipe patterns
+        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
+            if (matchesCustomRecipe(cleanGrid, entry.getValue().pattern)) {
+                ItemStack result = entry.getValue().result;
+                if (isRecipeUnlocked(player, result)) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found custom pattern recipe: " + result.getType());
+                    }
+                    return result;
+                }
+            }
+        }
+        
+        // PRIORITY 2: Check vanilla recipes, but sort them by ingredient count (largest first)
+        List<Recipe> sortedRecipes = new ArrayList<>(vanillaRecipes);
+        
+        // Sort recipes by the number of ingredients they require (descending)
+        sortedRecipes.sort((r1, r2) -> {
+            int count1 = getRecipeIngredientCount(r1);
+            int count2 = getRecipeIngredientCount(r2);
+            return Integer.compare(count2, count1); // Descending order (most ingredients first)
+        });
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Checking " + sortedRecipes.size() + " vanilla recipes (sorted by ingredient count)");
+        }
+        
+        for (Recipe recipe : sortedRecipes) {
             if (recipe instanceof ShapedRecipe) {
                 ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
+                
+                // Skip recipes that require more ingredients than we have
+                int requiredIngredients = getRecipeIngredientCount(shapedRecipe);
+                if (requiredIngredients > nonAirCount) {
+                    continue;
+                }
+                
                 if (matchesShapedRecipe(cleanGrid, shapedRecipe)) {
-                    ItemStack result = recipe.getResult().clone();
-                    // Apply rarity to vanilla crafted items
-                    return com.server.items.ItemManager.applyRarity(result);
+                    ItemStack result = shapedRecipe.getResult();
+                    if (isRecipeUnlocked(player, result)) {
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found vanilla shaped recipe: " + result.getType() + " (requires " + requiredIngredients + " ingredients)");
+                        }
+                        return result;
+                    }
                 }
             } else if (recipe instanceof ShapelessRecipe) {
                 ShapelessRecipe shapelessRecipe = (ShapelessRecipe) recipe;
+                
+                // Skip recipes that require more ingredients than we have
+                int requiredIngredients = shapelessRecipe.getIngredientList().size();
+                if (requiredIngredients > nonAirCount) {
+                    continue;
+                }
+                
                 if (matchesShapelessRecipe(cleanGrid, shapelessRecipe)) {
-                    ItemStack result = recipe.getResult().clone();
-                    // Apply rarity to vanilla crafted items
-                    return com.server.items.ItemManager.applyRarity(result);
+                    ItemStack result = shapelessRecipe.getResult();
+                    if (isRecipeUnlocked(player, result)) {
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found vanilla shapeless recipe: " + result.getType() + " (requires " + requiredIngredients + " ingredients)");
+                        }
+                        return result;
+                    }
                 }
             }
         }
         
-        return null; // No matching recipe
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] No matching recipes found");
+        }
+        
+        return null;
+    }
+
+    /**
+     * Helper method to count the number of ingredients a recipe requires
+     */
+    private int getRecipeIngredientCount(Recipe recipe) {
+        if (recipe instanceof ShapedRecipe) {
+            ShapedRecipe shaped = (ShapedRecipe) recipe;
+            return (int) shaped.getIngredientMap().values().stream()
+                    .filter(item -> item != null && item.getType() != Material.AIR)
+                    .count();
+        } else if (recipe instanceof ShapelessRecipe) {
+            ShapelessRecipe shapeless = (ShapelessRecipe) recipe;
+            return shapeless.getIngredientList().size();
+        }
+        return 0;
     }
 
     /**
@@ -732,4 +810,534 @@ public class CustomCraftingManager {
         customRecipePatterns.put(key, new CustomRecipeData(pattern.clone(), result.clone()));
         customRecipes.put(key, result.clone()); // Keep for backwards compatibility
     }
+
+    private final Map<String, AdvancedRecipeData> advancedRecipePatterns = new HashMap<>();
+
+    /**
+     * Data structure to hold advanced recipe information with multiple outputs
+     */
+    private static class AdvancedRecipeData {
+        public final ItemStack[] pattern; // 16-slot array for 4x4 grid
+        public final ItemStack[] results; // Multiple output items
+        
+        public AdvancedRecipeData(ItemStack[] pattern, ItemStack[] results) {
+            this.pattern = pattern.clone();
+            this.results = results.clone();
+        }
+    }
+
+    /**
+     * Add a 4x4 custom recipe with multiple outputs
+     */
+    public void addAdvancedRecipe(ItemStack[] pattern, ItemStack[] results) {
+        if (pattern.length != 16) {
+            throw new IllegalArgumentException("Advanced recipe pattern must be 16 items (4x4 grid)");
+        }
+        
+        String key = createAdvancedRecipeKey(pattern);
+        advancedRecipePatterns.put(key, new AdvancedRecipeData(pattern, results));
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Advanced Crafting] Added 4x4 recipe with " + results.length + " outputs");
+        }
+    }
+
+    /**
+     * Get the result of a 4x4 recipe from a 4x4 crafting grid
+     */
+    public ItemStack[] getAdvancedRecipeResult(ItemStack[] craftingGrid, Player player) {
+        if (craftingGrid.length != 16) return null;
+        
+        // Clean the grid (convert null to air)
+        ItemStack[] cleanGrid = new ItemStack[16];
+        for (int i = 0; i < 16; i++) {
+            cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
+        }
+        
+        // Check 4x4 custom recipes first
+        for (Map.Entry<String, AdvancedRecipeData> entry : advancedRecipePatterns.entrySet()) {
+            if (matchesAdvancedRecipe(cleanGrid, entry.getValue().pattern)) {
+                ItemStack[] results = entry.getValue().results;
+                
+                // Check if player has unlocked all recipes in the result
+                boolean allUnlocked = true;
+                for (ItemStack result : results) {
+                    if (result != null && result.getType() != Material.AIR) {
+                        if (!isRecipeUnlocked(player, result)) {
+                            allUnlocked = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (allUnlocked) {
+                    return cloneResults(results);
+                }
+            }
+        }
+        
+        // Try to fit 3x3 recipes (including custom 3x3 recipes) into the 4x4 grid
+        return tryFit3x3RecipesIn4x4Grid(cleanGrid, player);
+    }
+
+    /**
+     * Extract a 3x3 grid from a specific position in the 4x4 grid
+     */
+    private ItemStack[] extract3x3FromPosition(ItemStack[] grid4x4, int startRow, int startCol) {
+        ItemStack[] grid3x3 = new ItemStack[9];
+        int index3x3 = 0;
+        
+        // Add debug for extraction
+        debugGridExtraction(grid4x4, startRow, startCol);
+        
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                int index4x4 = (startRow + row) * 4 + (startCol + col);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    ItemStack item = index4x4 < 16 ? grid4x4[index4x4] : null;
+                    String content = item == null ? "NULL" : 
+                                item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[4x4 Recipe] 4x4[" + index4x4 + "] -> 3x3[" + index3x3 + "] = " + content);
+                }
+                
+                // FIXED: Add bounds checking to prevent array out of bounds
+                if (index4x4 < 16) {
+                    grid3x3[index3x3] = grid4x4[index4x4];
+                } else {
+                    grid3x3[index3x3] = new ItemStack(Material.AIR);
+                }
+                index3x3++;
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            StringBuilder extractDebug = new StringBuilder("[4x4 Recipe] Final extracted 3x3 grid: ");
+            for (int i = 0; i < 9; i++) {
+                ItemStack item = grid3x3[i];
+                String content = item == null ? "NULL" : 
+                            item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                extractDebug.append("[").append(i).append(":").append(content).append("] ");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, extractDebug.toString());
+        }
+        
+        return grid3x3;
+    }
+
+    /**
+     * Try to fit 3x3 recipes into different positions of the 4x4 grid
+     * IMPORTANT: All slots outside the 3x3 area must be empty for the recipe to work
+     */
+    private ItemStack[] tryFit3x3RecipesIn4x4Grid(ItemStack[] grid4x4, Player player) {
+        debugPositionExtraction(grid4x4);
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[4x4 Recipe] === Trying to fit 3x3 recipes in 4x4 grid ===");
+            
+            // Debug the 4x4 grid contents with explicit grid layout
+            StringBuilder gridDebug = new StringBuilder("[4x4 Recipe] 4x4 Grid contents (16 slots):\n");
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    int index = row * 4 + col;
+                    ItemStack item = grid4x4[index];
+                    String content = item == null ? "NULL" : 
+                                item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                    gridDebug.append(String.format("[%2d:%8s] ", index, content));
+                }
+                gridDebug.append("\n");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, gridDebug.toString());
+            
+            // Count non-air items
+            int nonAirCount = 0;
+            for (int i = 0; i < 16; i++) {
+                if (grid4x4[i] != null && grid4x4[i].getType() != Material.AIR) {
+                    nonAirCount++;
+                }
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, "[4x4 Recipe] Total non-air items in 4x4 grid: " + nonAirCount);
+        }
+        
+        // Try all possible 3x3 positions within the 4x4 grid
+        for (int startRow = 0; startRow <= 1; startRow++) { // Can start at row 0 or 1
+            for (int startCol = 0; startCol <= 1; startCol++) { // Can start at col 0 or 1
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[4x4 Recipe] === Trying 3x3 position starting at (" + startRow + "," + startCol + ") ===");
+                }
+                
+                // CRITICAL FIX: Check if all slots OUTSIDE the 3x3 area are empty first
+                if (!areNon3x3SlotsEmpty(grid4x4, startRow, startCol)) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[4x4 Recipe] ❌ Position (" + startRow + "," + startCol + ") invalid - items found outside 3x3 area");
+                    }
+                    continue; // Skip this position if there are items outside the 3x3 area
+                }
+                
+                ItemStack[] extracted3x3 = extract3x3FromPosition(grid4x4, startRow, startCol);
+                
+                // Count non-air items in extracted 3x3
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    int nonAir3x3 = 0;
+                    StringBuilder extractDebug = new StringBuilder("[4x4 Recipe] Extracted 3x3 grid from position (" + startRow + "," + startCol + "):\n");
+                    for (int row = 0; row < 3; row++) {
+                        for (int col = 0; col < 3; col++) {
+                            int index = row * 3 + col;
+                            ItemStack item = extracted3x3[index];
+                            String content = item == null ? "NULL" : 
+                                        item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                            extractDebug.append(String.format("[%d:%8s] ", index, content));
+                            if (item != null && item.getType() != Material.AIR) {
+                                nonAir3x3++;
+                            }
+                        }
+                        extractDebug.append("\n");
+                    }
+                    extractDebug.append("Non-air items in 3x3: ").append(nonAir3x3);
+                    Main.getInstance().debugLog(DebugSystem.GUI, extractDebug.toString());
+                }
+                
+                // Use the player-aware 3x3 recipe method to support custom recipes and unlocks
+                ItemStack result = getRecipeResult(extracted3x3, player);
+                
+                if (result != null) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[4x4 Recipe] ✅ Found matching 3x3 recipe at position (" + startRow + "," + startCol + "): " + result.getType());
+                    }
+                    return new ItemStack[]{result};
+                } else {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[4x4 Recipe] ❌ No recipe match at position (" + startRow + "," + startCol + ")");
+                    }
+                }
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[4x4 Recipe] ❌ No matching 3x3 recipes found in any position of 4x4 grid");
+        }
+        
+        return null;
+    }
+
+    /**
+     * Check if all slots outside a 3x3 area within the 4x4 grid are empty
+     * This ensures that 3x3 recipes only work when there are no extra items
+     */
+    private boolean areNon3x3SlotsEmpty(ItemStack[] grid4x4, int startRow, int startCol) {
+        // Create a boolean array to mark which slots are part of the 3x3 area
+        boolean[] in3x3Area = new boolean[16];
+        
+        // Mark all slots that are part of the 3x3 area
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                int index4x4 = (startRow + row) * 4 + (startCol + col);
+                if (index4x4 < 16) {
+                    in3x3Area[index4x4] = true;
+                }
+            }
+        }
+        
+        // Check that all slots NOT in the 3x3 area are empty
+        for (int i = 0; i < 16; i++) {
+            if (!in3x3Area[i]) {
+                ItemStack item = grid4x4[i];
+                if (item != null && item.getType() != Material.AIR) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[4x4 Recipe] Non-3x3 slot " + i + " contains: " + item.getType() + " (should be empty)");
+                    }
+                    return false; // Found an item outside the 3x3 area
+                }
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            StringBuilder coverage = new StringBuilder("[4x4 Recipe] 3x3 area coverage for position (" + startRow + "," + startCol + "): ");
+            for (int i = 0; i < 16; i++) {
+                coverage.append(i).append(":").append(in3x3Area[i] ? "✓" : "✗").append(" ");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, coverage.toString());
+            Main.getInstance().debugLog(DebugSystem.GUI, "[4x4 Recipe] ✅ All non-3x3 slots are empty for position (" + startRow + "," + startCol + ")");
+        }
+        
+        return true;
+    }
+
+    /**
+     * Consume ingredients from a 4x4 crafting grid with player context
+     */
+    public void consumeAdvancedIngredients(ItemStack[] craftingGrid, ItemStack[] results, Player player) {
+        if (craftingGrid.length != 16) return;
+        
+        // Find which 4x4 recipe was used
+        ItemStack[] cleanGrid = new ItemStack[16];
+        for (int i = 0; i < 16; i++) {
+            cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
+        }
+        
+        // Check if it's an advanced recipe
+        for (Map.Entry<String, AdvancedRecipeData> entry : advancedRecipePatterns.entrySet()) {
+            if (matchesAdvancedRecipe(cleanGrid, entry.getValue().pattern)) {
+                // Consume ingredients according to advanced recipe pattern
+                ItemStack[] pattern = entry.getValue().pattern;
+                for (int i = 0; i < craftingGrid.length; i++) {
+                    if (pattern[i] != null && pattern[i].getType() != Material.AIR && 
+                        craftingGrid[i] != null && craftingGrid[i].getType() != Material.AIR) {
+                        
+                        int consumeAmount = pattern[i].getAmount();
+                        
+                        // For custom items, consume the entire item regardless of amount
+                        if (isCustomItem(pattern[i])) {
+                            craftingGrid[i] = new ItemStack(Material.AIR);
+                        } else {
+                            // For regular items, consume the specified amount
+                            craftingGrid[i].setAmount(craftingGrid[i].getAmount() - consumeAmount);
+                            if (craftingGrid[i].getAmount() <= 0) {
+                                craftingGrid[i] = new ItemStack(Material.AIR);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+        }
+        
+        // If not an advanced recipe, try 3x3 consumption
+        // Find which 3x3 position was used and consume only those ingredients
+        for (int startRow = 0; startRow <= 1; startRow++) {
+            for (int startCol = 0; startCol <= 1; startCol++) {
+                ItemStack[] extracted3x3 = extract3x3FromPosition(cleanGrid, startRow, startCol);
+                // Use player parameter when available, otherwise use without player check
+                ItemStack result = player != null ? getRecipeResult(extracted3x3, player) : getRecipeResultWithoutPlayerCheck(extracted3x3);
+                
+                if (result != null && results.length > 0 && result.isSimilar(results[0])) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[4x4 Recipe] Consuming ingredients from 3x3 position (" + startRow + "," + startCol + ")");
+                    }
+                    
+                    // Consume ingredients from the 3x3 area
+                    consumeIngredients(extracted3x3, result);
+                    
+                    // Put the consumed 3x3 back into the 4x4 grid
+                    int index3x3 = 0;
+                    for (int row = 0; row < 3; row++) {
+                        for (int col = 0; col < 3; col++) {
+                            int index4x4 = (startRow + row) * 4 + (startCol + col);
+                            if (index4x4 < 16) { // Bounds check
+                                craftingGrid[index4x4] = extracted3x3[index3x3];
+                            }
+                            index3x3++;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the maximum number of items that can be crafted with the current ingredients for 4x4 recipes (with player context)
+     */
+    public int getMaxAdvancedCraftableAmount(ItemStack[] craftingGrid, ItemStack result, Player player) {
+        if (craftingGrid.length != 16) return 0;
+        
+        // Clean the grid
+        ItemStack[] cleanGrid = new ItemStack[16];
+        for (int i = 0; i < 16; i++) {
+            cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
+        }
+        
+        // Check if it's an advanced recipe
+        for (Map.Entry<String, AdvancedRecipeData> entry : advancedRecipePatterns.entrySet()) {
+            if (matchesAdvancedRecipe(cleanGrid, entry.getValue().pattern)) {
+                // Calculate max crafts based on ingredient amounts
+                ItemStack[] pattern = entry.getValue().pattern;
+                int maxCrafts = Integer.MAX_VALUE;
+                
+                for (int i = 0; i < pattern.length; i++) {
+                    if (pattern[i] != null && pattern[i].getType() != Material.AIR) {
+                        ItemStack gridItem = cleanGrid[i];
+                        if (gridItem == null || gridItem.getType() == Material.AIR) {
+                            return 0; // Missing required ingredient
+                        }
+                        
+                        int requiredAmount = pattern[i].getAmount();
+                        int availableAmount = gridItem.getAmount();
+                        int possibleCrafts = availableAmount / requiredAmount;
+                        maxCrafts = Math.min(maxCrafts, possibleCrafts);
+                    }
+                }
+                
+                return maxCrafts == Integer.MAX_VALUE ? 0 : maxCrafts * result.getAmount();
+            }
+        }
+        
+        // If not an advanced recipe, try 3x3 recipes
+        for (int startRow = 0; startRow <= 1; startRow++) {
+            for (int startCol = 0; startCol <= 1; startCol++) {
+                ItemStack[] extracted3x3 = extract3x3FromPosition(cleanGrid, startRow, startCol);
+                // Use player parameter when available, otherwise use without player check
+                ItemStack recipe3x3Result = player != null ? getRecipeResult(extracted3x3, player) : getRecipeResultWithoutPlayerCheck(extracted3x3);
+                
+                if (recipe3x3Result != null && recipe3x3Result.isSimilar(result)) {
+                    return getMaxCraftableAmount(extracted3x3, result);
+                }
+            }
+        }
+        
+        return 0;
+    }
+
+    /**
+     * Check if a 4x4 grid matches an advanced recipe pattern
+     */
+    private boolean matchesAdvancedRecipe(ItemStack[] grid, ItemStack[] recipePattern) {
+        if (grid.length != 16 || recipePattern.length != 16) return false;
+        
+        for (int i = 0; i < 16; i++) {
+            ItemStack gridItem = grid[i] == null ? new ItemStack(Material.AIR) : grid[i];
+            ItemStack recipeItem = recipePattern[i] == null ? new ItemStack(Material.AIR) : recipePattern[i];
+            
+            // Check material type
+            if (gridItem.getType() != recipeItem.getType()) {
+                return false;
+            }
+            
+            // Skip amount and custom data checks for AIR
+            if (recipeItem.getType() == Material.AIR) {
+                continue;
+            }
+            
+            // Check amount (grid must have at least the required amount)
+            if (gridItem.getAmount() < recipeItem.getAmount()) {
+                return false;
+            }
+            
+            // Special handling for custom items
+            if (isCustomItem(recipeItem)) {
+                if (!isCustomItem(gridItem)) {
+                    return false;
+                }
+                
+                if (!areCustomItemsSame(gridItem, recipeItem)) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Create a recipe key from a 4x4 crafting grid
+     */
+    private String createAdvancedRecipeKey(ItemStack[] grid) {
+        StringBuilder key = new StringBuilder();
+        for (ItemStack item : grid) {
+            if (item == null || item.getType() == Material.AIR) {
+                key.append("AIR:0,");
+            } else {
+                key.append(item.getType().name()).append(":").append(item.getAmount()).append(",");
+            }
+        }
+        return key.toString();
+    }
+
+    /**
+     * Clone the results array to prevent modification
+     */
+    private ItemStack[] cloneResults(ItemStack[] results) {
+        ItemStack[] cloned = new ItemStack[results.length];
+        for (int i = 0; i < results.length; i++) {
+            if (results[i] != null) {
+                cloned[i] = results[i].clone();
+            }
+        }
+        return cloned;
+    }
+
+    /**
+     * Debug method to verify 4x4 grid extraction
+     */
+    private void debugGridExtraction(ItemStack[] grid4x4, int startRow, int startCol) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[4x4 Debug] Extracting 3x3 from 4x4 grid at position (" + startRow + "," + startCol + ")");
+            
+            // Show the 4x4 grid layout
+            StringBuilder grid4x4Debug = new StringBuilder("[4x4 Debug] Full 4x4 grid:\n");
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    int index = row * 4 + col;
+                    ItemStack item = grid4x4[index];
+                    String content = item == null ? "NULL" : 
+                                item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                    grid4x4Debug.append(String.format("[%2d:%8s] ", index, content));
+                }
+                grid4x4Debug.append("\n");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, grid4x4Debug.toString());
+            
+            // Show which slots will be extracted
+            StringBuilder extractionMap = new StringBuilder("[4x4 Debug] Extraction mapping:\n");
+            for (int row = 0; row < 3; row++) {
+                for (int col = 0; col < 3; col++) {
+                    int index4x4 = (startRow + row) * 4 + (startCol + col);
+                    int index3x3 = row * 3 + col;
+                    extractionMap.append(String.format("3x3[%d] <- 4x4[%2d] ", index3x3, index4x4));
+                }
+                extractionMap.append("\n");
+            }
+            Main.getInstance().debugLog(DebugSystem.GUI, extractionMap.toString());
+        }
+    }
+
+    /**
+     * Debug method to test 4x4 to 3x3 position extraction
+     */
+    private void debugPositionExtraction(ItemStack[] grid4x4) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Position Debug] Testing all 3x3 extractions from 4x4 grid");
+            
+            for (int startRow = 0; startRow <= 1; startRow++) {
+                for (int startCol = 0; startCol <= 1; startCol++) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Position Debug] === Extracting from position (" + startRow + "," + startCol + ") ===");
+                    
+                    // Show which 4x4 slots will be extracted
+                    StringBuilder mapping = new StringBuilder("[Position Debug] 4x4 slots that will be extracted:\n");
+                    for (int row = 0; row < 3; row++) {
+                        for (int col = 0; col < 3; col++) {
+                            int index4x4 = (startRow + row) * 4 + (startCol + col);
+                            int index3x3 = row * 3 + col;
+                            ItemStack item = index4x4 < 16 ? grid4x4[index4x4] : null;
+                            String content = item == null ? "NULL" : 
+                                        item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                            mapping.append(String.format("4x4[%2d] -> 3x3[%d] = %s\n", index4x4, index3x3, content));
+                        }
+                    }
+                    Main.getInstance().debugLog(DebugSystem.GUI, mapping.toString());
+                    
+                    // Extract and show result
+                    ItemStack[] extracted = extract3x3FromPosition(grid4x4, startRow, startCol);
+                    StringBuilder result = new StringBuilder("[Position Debug] Extracted 3x3 result: ");
+                    for (int i = 0; i < 9; i++) {
+                        ItemStack item = extracted[i];
+                        String content = item == null ? "NULL" : 
+                                    item.getType() == Material.AIR ? "AIR" : item.getType().name();
+                        result.append("[").append(i).append(":").append(content).append("] ");
+                    }
+                    Main.getInstance().debugLog(DebugSystem.GUI, result.toString());
+                }
+            }
+        }
+    }
+
 }

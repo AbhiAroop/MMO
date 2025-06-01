@@ -11,11 +11,13 @@ com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
 com\server\commands\AnimationDebugCommand.class
 com\server\entities\npc\types\HostileNPC$1.class
+com\server\crafting\gui\AdvancedCraftingGUI.class
 com\server\commands\CurrencyCommand.class
 com\server\events\PlayerListener$5.class
 com\server\events\PlayerListener$5$1.class
 com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\skills\events\MiningListener$1.class
+com\server\crafting\manager\CustomCraftingManager$AdvancedRecipeData.class
 com\server\events\CombatListener$2.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
@@ -127,6 +129,7 @@ com\server\profiles\skills\display\SkillActionBarManager$1.class
 com\server\display\DamageIndicatorManager$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$CrystalTier.class
 com\server\events\CombatListener.class
+com\server\crafting\listeners\AdvancedCraftingListener.class
 com\server\entities\npc\CombatHandler$4.class
 com\server\profiles\skills\core\AbstractSkill.class
 com\server\events\GUIListener.class

@@ -148,7 +148,7 @@ public class CustomCraftingGUI {
             "",
             ChatColor.YELLOW + "• Supports all vanilla recipes",
             ChatColor.YELLOW + "• Shift-click for bulk crafting",
-            ChatColor.YELLOW + "• Custom recipes coming soon!"
+            ChatColor.YELLOW + "• Custom recipes available!"
         ));
         craftingIcon.setItemMeta(iconMeta);
         gui.setItem(4, craftingIcon); // Top center
@@ -165,6 +165,26 @@ public class CustomCraftingGUI {
         ));
         arrow.setItemMeta(arrowMeta);
         gui.setItem(24, arrow); // Left of output slot
+        
+        // Add navigation arrow to 4x4 crafting
+        ItemStack advancedArrow = new ItemStack(Material.SPECTRAL_ARROW);
+        ItemMeta advancedMeta = advancedArrow.getItemMeta();
+        advancedMeta.setDisplayName(ChatColor.AQUA + "→ Advanced 4x4 Crafting");
+        advancedMeta.setLore(Arrays.asList(
+            ChatColor.GRAY + "Access the advanced crafting table",
+            ChatColor.GRAY + "with 4x4 grid and multiple outputs",
+            "",
+            ChatColor.YELLOW + "Click to switch!"
+        ));
+        advancedArrow.setItemMeta(advancedMeta);
+        gui.setItem(44, advancedArrow); // Bottom right corner
+    }
+
+    /**
+     * Check if a slot is the navigation arrow to advanced crafting
+     */
+    public static boolean isAdvancedNavigationSlot(int slot) {
+        return slot == 44; // Bottom right corner
     }
     
     /**
@@ -298,4 +318,6 @@ public class CustomCraftingGUI {
         // Update the result
         updateCraftingResult(gui, player);
     }
+
+    
 }
