@@ -235,12 +235,26 @@ public class CustomCraftingGUI {
     }
     
     /**
-     * Update the crafting result when the grid changes
+     * Update the crafting result based on the current crafting grid
      */
-    public static void updateCraftingResult(Inventory gui, Player player) {
-        ItemStack[] craftingGrid = getCraftingGrid(gui);
-        ItemStack result = CustomCraftingManager.getInstance().getRecipeResult(craftingGrid);
-        setOutputSlot(gui, result);
+    public static void updateCraftingResult(Inventory inventory, Player player) {
+        // Get crafting grid items
+        ItemStack[] craftingGrid = new ItemStack[9];
+        for (int i = 0; i < CRAFTING_SLOTS.length; i++) {
+            craftingGrid[i] = inventory.getItem(CRAFTING_SLOTS[i]);
+            if (craftingGrid[i] == null) {
+                craftingGrid[i] = new ItemStack(Material.AIR);
+            }
+        }
+        
+        // Check for recipe match - NOW USING PLAYER-AWARE METHOD
+        ItemStack result = CustomCraftingManager.getInstance().getRecipeResult(craftingGrid, player);
+        
+        if (result != null) {
+            inventory.setItem(OUTPUT_SLOT, result);
+        } else {
+            inventory.setItem(OUTPUT_SLOT, createOutputBarrier());
+        }
     }
     
     /**

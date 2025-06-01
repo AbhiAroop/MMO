@@ -130,5 +130,47 @@ public class MiningTreeBuilder implements SkillTreeBuilder {
         );
         tree.addNode(copperUnlockNode);
         tree.addConnection("mining_armor", "unlock_copper_mining");
+
+        // =====================================================================
+        // COPPERHEAD PICKAXE CRAFTING UNLOCK NODE (ABOVE COPPER MINING)
+        // =====================================================================
+        
+        SkillTreeNode copperheadCraftingNode = new SkillTreeNode(
+            "unlock_copperhead_crafting",
+            "Copperhead Crafting",
+            "Unlocks the ability to craft Copperhead Pickaxes\n" +
+            "Enables advanced copper tool smithing\n" +
+            "Required for creating specialized mining equipment",
+            Material.CARROT_ON_A_STICK, // Changed from Material.COPPER_INGOT
+            ChatColor.YELLOW,
+            4, -4, // Above the copper mining node
+            2, // Costs 2 advanced tokens
+            SkillToken.TokenTier.ADVANCED
+        );
+        // Set custom model data to match the Copperhead Pickaxe
+        copperheadCraftingNode.setCustomModelData(213004); // Same as createCopperheadPickaxe()
+        tree.addNode(copperheadCraftingNode);
+        tree.addConnection("unlock_copper_mining", "unlock_copperhead_crafting");
+
+        // =====================================================================
+        // FORGED COPPER PICKAXE CRAFTING UNLOCK NODE (LEFT OF COPPERHEAD CRAFTING)
+        // =====================================================================
+        
+        SkillTreeNode forgedCopperCraftingNode = new SkillTreeNode(
+            "unlock_forged_copper_crafting",
+            "Forged Mastery",
+            "Unlocks the ability to craft Forged Copper Pickaxes\n" +
+            "Master the art of advanced copper forging\n" +
+            "Requires copperhead pickaxe expertise",
+            Material.CARROT_ON_A_STICK, // Changed from Material.ANVIL
+            ChatColor.DARK_AQUA,
+            2, -4, // Left of the copperhead crafting node
+            3, // Costs 3 advanced tokens (expensive upgrade)
+            SkillToken.TokenTier.ADVANCED
+        );
+        // Set custom model data to match the Forged Copper Pickaxe
+        forgedCopperCraftingNode.setCustomModelData(213005); // Same as createForgedCopperPickaxe()
+        tree.addNode(forgedCopperCraftingNode);
+        tree.addConnection("unlock_copperhead_crafting", "unlock_forged_copper_crafting");
     }    
 }

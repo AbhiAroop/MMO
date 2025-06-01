@@ -193,6 +193,28 @@ public class MiningSkill extends AbstractSkill {
                         "[Mining] Unlocked copper mining for " + player.getName());
                 }
                 break;
+            case "unlock_copperhead_crafting":
+                // Unlock copperhead pickaxe crafting
+                player.sendMessage(ChatColor.GREEN + "You can now craft " + 
+                                ChatColor.YELLOW + "Copperhead Pickaxes" + ChatColor.GREEN + "!");
+                player.sendMessage(ChatColor.YELLOW + "This enables advanced copper tool smithing.");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Unlocked copperhead crafting for " + player.getName());
+                }
+                break;
+            case "unlock_forged_copper_crafting":
+                // Unlock forged copper pickaxe crafting
+                player.sendMessage(ChatColor.GREEN + "You can now craft " + 
+                                ChatColor.DARK_AQUA + "Forged Copper Pickaxes" + ChatColor.GREEN + "!");
+                player.sendMessage(ChatColor.YELLOW + "This enables master-level copper forging techniques.");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Unlocked forged copper crafting for " + player.getName());
+                }
+                break;
                 
             default:
                 if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
@@ -202,6 +224,7 @@ public class MiningSkill extends AbstractSkill {
                 break;
         }
     }
+    
     
     /**
      * Handle skill tree reset for the Mining skill
@@ -287,6 +310,30 @@ public class MiningSkill extends AbstractSkill {
                     "[Mining] Locked copper mining for " + player.getName());
             }
         }
+
+        // Handle copperhead crafting unlock reset
+        if (oldNodeLevels.containsKey("unlock_copperhead_crafting")) {
+            player.sendMessage(ChatColor.GRAY + "Copperhead Pickaxe crafting access has been " + 
+                            ChatColor.RED + "LOCKED" + ChatColor.GRAY + 
+                            ". You can no longer craft Copperhead Pickaxes.");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Locked copperhead crafting for " + player.getName());
+            }
+        }
+        
+        // Handle forged copper crafting unlock reset
+        if (oldNodeLevels.containsKey("unlock_forged_copper_crafting")) {
+            player.sendMessage(ChatColor.GRAY + "Forged Copper Pickaxe crafting access has been " + 
+                            ChatColor.RED + "LOCKED" + ChatColor.GRAY + 
+                            ". You can no longer craft Forged Copper Pickaxes.");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Locked forged copper crafting for " + player.getName());
+            }
+        }
     }
 
     /**
@@ -305,6 +352,42 @@ public class MiningSkill extends AbstractSkill {
         Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
         
         return nodeLevels.getOrDefault("unlock_copper_mining", 0) > 0;
+    }
+
+    /**
+     * Check if a player has unlocked copperhead pickaxe crafting
+     * @param player The player to check
+     * @return true if copperhead crafting is unlocked, false otherwise
+     */
+    public boolean isCopperheadCraftingUnlocked(Player player) {
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
+        
+        return nodeLevels.getOrDefault("unlock_copperhead_crafting", 0) > 0;
+    }
+
+    /**
+     * Check if a player has unlocked forged copper pickaxe crafting
+     * @param player The player to check
+     * @return true if forged copper crafting is unlocked, false otherwise
+     */
+    public boolean isForgedCopperCraftingUnlocked(Player player) {
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
+        
+        return nodeLevels.getOrDefault("unlock_forged_copper_crafting", 0) > 0;
     }
 
     /**

@@ -590,7 +590,12 @@ public class SkillTreeGUI {
         String displayName;
         if (unlocked) {
             if (node.isUpgradable()) {
+                 // Apply custom model data if the node has it
+                if (node.hasCustomModelData()) {
+                    meta.setCustomModelData(node.getCustomModelData());
+                }
                 if (fullyUpgraded) {
+                    
                     displayName = node.getColor() + node.getName() + ChatColor.GOLD + " ⊹ MAX ⊹";
                     
                     // Add enchant glow effect for max level nodes
@@ -600,6 +605,10 @@ public class SkillTreeGUI {
                     displayName = node.getColor() + node.getName() + ChatColor.YELLOW + " [Lv " + currentLevel + "]";
                 }
             } else {
+                 // Apply custom model data if the node has it
+                if (node.hasCustomModelData()) {
+                    meta.setCustomModelData(node.getCustomModelData());
+                }
                 // Non-upgradable node that's fully unlocked - also add glow
                 displayName = node.getColor() + node.getName() + ChatColor.GREEN + " ✓";
                 
@@ -609,9 +618,12 @@ public class SkillTreeGUI {
                 meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
             }
         } else if (isRootNode || tree.isNodeAvailable(node.getId(), unlockedNodes, nodeLevels)) {
+             // Apply custom model data if the node has it
+            if (node.hasCustomModelData()) meta.setCustomModelData(node.getCustomModelData());
+            
             displayName = node.getColor() + node.getName() + ChatColor.YELLOW + " (Available)";
         } else {
-            displayName = ChatColor.GRAY + node.getName() + ChatColor.RED + " (Locked)";
+            displayName = ChatColor.GRAY + node.getName() + ChatColor.RED + " 🔒 " +" (Locked)";
         }
         meta.setDisplayName(displayName);
         

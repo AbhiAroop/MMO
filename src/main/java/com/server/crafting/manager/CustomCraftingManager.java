@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
@@ -16,6 +17,9 @@ import org.bukkit.inventory.ShapelessRecipe;
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.items.CustomItems;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SkillType;
+import com.server.profiles.skills.skills.mining.MiningSkill;
 
 /**
  * Manager for handling custom crafting recipes and vanilla recipe integration
@@ -458,7 +462,61 @@ public class CustomCraftingManager {
     /**
      * Get the result of a recipe from a 3x3 crafting grid
      */
+    public ItemStack getRecipeResult(ItemStack[] craftingGrid, Player player) {
+        // Clean the grid (convert null to air)
+        ItemStack[] cleanGrid = new ItemStack[9];
+        for (int i = 0; i < 9; i++) {
+            cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
+        }
+        
+        // First check custom recipes with pattern matching
+        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
+            if (matchesCustomRecipe(cleanGrid, entry.getValue().pattern)) {
+                ItemStack result = entry.getValue().result.clone();
+                
+                // Check if player has unlocked this recipe
+                if (isRecipeUnlocked(player, result)) {
+                    return result;
+                }
+                // If not unlocked, continue checking other recipes (don't return null yet)
+            }
+        }
+        
+        // Then check vanilla recipes
+        for (Recipe recipe : vanillaRecipes) {
+            if (recipe instanceof ShapedRecipe) {
+                ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
+                if (matchesShapedRecipe(cleanGrid, shapedRecipe)) {
+                    ItemStack result = recipe.getResult().clone();
+                    // Apply rarity to vanilla crafted items
+                    return com.server.items.ItemManager.applyRarity(result);
+                }
+            } else if (recipe instanceof ShapelessRecipe) {
+                ShapelessRecipe shapelessRecipe = (ShapelessRecipe) recipe;
+                if (matchesShapelessRecipe(cleanGrid, shapelessRecipe)) {
+                    ItemStack result = recipe.getResult().clone();
+                    // Apply rarity to vanilla crafted items
+                    return com.server.items.ItemManager.applyRarity(result);
+                }
+            }
+        }
+        
+        return null; // No matching recipe
+    }
+
+    /**
+     * Get the result of a recipe from a 3x3 crafting grid (legacy method for backward compatibility)
+     */
     public ItemStack getRecipeResult(ItemStack[] craftingGrid) {
+        // For backward compatibility, we need to handle cases where no player is provided
+        // In this case, we'll assume all recipes are unlocked
+        return getRecipeResultWithoutPlayerCheck(craftingGrid);
+    }
+
+    /**
+     * Get recipe result without player unlock checks (for backward compatibility)
+     */
+    private ItemStack getRecipeResultWithoutPlayerCheck(ItemStack[] craftingGrid) {
         // Clean the grid (convert null to air)
         ItemStack[] cleanGrid = new ItemStack[9];
         for (int i = 0; i < 9; i++) {
@@ -492,6 +550,26 @@ public class CustomCraftingManager {
         }
         
         return null; // No matching recipe
+    }
+
+    /**
+     * Check if a recipe result is unlocked for the player
+     */
+    private boolean isRecipeUnlocked(Player player, ItemStack result) {
+        MiningSkill miningSkill = (MiningSkill) SkillRegistry.getInstance().getSkill(SkillType.MINING);
+        
+        // Check for copperhead pickaxe
+        if (CustomItems.createCopperheadPickaxe().isSimilar(result)) {
+            return miningSkill.isCopperheadCraftingUnlocked(player);
+        }
+        
+        // Check for forged copper pickaxe
+        if (CustomItems.createForgedCopperPickaxe().isSimilar(result)) {
+            return miningSkill.isForgedCopperCraftingUnlocked(player);
+        }
+        
+        // All other recipes are unlocked by default
+        return true;
     }
     
     /**

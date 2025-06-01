@@ -24,6 +24,7 @@ public class SkillTreeNode {
     private final Map<Integer, Integer> levelCosts; // Token costs for each level
     private final SkillToken.TokenTier requiredTokenTier; // NEW: Required token tier
     private boolean isSpecialNode;
+    private Integer customModelData;
     
     /**
      * Create a simple non-upgradable node with token tier requirement
@@ -55,15 +56,19 @@ public class SkillTreeNode {
         this.color = color;
         this.gridPosition = new TreeGridPosition(gridX, gridY);
         this.tokenCost = tokenCost;
-        this.maxLevel = Math.max(1, maxLevel);
+        this.maxLevel = maxLevel;
         this.requiredTokenTier = requiredTier;
+        this.isSpecialNode = false;
+        this.customModelData = null; // Initialize as null
+        
+        // Initialize level descriptions and costs
         this.levelDescriptions = new HashMap<>();
         this.levelCosts = new HashMap<>();
         
-        // Set default descriptions and costs
-        for (int i = 1; i <= maxLevel; i++) {
-            this.levelDescriptions.put(i, description);
-            this.levelCosts.put(i, tokenCost * i); // Default cost scales linearly
+        // Set default values for single-level nodes
+        if (maxLevel == 1) {
+            levelDescriptions.put(1, description);
+            levelCosts.put(1, tokenCost);
         }
     }
     
@@ -224,5 +229,26 @@ public class SkillTreeNode {
      */
     public boolean acceptsTokenTier(SkillToken.TokenTier tier) {
         return tier.getLevel() >= requiredTokenTier.getLevel();
+    }
+
+    /**
+     * Set custom model data for this node's icon
+     */
+    public void setCustomModelData(Integer customModelData) {
+        this.customModelData = customModelData;
+    }
+    
+    /**
+     * Get custom model data for this node's icon
+     */
+    public Integer getCustomModelData() {
+        return customModelData;
+    }
+    
+    /**
+     * Check if this node has custom model data
+     */
+    public boolean hasCustomModelData() {
+        return customModelData != null;
     }
 }
