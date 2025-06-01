@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
@@ -92,16 +93,16 @@ public class CustomCraftingManager {
      * Add the Forged Copper Pickaxe custom recipe
      * This recipe can be positioned in different rows due to its 2-row pattern
      * Pattern 1 (top/middle):        Pattern 2 (middle/bottom):
-     * [64 Copper] [64 Copper] [64 Copper]    [   Air   ] [   Air   ] [   Air   ]
-     * [   Air   ] [Copperhead] [   Air   ]    [64 Copper] [64 Copper] [64 Copper]
+     * [3 Copper] [3 Copper] [3 Copper]    [   Air   ] [   Air   ] [   Air   ]
+     * [   Air   ] [Copperhead] [   Air   ]    [3 Copper] [3 Copper] [3 Copper]
      * [   Air   ] [   Air   ] [   Air   ]     [   Air   ] [Copperhead] [   Air   ]
      */
     private void addForgedCopperPickaxeRecipe() {
         // Pattern 1: Top row copper, middle row copperhead pickaxe
         ItemStack[] recipe1 = new ItemStack[9];
-        recipe1[0] = new ItemStack(Material.COPPER_INGOT, 64);  // Top left
-        recipe1[1] = new ItemStack(Material.COPPER_INGOT, 64);  // Top middle
-        recipe1[2] = new ItemStack(Material.COPPER_INGOT, 64);  // Top right
+        recipe1[0] = new ItemStack(Material.COPPER_INGOT, 64);  // Top left - 
+        recipe1[1] = new ItemStack(Material.COPPER_INGOT, 64);  // Top middle - 
+        recipe1[2] = new ItemStack(Material.COPPER_INGOT, 64);  // Top right -
         recipe1[3] = new ItemStack(Material.AIR);               // Middle left
         recipe1[4] = CustomItems.createCopperheadPickaxe();     // Middle center
         recipe1[5] = new ItemStack(Material.AIR);               // Middle right
@@ -114,9 +115,9 @@ public class CustomCraftingManager {
         recipe2[0] = new ItemStack(Material.AIR);               // Top left
         recipe2[1] = new ItemStack(Material.AIR);               // Top middle
         recipe2[2] = new ItemStack(Material.AIR);               // Top right
-        recipe2[3] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle left
-        recipe2[4] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle middle
-        recipe2[5] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle right
+        recipe2[3] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle left 
+        recipe2[4] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle middle 
+        recipe2[5] = new ItemStack(Material.COPPER_INGOT, 64);  // Middle right 
         recipe2[6] = new ItemStack(Material.AIR);               // Bottom left
         recipe2[7] = CustomItems.createCopperheadPickaxe();     // Bottom middle
         recipe2[8] = new ItemStack(Material.AIR);               // Bottom right
@@ -168,26 +169,16 @@ public class CustomCraftingManager {
         String[] shape = recipe.getShape();
         Map<Character, ItemStack> ingredients = recipe.getIngredientMap();
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            // Debug the recipe structure
-            if (recipe.getResult().getType() == Material.BUCKET) {
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] === BUCKET RECIPE DEBUG ===");
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Recipe shape array length: " + shape.length);
-                for (int i = 0; i < shape.length; i++) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Recipe Debug] Shape[" + i + "]: '" + shape[i] + "' (length: " + shape[i].length() + ")");
-                }
-                
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Ingredient mapping:");
-                for (Map.Entry<Character, ItemStack> entry : ingredients.entrySet()) {
-                    ItemStack item = entry.getValue();
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Recipe Debug] '" + entry.getKey() + "' -> " + (item == null ? "NULL" : item.getType()));
-                }
+        // Only debug for iron/copper related recipes
+        boolean shouldDebug = false;
+        for (ItemStack ingredient : ingredients.values()) {
+            if (ingredient != null && (ingredient.getType() == Material.IRON_INGOT || ingredient.getType() == Material.COPPER_INGOT)) {
+                shouldDebug = true;
+                break;
             }
         }
         
-        // FIXED: Calculate max width properly
+        // Calculate max width properly
         int maxWidth = 0;
         for (String row : shape) {
             maxWidth = Math.max(maxWidth, row.length());
@@ -196,15 +187,7 @@ public class CustomCraftingManager {
         // Try all possible positions in the 3x3 grid
         for (int startRow = 0; startRow <= 3 - shape.length; startRow++) {
             for (int startCol = 0; startCol <= 3 - maxWidth; startCol++) {
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && recipe.getResult().getType() == Material.BUCKET) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Recipe Debug] Trying bucket recipe at position (" + startRow + "," + startCol + ")");
-                }
-                
                 if (matchesShapedRecipeAt(grid, shape, ingredients, startRow, startCol)) {
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && recipe.getResult().getType() == Material.BUCKET) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] BUCKET RECIPE MATCHED!");
-                    }
                     return true;
                 }
             }
@@ -221,11 +204,13 @@ public class CustomCraftingManager {
         // Determine grid size based on array length
         int gridSize = grid.length == 9 ? 3 : 4; // 3x3 or 4x4
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Recipe Debug] Checking shaped recipe at position (" + startRow + "," + startCol + ") in " + gridSize + "x" + gridSize + " grid");
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Recipe Debug] Recipe shape: " + String.join(" | ", shape));
+        // Remove all the excessive debug logging - only log failures for specific recipes we care about
+        boolean isSpecialRecipe = false;
+        for (ItemStack ingredient : ingredients.values()) {
+            if (ingredient != null && (ingredient.getType() == Material.IRON_INGOT || ingredient.getType() == Material.COPPER_INGOT)) {
+                isSpecialRecipe = true;
+                break;
+            }
         }
         
         // Create a boolean array to track which slots are covered by the recipe pattern
@@ -239,10 +224,6 @@ public class CustomCraftingManager {
                 
                 // SAFETY CHECK: Ensure we don't go out of bounds
                 if (gridIndex >= grid.length || (startRow + row) >= gridSize || (startCol + col) >= gridSize) {
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Recipe Debug] FAILED - Recipe extends beyond grid bounds at (" + (startRow + row) + "," + (startCol + col) + ")");
-                    }
                     return false;
                 }
                 
@@ -253,71 +234,28 @@ public class CustomCraftingManager {
                 ItemStack requiredItem = ingredients.get(recipeChar);
                 ItemStack gridItem = grid[gridIndex];
                 
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Recipe Debug] Checking slot " + gridIndex + 
-                        " (row=" + (startRow + row) + ",col=" + (startCol + col) + ")" +
-                        " - Recipe char: '" + recipeChar + "'" +
-                        " - Required: " + (requiredItem == null ? "NULL" : requiredItem.getType()) +
-                        " - Found: " + (gridItem == null ? "NULL" : gridItem.getType()));
-                }
-                
                 if (recipeChar == ' ' || requiredItem == null) {
-                    // Empty space in recipe (either explicit space or unmapped character) - this slot MUST be empty
+                    // Empty space in recipe - this slot MUST be empty
                     if (gridItem != null && gridItem.getType() != Material.AIR) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[Recipe Debug] FAILED - Empty slot " + gridIndex + " should be empty but contains: " + gridItem.getType());
-                        }
                         return false;
                     }
                 } else {
                     // Required ingredient
                     if (!itemsMatch(gridItem, requiredItem)) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[Recipe Debug] FAILED - Ingredient mismatch at slot " + gridIndex + 
-                                " - Expected: " + requiredItem.getType() + ", Found: " + (gridItem == null ? "NULL" : gridItem.getType()));
-                        }
                         return false;
                     }
                 }
             }
         }
         
-        // CRITICAL FIX: Check that all slots NOT covered by the pattern are empty (null or AIR)
+        // CRITICAL FIX: Check that all slots NOT covered by the pattern are empty
         for (int i = 0; i < grid.length; i++) {
             if (!patternCovered[i]) {
                 ItemStack slotItem = grid[i];
-                // FIXED: Check for both null AND AIR
                 if (slotItem != null && slotItem.getType() != Material.AIR) {
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Recipe Debug] FAILED - Non-pattern slot " + i + " should be empty but contains: " + slotItem.getType());
-                    }
                     return false; // Found item in slot not covered by recipe pattern
                 }
             }
-        }
-
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            StringBuilder patternDebug = new StringBuilder("[Recipe Debug] Pattern coverage: ");
-            for (int i = 0; i < grid.length; i++) {
-                patternDebug.append(i).append(":").append(patternCovered[i] ? "✓" : "✗").append(" ");
-            }
-            Main.getInstance().debugLog(DebugSystem.GUI, patternDebug.toString());
-            
-            // Add debug for actual slot contents
-            StringBuilder slotDebug = new StringBuilder("[Recipe Debug] Slot contents: ");
-            for (int i = 0; i < grid.length; i++) {
-                ItemStack slotItem = grid[i];
-                String content = slotItem == null ? "NULL" : 
-                            slotItem.getType() == Material.AIR ? "AIR" : slotItem.getType().name();
-                slotDebug.append(i).append(":").append(content).append(" ");
-            }
-            Main.getInstance().debugLog(DebugSystem.GUI, slotDebug.toString());
-            
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] ✅ RECIPE MATCH SUCCESS!");
         }
         
         return true;
@@ -364,15 +302,30 @@ public class CustomCraftingManager {
      * Check if two items match for recipe purposes
      */
     private boolean itemsMatch(ItemStack item1, ItemStack item2) {
-        if (item1 == null || item2 == null) {
-            return item1 == item2;
+        if (item1 == null && item2 == null) return true;
+        if (item1 == null || item2 == null) return false;
+        
+        // Different materials never match
+        if (item1.getType() != item2.getType()) return false;
+        
+        // For custom items (items with custom model data), use detailed comparison
+        if (isCustomItem(item1) || isCustomItem(item2)) {
+            // Both must be custom items to match
+            if (!isCustomItem(item1) || !isCustomItem(item2)) {
+                return false;
+            }
+            
+            // Use custom item comparison
+            return areCustomItemsSame(item1, item2);
         }
         
-        return item1.getType() == item2.getType();
+        // For vanilla items, just check material type
+        return true;
     }
     
     /**
      * Create a recipe key from the crafting grid for custom recipes
+     * FIXED: Now includes custom model data to distinguish custom items
      */
     private String createRecipeKey(ItemStack[] grid) {
         StringBuilder key = new StringBuilder();
@@ -380,7 +333,14 @@ public class CustomCraftingManager {
             if (item == null || item.getType() == Material.AIR) {
                 key.append("AIR:0,");
             } else {
-                key.append(item.getType().name()).append(":").append(item.getAmount()).append(",");
+                key.append(item.getType().name()).append(":").append(item.getAmount());
+                
+                // CRITICAL FIX: Include custom model data for custom items
+                if (isCustomItem(item)) {
+                    key.append(":CMD:").append(item.getItemMeta().getCustomModelData());
+                }
+                
+                key.append(",");
             }
         }
         return key.toString();
@@ -392,68 +352,260 @@ public class CustomCraftingManager {
     private boolean matchesCustomRecipe(ItemStack[] grid, ItemStack[] recipePattern) {
         if (grid.length != recipePattern.length) return false;
         
-        for (int i = 0; i < grid.length; i++) {
-            ItemStack gridItem = grid[i] == null ? new ItemStack(Material.AIR) : grid[i];
-            ItemStack recipeItem = recipePattern[i] == null ? new ItemStack(Material.AIR) : recipePattern[i];
-            
-            // Check material type
-            if (gridItem.getType() != recipeItem.getType()) {
-                return false;
-            }
-            
-            // Skip amount and custom data checks for AIR
-            if (recipeItem.getType() == Material.AIR) {
-                continue;
-            }
-            
-            // Check amount (grid must have at least the required amount)
-            if (gridItem.getAmount() < recipeItem.getAmount()) {
-                return false;
-            }
-            
-            // Special handling for custom items (check display name and custom model data)
-            if (isCustomItem(recipeItem)) {
-                if (!isCustomItem(gridItem)) {
-                    return false; // Recipe requires custom item but grid has vanilla item
-                }
-                
-                // Check if they're the same custom item by comparing display names and model data
-                if (!areCustomItemsSame(gridItem, recipeItem)) {
-                    return false;
-                }
+        // Check if this is the Forged Copper Pickaxe recipe
+        boolean isForgedCopperRecipe = false;
+        for (ItemStack item : recipePattern) {
+            if (item != null && isCustomItem(item) && 
+                item.hasItemMeta() && item.getItemMeta().hasDisplayName() &&
+                item.getItemMeta().getDisplayName().contains("Copperhead")) {
+                isForgedCopperRecipe = true;
+                break;
             }
         }
         
+        if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[FORGED COPPER DEBUG] === CHECKING FORGED COPPER PICKAXE RECIPE ===");
+        }
+        
+        for (int i = 0; i < grid.length; i++) {
+            ItemStack gridItem = grid[i] == null ? new ItemStack(Material.AIR) : grid[i];
+            ItemStack patternItem = recipePattern[i] == null ? new ItemStack(Material.AIR) : recipePattern[i];
+            
+            // Both are air/null - valid match
+            if ((gridItem.getType() == Material.AIR || gridItem.getAmount() == 0) && 
+                (patternItem.getType() == Material.AIR || patternItem.getAmount() == 0)) {
+                continue;
+            }
+            
+            // One is air, the other isn't - no match
+            if ((gridItem.getType() == Material.AIR || gridItem.getAmount() == 0) || 
+                (patternItem.getType() == Material.AIR || patternItem.getAmount() == 0)) {
+                if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FORGED COPPER DEBUG] FAILED at slot " + i + " - One item is air, other isn't");
+                }
+                return false;
+            }
+            
+            // CRITICAL DEBUG: Check custom item detection with detailed logging
+            boolean gridIsCustom = isCustomItem(gridItem);
+            boolean patternIsCustom = isCustomItem(patternItem);
+            
+            if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FORGED COPPER DEBUG] Slot " + i + " - Grid: " + getItemDebugName(gridItem) + 
+                    " | Pattern: " + getItemDebugName(patternItem));
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FORGED COPPER DEBUG] Slot " + i + " - Grid is custom: " + gridIsCustom + 
+                    ", Pattern is custom: " + patternIsCustom);
+                    
+                // EXTRA DEBUG: For custom items, show model data comparison
+                if (gridItem.getType() == Material.CARROT_ON_A_STICK || patternItem.getType() == Material.CARROT_ON_A_STICK) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FORGED COPPER DEBUG] CARROT DETAILS - Slot " + i);
+                    if (gridItem.hasItemMeta()) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "  Grid item has meta: " + gridItem.hasItemMeta() + 
+                            ", has custom model data: " + gridItem.getItemMeta().hasCustomModelData());
+                        if (gridItem.getItemMeta().hasCustomModelData()) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "  Grid item model data: " + gridItem.getItemMeta().getCustomModelData());
+                        }
+                    }
+                    if (patternItem.hasItemMeta()) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "  Pattern item has meta: " + patternItem.hasItemMeta() + 
+                            ", has custom model data: " + patternItem.getItemMeta().hasCustomModelData());
+                        if (patternItem.getItemMeta().hasCustomModelData()) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "  Pattern item model data: " + patternItem.getItemMeta().getCustomModelData());
+                        }
+                    }
+                }
+            }
+            
+            // For custom items, use exact matching
+            if (patternIsCustom) {
+                // Pattern requires a custom item
+                if (!gridIsCustom) {
+                    if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FORGED COPPER DEBUG] FAILED at slot " + i + " - Pattern requires custom item but grid has vanilla item");
+                    }
+                    return false;
+                }
+                
+                boolean customItemsMatch = areCustomItemsSame(gridItem, patternItem);
+                
+                if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FORGED COPPER DEBUG] Slot " + i + " - Custom items match: " + customItemsMatch);
+                }
+                
+                if (!customItemsMatch) {
+                    if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FORGED COPPER DEBUG] FAILED at slot " + i + " - Custom items don't match");
+                    }
+                    return false;
+                }
+            } else {
+                // Pattern requires a vanilla item
+                if (gridIsCustom) {
+                    if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FORGED COPPER DEBUG] FAILED at slot " + i + " - Pattern requires vanilla item but grid has custom item");
+                    }
+                    return false;
+                }
+                
+                // For vanilla items, check material type only
+                if (gridItem.getType() != patternItem.getType()) {
+                    if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FORGED COPPER DEBUG] FAILED at slot " + i + " - Materials don't match: " + 
+                            gridItem.getType() + " vs " + patternItem.getType());
+                    }
+                    return false;
+                }
+            }
+            
+            // For non-AIR items, check stack size requirements
+            if (gridItem.getAmount() < patternItem.getAmount()) {
+                if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FORGED COPPER DEBUG] FAILED at slot " + i + " - Insufficient quantity: " + 
+                        gridItem.getAmount() + " < " + patternItem.getAmount());
+                }
+                return false;
+            }
+        }
+        
+        if (isForgedCopperRecipe && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[FORGED COPPER DEBUG] ✅ Custom recipe pattern matches!");
+        }
+        
         return true;
+    }
+
+    /**
+     * Helper method to get item debug name
+     */
+    private String getItemDebugName(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return "AIR";
+        
+        if (isCustomItem(item)) {
+            return getCustomItemName(item);
+        } else {
+            return item.getType().name() + "x" + item.getAmount();
+        }
+    }
+
+    /**
+     * Helper method to get custom item name for debug output
+     */
+    private String getCustomItemName(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return "AIR";
+        
+        if (!isCustomItem(item)) return item.getType().name() + "x" + item.getAmount();
+        
+        ItemMeta meta = item.getItemMeta();
+        StringBuilder name = new StringBuilder();
+        
+        if (meta.hasDisplayName()) {
+            // Remove color codes for cleaner debug output
+            String displayName = meta.getDisplayName().replaceAll("§[0-9a-fk-or]", "");
+            name.append(displayName);
+        } else {
+            name.append(item.getType().name());
+        }
+        
+        if (meta.hasCustomModelData()) {
+            name.append(" (Model:").append(meta.getCustomModelData()).append(")");
+        }
+        
+        name.append("x").append(item.getAmount());
+        
+        return name.toString();
     }
 
     /**
      * Check if an item is a custom item (has custom model data)
      */
     private boolean isCustomItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        return item.getItemMeta().hasCustomModelData();
+        if (item == null) {
+            return false;
+        }
+        
+        if (!item.hasItemMeta()) {
+            return false;
+        }
+        
+        boolean hasCustomModelData = item.getItemMeta().hasCustomModelData();
+        
+        // Minimal debug logging - only for critical issues
+        // Removed excessive carrot debug logging since the issue is resolved
+        
+        return hasCustomModelData;
     }
 
     /**
-     * Check if two custom items are the same type
+     * Check if two custom items are the same type - STRICT COMPARISON
      */
     private boolean areCustomItemsSame(ItemStack item1, ItemStack item2) {
-        if (!item1.hasItemMeta() || !item2.hasItemMeta()) return false;
+        // Remove excessive debug logging since the comparison is working correctly
+        // Only log when there are actual issues
         
-        // Compare custom model data
-        if (item1.getItemMeta().hasCustomModelData() && item2.getItemMeta().hasCustomModelData()) {
-            if (item1.getItemMeta().getCustomModelData() != item2.getItemMeta().getCustomModelData()) {
-                return false;
+        if (item1 == null || item2 == null) {
+            return false;
+        }
+        
+        if (!item1.hasItemMeta() || !item2.hasItemMeta()) {
+            return false;
+        }
+        
+        ItemMeta meta1 = item1.getItemMeta();
+        ItemMeta meta2 = item2.getItemMeta();
+        
+        // Both must have custom model data
+        if (!meta1.hasCustomModelData() || !meta2.hasCustomModelData()) {
+            return false;
+        }
+        
+        // STRICT: Compare material type and EXACT custom model data
+        boolean materialMatch = item1.getType() == item2.getType();
+        boolean modelDataMatch = meta1.getCustomModelData() == meta2.getCustomModelData();
+        
+        // ADDITIONAL STRICT CHECK: Compare display names if both have them
+        boolean nameMatch = true;
+        if (meta1.hasDisplayName() && meta2.hasDisplayName()) {
+            nameMatch = meta1.getDisplayName().equals(meta2.getDisplayName());
+        } else if (meta1.hasDisplayName() || meta2.hasDisplayName()) {
+            // One has display name, other doesn't - not a match
+            nameMatch = false;
+        }
+        
+        // Only log detailed debug for recipe-specific items when there are issues
+        boolean shouldDebug = false;
+        if (meta1.hasDisplayName() && meta2.hasDisplayName()) {
+            String name1 = meta1.getDisplayName();
+            String name2 = meta2.getDisplayName();
+            shouldDebug = (name1.contains("Copperhead") || name1.contains("Forged")) && 
+                        (name2.contains("Copperhead") || name2.contains("Forged"));
+        }
+        
+        if (shouldDebug && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            boolean result = materialMatch && modelDataMatch && nameMatch;
+            if (!result) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Item Compare] MISMATCH - " + 
+                    "Material: " + materialMatch + 
+                    ", Model: " + modelDataMatch + " (" + meta1.getCustomModelData() + " vs " + meta2.getCustomModelData() + ")" +
+                    ", Name: " + nameMatch);
             }
         }
         
-        // Compare display names
-        if (item1.getItemMeta().hasDisplayName() && item2.getItemMeta().hasDisplayName()) {
-            return item1.getItemMeta().getDisplayName().equals(item2.getItemMeta().getDisplayName());
-        }
-        
-        return true;
+        return materialMatch && modelDataMatch && nameMatch;
     }
 
     /**
@@ -468,7 +620,7 @@ public class CustomCraftingManager {
             cleanGrid[i] = craftingGrid[i] == null ? new ItemStack(Material.AIR) : craftingGrid[i];
         }
         
-        // Count non-air items to help with prioritization
+        // Count non-air items
         int nonAirCount = 0;
         for (ItemStack item : cleanGrid) {
             if (item != null && item.getType() != Material.AIR) {
@@ -476,23 +628,19 @@ public class CustomCraftingManager {
             }
         }
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Looking for recipes with " + nonAirCount + " ingredients");
-        }
-        
-        // PRIORITY 1: Check custom recipes first (they have explicit patterns)
+        // PRIORITY 1: Check custom recipes with EXACT matching first (includes custom model data)
         String recipeKey = createRecipeKey(cleanGrid);
         if (customRecipes.containsKey(recipeKey)) {
             ItemStack result = customRecipes.get(recipeKey);
             if (isRecipeUnlocked(player, result)) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found custom recipe: " + result.getType());
+                    Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found exact custom recipe: " + result.getType());
                 }
                 return result;
             }
         }
         
-        // Check custom recipe patterns
+        // PRIORITY 2: Check custom recipe patterns (with strict custom item matching)
         for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
             if (matchesCustomRecipe(cleanGrid, entry.getValue().pattern)) {
                 ItemStack result = entry.getValue().result;
@@ -505,19 +653,15 @@ public class CustomCraftingManager {
             }
         }
         
-        // PRIORITY 2: Check vanilla recipes, but sort them by ingredient count (largest first)
+        // PRIORITY 3: Check vanilla recipes (only if no custom recipes match)
         List<Recipe> sortedRecipes = new ArrayList<>(vanillaRecipes);
         
-        // Sort recipes by the number of ingredients they require (descending)
+        // Sort recipes by ingredient count (descending)
         sortedRecipes.sort((r1, r2) -> {
             int count1 = getRecipeIngredientCount(r1);
             int count2 = getRecipeIngredientCount(r2);
-            return Integer.compare(count2, count1); // Descending order (most ingredients first)
+            return Integer.compare(count2, count1);
         });
-        
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Checking " + sortedRecipes.size() + " vanilla recipes (sorted by ingredient count)");
-        }
         
         for (Recipe recipe : sortedRecipes) {
             if (recipe instanceof ShapedRecipe) {
@@ -532,8 +676,10 @@ public class CustomCraftingManager {
                 if (matchesShapedRecipe(cleanGrid, shapedRecipe)) {
                     ItemStack result = shapedRecipe.getResult();
                     if (isRecipeUnlocked(player, result)) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found vanilla shaped recipe: " + result.getType() + " (requires " + requiredIngredients + " ingredients)");
+                        // Only log important recipes (iron/copper related)
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && 
+                            (result.getType().name().contains("IRON") || result.getType().name().contains("COPPER"))) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found vanilla shaped recipe: " + result.getType());
                         }
                         return result;
                     }
@@ -550,17 +696,15 @@ public class CustomCraftingManager {
                 if (matchesShapelessRecipe(cleanGrid, shapelessRecipe)) {
                     ItemStack result = shapelessRecipe.getResult();
                     if (isRecipeUnlocked(player, result)) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] Found vanilla shapeless recipe: " + result.getType() + " (requires " + requiredIngredients + " ingredients)");
-                        }
                         return result;
                     }
                 }
             }
         }
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] No matching recipes found");
+        // Only log when we have items but no recipes found
+        if (nonAirCount > 0 && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Recipe Debug] No matching recipes found for " + nonAirCount + " items");
         }
         
         return null;
