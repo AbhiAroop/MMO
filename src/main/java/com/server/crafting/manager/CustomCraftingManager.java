@@ -609,6 +609,13 @@ public class CustomCraftingManager {
     }
 
     /**
+     * Get all vanilla recipes (public method for auto-crafting)
+     */
+    public List<Recipe> getVanillaRecipes() {
+        return new ArrayList<>(vanillaRecipes);
+    }
+
+    /**
      * Get the result of a recipe from a 3x3 crafting grid
      */
     public ItemStack getRecipeResult(ItemStack[] craftingGrid, Player player) {
@@ -777,7 +784,7 @@ public class CustomCraftingManager {
     /**
      * Check if a recipe result is unlocked for the player
      */
-    private boolean isRecipeUnlocked(Player player, ItemStack result) {
+    private boolean checkRecipeUnlock(Player player, ItemStack result) {
         MiningSkill miningSkill = (MiningSkill) SkillRegistry.getInstance().getSkill(SkillType.MINING);
         
         // Check for copperhead pickaxe
@@ -792,6 +799,13 @@ public class CustomCraftingManager {
         
         // All other recipes are unlocked by default
         return true;
+    }
+    
+    /**
+     * Check if a recipe result is unlocked for the player (public method)
+     */
+    public boolean isRecipeUnlocked(Player player, ItemStack result) {
+        return checkRecipeUnlock(player, result);
     }
     
     /**
@@ -925,11 +939,12 @@ public class CustomCraftingManager {
     }
     
     /**
-     * Get all custom recipes
+     * Get all custom recipes - FIXED: Return proper type
      */
     public Map<String, ItemStack> getCustomRecipes() {
         return new HashMap<>(customRecipes);
     }
+
 
     /**
      * Data structure to hold custom recipe information
@@ -953,6 +968,43 @@ public class CustomCraftingManager {
         String key = createRecipeKey(pattern);
         customRecipePatterns.put(key, new CustomRecipeData(pattern.clone(), result.clone()));
         customRecipes.put(key, result.clone()); // Keep for backwards compatibility
+    }
+
+    /**
+     * Get the actual recipe pattern for a custom recipe result
+     */
+    public ItemStack[] getCustomRecipePattern(ItemStack result) {
+        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
+            if (entry.getValue().result.isSimilar(result)) {
+                return entry.getValue().pattern.clone();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Debug method to check ingredient consumption - ENHANCED
+     */
+    public void debugIngredientConsumption(ItemStack[] beforeGrid, ItemStack[] afterGrid, ItemStack result) {
+        if (!Main.getInstance().isDebugEnabled(DebugSystem.GUI)) return;
+        
+        Main.getInstance().debugLog(DebugSystem.GUI, "[Auto Crafting] Ingredient consumption for " + result.getType() + ":");
+        
+        for (int i = 0; i < Math.min(beforeGrid.length, afterGrid.length); i++) {
+            ItemStack before = beforeGrid[i];
+            ItemStack after = afterGrid[i];
+            
+            if (before != null && before.getType() != Material.AIR) {
+                if (after == null || after.getType() == Material.AIR) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "  Slot " + i + ": " + before.getType() + "x" + before.getAmount() + " -> AIR (consumed entirely)");
+                } else if (before.getAmount() != after.getAmount()) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "  Slot " + i + ": " + before.getType() + "x" + before.getAmount() + " -> x" + after.getAmount() + 
+                        " (consumed " + (before.getAmount() - after.getAmount()) + ")");
+                }
+            }
+        }
     }
 
     private final Map<String, AdvancedRecipeData> advancedRecipePatterns = new HashMap<>();

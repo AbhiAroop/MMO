@@ -1,4 +1,6 @@
 com\server\abilities\AbilityManager.class
+com\server\crafting\listeners\AutoCraftingListener.class
+com\server\crafting\gui\AutoCraftingGUI$CraftableItem.class
 com\server\profiles\skills\gui\SkillTreeGUIListener.class
 com\server\profiles\skills\abilities\gui\AbilityGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
@@ -103,6 +105,7 @@ com\server\entities\npc\NPCType.class
 com\server\profiles\skills\gui\SkillTreeGUI$ResetData.class
 com\server\crafting\listeners\VanillaCraftingReplacer.class
 com\server\entities\npc\NPCInteractionListener.class
+com\server\crafting\gui\AutoCraftingGUI.class
 com\server\entities\mobs\CustomMob$1$1.class
 com\server\profiles\skills\abilities\gui\AbilityListGUI.class
 com\server\commands\AdminSkillsCommand.class

@@ -27,6 +27,7 @@ import com.server.commands.SpawnCustomMobCommand;
 import com.server.commands.StatsCommand;
 import com.server.cosmetics.CosmeticManager;
 import com.server.crafting.listeners.AdvancedCraftingListener;
+import com.server.crafting.listeners.AutoCraftingListener;
 import com.server.crafting.listeners.CustomCraftingListener;
 import com.server.crafting.listeners.VanillaCraftingReplacer;
 import com.server.crafting.manager.CustomCraftingManager;
@@ -231,6 +232,7 @@ public class Main extends JavaPlugin {
 
         this.getServer().getPluginManager().registerEvents(new CustomCraftingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AdvancedCraftingListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new AutoCraftingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new VanillaCraftingReplacer(), this);
 
     }

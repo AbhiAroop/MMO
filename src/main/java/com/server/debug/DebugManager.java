@@ -130,12 +130,16 @@ public class DebugManager {
      * @return true if debugging is enabled
      */
     public boolean isDebugEnabled(DebugSystem system) {
-        // If ALL is enabled, all systems are enabled
-        if (system != DebugSystem.ALL && debugFlags.getOrDefault(DebugSystem.ALL, false)) {
-            return true;
+        // For the ALL system, just return its flag directly
+        if (system == DebugSystem.ALL) {
+            return debugFlags.getOrDefault(DebugSystem.ALL, false);
         }
         
-        return debugFlags.getOrDefault(system, false);
+        // For individual systems, check if ALL is enabled OR the specific system is enabled
+        boolean allEnabled = debugFlags.getOrDefault(DebugSystem.ALL, false);
+        boolean systemEnabled = debugFlags.getOrDefault(system, false);
+        
+        return allEnabled || systemEnabled;
     }
     
     /**
@@ -148,11 +152,20 @@ public class DebugManager {
         debugFlags.put(system, enabled);
         
         // Special handling for ALL
-        if (system == DebugSystem.ALL && enabled) {
-            // When ALL is enabled, enable all systems
-            for (DebugSystem sys : DebugSystem.values()) {
-                if (sys != DebugSystem.ALL) {
-                    debugFlags.put(sys, true);
+        if (system == DebugSystem.ALL) {
+            if (enabled) {
+                // When ALL is enabled, enable all systems
+                for (DebugSystem sys : DebugSystem.values()) {
+                    if (sys != DebugSystem.ALL) {
+                        debugFlags.put(sys, true);
+                    }
+                }
+            } else {
+                // When ALL is disabled, disable all systems
+                for (DebugSystem sys : DebugSystem.values()) {
+                    if (sys != DebugSystem.ALL) {
+                        debugFlags.put(sys, false);
+                    }
                 }
             }
         }
@@ -168,7 +181,8 @@ public class DebugManager {
      * @return The new state
      */
     public boolean toggleDebug(DebugSystem system) {
-        boolean newState = !isDebugEnabled(system);
+        boolean currentState = isDebugEnabled(system);
+        boolean newState = !currentState;
         setDebugEnabled(system, newState);
         return newState;
     }

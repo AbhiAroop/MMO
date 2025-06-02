@@ -134,6 +134,8 @@ public class CustomCraftingGUI {
         gui.setItem(34, outputBorder);  // Below output
     }
     
+    // Add this method to the existing CustomCraftingGUI class
+
     /**
      * Add decorative elements to make the GUI more appealing
      */
@@ -166,6 +168,23 @@ public class CustomCraftingGUI {
         arrow.setItemMeta(arrowMeta);
         gui.setItem(24, arrow); // Left of output slot
         
+        // Add AUTO-CRAFTING navigation (FIXED)
+        ItemStack autoCraftArrow = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemMeta autoCraftMeta = autoCraftArrow.getItemMeta();
+        autoCraftMeta.setDisplayName(ChatColor.AQUA + "⚡ Auto Crafting");
+        autoCraftMeta.setLore(Arrays.asList(
+            ChatColor.GRAY + "Automatically craft items from",
+            ChatColor.GRAY + "your current inventory!",
+            "",
+            ChatColor.YELLOW + "• Shows all craftable items",
+            ChatColor.YELLOW + "• Click to craft instantly",
+            ChatColor.YELLOW + "• Supports custom recipes",
+            "",
+            ChatColor.AQUA + "Click to open!"
+        ));
+        autoCraftArrow.setItemMeta(autoCraftMeta);
+        gui.setItem(36, autoCraftArrow); // Auto-crafting navigation slot
+        
         // Add navigation arrow to 4x4 crafting
         ItemStack advancedArrow = new ItemStack(Material.SPECTRAL_ARROW);
         ItemMeta advancedMeta = advancedArrow.getItemMeta();
@@ -178,6 +197,13 @@ public class CustomCraftingGUI {
         ));
         advancedArrow.setItemMeta(advancedMeta);
         gui.setItem(44, advancedArrow); // Bottom right corner
+    }
+
+    /**
+     * Check if a slot is the auto-crafting navigation slot
+     */
+    public static boolean isAutoCraftingNavigationSlot(int slot) {
+        return slot == 36;
     }
 
     /**

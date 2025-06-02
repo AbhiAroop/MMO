@@ -16,6 +16,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
 import com.server.crafting.gui.AdvancedCraftingGUI;
+import com.server.crafting.gui.AutoCraftingGUI;
 import com.server.crafting.gui.CustomCraftingGUI;
 import com.server.crafting.manager.CustomCraftingManager;
 import com.server.debug.DebugManager.DebugSystem;
@@ -120,6 +121,26 @@ public class CustomCraftingListener implements Listener {
             
             // Open the 4x4 advanced crafting GUI
             AdvancedCraftingGUI.openAdvancedCraftingTable(player);
+            return;
+        }
+
+        // Check if clicking on the auto-crafting navigation slot
+        if (CustomCraftingGUI.isAutoCraftingNavigationSlot(slot)) {
+            event.setCancelled(true);
+            
+            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                plugin.debugLog(DebugSystem.GUI, 
+                    "[Crafting] " + player.getName() + " navigating to auto-crafting GUI");
+            }
+            
+            // Remove the 3x3 GUI
+            CustomCraftingGUI.removeActiveCraftingGUI(player);
+            
+            // Clear any existing auto-crafting data to ensure fresh analysis
+            AutoCraftingGUI.clearPlayerData(player);
+            
+            // Open the auto-crafting GUI
+            AutoCraftingGUI.openAutoCraftingGUI(player);
             return;
         }
         
