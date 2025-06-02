@@ -1536,4 +1536,219 @@ public class CustomCraftingManager {
         }
     }
 
+    /**
+     * Get all custom recipe patterns with their results
+     */
+    public Map<ItemStack[], ItemStack> getAllCustomRecipePatterns() {
+        Map<ItemStack[], ItemStack> patterns = new HashMap<>();
+        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
+            patterns.put(entry.getValue().pattern.clone(), entry.getValue().result.clone());
+        }
+        return patterns;
+    }
+
+    /**
+     * Find custom recipe patterns that produce a specific result
+     */
+    public List<ItemStack[]> getCustomRecipePatternsForResult(ItemStack result) {
+        List<ItemStack[]> patterns = new ArrayList<>();
+        for (Map.Entry<String, CustomRecipeData> entry : customRecipePatterns.entrySet()) {
+            if (entry.getValue().result.isSimilar(result)) {
+                patterns.add(entry.getValue().pattern.clone());
+            }
+        }
+        return patterns;
+    }
+
+    /**
+     * Check if we can craft a specific custom recipe with given inventory
+     */
+    public boolean canCraftCustomRecipe(ItemStack[] recipePattern, ItemStack[] inventory) {
+        // Count required materials from pattern
+        Map<Material, Integer> requiredRegular = new HashMap<>();
+        Map<ItemStack, Integer> requiredCustom = new HashMap<>();
+        
+        for (ItemStack item : recipePattern) {
+            if (item != null && item.getType() != Material.AIR) {
+                if (isCustomItem(item)) {
+                    // For custom items, track exact matches
+                    boolean found = false;
+                    for (Map.Entry<ItemStack, Integer> entry : requiredCustom.entrySet()) {
+                        if (areCustomItemsSame(entry.getKey(), item)) {
+                            entry.setValue(entry.getValue() + item.getAmount());
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        requiredCustom.put(item.clone(), item.getAmount());
+                    }
+                } else {
+                    requiredRegular.put(item.getType(), 
+                        requiredRegular.getOrDefault(item.getType(), 0) + item.getAmount());
+                }
+            }
+        }
+        
+        // Count available materials in inventory
+        Map<Material, Integer> availableRegular = new HashMap<>();
+        List<ItemStack> availableCustom = new ArrayList<>();
+        
+        for (ItemStack item : inventory) {
+            if (item != null && item.getType() != Material.AIR) {
+                if (isCustomItem(item)) {
+                    availableCustom.add(item.clone());
+                } else {
+                    availableRegular.put(item.getType(), 
+                        availableRegular.getOrDefault(item.getType(), 0) + item.getAmount());
+                }
+            }
+        }
+        
+        // Check if we have enough regular materials
+        for (Map.Entry<Material, Integer> req : requiredRegular.entrySet()) {
+            int available = availableRegular.getOrDefault(req.getKey(), 0);
+            if (available < req.getValue()) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Recipe Check] Need " + req.getValue() + " " + req.getKey() + 
+                        " but only have " + available);
+                }
+                return false;
+            }
+        }
+        
+        // Check if we have enough custom items
+        for (Map.Entry<ItemStack, Integer> req : requiredCustom.entrySet()) {
+            int needed = req.getValue();
+            int found = 0;
+            
+            for (ItemStack availableItem : availableCustom) {
+                if (areCustomItemsSame(availableItem, req.getKey())) {
+                    found += availableItem.getAmount();
+                    if (found >= needed) break;
+                }
+            }
+            
+            if (found < needed) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Recipe Check] Need " + needed + " custom items but only have " + found);
+                }
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get maximum craftable amount for a custom recipe
+     */
+    public int getMaxCraftableAmountForCustomRecipe(ItemStack[] recipePattern, ItemStack[] inventory) {
+        // Find how many times we can craft this exact pattern
+        ItemStack[] testInventory = new ItemStack[inventory.length];
+        for (int i = 0; i < inventory.length; i++) {
+            testInventory[i] = inventory[i] != null ? inventory[i].clone() : null;
+        }
+        
+        int craftCount = 0;
+        while (canCraftCustomRecipe(recipePattern, testInventory)) {
+            // Consume ingredients for this craft
+            if (!consumeCustomRecipeIngredients(recipePattern, testInventory)) {
+                break;
+            }
+            craftCount++;
+            
+            // Safety check
+            if (craftCount > 1000) {
+                break;
+            }
+        }
+        
+        return craftCount;
+    }
+
+    /**
+     * Consume ingredients for a custom recipe
+     */
+    private boolean consumeCustomRecipeIngredients(ItemStack[] recipePattern, ItemStack[] inventory) {
+        // Count what we need to consume
+        Map<Material, Integer> toConsumeRegular = new HashMap<>();
+        Map<ItemStack, Integer> toConsumeCustom = new HashMap<>();
+        
+        for (ItemStack item : recipePattern) {
+            if (item != null && item.getType() != Material.AIR) {
+                if (isCustomItem(item)) {
+                    boolean found = false;
+                    for (Map.Entry<ItemStack, Integer> entry : toConsumeCustom.entrySet()) {
+                        if (areCustomItemsSame(entry.getKey(), item)) {
+                            entry.setValue(entry.getValue() + item.getAmount());
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        toConsumeCustom.put(item.clone(), item.getAmount());
+                    }
+                } else {
+                    toConsumeRegular.put(item.getType(), 
+                        toConsumeRegular.getOrDefault(item.getType(), 0) + item.getAmount());
+                }
+            }
+        }
+        
+        // Consume regular materials
+        for (Map.Entry<Material, Integer> entry : toConsumeRegular.entrySet()) {
+            Material material = entry.getKey();
+            int amountNeeded = entry.getValue();
+            
+            for (int i = 0; i < inventory.length && amountNeeded > 0; i++) {
+                ItemStack slot = inventory[i];
+                if (slot != null && slot.getType() == material && !isCustomItem(slot)) {
+                    int available = slot.getAmount();
+                    int toTake = Math.min(available, amountNeeded);
+                    
+                    slot.setAmount(available - toTake);
+                    if (slot.getAmount() <= 0) {
+                        inventory[i] = null;
+                    }
+                    
+                    amountNeeded -= toTake;
+                }
+            }
+            
+            if (amountNeeded > 0) {
+                return false;
+            }
+        }
+        
+        // Consume custom items
+        for (Map.Entry<ItemStack, Integer> entry : toConsumeCustom.entrySet()) {
+            ItemStack targetItem = entry.getKey();
+            int amountNeeded = entry.getValue();
+            
+            for (int i = 0; i < inventory.length && amountNeeded > 0; i++) {
+                ItemStack slot = inventory[i];
+                if (slot != null && areCustomItemsSame(slot, targetItem)) {
+                    int available = slot.getAmount();
+                    int toTake = Math.min(available, amountNeeded);
+                    
+                    slot.setAmount(available - toTake);
+                    if (slot.getAmount() <= 0) {
+                        inventory[i] = null;
+                    }
+                    
+                    amountNeeded -= toTake;
+                }
+            }
+            
+            if (amountNeeded > 0) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
 }

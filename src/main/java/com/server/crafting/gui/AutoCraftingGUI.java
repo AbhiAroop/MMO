@@ -467,25 +467,46 @@ public class AutoCraftingGUI {
     }
     
     /**
-     * Analyze player's inventory to find all craftable items
-     * FIXED: Only show items that can actually be crafted AND are unlocked
+     * Analyze player's inventory to find all craftable items - ENHANCED DEBUGGING
      */
     private static List<CraftableItem> analyzeCraftableItems(Player player) {
         List<CraftableItem> craftableItems = new ArrayList<>();
         Set<ItemStack> uniqueResults = new HashSet<>();
         
-        // Get player's inventory contents
+        // Get player's inventory
         ItemStack[] playerInventory = player.getInventory().getStorageContents();
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI, 
                 "[Auto Crafting] Analyzing inventory for " + player.getName());
+            
+            // Log inventory contents
+            Map<Material, Integer> inventoryContents = new HashMap<>();
+            List<String> customItems = new ArrayList<>();
+            
+            for (ItemStack item : playerInventory) {
+                if (item != null && item.getType() != Material.AIR) {
+                    if (isCustomItem(item)) {
+                        String customName = item.hasItemMeta() && item.getItemMeta().hasDisplayName() ?
+                                        item.getItemMeta().getDisplayName() : item.getType().name();
+                        customItems.add(item.getAmount() + "x " + customName);
+                    } else {
+                        inventoryContents.put(item.getType(), 
+                            inventoryContents.getOrDefault(item.getType(), 0) + item.getAmount());
+                    }
+                }
+            }
+            
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Auto Crafting] Regular items: " + inventoryContents.toString());
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Auto Crafting] Custom items: " + customItems.toString());
         }
         
-        // Check custom recipes first (FIXED: Only if unlocked and craftable)
+        // Analyze custom recipes first (they take priority)
         analyzeCustomRecipes(player, playerInventory, craftableItems, uniqueResults);
         
-        // Check vanilla recipes (FIXED: Only if craftable)
+        // Then analyze vanilla recipes
         analyzeVanillaRecipes(player, playerInventory, craftableItems, uniqueResults);
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -497,34 +518,53 @@ public class AutoCraftingGUI {
     }
     
     /**
-     * Analyze custom recipes - FIXED: Check unlocking and actual craftability
+     * Analyze custom recipes - COMPLETELY FIXED: Proper ingredient checking
      */
     private static void analyzeCustomRecipes(Player player, ItemStack[] playerInventory, 
-                                           List<CraftableItem> craftableItems, Set<ItemStack> uniqueResults) {
+                                        List<CraftableItem> craftableItems, Set<ItemStack> uniqueResults) {
         CustomCraftingManager manager = CustomCraftingManager.getInstance();
         
-        // Get all custom recipes and test them
-        Map<String, ItemStack> customRecipes = manager.getCustomRecipes();
-        for (Map.Entry<String, ItemStack> entry : customRecipes.entrySet()) {
+        // Get all custom recipe patterns with their results
+        Map<ItemStack[], ItemStack> customRecipePatterns = manager.getAllCustomRecipePatterns();
+        
+        for (Map.Entry<ItemStack[], ItemStack> entry : customRecipePatterns.entrySet()) {
+            ItemStack[] recipePattern = entry.getKey();
             ItemStack result = entry.getValue();
             
             // Skip if we already found this result
-            if (uniqueResults.contains(result)) continue;
+            boolean alreadyFound = false;
+            for (ItemStack existing : uniqueResults) {
+                if (existing.isSimilar(result)) {
+                    alreadyFound = true;
+                    break;
+                }
+            }
+            if (alreadyFound) continue;
             
             // CRITICAL FIX: Check if recipe is unlocked for this player
             if (!manager.isRecipeUnlocked(player, result)) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Auto Crafting] Skipping locked recipe: " + result.getType());
+                        "[Auto Crafting] Skipping locked custom recipe: " + result.getType());
                 }
                 continue;
             }
             
-            // Test if this recipe can be crafted with current inventory
-            int maxCraftable = manager.getMaxCraftableAmount(playerInventory, result);
+            // CRITICAL FIX: Use proper custom recipe checking
+            if (!manager.canCraftCustomRecipe(recipePattern, playerInventory)) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Auto Crafting] Cannot craft custom recipe for " + result.getType() + 
+                        " - insufficient ingredients");
+                }
+                continue;
+            }
+            
+            // Calculate maximum craftable amount using the specific recipe pattern
+            int maxCraftable = manager.getMaxCraftableAmountForCustomRecipe(recipePattern, playerInventory);
+            
             if (maxCraftable > 0) {
-                ItemStack[] recipe = reconstructRecipePattern(entry.getKey());
-                craftableItems.add(new CraftableItem(result, recipe, maxCraftable, true, "custom"));
+                craftableItems.add(new CraftableItem(result, recipePattern, maxCraftable, true, "custom"));
                 uniqueResults.add(result.clone());
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -533,6 +573,69 @@ public class AutoCraftingGUI {
                 }
             }
         }
+    }
+
+    /**
+     * Calculate maximum craftable amount for custom recipes - FIXED
+     */
+    private static int calculateMaxCraftableCustom(Player player, ItemStack result, ItemStack[] playerInventory) {
+        CustomCraftingManager manager = CustomCraftingManager.getInstance();
+        
+        // Get all patterns that can produce this result
+        List<ItemStack[]> patterns = manager.getCustomRecipePatternsForResult(result);
+        
+        int maxCraftable = 0;
+        for (ItemStack[] pattern : patterns) {
+            int craftableWithThisPattern = manager.getMaxCraftableAmountForCustomRecipe(pattern, playerInventory);
+            maxCraftable = Math.max(maxCraftable, craftableWithThisPattern);
+        }
+        
+        return maxCraftable;
+    }
+
+    /**
+     * Find the actual working recipe for a specific result item from player's inventory - FIXED
+     */
+    private static ItemStack[] findActualWorkingRecipe(Player player, ItemStack result) {
+        ItemStack[] playerInventory = player.getInventory().getStorageContents();
+        CustomCraftingManager manager = CustomCraftingManager.getInstance();
+        
+        // First, try custom recipes with exact pattern matching
+        List<ItemStack[]> customPatterns = manager.getCustomRecipePatternsForResult(result);
+        for (ItemStack[] pattern : customPatterns) {
+            if (manager.canCraftCustomRecipe(pattern, playerInventory)) {
+                // Verify this pattern actually produces the result
+                ItemStack testResult = manager.getRecipeResult(pattern, player);
+                if (testResult != null && testResult.isSimilar(result)) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Auto Crafting] Found working custom recipe pattern for " + result.getType());
+                    }
+                    return pattern;
+                }
+            }
+        }
+        
+        // Then, try vanilla recipes
+        List<Recipe> vanillaRecipes = manager.getVanillaRecipes();
+        for (Recipe recipe : vanillaRecipes) {
+            if (recipe.getResult().isSimilar(result)) {
+                ItemStack[] recipePattern = createVanillaRecipePattern(recipe, playerInventory);
+                if (recipePattern != null && canCraftRecipeWithInventory(recipePattern, playerInventory)) {
+                    // Test if this recipe actually produces the result
+                    ItemStack testResult = manager.getRecipeResult(recipePattern, player);
+                    if (testResult != null && testResult.isSimilar(result)) {
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[Auto Crafting] Found working vanilla recipe for " + result.getType());
+                        }
+                        return recipePattern;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -690,14 +793,7 @@ public class AutoCraftingGUI {
         
         return testGrid;
     }
-    
-    /**
-     * Calculate maximum craftable amount for custom recipes
-     */
-    private static int calculateMaxCraftableCustom(Player player, ItemStack result, ItemStack[] playerInventory) {
-        return CustomCraftingManager.getInstance().getMaxCraftableAmount(playerInventory, result);
-    }
-    
+        
     /**
      * Calculate maximum craftable amount for vanilla recipes
      */
@@ -830,55 +926,6 @@ public class AutoCraftingGUI {
         }
         
         return false;
-    }
-
-    /**
-     * Find the actual working recipe for a specific result item from player's inventory
-     */
-    private static ItemStack[] findActualWorkingRecipe(Player player, ItemStack result) {
-        ItemStack[] playerInventory = player.getInventory().getStorageContents();
-        CustomCraftingManager manager = CustomCraftingManager.getInstance();
-        
-        // First, try custom recipes
-        Map<String, ItemStack> customRecipes = manager.getCustomRecipes();
-        for (Map.Entry<String, ItemStack> entry : customRecipes.entrySet()) {
-            if (entry.getValue().isSimilar(result)) {
-                // Try to create this custom recipe pattern
-                ItemStack[] recipePattern = reconstructCustomRecipePattern(entry.getKey(), entry.getValue());
-                if (recipePattern != null && canCraftRecipeWithInventory(recipePattern, playerInventory)) {
-                    // Test if this recipe actually produces the result
-                    ItemStack testResult = manager.getRecipeResult(recipePattern, player);
-                    if (testResult != null && testResult.isSimilar(result)) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[Auto Crafting] Found working custom recipe for " + result.getType());
-                        }
-                        return recipePattern;
-                    }
-                }
-            }
-        }
-        
-        // Then, try vanilla recipes
-        List<Recipe> vanillaRecipes = manager.getVanillaRecipes();
-        for (Recipe recipe : vanillaRecipes) {
-            if (recipe.getResult().isSimilar(result)) {
-                ItemStack[] recipePattern = createVanillaRecipePattern(recipe, playerInventory);
-                if (recipePattern != null && canCraftRecipeWithInventory(recipePattern, playerInventory)) {
-                    // Test if this recipe actually produces the result
-                    ItemStack testResult = manager.getRecipeResult(recipePattern, player);
-                    if (testResult != null && testResult.isSimilar(result)) {
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                            Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[Auto Crafting] Found working vanilla recipe for " + result.getType());
-                        }
-                        return recipePattern;
-                    }
-                }
-            }
-        }
-        
-        return null;
     }
 
     /**
