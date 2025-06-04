@@ -53,6 +53,9 @@ public class PlayerProfile {
     private double profileTotalXp;     // Total XP earned for this profile
     private static final int MAX_PROFILE_LEVEL = 100; // Maximum profile level
 
+    private long totalPlaytimeMillis;    // Total time spent on this profile
+    private long sessionStartTime;       // When current session started (0 if not active)
+
     private final Map<ItemType, ItemStack> cosmetics = new HashMap<>();
     private final Set<String> unlockedAbilities = new HashSet<>();
     private final Set<String> enabledAbilities = new HashSet<>();
@@ -87,6 +90,11 @@ public class PlayerProfile {
         this.profileLevel = 1;      // Start at level 1
         this.profileCurrentXp = 0;  // No XP towards next level
         this.profileTotalXp = 0;    // No total XP earned
+
+        // Initialize playtime tracking
+        this.totalPlaytimeMillis = 0;
+        this.sessionStartTime = 0;
+
     }
 
     public void saveInventory(Player player) {
@@ -103,6 +111,7 @@ public class PlayerProfile {
         player.getInventory().setExtraContents(extraContents.clone());
         updateLastPlayed();
     }
+    
 
     public void updateLastPlayed() {
         this.lastPlayed = System.currentTimeMillis();
@@ -175,6 +184,7 @@ public class PlayerProfile {
         player.setHealthScale(20.0);
         
         updateLastPlayed();
+        startPlaytimeSession();
     }
 
     public void saveProfile(Player player) {
@@ -189,6 +199,7 @@ public class PlayerProfile {
         stats.setCurrentHealth(currentHealth);
         
         updateLastPlayed();
+        endPlaytimeSession();
         
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("Profile saved for " + player.getName() + 
@@ -221,6 +232,87 @@ public class PlayerProfile {
 
     public void removeCosmetic(ItemType type) {
         cosmetics.remove(type);
+    }
+
+    /**
+     * Start tracking playtime for this session
+     */
+    public void startPlaytimeSession() {
+        if (sessionStartTime == 0) {
+            sessionStartTime = System.currentTimeMillis();
+        }
+    }
+    
+    /**
+     * Stop tracking playtime and add session time to total
+     */
+    public void endPlaytimeSession() {
+        if (sessionStartTime > 0) {
+            long sessionDuration = System.currentTimeMillis() - sessionStartTime;
+            totalPlaytimeMillis += sessionDuration;
+            sessionStartTime = 0;
+        }
+    }
+    
+    /**
+     * Get total playtime in milliseconds (including current session if active)
+     */
+    public long getTotalPlaytimeMillis() {
+        long totalTime = totalPlaytimeMillis;
+        
+        // Add current session time if active
+        if (sessionStartTime > 0) {
+            totalTime += (System.currentTimeMillis() - sessionStartTime);
+        }
+        
+        return totalTime;
+    }
+    
+    /**
+     * Get formatted playtime string (e.g., "2d 5h 30m")
+     */
+    public String getFormattedPlaytime() {
+        return formatPlaytime(getTotalPlaytimeMillis());
+    }
+    
+    /**
+     * Format milliseconds into a readable playtime string
+     */
+    public static String formatPlaytime(long millis) {
+        if (millis <= 0) return "0m";
+        
+        long totalSeconds = millis / 1000;
+        long days = totalSeconds / 86400;
+        long hours = (totalSeconds % 86400) / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        
+        StringBuilder formatted = new StringBuilder();
+        
+        if (days > 0) {
+            formatted.append(days).append("d ");
+        }
+        if (hours > 0) {
+            formatted.append(hours).append("h ");
+        }
+        if (minutes > 0 || formatted.length() == 0) {
+            formatted.append(minutes).append("m");
+        }
+        
+        return formatted.toString().trim();
+    }
+    
+    /**
+     * Get creation date as formatted string
+     */
+    public String getFormattedCreationDate() {
+        return new java.text.SimpleDateFormat("MMM dd, yyyy").format(new java.util.Date(created));
+    }
+    
+    /**
+     * Check if this profile is currently active (has an active session)
+     */
+    public boolean isActiveSession() {
+        return sessionStartTime > 0;
     }
 
     // Currency getters and setters

@@ -75,6 +75,8 @@ public class ProfileManager {
             
             // CRITICAL: Set as active profile BEFORE starting scan to ensure item stats are captured
             activeProfiles.put(player.getUniqueId(), slot);
+
+            newProfile.startPlaytimeSession();
             
             // CRITICAL FIX: Start scanning immediately with the new profile
             // This ensures equipment stats are processed correctly on first profile creation
@@ -100,6 +102,7 @@ public class ProfileManager {
             
             // CRITICAL: Set as active profile
             activeProfiles.put(player.getUniqueId(), slot);
+            newProfile.startPlaytimeSession();
         }
         
         playerProfiles[slot] = newProfile;
@@ -158,6 +161,7 @@ public class ProfileManager {
         if (currentSlot != null && playerProfiles[currentSlot] != null) {
             // Explicitly save current health before switching
             PlayerProfile currentProfile = playerProfiles[currentSlot];
+            currentProfile.endPlaytimeSession();
             currentProfile.getStats().setCurrentHealth(player.getHealth());
             
             if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
@@ -203,17 +207,19 @@ public class ProfileManager {
             }
         }
     
-    // Set profile as active before loading to ensure it's recognized
-    activeProfiles.put(player.getUniqueId(), slot);
-    
-    // Load the profile (this will set proper health from profile)
-    newProfile.loadProfile(player);
+        // Set profile as active before loading to ensure it's recognized
+        activeProfiles.put(player.getUniqueId(), slot);
+        
+        // Load the profile (this will set proper health from profile)
+        newProfile.loadProfile(player);
         
         // Set profile as active before loading to ensure it's recognized
         activeProfiles.put(player.getUniqueId(), slot);
         
         // Load the profile (this will set proper health from profile)
         newProfile.loadProfile(player);
+
+        newProfile.startPlaytimeSession();
         
         // If this is the first-ever profile or first time accessing this profile, kill the player
         // This ensures they spawn at the proper location with default stats
@@ -417,6 +423,20 @@ public class ProfileManager {
         } catch (Exception e) {
             if (plugin.isDebugEnabled(DebugSystem.PROFILE)) {
                 plugin.debugLog(DebugSystem.PROFILE,"Error initializing attributes: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Handle player disconnecting - end playtime session
+     */
+    public void handlePlayerDisconnect(Player player) {
+        Integer activeSlot = activeProfiles.get(player.getUniqueId());
+        if (activeSlot != null) {
+            PlayerProfile[] playerProfiles = getProfiles(player.getUniqueId());
+            if (playerProfiles[activeSlot] != null) {
+                playerProfiles[activeSlot].endPlaytimeSession();
+                playerProfiles[activeSlot].saveProfile(player);
             }
         }
     }

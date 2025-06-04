@@ -1,5 +1,6 @@
 package com.server.commands;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.ChatColor;
@@ -51,14 +52,44 @@ public class MenuCommand implements CommandExecutor {
     }
     
     /**
-     * Create a player head item with custom name and lore
+     * Create a player head item with custom name and lore including playtime
      */
     public static ItemStack createPlayerHeadItem(Player player, String displayName, List<String> lore) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         meta.setOwningPlayer(player);
         meta.setDisplayName(displayName);
-        meta.setLore(lore);
+        
+        // Create enhanced lore with playtime information
+        List<String> enhancedLore = new ArrayList<>();
+        
+        // Add the original lore first
+        if (lore != null) {
+            enhancedLore.addAll(lore);
+        }
+        
+        // Get active profile information
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot != null) {
+            PlayerProfile activeProfile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (activeProfile != null) {
+                // Add playtime and creation date information
+                enhancedLore.add("");
+                enhancedLore.add(ChatColor.GRAY + "▬▬▬▬▬ " + ChatColor.AQUA + "Profile Info" + ChatColor.GRAY + " ▬▬▬▬▬");
+                enhancedLore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Created: " + 
+                            ChatColor.GOLD + activeProfile.getFormattedCreationDate());
+                enhancedLore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Total Playtime: " + 
+                            ChatColor.GREEN + activeProfile.getFormattedPlaytime());
+                
+                // Add session indicator if currently active
+                if (activeProfile.isActiveSession()) {
+                    enhancedLore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Status: " + 
+                                ChatColor.GREEN + "Currently Playing");
+                }
+            }
+        }
+        
+        meta.setLore(enhancedLore);
         
         // Add enchant glow for visual appeal
         meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);

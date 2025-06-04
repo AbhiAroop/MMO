@@ -141,17 +141,7 @@ public class CustomCraftingManager {
         while (recipeIterator.hasNext()) {
             Recipe recipe = recipeIterator.next();
             
-            // Skip leather armor dyeing recipes and other complex recipes we don't want
-            if (recipe.getResult().getType().name().contains("LEATHER_")) {
-                continue;
-            }
             
-            // Skip banner pattern recipes, firework recipes, etc.
-            if (recipe.getResult().getType() == Material.FIREWORK_ROCKET ||
-                recipe.getResult().getType() == Material.FIREWORK_STAR ||
-                recipe.getResult().getType().name().contains("BANNER")) {
-                continue;
-            }
             
             // Only include shaped and shapeless recipes
             if (recipe instanceof ShapedRecipe || recipe instanceof ShapelessRecipe) {

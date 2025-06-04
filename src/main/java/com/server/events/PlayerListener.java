@@ -429,6 +429,9 @@ public class PlayerListener implements Listener {
 
         // Stop tracking health regeneration
         plugin.getHealthRegenerationManager().stopTracking(player);
+
+        // Handle profile playtime tracking
+        ProfileManager.getInstance().handlePlayerDisconnect(player);
         
         // Stop stat scanning
         plugin.getStatScanManager().stopScanning(player);

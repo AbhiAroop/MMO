@@ -1,7 +1,12 @@
 package com.server;
 
+import static java.util.concurrent.Executors.newScheduledThreadPool;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
@@ -51,6 +56,7 @@ import com.server.events.PlayerListener;
 import com.server.events.RangedCombatManager;
 import com.server.events.RangedDamageListener;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.gui.ProfileGUI;
 import com.server.profiles.skills.abilities.AbilityRegistry;
 import com.server.profiles.skills.abilities.gui.AbilityGUIListener;
 import com.server.profiles.skills.core.Skill;
@@ -82,6 +88,7 @@ public class Main extends JavaPlugin {
     private CustomEntityManager customEntityManager;
     private AbilityRegistry abilityRegistry;
     private GemCarvingManager gemCarvingManager;
+    private ScheduledExecutorService playtimeUpdateService;
 
     // Update the onEnable method
     @Override
@@ -143,6 +150,8 @@ public class Main extends JavaPlugin {
         // Register commands and event listeners
         registerCommands();
         registerListeners();
+
+        startPlaytimeUpdateService();
         
         // NEW: Verify all skills and subskills are properly registered
         if (isDebugMode()) {
@@ -197,6 +206,10 @@ public class Main extends JavaPlugin {
         
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
+
+        if (playtimeUpdateService != null) {
+            playtimeUpdateService.shutdown();
+        }
         
         LOGGER.info("mmo disabled");
     }
@@ -529,6 +542,37 @@ public class Main extends JavaPlugin {
      */
     public DamageIndicatorManager getDamageIndicatorManager() {
         return damageIndicatorManager;
+    }
+
+    /**
+     * Start the playtime update service for real-time GUI updates
+     */
+    private void startPlaytimeUpdateService() {
+        playtimeUpdateService = newScheduledThreadPool(1);
+        
+        // Update playtime displays every 30 seconds
+        playtimeUpdateService.scheduleAtFixedRate(() -> {
+            // Update any open menu GUIs with current playtime
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.getOpenInventory() != null) {
+                    String title = player.getOpenInventory().getTitle();
+                    
+                    // Check if player has our menu GUIs open
+                    if (title.equals(ProfileGUI.PLAYER_MENU_TITLE) || 
+                        title.equals(ProfileGUI.PROFILE_SELECTION_TITLE)) {
+                        
+                        // Schedule GUI refresh on main thread
+                        Bukkit.getScheduler().runTask(this, () -> {
+                            if (title.equals(ProfileGUI.PLAYER_MENU_TITLE)) {
+                                ProfileGUI.openMainMenu(player);
+                            } else if (title.equals(ProfileGUI.PROFILE_SELECTION_TITLE)) {
+                                ProfileGUI.openProfileSelector(player);
+                            }
+                        });
+                    }
+                }
+            }
+        }, 30, 30, TimeUnit.SECONDS);
     }
 
 }

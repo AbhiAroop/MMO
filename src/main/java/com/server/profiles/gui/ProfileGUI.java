@@ -151,70 +151,6 @@ public class ProfileGUI {
     }
 
     /**
-     * Create an item representing a player profile
-     */
-    private static ItemStack createProfileItem(PlayerProfile profile, boolean isActive) {
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) item.getItemMeta();
-        
-        // Add a prefix to show active profile with improved formatting
-        ChatColor nameColor = isActive ? ChatColor.GREEN : ChatColor.GOLD;
-        String displayName = isActive ? 
-            nameColor + "» " + profile.getName() + " " + ChatColor.GREEN + "(Active)" : 
-            nameColor + profile.getName();
-        meta.setDisplayName(displayName);
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Slot: " + ChatColor.WHITE + (profile.getSlot() + 1));
-        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Created: " + ChatColor.WHITE + 
-                new java.text.SimpleDateFormat("MM/dd/yyyy").format(new java.util.Date(profile.getCreated())));
-        
-        // NEW: Add profile level information
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Profile Level: " + ChatColor.WHITE + 
-                profile.getProfileLevel() + "/" + PlayerProfile.getMaxProfileLevel());
-        
-        // Add progress bar for profile level
-        if (!profile.isMaxProfileLevel()) {
-            double progress = profile.getProfileLevelProgress();
-            String progressBar = createProfileProgressBar(progress);
-            lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Progress: " + progressBar);
-            lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "XP: " + ChatColor.WHITE + 
-                    String.format("%.0f", profile.getProfileCurrentXp()) + "/" + 
-                    String.format("%.0f", profile.getXpForNextProfileLevel()));
-        } else {
-            lore.add(ChatColor.YELLOW + "» " + ChatColor.GOLD + "MAX LEVEL REACHED!");
-        }
-        
-        // Add world and location with better formatting
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "World: " + ChatColor.WHITE + profile.getWorldName());
-        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Location: " + ChatColor.WHITE + 
-                String.format("%.0f, %.0f, %.0f", profile.getX(), profile.getY(), profile.getZ()));
-        lore.add("");
-
-        // Add appropriate action text based on active status
-        if (isActive) {
-            lore.add(ChatColor.GREEN + "✓ " + ChatColor.WHITE + "Currently Selected");
-            lore.add("");
-            lore.add(ChatColor.RED + "Shift + Right Click to delete");
-            
-            // Add glow effect to active profile
-            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        } else {
-            lore.add(ChatColor.YELLOW + "Click to select this profile");
-            lore.add("");
-            lore.add(ChatColor.RED + "Shift + Right Click to delete");
-        }
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /**
      * Create a visual progress bar for profile level progress
      */
     private static String createProfileProgressBar(double progress) {
@@ -410,7 +346,7 @@ public class ProfileGUI {
     }
     
     /**
-     * Create a player head item with player info
+     * Create a player head item with player info including real-time playtime
      */
     private static ItemStack createPlayerHeadItem(Player player) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
@@ -445,6 +381,20 @@ public class ProfileGUI {
             
             lore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Slot: " + 
                     ChatColor.GOLD + (activeProfile.getSlot() + 1) + "/3");
+            
+            // NEW: Add profile creation date and playtime
+            lore.add("");
+            lore.add(ChatColor.GRAY + "▬▬▬▬▬ " + ChatColor.AQUA + "Profile Details" + ChatColor.GRAY + " ▬▬▬▬▬");
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Created: " + 
+                    ChatColor.GOLD + activeProfile.getFormattedCreationDate());
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Total Playtime: " + 
+                    ChatColor.GREEN + activeProfile.getFormattedPlaytime());
+            
+            // Add session status
+            if (activeProfile.isActiveSession()) {
+                lore.add(ChatColor.YELLOW + "» " + ChatColor.WHITE + "Status: " + 
+                    ChatColor.GREEN + "✦ Currently Playing");
+            }
         } else {
             lore.add(ChatColor.RED + "No active profile selected!");
             lore.add(ChatColor.GRAY + "Use " + ChatColor.YELLOW + "/profile" + ChatColor.GRAY + " to select one.");
@@ -458,6 +408,79 @@ public class ProfileGUI {
         // Add glow effect for visual appeal
         meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Create an item representing a player profile with playtime info
+     */
+    private static ItemStack createProfileItem(PlayerProfile profile, boolean isActive) {
+        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
+        
+        // Add a prefix to show active profile with improved formatting
+        ChatColor nameColor = isActive ? ChatColor.GREEN : ChatColor.GOLD;
+        String displayName = isActive ? 
+            nameColor + "» " + profile.getName() + " " + ChatColor.GREEN + "(Active)" : 
+            nameColor + profile.getName();
+        meta.setDisplayName(displayName);
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Slot: " + ChatColor.WHITE + (profile.getSlot() + 1));
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Created: " + ChatColor.WHITE + 
+                profile.getFormattedCreationDate());
+        
+        // NEW: Add playtime information
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Total Playtime: " + ChatColor.WHITE + 
+                profile.getFormattedPlaytime());
+        
+        // Add session status for active profile
+        if (isActive && profile.isActiveSession()) {
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Status: " + ChatColor.GREEN + "Currently Playing");
+        }
+        
+        // NEW: Add profile level information
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Profile Level: " + ChatColor.WHITE + 
+                profile.getProfileLevel() + "/" + PlayerProfile.getMaxProfileLevel());
+        
+        // Add progress bar for profile level
+        if (!profile.isMaxProfileLevel()) {
+            double progress = profile.getProfileLevelProgress();
+            String progressBar = createProfileProgressBar(progress);
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Progress: " + progressBar);
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "XP: " + ChatColor.WHITE + 
+                    String.format("%.0f", profile.getProfileCurrentXp()) + "/" + 
+                    String.format("%.0f", profile.getXpForNextProfileLevel()));
+        } else {
+            lore.add(ChatColor.YELLOW + "» " + ChatColor.GOLD + "MAX LEVEL REACHED!");
+        }
+        
+        // Add world and location with better formatting
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "World: " + ChatColor.WHITE + profile.getWorldName());
+        lore.add(ChatColor.YELLOW + "» " + ChatColor.GRAY + "Location: " + ChatColor.WHITE + 
+                String.format("%.0f, %.0f, %.0f", profile.getX(), profile.getY(), profile.getZ()));
+        lore.add("");
+
+        // Add appropriate action text based on active status
+        if (isActive) {
+            lore.add(ChatColor.GREEN + "✓ " + ChatColor.WHITE + "Currently Selected");
+            lore.add("");
+            lore.add(ChatColor.RED + "Shift + Right Click to delete");
+            
+            // Add glow effect to active profile
+            meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        } else {
+            lore.add(ChatColor.YELLOW + "Click to select this profile");
+            lore.add("");
+            lore.add(ChatColor.RED + "Shift + Right Click to delete");
+        }
+
+        meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
     }
