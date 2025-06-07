@@ -4,6 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType.SlotType;
@@ -27,12 +28,18 @@ public class GUIListener implements Listener {
         this.plugin = plugin;
     }
     
-    @EventHandler
+   @EventHandler(priority = EventPriority.HIGH) 
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         
         String title = event.getView().getTitle();
         Player player = (Player) event.getWhoClicked();
+
+        // CRITICAL FIX: Completely skip furnace GUI processing in GUIListener
+        if (title != null && title.contains("Furnace")) {
+            // This is a furnace GUI - let CustomFurnaceListener handle it exclusively
+            return;
+        }
         
         // Debug the click to help troubleshoot
         if (plugin.isDebugEnabled(DebugSystem.GUI)) {

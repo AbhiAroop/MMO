@@ -10,36 +10,60 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 
+import com.server.Main;
 import com.server.crafting.gui.CustomCraftingGUI;
+import com.server.crafting.gui.CustomFurnaceGUI;
+import com.server.debug.DebugManager.DebugSystem;
 
 /**
- * Replaces vanilla crafting table interactions with our custom system
+ * Replaces vanilla crafting table and furnace interactions with our custom system
  */
 public class VanillaCraftingReplacer implements Listener {
     
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST) // Changed to HIGHEST priority
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
         
-        if (event.getClickedBlock() == null || event.getClickedBlock().getType() != Material.CRAFTING_TABLE) {
+        if (event.getClickedBlock() == null) {
             return;
         }
         
-        // Cancel the vanilla crafting table opening
-        event.setCancelled(true);
-        
+        Material blockType = event.getClickedBlock().getType();
         Player player = event.getPlayer();
         
-        // Open our custom crafting table instead
-        CustomCraftingGUI.openCraftingTable(player);
+        // Handle crafting table interactions
+        if (blockType == Material.CRAFTING_TABLE) {
+            // Cancel the vanilla crafting table opening
+            event.setCancelled(true);
+            
+            // Open our custom crafting table instead
+            CustomCraftingGUI.openCraftingTable(player);
+            return;
+        }
+        
+        // Handle furnace interactions
+        if (blockType == Material.FURNACE) {
+            // Cancel the vanilla furnace opening
+            event.setCancelled(true);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[VanillaCraftingReplacer] Opening custom furnace for " + player.getName());
+            }
+            
+            // Open our custom furnace instead
+            CustomFurnaceGUI.openFurnaceGUI(player, event.getClickedBlock().getLocation());
+            return;
+        }
     }
     
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCraftItem(CraftItemEvent event) {
-        // Disable vanilla workbench crafting completely
-        if (event.getInventory().getType() == InventoryType.WORKBENCH) {
+        // Disable vanilla workbench and furnace crafting completely
+        if (event.getInventory().getType() == InventoryType.WORKBENCH || 
+            event.getInventory().getType() == InventoryType.FURNACE) {
             event.setCancelled(true);
         }
     }

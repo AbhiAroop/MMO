@@ -9,7 +9,9 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Furnace;
 import org.bukkit.block.data.Lightable;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.FurnaceRecipe;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -270,21 +272,19 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Start the furnace update task
+     * Start the furnace update task - SAFE VERSION: Reduce timer update frequency
      */
     private void startFurnaceUpdateTask() {
         BukkitRunnable runnable = new BukkitRunnable() {
-            int tickCounter = 0;
+            private int tickCounter = 0;
+            
             @Override
             public void run() {
                 try {
                     tickCounter++;
                     
                     // Update all furnace data every tick (for accurate processing)
-                    for (Map.Entry<String, FurnaceData> entry : furnaceDataMap.entrySet()) {
-                        FurnaceData furnaceData = entry.getValue();
-                        Location location = furnaceData.getLocation();
-                        
+                    for (FurnaceData furnaceData : furnaceDataMap.values()) {
                         // Try to start smelting if not active
                         if (!furnaceData.isActive() && furnaceData.getInputItem() != null) {
                             tryStartSmelting(furnaceData);
@@ -292,14 +292,17 @@ public class CustomFurnaceManager {
                         
                         // Tick the furnace
                         furnaceData.tick();
-                        
-                        // CRITICAL: Update block animation every 5 ticks to reduce lag
-                        if (tickCounter % 5 == 0) {
-                            updateFurnaceBlockState(location, furnaceData);
-                        }
                     }
-                
-                    CustomFurnaceGUI.updateAllFurnaceGUIs();
+                    
+                    // SAFE: Update timer displays every 20 ticks (1 time per second) to avoid conflicts
+                    if (tickCounter % 20 == 0) {
+                        updateAllFurnaceTimersSafely();
+                    }
+                    
+                    // Update block animations every 20 ticks
+                    if (tickCounter % 20 == 0) {
+                        updateAllFurnaceBlockStates();
+                    }
                     
                 } catch (Exception e) {
                     Main.getInstance().getLogger().warning("Error in furnace update task: " + e.getMessage());
@@ -307,7 +310,7 @@ public class CustomFurnaceManager {
             }
         };
         
-        // Run every tick (20 times per second)
+        // Run every tick for furnace processing
         furnaceUpdateTask = runnable.runTaskTimer(Main.getInstance(), 1L, 1L);
     }
 
@@ -374,6 +377,215 @@ public class CustomFurnaceManager {
                     "[Custom Furnace] Error updating block state: " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Update all furnace block states safely
+     */
+    private void updateAllFurnaceBlockStates() {
+        for (Map.Entry<String, FurnaceData> entry : furnaceDataMap.entrySet()) {
+            try {
+                FurnaceData furnaceData = entry.getValue();
+                Location location = furnaceData.getLocation();
+                updateFurnaceBlockState(location, furnaceData);
+            } catch (Exception e) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Error updating block state: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Update all open furnace timer displays safely - ENHANCED: Also updates furnace contents
+     */
+    public static void updateAllFurnaceTimersSafely() {
+        // Create a copy of the map to avoid concurrent modification
+        Map<Player, Location> activeGUIsCopy = new HashMap<>(CustomFurnaceGUI.getActiveFurnaceGUIs());
+        
+        for (Map.Entry<Player, Location> entry : activeGUIsCopy.entrySet()) {
+            Player player = entry.getKey();
+            Location location = entry.getValue();
+            
+            try {
+                // Validate player and GUI state
+                if (!player.isOnline()) {
+                    CustomFurnaceGUI.removeActiveFurnaceGUI(player);
+                    continue;
+                }
+                
+                if (player.getOpenInventory() == null || 
+                    !CustomFurnaceGUI.GUI_TITLE.equals(player.getOpenInventory().getTitle())) {
+                    CustomFurnaceGUI.removeActiveFurnaceGUI(player);
+                    continue;
+                }
+                
+                FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(location);
+                Inventory gui = player.getOpenInventory().getTopInventory();
+                
+                // CRITICAL: Update timer display slots
+                updateCookTimerSafely(gui, furnaceData);
+                updateFuelTimerSafely(gui, furnaceData);
+                
+                // ENHANCED: Also update furnace contents safely without overwriting player interactions
+                updateFurnaceContentsSafely(gui, furnaceData, player);
+                
+            } catch (Exception e) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Error updating GUI for " + player.getName() + ": " + e.getMessage());
+                }
+                // Remove problematic GUI to prevent repeated errors
+                CustomFurnaceGUI.removeActiveFurnaceGUI(player);
+            }
+        }
+    }
+
+    /**
+     * Update furnace contents safely without interfering with player interactions - NEW METHOD
+     */
+    private static void updateFurnaceContentsSafely(Inventory gui, FurnaceData furnaceData, Player player) {
+        try {
+            // Get current cursor item to check if player is interacting
+            ItemStack cursor = player.getItemOnCursor();
+            boolean playerInteracting = (cursor != null && cursor.getType() != Material.AIR);
+            
+            // If player is actively holding an item, don't update to avoid conflicts
+            if (playerInteracting) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Skipping content update - player has cursor item: " + cursor.getType());
+                }
+                return;
+            }
+            
+            // Update input slot only if it's different from current
+            ItemStack currentInput = gui.getItem(CustomFurnaceGUI.INPUT_SLOT);
+            ItemStack dataInput = furnaceData.getInputItem();
+            if (!itemsEqual(currentInput, dataInput)) {
+                gui.setItem(CustomFurnaceGUI.INPUT_SLOT, 
+                    dataInput != null ? dataInput.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Updated input slot: " + getItemDebugName(dataInput));
+                }
+            }
+            
+            // Update fuel slot only if it's different from current
+            ItemStack currentFuel = gui.getItem(CustomFurnaceGUI.FUEL_SLOT);
+            ItemStack dataFuel = furnaceData.getFuelItem();
+            if (!itemsEqual(currentFuel, dataFuel)) {
+                gui.setItem(CustomFurnaceGUI.FUEL_SLOT, 
+                    dataFuel != null ? dataFuel.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Updated fuel slot: " + getItemDebugName(dataFuel));
+                }
+            }
+            
+            // CRITICAL: Update output slot only if it's different from current
+            ItemStack currentOutput = gui.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
+            ItemStack dataOutput = furnaceData.getOutputItem();
+            if (!itemsEqual(currentOutput, dataOutput)) {
+                gui.setItem(CustomFurnaceGUI.OUTPUT_SLOT, 
+                    dataOutput != null ? dataOutput.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Updated output slot: " + getItemDebugName(dataOutput));
+                }
+            }
+            
+        } catch (Exception e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Error updating furnace contents safely: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Check if two items are equal for GUI update purposes - NEW METHOD
+     */
+    private static boolean itemsEqual(ItemStack item1, ItemStack item2) {
+        // Both null
+        if (item1 == null && item2 == null) return true;
+        
+        // One null, one not
+        if (item1 == null || item2 == null) return false;
+        
+        // Both air
+        if (item1.getType() == Material.AIR && item2.getType() == Material.AIR) return true;
+        
+        // One air, one not
+        if (item1.getType() == Material.AIR || item2.getType() == Material.AIR) return false;
+        
+        // Compare type and amount
+        if (item1.getType() != item2.getType()) return false;
+        if (item1.getAmount() != item2.getAmount()) return false;
+        
+        // For our purposes, this is sufficient comparison
+        return true;
+    }
+
+    /**
+     * Get debug name for an item - UTILITY METHOD
+     */
+    private static String getItemDebugName(ItemStack item) {
+        if (item == null) return "null";
+        if (item.getType() == Material.AIR) return "AIR";
+        return item.getAmount() + "x " + item.getType().name();
+    }
+
+    /**
+     * Update cook timer safely without touching item slots - ENHANCED (make sure it's static)
+     */
+    private static void updateCookTimerSafely(Inventory gui, FurnaceData furnaceData) {
+        try {
+            // Create the timer display item
+            ItemStack timerItem = createCookTimerDisplay(furnaceData);
+            gui.setItem(CustomFurnaceGUI.COOK_TIMER_SLOT, timerItem);
+        } catch (Exception e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Error updating cook timer: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Update fuel timer safely without touching item slots - ENHANCED (make sure it's static)
+     */
+    private static void updateFuelTimerSafely(Inventory gui, FurnaceData furnaceData) {
+        try {
+            // Create the timer display item
+            ItemStack timerItem = createFuelTimerDisplay(furnaceData);
+            gui.setItem(CustomFurnaceGUI.FUEL_TIMER_SLOT, timerItem);
+        } catch (Exception e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Error updating fuel timer: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Create cook timer display item - NEW METHOD
+     */
+    private static ItemStack createCookTimerDisplay(FurnaceData furnaceData) {
+        // Use the existing updateCookTimer logic but return the item instead of setting it
+        return CustomFurnaceGUI.createCookTimerItem(furnaceData);
+    }
+
+    /**
+     * Create fuel timer display item - NEW METHOD
+     */
+    private static ItemStack createFuelTimerDisplay(FurnaceData furnaceData) {
+        // Use the existing updateFuelTimer logic but return the item instead of setting it
+        return CustomFurnaceGUI.createFuelTimerItem(furnaceData);
     }
 
     /**

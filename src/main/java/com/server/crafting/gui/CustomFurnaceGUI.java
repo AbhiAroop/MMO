@@ -182,151 +182,18 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update the cook timer indicator based on current smelting progress - ENHANCED: Shows paused state
+     * Update the cook timer using the helper method
      */
     public static void updateCookTimer(Inventory gui, FurnaceData furnaceData) {
-        ItemStack timerItem;
-        
-        if (furnaceData.isActive()) {
-            // Check if cooking is paused due to full output
-            if (furnaceData.isCookingPaused()) {
-                // Show paused state
-                timerItem = new ItemStack(Material.ORANGE_STAINED_GLASS);
-                ItemMeta meta = timerItem.getItemMeta();
-                meta.setDisplayName(ChatColor.GOLD + "⏸ Cooking Paused");
-                
-                double progress = furnaceData.getSmeltingProgress();
-                String progressBar = createProgressBar(progress, 20, '█', '░');
-                
-                meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
-                    ChatColor.GRAY + "Status: " + ChatColor.GOLD + "Output slot full!",
-                    "",
-                    ChatColor.GOLD + progressBar,
-                    "",
-                    ChatColor.YELLOW + "⚠ Remove items from output to continue"
-                ));
-                
-                timerItem.setItemMeta(meta);
-            } else {
-                // Normal active cooking state
-                double progress = furnaceData.getSmeltingProgress();
-                
-                // Choose material and color based on progress
-                Material timerMaterial = Material.CLOCK;
-                ChatColor progressColor;
-                String statusText;
-                
-                if (progress < 0.25) {
-                    progressColor = ChatColor.RED;
-                    statusText = "⚡ Starting";
-                } else if (progress < 0.5) {
-                    progressColor = ChatColor.GOLD;
-                    statusText = "🔥 Heating";
-                } else if (progress < 0.75) {
-                    progressColor = ChatColor.YELLOW;
-                    statusText = "⚡ Processing";
-                } else {
-                    progressColor = ChatColor.GREEN;
-                    statusText = "✨ Almost Done";
-                }
-                
-                timerItem = new ItemStack(timerMaterial);
-                ItemMeta meta = timerItem.getItemMeta();
-                meta.setDisplayName(progressColor + "⟲ Cooking Progress");
-                
-                // Create progress bar
-                String progressBar = createProgressBar(progress, 20, '█', '░');
-                int remainingTime = furnaceData.getRemainingSmeltTime();
-                
-                meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
-                    ChatColor.GRAY + "Time Left: " + ChatColor.WHITE + formatTime(remainingTime),
-                    "",
-                    progressColor + progressBar,
-                    "",
-                    progressColor + statusText
-                ));
-                
-                timerItem.setItemMeta(meta);
-            }
-        } else {
-            // No active cooking
-            timerItem = new ItemStack(Material.BARRIER);
-            ItemMeta meta = timerItem.getItemMeta();
-            meta.setDisplayName(ChatColor.RED + "✗ Not Cooking");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Place items in the input slot",
-                ChatColor.GRAY + "and fuel in the fuel slot",
-                ChatColor.GRAY + "to start cooking!"
-            ));
-            timerItem.setItemMeta(meta);
-        }
-        
+        ItemStack timerItem = createCookTimerItem(furnaceData);
         gui.setItem(COOK_TIMER_SLOT, timerItem);
     }
-    
+
     /**
-     * Update the fuel timer indicator based on fuel status
+     * Update the fuel timer using the helper method
      */
     public static void updateFuelTimer(Inventory gui, FurnaceData furnaceData) {
-        ItemStack timerItem;
-        
-        if (furnaceData.hasFuel()) {
-            // Calculate fuel remaining percentage
-            double fuelProgress = furnaceData.getFuelProgress();
-            
-            // Choose flame material and color based on fuel level
-            Material flameMaterial;
-            ChatColor flameColor;
-            String statusText;
-            
-            if (fuelProgress > 0.6) {
-                flameMaterial = Material.TORCH;
-                flameColor = ChatColor.GOLD;
-                statusText = "🔥 Strong Flame";
-            } else if (fuelProgress > 0.3) {
-                flameMaterial = Material.SOUL_TORCH;
-                flameColor = ChatColor.YELLOW;
-                statusText = "🔥 Burning";
-            } else {
-                flameMaterial = Material.REDSTONE_TORCH;
-                flameColor = ChatColor.RED;
-                statusText = "🔥 Low Fuel";
-            }
-            
-            timerItem = new ItemStack(flameMaterial);
-            ItemMeta meta = timerItem.getItemMeta();
-            meta.setDisplayName(flameColor + "🔥 Fuel Status");
-            
-            String fuelBar = createProgressBar(fuelProgress, 15, '█', '░');
-            int remainingFuelTime = furnaceData.getRemainingFuelTime();
-            
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Fuel Level: " + ChatColor.WHITE + String.format("%.1f%%", fuelProgress * 100),
-                ChatColor.GRAY + "Fuel Time: " + ChatColor.WHITE + formatTime(remainingFuelTime),
-                "",
-                ChatColor.GOLD + fuelBar,
-                "",
-                flameColor + statusText
-            ));
-            
-            timerItem.setItemMeta(meta);
-        } else {
-            // No fuel
-            timerItem = new ItemStack(Material.COAL);
-            ItemMeta meta = timerItem.getItemMeta();
-            meta.setDisplayName(ChatColor.DARK_GRAY + "⚫ No Fuel");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Add fuel to start cooking:",
-                ChatColor.YELLOW + "• Coal, Charcoal",
-                ChatColor.YELLOW + "• Wood items",
-                ChatColor.YELLOW + "• Blaze Rod, Lava Bucket",
-                ChatColor.YELLOW + "• And more..."
-            ));
-            timerItem.setItemMeta(meta);
-        }
-        
+        ItemStack timerItem = createFuelTimerItem(furnaceData);
         gui.setItem(FUEL_TIMER_SLOT, timerItem);
     }
     
@@ -347,7 +214,6 @@ public class CustomFurnaceGUI {
                 updateCookTimer(gui, furnaceData);
                 updateFuelTimer(gui, furnaceData);
                 
-                loadFurnaceContents(gui, furnaceData);
             }
         }
     }
@@ -482,10 +348,14 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Remove a player's active furnace GUI
+     * Remove a player's active furnace GUI - ENHANCED: Don't save contents here
      */
     public static void removeActiveFurnaceGUI(Player player) {
-        activeFurnaceGUIs.remove(player);
+        Location removed = activeFurnaceGUIs.remove(player);
+        if (removed != null && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Removed GUI association for " + player.getName());
+        }
     }
     
     /**
@@ -496,11 +366,162 @@ public class CustomFurnaceGUI {
                !inventory.getViewers().isEmpty() && 
                GUI_TITLE.equals(inventory.getViewers().get(0).getOpenInventory().getTitle());
     }
+
+    /**
+     * Create cook timer item without setting it in GUI - NEW METHOD
+     */
+    public static ItemStack createCookTimerItem(FurnaceData furnaceData) {
+        ItemStack timerItem;
+        
+        if (furnaceData.isActive()) {
+            // Check if cooking is paused due to full output
+            if (furnaceData.isCookingPaused()) {
+                // Show paused state
+                timerItem = new ItemStack(Material.ORANGE_STAINED_GLASS);
+                ItemMeta meta = timerItem.getItemMeta();
+                meta.setDisplayName(ChatColor.GOLD + "⏸ Cooking Paused");
+                
+                double progress = furnaceData.getSmeltingProgress();
+                String progressBar = createProgressBar(progress, 20, '█', '░');
+                
+                meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
+                    ChatColor.GRAY + "Status: " + ChatColor.GOLD + "Output slot full!",
+                    "",
+                    ChatColor.GOLD + progressBar,
+                    "",
+                    ChatColor.YELLOW + "⚠ Remove items from output to continue"
+                ));
+                
+                timerItem.setItemMeta(meta);
+            } else {
+                // Normal active cooking state
+                double progress = furnaceData.getSmeltingProgress();
+                
+                // Choose material and color based on progress
+                Material timerMaterial = Material.CLOCK;
+                ChatColor progressColor;
+                String statusText;
+                
+                if (progress < 0.25) {
+                    progressColor = ChatColor.RED;
+                    statusText = "⚡ Starting";
+                } else if (progress < 0.5) {
+                    progressColor = ChatColor.GOLD;
+                    statusText = "🔥 Heating";
+                } else if (progress < 0.75) {
+                    progressColor = ChatColor.YELLOW;
+                    statusText = "⚡ Processing";
+                } else {
+                    progressColor = ChatColor.GREEN;
+                    statusText = "✨ Almost Done";
+                }
+                
+                timerItem = new ItemStack(timerMaterial);
+                ItemMeta meta = timerItem.getItemMeta();
+                meta.setDisplayName(progressColor + "⟲ Cooking Progress");
+                
+                // Create progress bar
+                String progressBar = createProgressBar(progress, 20, '█', '░');
+                int remainingTime = furnaceData.getRemainingSmeltTime();
+                
+                meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
+                    ChatColor.GRAY + "Time Left: " + ChatColor.WHITE + formatTime(remainingTime),
+                    "",
+                    progressColor + progressBar,
+                    "",
+                    progressColor + statusText
+                ));
+                
+                timerItem.setItemMeta(meta);
+            }
+        } else {
+            // No active cooking
+            timerItem = new ItemStack(Material.BARRIER);
+            ItemMeta meta = timerItem.getItemMeta();
+            meta.setDisplayName(ChatColor.RED + "✗ Not Cooking");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Place items in the input slot",
+                ChatColor.GRAY + "and fuel in the fuel slot",
+                ChatColor.GRAY + "to start cooking!"
+            ));
+            timerItem.setItemMeta(meta);
+        }
+        
+        return timerItem;
+    }
+
+    /**
+     * Create fuel timer item without setting it in GUI - NEW METHOD
+     */
+    public static ItemStack createFuelTimerItem(FurnaceData furnaceData) {
+        ItemStack timerItem;
+        
+        if (furnaceData.hasFuel()) {
+            // Calculate fuel remaining percentage
+            double fuelProgress = furnaceData.getFuelProgress();
+            
+            // Choose flame material and color based on fuel level
+            Material flameMaterial;
+            ChatColor flameColor;
+            String statusText;
+            
+            if (fuelProgress > 0.6) {
+                flameMaterial = Material.TORCH;
+                flameColor = ChatColor.GOLD;
+                statusText = "🔥 Strong Flame";
+            } else if (fuelProgress > 0.3) {
+                flameMaterial = Material.SOUL_TORCH;
+                flameColor = ChatColor.YELLOW;
+                statusText = "🔥 Burning";
+            } else {
+                flameMaterial = Material.REDSTONE_TORCH;
+                flameColor = ChatColor.RED;
+                statusText = "🔥 Low Fuel";
+            }
+            
+            timerItem = new ItemStack(flameMaterial);
+            ItemMeta meta = timerItem.getItemMeta();
+            meta.setDisplayName(flameColor + "🔥 Fuel Status");
+            
+            String fuelBar = createProgressBar(fuelProgress, 15, '█', '░');
+            int remainingFuelTime = furnaceData.getRemainingFuelTime();
+            
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Fuel Level: " + ChatColor.WHITE + String.format("%.1f%%", fuelProgress * 100),
+                ChatColor.GRAY + "Fuel Time: " + ChatColor.WHITE + formatTime(remainingFuelTime),
+                "",
+                ChatColor.GOLD + fuelBar,
+                "",
+                flameColor + statusText
+            ));
+            
+            timerItem.setItemMeta(meta);
+        } else {
+            // No fuel
+            timerItem = new ItemStack(Material.COAL);
+            ItemMeta meta = timerItem.getItemMeta();
+            meta.setDisplayName(ChatColor.DARK_GRAY + "⚫ No Fuel");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Add fuel to start cooking:",
+                ChatColor.YELLOW + "• Coal, Charcoal",
+                ChatColor.YELLOW + "• Wood items",
+                ChatColor.YELLOW + "• Blaze Rod, Lava Bucket",
+                ChatColor.YELLOW + "• And more..."
+            ));
+            timerItem.setItemMeta(meta);
+        }
+        
+        return timerItem;
+    }
+
+
     
     /**
      * Create a progress bar string
      */
-    private static String createProgressBar(double progress, int length, char filled, char empty) {
+    public static String createProgressBar(double progress, int length, char filled, char empty) {
         int filledLength = (int) (progress * length);
         StringBuilder bar = new StringBuilder();
         
@@ -520,7 +541,7 @@ public class CustomFurnaceGUI {
     /**
      * Format time in ticks to a readable string
      */
-    private static String formatTime(int ticks) {
+    public static String formatTime(int ticks) {
         int seconds = ticks / 20;
         if (seconds < 60) {
             return seconds + "s";
@@ -529,6 +550,13 @@ public class CustomFurnaceGUI {
             int remainingSeconds = seconds % 60;
             return minutes + "m " + remainingSeconds + "s";
         }
+    }
+
+    /**
+     * Get the active furnace GUIs map - UTILITY METHOD for manager access
+     */
+    public static Map<Player, Location> getActiveFurnaceGUIs() {
+        return new HashMap<>(activeFurnaceGUIs);
     }
     
 }
