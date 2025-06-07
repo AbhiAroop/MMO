@@ -34,8 +34,10 @@ import com.server.cosmetics.CosmeticManager;
 import com.server.crafting.listeners.AdvancedCraftingListener;
 import com.server.crafting.listeners.AutoCraftingListener;
 import com.server.crafting.listeners.CustomCraftingListener;
+import com.server.crafting.listeners.CustomFurnaceListener;
 import com.server.crafting.listeners.VanillaCraftingReplacer;
 import com.server.crafting.manager.CustomCraftingManager;
+import com.server.crafting.manager.CustomFurnaceManager;
 import com.server.debug.DebugManager;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.display.ActionBarManager;
@@ -147,6 +149,9 @@ public class Main extends JavaPlugin {
         // Initialize custom crafting system
         CustomCraftingManager.getInstance();
 
+        // Initialize custom furnace system
+        CustomFurnaceManager.getInstance();
+
         // Register commands and event listeners
         registerCommands();
         registerListeners();
@@ -207,6 +212,11 @@ public class Main extends JavaPlugin {
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
 
+        // Stop custom furnace manager
+        if (CustomFurnaceManager.getInstance() != null) {
+            CustomFurnaceManager.getInstance().stopFurnaceUpdateTask();
+        }
+
         if (playtimeUpdateService != null) {
             playtimeUpdateService.shutdown();
         }
@@ -248,6 +258,8 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new AutoCraftingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new VanillaCraftingReplacer(), this);
 
+        // NEW: Register custom furnace listener
+        this.getServer().getPluginManager().registerEvents(new CustomFurnaceListener(this), this);
     }
 
     public static Main getInstance() {
