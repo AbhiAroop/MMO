@@ -21,6 +21,7 @@ com\server\cosmetics\CosmeticGUI.class
 com\server\profiles\skills\events\MiningListener$1.class
 com\server\crafting\manager\CustomCraftingManager$AdvancedRecipeData.class
 com\server\events\CombatListener$2.class
+com\server\crafting\manager\CustomFurnaceManager$2.class
 com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\entities\npc\NPCDamageEffects$1.class

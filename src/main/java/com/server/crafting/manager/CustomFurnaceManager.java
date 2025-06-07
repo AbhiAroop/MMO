@@ -113,10 +113,109 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Check if an item can be smelted
+     * Check if an item can be smelted - PUBLIC method for validation
      */
     public boolean canSmelt(ItemStack item) {
-        return item != null && smeltingRecipes.containsKey(item.getType());
+        if (item == null || item.getType() == Material.AIR) return false;
+        
+        // Check if this item has a vanilla smelting recipe
+        Material inputType = item.getType();
+        
+        // Common smeltable items
+        switch (inputType) {
+            case RAW_IRON:
+            case RAW_GOLD:
+            case RAW_COPPER:
+            case IRON_ORE:
+            case GOLD_ORE:
+            case COPPER_ORE:
+            case COAL_ORE:
+            case DIAMOND_ORE:
+            case EMERALD_ORE:
+            case REDSTONE_ORE:
+            case LAPIS_ORE:
+            case NETHER_QUARTZ_ORE:
+            case NETHER_GOLD_ORE:
+            case ANCIENT_DEBRIS:
+            case BEEF:
+            case PORKCHOP:
+            case CHICKEN:
+            case MUTTON:
+            case RABBIT:
+            case COD:
+            case SALMON:
+            case POTATO:
+            case KELP:
+            case CACTUS:
+            case OAK_LOG:
+            case BIRCH_LOG:
+            case SPRUCE_LOG:
+            case JUNGLE_LOG:
+            case ACACIA_LOG:
+            case DARK_OAK_LOG:
+            case MANGROVE_LOG:
+            case CHERRY_LOG:
+            case CRIMSON_STEM:
+            case WARPED_STEM:
+            case SAND:
+            case COBBLESTONE:
+            case STONE:
+            case NETHERRACK:
+            case CLAY_BALL:
+            case WET_SPONGE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Check if an item can be used as fuel - PUBLIC method for validation
+     */
+    public boolean isFuel(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return false;
+        
+        Material fuelType = item.getType();
+        
+        // Common fuel items
+        switch (fuelType) {
+            case COAL:
+            case CHARCOAL:
+            case COAL_BLOCK:
+            case DRIED_KELP_BLOCK:
+            case BLAZE_ROD:
+            case LAVA_BUCKET:
+            case OAK_PLANKS:
+            case BIRCH_PLANKS:
+            case SPRUCE_PLANKS:
+            case JUNGLE_PLANKS:
+            case ACACIA_PLANKS:
+            case DARK_OAK_PLANKS:
+            case MANGROVE_PLANKS:
+            case CHERRY_PLANKS:
+            case CRIMSON_PLANKS:
+            case WARPED_PLANKS:
+            case STICK:
+            case OAK_LOG:
+            case BIRCH_LOG:
+            case SPRUCE_LOG:
+            case JUNGLE_LOG:
+            case ACACIA_LOG:
+            case DARK_OAK_LOG:
+            case MANGROVE_LOG:
+            case CHERRY_LOG:
+            case STRIPPED_OAK_LOG:
+            case STRIPPED_BIRCH_LOG:
+            case STRIPPED_SPRUCE_LOG:
+            case STRIPPED_JUNGLE_LOG:
+            case STRIPPED_ACACIA_LOG:
+            case STRIPPED_DARK_OAK_LOG:
+            case STRIPPED_MANGROVE_LOG:
+            case STRIPPED_CHERRY_LOG:
+                return true;
+            default:
+                return false;
+        }
     }
     
     /**
@@ -126,13 +225,6 @@ public class CustomFurnaceManager {
         if (item == null) return null;
         ItemStack result = smeltingRecipes.get(item.getType());
         return result != null ? result.clone() : null;
-    }
-    
-    /**
-     * Check if an item is fuel
-     */
-    public boolean isFuel(ItemStack item) {
-        return item != null && FurnaceData.isFuel(item.getType());
     }
     
     /**

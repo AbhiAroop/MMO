@@ -25,12 +25,12 @@ public class CustomFurnaceGUI {
     
     public static final String GUI_TITLE = ChatColor.DARK_GRAY + "✦ " + ChatColor.GOLD + "Furnace" + ChatColor.DARK_GRAY + " ✦";
     
-    // Slot positions
-    public static final int INPUT_SLOT = 10;        // Input item slot (left side)
-    public static final int FUEL_SLOT = 19;         // Fuel slot (below input)
-    public static final int OUTPUT_SLOT = 16;       // Output slot (right side)
+    // Updated slot positions for 45-slot GUI (5 rows) with better center positioning
+    public static final int INPUT_SLOT = 11;        // Input item slot (left-center)
+    public static final int FUEL_SLOT = 29;         // Fuel slot (below input with 1 slot gap)
+    public static final int OUTPUT_SLOT = 15;       // Output slot (right-center)
     public static final int COOK_TIMER_SLOT = 13;   // Cook timer indicator (center)
-    public static final int FUEL_TIMER_SLOT = 22;   // Fuel timer indicator (below center)
+    public static final int FUEL_TIMER_SLOT = 31;   // Fuel timer indicator (below center)
     private static long lastLoadLogTime = 0;  // Throttling for debug messages
 
     // Store active furnace GUIs for each player with their furnace location
@@ -40,8 +40,8 @@ public class CustomFurnaceGUI {
      * Open the custom furnace GUI for a player at a specific location
      */
     public static void openFurnaceGUI(Player player, Location furnaceLocation) {
-        // Create 4 row inventory (36 slots)
-        Inventory gui = Bukkit.createInventory(null, 36, GUI_TITLE);
+        // Create 5 row inventory (45 slots)
+        Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
         
         // Get or create furnace data for this location
         FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(furnaceLocation);
@@ -52,8 +52,8 @@ public class CustomFurnaceGUI {
                 " at " + furnaceLocation.getBlockX() + "," + furnaceLocation.getBlockY() + "," + furnaceLocation.getBlockZ());
         }
         
-        // Create the decorative layout
-        createFurnaceLayout(gui, furnaceData);
+        // Create the simple decorative layout
+        createSimpleFurnaceLayout(gui, furnaceData);
         
         // Load current furnace contents AFTER creating layout
         loadFurnaceContents(gui, furnaceData);
@@ -61,50 +61,16 @@ public class CustomFurnaceGUI {
         // Store the GUI association
         activeFurnaceGUIs.put(player, furnaceLocation);
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Stored GUI association for " + player.getName());
-        }
-        
         // Open the inventory
         player.openInventory(gui);
-        
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Opened inventory for " + player.getName());
-        }
     }
     
     /**
-     * Create the furnace layout with decorative elements
+     * Create simple decorative border around the GUI - SIMPLIFIED
      */
-    private static void createFurnaceLayout(Inventory gui, FurnaceData furnaceData) {
-        // Fill border
-        fillFurnaceBorder(gui);
-        
-        // Clear functional slots
-        gui.setItem(INPUT_SLOT, null);
-        gui.setItem(FUEL_SLOT, null);
-        gui.setItem(OUTPUT_SLOT, null);
-        
-        // Add slot indicators
-        addSlotIndicators(gui);
-        
-        // Add decorative elements
-        addFurnaceDecorations(gui);
-        
-        // Initialize timer indicators
-        updateCookTimer(gui, furnaceData);
-        updateFuelTimer(gui, furnaceData);
-    }
-    
-    /**
-     * Create decorative border around the GUI
-     */
-    private static void fillFurnaceBorder(Inventory gui) {
-        // Create different colored glass panes
+    private static void fillSimpleFurnaceBorder(Inventory gui) {
+        // Create simple glass panes
         ItemStack grayBorder = createGlassPane(Material.GRAY_STAINED_GLASS_PANE, " ");
-        ItemStack darkGrayBorder = createGlassPane(Material.BLACK_STAINED_GLASS_PANE, " ");
         ItemStack orangeBorder = createGlassPane(Material.ORANGE_STAINED_GLASS_PANE, " ");
         
         // Fill all slots with gray glass initially
@@ -112,63 +78,107 @@ public class CustomFurnaceGUI {
             gui.setItem(i, grayBorder);
         }
         
-        // Create border pattern
-        // Top and bottom rows
+        // Simple border pattern - just outline
+        // Top row
         for (int i = 0; i < 9; i++) {
-            gui.setItem(i, darkGrayBorder);
-            gui.setItem(27 + i, darkGrayBorder);
+            gui.setItem(i, orangeBorder);
         }
-        
+        // Bottom row
+        for (int i = 36; i < 45; i++) {
+            gui.setItem(i, orangeBorder);
+        }
         // Side borders
-        for (int i = 1; i < 3; i++) {
-            gui.setItem(i * 9, darkGrayBorder);
-            gui.setItem(i * 9 + 8, darkGrayBorder);
+        for (int i = 1; i < 4; i++) {
+            gui.setItem(i * 9, orangeBorder);        // Left border
+            gui.setItem(i * 9 + 8, orangeBorder);    // Right border
         }
-        
-        // Corners with orange accent
-        gui.setItem(0, orangeBorder);
-        gui.setItem(8, orangeBorder);
-        gui.setItem(27, orangeBorder);
-        gui.setItem(35, orangeBorder);
     }
     
     /**
-     * Add decorative elements to make the GUI appealing
+     * Add simple slot indicators - SIMPLIFIED
      */
-    private static void addFurnaceDecorations(Inventory gui) {
-        // Add furnace icon
+    private static void addSimpleSlotIndicators(Inventory gui) {
+        // Input slot indicator (simple blue glass)
+        ItemStack inputIndicator = createGlassPane(Material.BLUE_STAINED_GLASS_PANE, 
+            ChatColor.BLUE + "Input Items");
+        gui.setItem(10, inputIndicator);  // Left of input slot
+        gui.setItem(2, inputIndicator);   // Above input slot
+        
+        // Fuel slot indicator (simple orange glass)
+        ItemStack fuelIndicator = createGlassPane(Material.ORANGE_STAINED_GLASS_PANE, 
+            ChatColor.GOLD + "Fuel Items");
+        gui.setItem(28, fuelIndicator);  // Left of fuel slot
+        gui.setItem(38, fuelIndicator);  // Below fuel slot
+        
+        // Output slot indicator (simple green glass)
+        ItemStack outputIndicator = createGlassPane(Material.LIME_STAINED_GLASS_PANE, 
+            ChatColor.GREEN + "Cooked Items");
+        gui.setItem(6, outputIndicator);   // Above output slot
+        gui.setItem(16, outputIndicator);  // Right of output slot
+        
+        // Simple arrow showing process
+        ItemStack arrow = new ItemStack(Material.ARROW);
+        ItemMeta arrowMeta = arrow.getItemMeta();
+        arrowMeta.setDisplayName(ChatColor.YELLOW + "→ Smelting Process");
+        arrowMeta.setLore(Arrays.asList(
+            ChatColor.GRAY + "Items cook from input to output"
+        ));
+        arrow.setItemMeta(arrowMeta);
+        gui.setItem(12, arrow);  // Between input and cook timer
+        gui.setItem(14, arrow);  // Between cook timer and output
+    }
+    
+    /**
+     * Add minimal decorative elements - SIMPLIFIED
+     */
+    private static void addSimpleDecorations(Inventory gui) {
+        // Simple furnace icon at top center
         ItemStack furnaceIcon = new ItemStack(Material.FURNACE);
         ItemMeta iconMeta = furnaceIcon.getItemMeta();
-        iconMeta.setDisplayName(ChatColor.GOLD + "✦ Custom Furnace ✦");
+        iconMeta.setDisplayName(ChatColor.GOLD + "Enhanced Furnace");
         iconMeta.setLore(Arrays.asList(
-            ChatColor.GRAY + "Smelt items with enhanced efficiency!",
+            ChatColor.GRAY + "Smelt items efficiently!",
             "",
-            ChatColor.YELLOW + "• Supports all vanilla recipes",
-            ChatColor.YELLOW + "• Live progress tracking",
-            ChatColor.YELLOW + "• Enhanced visual feedback"
+            ChatColor.YELLOW + "• Place items in blue slot",
+            ChatColor.YELLOW + "• Add fuel in orange slot",
+            ChatColor.YELLOW + "• Collect results from green slot"
         ));
         furnaceIcon.setItemMeta(iconMeta);
         gui.setItem(4, furnaceIcon); // Top center
     }
+
+    /**
+     * Create the simple furnace layout - MUCH CLEANER
+     */
+    private static void createSimpleFurnaceLayout(Inventory gui, FurnaceData furnaceData) {
+        // Fill simple border
+        fillSimpleFurnaceBorder(gui);
+        
+        // Clear functional slots
+        gui.setItem(INPUT_SLOT, null);
+        gui.setItem(FUEL_SLOT, null);
+        gui.setItem(OUTPUT_SLOT, null);
+        
+        // Add simple slot indicators
+        addSimpleSlotIndicators(gui);
+        
+        // Add minimal decorative elements
+        addSimpleDecorations(gui);
+        
+        // Initialize timer indicators
+        updateCookTimer(gui, furnaceData);
+        updateFuelTimer(gui, furnaceData);
+    }
     
     /**
-     * Add slot indicators around functional slots
+     * Create a glass pane with specified material and name
      */
-    private static void addSlotIndicators(Inventory gui) {
-        // Input slot indicator
-        ItemStack inputIndicator = createGlassPane(Material.BLUE_STAINED_GLASS_PANE, 
-            ChatColor.BLUE + "Input Slot");
-        gui.setItem(INPUT_SLOT - 1, inputIndicator);  // Left of input
-        
-        // Fuel slot indicator
-        ItemStack fuelIndicator = createGlassPane(Material.ORANGE_STAINED_GLASS_PANE, 
-            ChatColor.GOLD + "Fuel Slot");
-        gui.setItem(FUEL_SLOT - 1, fuelIndicator);   // Left of fuel
-        
-        // Output slot indicator
-        ItemStack outputIndicator = createGlassPane(Material.LIME_STAINED_GLASS_PANE, 
-            ChatColor.GREEN + "Output Slot");
-        gui.setItem(OUTPUT_SLOT + 1, outputIndicator);  // Right of output
+    private static ItemStack createGlassPane(Material material, String name) {
+        ItemStack pane = new ItemStack(material);
+        ItemMeta meta = pane.getItemMeta();
+        meta.setDisplayName(name);
+        pane.setItemMeta(meta);
+        return pane;
     }
     
     /**
@@ -521,14 +531,4 @@ public class CustomFurnaceGUI {
         }
     }
     
-    /**
-     * Create a glass pane with specified material and name
-     */
-    private static ItemStack createGlassPane(Material material, String name) {
-        ItemStack pane = new ItemStack(material);
-        ItemMeta meta = pane.getItemMeta();
-        meta.setDisplayName(name);
-        pane.setItemMeta(meta);
-        return pane;
-    }
 }

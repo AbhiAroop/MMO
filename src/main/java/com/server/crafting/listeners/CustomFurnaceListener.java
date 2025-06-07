@@ -68,14 +68,26 @@ public class CustomFurnaceListener implements Listener {
         
         int slot = event.getRawSlot();
         
-        // CRITICAL FIX: Handle shift-clicks from player inventory to furnace slots
+        // CRITICAL FIX: Handle shift-clicks from player inventory to prevent item loss
         if (slot >= inventory.getSize()) {
             // This is a click in the player's inventory
             if (event.getClick().isShiftClick() && event.getCurrentItem() != null && 
                 event.getCurrentItem().getType() != Material.AIR) {
                 
-                // Handle shift-click from player inventory
-                handleShiftClickFromPlayerInventory(event, player, inventory);
+                // STRICT VALIDATION: Only allow items that can actually be used
+                ItemStack item = event.getCurrentItem();
+                boolean isSmeltable = CustomFurnaceManager.getInstance().canSmelt(item);
+                boolean isFuel = CustomFurnaceManager.getInstance().isFuel(item);
+                
+                if (!isSmeltable && !isFuel) {
+                    // PREVENT shift-click of invalid items - this prevents item loss
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "This item cannot be used in the furnace!");
+                    return;
+                }
+                
+                // Handle valid shift-click
+                handleValidShiftClickFromPlayerInventory(event, player, inventory);
             }
             return; // Allow normal interaction with player inventory
         }
@@ -106,14 +118,9 @@ public class CustomFurnaceListener implements Listener {
             }
         } else if (CustomFurnaceGUI.isOutputSlot(slot)) {
             handleOutputSlotClick(event, furnaceData, player);
-            // Save immediately after output click
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                CustomFurnaceGUI.saveFurnaceContents(inventory, furnaceData);
-            });
-            return;
         }
         
-        // Save furnace contents after other clicks
+        // Save furnace contents after any valid interaction
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             try {
                 CustomFurnaceGUI.saveFurnaceContents(inventory, furnaceData);
@@ -125,43 +132,42 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Handle shift-click from player inventory to furnace slots - NEW METHOD
+     * Handle VALID shift-click from player inventory to furnace slots - IMPROVED
      */
-    private void handleShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, Inventory furnaceInventory) {
+    private void handleValidShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, Inventory furnaceInventory) {
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
         
-        // Check what type of item this is and where it should go
+        // We already validated this item can be used, now determine where it goes
         boolean isSmeltable = CustomFurnaceManager.getInstance().canSmelt(item);
         boolean isFuel = CustomFurnaceManager.getInstance().isFuel(item);
         
-        if (!isSmeltable && !isFuel) {
-            // Item can't be used in furnace
+        int targetSlot = -1;
+        String slotType = "";
+        
+        if (isSmeltable) {
+            targetSlot = CustomFurnaceGUI.INPUT_SLOT;
+            slotType = "input";
+        } else if (isFuel) {
+            targetSlot = CustomFurnaceGUI.FUEL_SLOT;
+            slotType = "fuel";
+        }
+        
+        if (targetSlot == -1) {
+            // This should never happen due to our validation above
+            event.setCancelled(true);
             return;
         }
         
-        // Cancel the default shift-click behavior
-        event.setCancelled(true);
-        
-        int targetSlot = -1;
-        
-        if (isSmeltable) {
-            // Try to add to input slot
-            targetSlot = CustomFurnaceGUI.INPUT_SLOT;
-        } else if (isFuel) {
-            // Try to add to fuel slot
-            targetSlot = CustomFurnaceGUI.FUEL_SLOT;
-        }
-        
-        if (targetSlot == -1) return;
-        
         // Try to add the item to the target slot
         ItemStack targetSlotItem = furnaceInventory.getItem(targetSlot);
+        boolean moved = false;
         
         if (targetSlotItem == null || targetSlotItem.getType() == Material.AIR) {
             // Slot is empty, move entire stack
             furnaceInventory.setItem(targetSlot, item.clone());
             event.getClickedInventory().setItem(event.getSlot(), null);
+            moved = true;
         } else if (targetSlotItem.isSimilar(item)) {
             // Items are similar, try to stack
             int spaceAvailable = targetSlotItem.getMaxStackSize() - targetSlotItem.getAmount();
@@ -177,22 +183,37 @@ public class CustomFurnaceListener implements Listener {
                     item.setAmount(item.getAmount() - toMove);
                     event.getClickedInventory().setItem(event.getSlot(), item);
                 }
+                moved = true;
             }
         }
         
-        // Save the changes
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            Location furnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
-            if (furnaceLocation != null) {
-                FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(furnaceLocation);
-                CustomFurnaceGUI.saveFurnaceContents(furnaceInventory, furnaceData);
-                CustomFurnaceManager.getInstance().tryStartSmelting(furnaceData);
+        if (moved) {
+            // Cancel the default shift-click behavior since we handled it
+            event.setCancelled(true);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Moved " + item.getType() + " to " + slotType + " slot via shift-click");
             }
-        });
+            
+            // Save the changes
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                Location furnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
+                if (furnaceLocation != null) {
+                    FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(furnaceLocation);
+                    CustomFurnaceGUI.saveFurnaceContents(furnaceInventory, furnaceData);
+                    CustomFurnaceManager.getInstance().tryStartSmelting(furnaceData);
+                }
+            });
+        } else {
+            // Couldn't move item, but don't lose it
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.YELLOW + "The " + slotType + " slot is full!");
+        }
     }
 
     /**
-     * Handle input slot clicks with proper validation
+     * Handle input slot clicks with validation - ENHANCED
      */
     private boolean handleInputSlotClick(InventoryClickEvent event, FurnaceData furnaceData, Player player) {
         ItemStack cursor = event.getCursor();
@@ -207,18 +228,19 @@ public class CustomFurnaceListener implements Listener {
             }
         }
         
-        // Log the action for debugging
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            String action = cursor != null && cursor.getType() != Material.AIR ? "placing " + cursor.getType() : "taking item";
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Input slot - " + action);
+        // ADDITIONAL CHECK: Prevent dropping invalid items via other means
+        if (event.getAction().toString().contains("DROP") && currentItem != null && currentItem.getType() != Material.AIR) {
+            if (!CustomFurnaceManager.getInstance().canSmelt(currentItem)) {
+                event.setCancelled(true);
+                return false;
+            }
         }
         
         return true; // Allow the click
     }
 
     /**
-     * Handle fuel slot clicks with proper validation
+     * Handle fuel slot clicks with validation - ENHANCED
      */
     private boolean handleFuelSlotClick(InventoryClickEvent event, FurnaceData furnaceData, Player player) {
         ItemStack cursor = event.getCursor();
@@ -233,53 +255,37 @@ public class CustomFurnaceListener implements Listener {
             }
         }
         
-        // Log the action for debugging
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            String action = cursor != null && cursor.getType() != Material.AIR ? "placing " + cursor.getType() : "taking item";
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Fuel slot - " + action);
+        // ADDITIONAL CHECK: Prevent dropping invalid items via other means
+        if (event.getAction().toString().contains("DROP") && currentItem != null && currentItem.getType() != Material.AIR) {
+            if (!CustomFurnaceManager.getInstance().isFuel(currentItem)) {
+                event.setCancelled(true);
+                return false;
+            }
         }
         
         return true; // Allow the click
     }
 
     /**
-     * Handle output slot clicks - FIXED: Properly remove items from furnace data
+     * Handle output slot clicks - STRICT: Only allow taking items
      */
     private void handleOutputSlotClick(InventoryClickEvent event, FurnaceData furnaceData, Player player) {
         ItemStack cursor = event.getCursor();
         
-        // Don't allow placing items in output slot
+        // STRICT: Don't allow placing ANY items in output slot
         if (cursor != null && cursor.getType() != Material.AIR) {
             event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
             return;
         }
         
-        // If taking items from output slot, update the furnace data
+        // Only allow taking items - this is handled normally by Minecraft
         ItemStack outputItem = event.getCurrentItem();
         if (outputItem != null && outputItem.getType() != Material.AIR) {
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
                     "[Custom Furnace] Taking " + outputItem.getAmount() + "x " + outputItem.getType() + " from output");
             }
-            
-            // CRITICAL: Update furnace data to reflect the removed output
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                // Check if the output slot is now empty after the click
-                ItemStack remainingOutput = event.getInventory().getItem(CustomFurnaceGUI.OUTPUT_SLOT);
-                if (remainingOutput == null || remainingOutput.getType() == Material.AIR) {
-                    furnaceData.setOutputItem(null);
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Cleared output slot in furnace data");
-                    }
-                } else {
-                    furnaceData.setOutputItem(remainingOutput.clone());
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Custom Furnace] Updated output slot to " + remainingOutput.getAmount() + "x " + remainingOutput.getType());
-                    }
-                }
-            });
         }
     }
     
