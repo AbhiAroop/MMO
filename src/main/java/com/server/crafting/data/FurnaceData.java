@@ -241,68 +241,94 @@ public class FurnaceData {
     }
 
     /**
-     * Progress tick method - ENHANCED: Better fuel consumption tracking
+     * Progress tick method - FINAL VERSION: Proper vanilla-like fuel behavior
      */
     public void tick() {
-        // Only process if we have input to smelt
-        if (inputItem == null || inputItem.getType() == Material.AIR || inputItem.getAmount() <= 0) {
-            if (isActive) {
-                setActive(false);
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+        // CRITICAL: Fuel burns independently - consume fuel first if we have any
+        if (fuelTime > 0) {
+            fuelTime--;
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                if (fuelTime % 100 == 0 || fuelTime <= 10) { // Log every 5 seconds or when nearly out
                     Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[FurnaceData] Stopped smelting - no input item");
+                        "[FurnaceData] Fuel burning: " + fuelTime + " ticks remaining");
                 }
             }
-            return;
-        }
-        
-        // Check if we have fuel to continue
-        if (fuelTime <= 0) {
-            if (isActive) {
-                setActive(false);
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[FurnaceData] Stopped smelting - no fuel");
+            
+            // When fuel runs out, try to consume new fuel if we have items to smelt
+            if (fuelTime <= 0) {
+                setHasFuel(false);
+                
+                // Check if we should consume new fuel automatically
+                boolean hasItemsToSmelt = (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0);
+                if (hasItemsToSmelt) {
+                    boolean consumedNewFuel = tryConsumeNewFuel();
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        if (consumedNewFuel) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[FurnaceData] Auto-consumed new fuel to continue smelting");
+                        } else {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[FurnaceData] Fuel burned out, no new fuel available");
+                        }
+                    }
+                } else {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FurnaceData] Fuel burned out, no items to smelt");
+                    }
                 }
             }
-            return;
         }
         
-        // Check if output slot can accept the result
-        ItemStack result = getSmeltingResult();
-        if (result == null || !canAddToOutput(result)) {
-            // Pause smelting but don't consume fuel
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[FurnaceData] Smelting paused - output full or no result");
-            }
-            return;
-        }
-        
-        // We can proceed with smelting
-        if (!isActive) {
-            setActive(true);
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[FurnaceData] Started smelting");
+        // Check if we can smelt (need input item and smelting result)
+        boolean canSmelt = false;
+        if (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0) {
+            ItemStack result = getSmeltingResult();
+            if (result != null && canAddToOutput(result)) {
+                canSmelt = true;
             }
         }
         
-        // ENHANCED: Consume fuel with detailed logging
-        int previousFuelTime = fuelTime;
-        fuelTime--;
-        
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && fuelTime % 100 == 0) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[FurnaceData] Fuel burning: " + fuelTime + " ticks remaining");
-        }
-        
-        // Progress smelting
-        smeltTime++;
-        
-        // Check if smelting is complete
-        if (smeltTime >= maxSmeltTime) {
-            completeSmeltingCycle();
+        // Handle smelting process
+        if (canSmelt && fuelTime > 0) {
+            // We can smelt and have fuel - continue/start smelting
+            if (!isActive) {
+                setActive(true);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Started smelting");
+                }
+            }
+            
+            // Progress smelting
+            smeltTime++;
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                if (smeltTime % 50 == 0) { // Log every 2.5 seconds
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Smelting progress: " + smeltTime + "/" + maxSmeltTime);
+                }
+            }
+            
+            // Check if smelting is complete
+            if (smeltTime >= maxSmeltTime) {
+                completeSmeltingCycle();
+            }
+            
+        } else {
+            // Cannot smelt or no fuel - stop smelting but preserve progress
+            if (isActive) {
+                setActive(false);
+                String reason = !canSmelt ? "no valid input/output" : "no fuel";
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Stopped smelting - " + reason + " (progress preserved)");
+                }
+            }
+            
+            // Note: We don't reset smeltTime here - it should persist like vanilla
+            // If fuel runs out mid-smelting, progress is preserved until fuel is added
         }
     }
 
@@ -360,22 +386,11 @@ public class FurnaceData {
     }
 
     /**
-     * Get cooking status for animation purposes - FIXED: Only animate when fuel is actively burning
+     * Get cooking status for animation purposes - FIXED: Show burning when fuel is active
      */
     public boolean shouldShowCookingAnimation() {
-        // Show animation only if we have fuel that's actively burning
-        // This means we have fuel time remaining AND we're not paused due to full output
-        if (!hasFuel || fuelTime <= 0) {
-            return false;
-        }
-        
-        // If we're trying to smelt but output is full, don't show animation
-        if (isActive && inputItem != null && smeltingResult != null && !canAddToOutput(smeltingResult)) {
-            return false;
-        }
-        
-        // Show animation if we have active fuel (even if not actively smelting yet)
-        return true;
+        // Show cooking animation when fuel is burning (regardless of smelting status)
+        return hasFuel && fuelTime > 0;
     }
 
     /**
@@ -407,6 +422,46 @@ public class FurnaceData {
             Main.getInstance().debugLog(DebugSystem.GUI, 
                 "[FurnaceData] Added to output: " + outputItem.getAmount() + "x " + outputItem.getType());
         }
+    }
+
+    /**
+     * Try to consume new fuel when current fuel runs out - NEW METHOD
+     */
+    private boolean tryConsumeNewFuel() {
+        // Only consume new fuel if we have items to smelt
+        if (inputItem == null || inputItem.getType() == Material.AIR || inputItem.getAmount() <= 0) {
+            return false;
+        }
+        
+        // Check if we have fuel to consume
+        if (fuelItem == null || fuelItem.getType() == Material.AIR || fuelItem.getAmount() <= 0) {
+            return false;
+        }
+        
+        // Check if the fuel is valid
+        if (!FurnaceData.isFuel(fuelItem.getType())) {
+            return false;
+        }
+        
+        // Consume one fuel item
+        int fuelValue = FurnaceData.getFuelValue(fuelItem.getType());
+        setFuelTime(fuelValue);
+        setMaxFuelTime(fuelValue);
+        setHasFuel(true);
+        
+        // Remove one fuel item
+        if (fuelItem.getAmount() > 1) {
+            fuelItem.setAmount(fuelItem.getAmount() - 1);
+        } else {
+            fuelItem = null;
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[FurnaceData] Auto-consumed new fuel, " + fuelValue + " ticks remaining");
+        }
+        
+        return true;
     }
     
     // Fuel value mapping

@@ -232,11 +232,11 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Try to start smelting process - FIXED: Never block this with interaction checks
+     * Try to start smelting process - FIXED: Only consume new fuel when current fuel is exhausted
      */
     public boolean tryStartSmelting(FurnaceData furnaceData) {
-        // Check if already active
-        if (furnaceData.isActive()) {
+        // Check if already active and has fuel
+        if (furnaceData.isActive() && furnaceData.getFuelTime() > 0) {
             return true;
         }
         
@@ -255,25 +255,6 @@ public class CustomFurnaceManager {
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
                     "[Custom Furnace] Cannot start smelting - item cannot be smelted: " + inputItem.getType());
-            }
-            return false;
-        }
-        
-        // Check for fuel
-        ItemStack fuelItem = furnaceData.getFuelItem();
-        if (fuelItem == null || fuelItem.getType() == Material.AIR || fuelItem.getAmount() <= 0) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Cannot start smelting - no fuel item");
-            }
-            return false;
-        }
-        
-        // Check if fuel is valid
-        if (!isFuel(fuelItem)) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Cannot start smelting - invalid fuel: " + fuelItem.getType());
             }
             return false;
         }
@@ -301,8 +282,27 @@ public class CustomFurnaceManager {
             }
         }
         
-        // Initialize fuel if needed
+        // ENHANCED: Only consume new fuel if we don't have any burning fuel
         if (furnaceData.getFuelTime() <= 0) {
+            ItemStack fuelItem = furnaceData.getFuelItem();
+            if (fuelItem == null || fuelItem.getType() == Material.AIR || fuelItem.getAmount() <= 0) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Cannot start smelting - no fuel item");
+                }
+                return false;
+            }
+            
+            // Check if fuel is valid
+            if (!isFuel(fuelItem)) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Cannot start smelting - invalid fuel: " + fuelItem.getType());
+                }
+                return false;
+            }
+            
+            // Consume one fuel item and start burning
             int fuelValue = FurnaceData.getFuelValue(fuelItem.getType());
             furnaceData.setFuelTime(fuelValue);
             furnaceData.setMaxFuelTime(fuelValue);
@@ -322,11 +322,11 @@ public class CustomFurnaceManager {
             }
         }
         
-        // Start smelting
+        // Start smelting (we have fuel and valid input)
         ItemStack resultClone = result.clone();
         furnaceData.setSmeltingResult(resultClone);
         furnaceData.setActive(true);
-        furnaceData.setSmeltTime(0);
+        // Don't reset smelt time if we're resuming after adding fuel
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI, 
