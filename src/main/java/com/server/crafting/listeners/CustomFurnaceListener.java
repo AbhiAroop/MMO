@@ -35,16 +35,19 @@ public class CustomFurnaceListener implements Listener {
     // ENHANCED: Aggressive rate limiting
     private static final Map<UUID, Long> lastClickTime = new HashMap<>();
     private static final Map<UUID, Integer> clickCount = new HashMap<>();
-    private static final long MIN_CLICK_INTERVAL = 200L; // 200ms minimum between clicks
+    private static final Map<UUID, Integer> violationCount = new HashMap<>(); // NEW: Track violations
+    private static final long MIN_CLICK_INTERVAL = 250L; // INCREASED from 200ms to 250ms
     private static final long RATE_LIMIT_WINDOW = 1000L; // 1 second window
-    private static final int MAX_CLICKS_PER_WINDOW = 3; // Max 3 clicks per second
+    private static final int MAX_CLICKS_PER_WINDOW = 2; // REDUCED from 3 to 2 clicks per second
+    private static final int MAX_VIOLATIONS_BEFORE_CURSOR_CLEAR = 5; // NEW: Clear cursor after 5 violations
     
     public CustomFurnaceListener(Main plugin) {
         this.plugin = plugin;
+        startViolationCleanupTask();
     }
     
     /**
-     * Handle inventory clicks - ENHANCED: Aggressive spam protection
+     * Handle inventory clicks - ENHANCED: Aggressive spam protection with cursor clearing
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
@@ -58,17 +61,14 @@ public class CustomFurnaceListener implements Listener {
             return;
         }
         
-        // CRITICAL: Aggressive rate limiting with multiple layers
+        // CRITICAL: Enhanced rate limiting with violation tracking
         UUID playerId = player.getUniqueId();
         long currentTime = System.currentTimeMillis();
         
         // Layer 1: Minimum interval check
         Long lastClick = lastClickTime.get(playerId);
         if (lastClick != null && (currentTime - lastClick) < MIN_CLICK_INTERVAL) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] BLOCKED spam click - too fast: " + (currentTime - lastClick) + "ms");
-            }
+            incrementViolation(player, "too fast: " + (currentTime - lastClick) + "ms");
             event.setCancelled(true);
             return;
         }
@@ -82,10 +82,7 @@ public class CustomFurnaceListener implements Listener {
         
         int currentClickCount = clickCount.get(playerId);
         if (currentClickCount >= MAX_CLICKS_PER_WINDOW) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] BLOCKED spam click - too many clicks: " + currentClickCount + "/" + MAX_CLICKS_PER_WINDOW);
-            }
+            incrementViolation(player, "too many clicks: " + currentClickCount + "/" + MAX_CLICKS_PER_WINDOW);
             event.setCancelled(true);
             return;
         }
@@ -231,7 +228,88 @@ public class CustomFurnaceListener implements Listener {
             } catch (Exception e) {
                 Main.getInstance().getLogger().warning("[Custom Furnace] Error saving after click: " + e.getMessage());
             }
-        }, 2L); // Increased delay to 2 ticks
+        }, 3L); // INCREASED delay to 3 ticks for extra safety
+    }
+
+    /**
+     * Increment violation count and handle punishment - NEW METHOD
+     */
+    private void incrementViolation(Player player, String reason) {
+        UUID playerId = player.getUniqueId();
+        int violations = violationCount.getOrDefault(playerId, 0) + 1;
+        violationCount.put(playerId, violations);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] BLOCKED spam click - " + reason + " (violation " + violations + ")");
+        }
+        
+        // Clear cursor after too many violations
+        if (violations >= MAX_VIOLATIONS_BEFORE_CURSOR_CLEAR) {
+            clearPlayerCursorSafely(player);
+            violationCount.put(playerId, 0); // Reset violation count after punishment
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] CLEARED CURSOR for " + player.getName() + " due to excessive spam clicking");
+            }
+            
+            player.sendMessage(ChatColor.RED + "⚠ Cursor cleared due to excessive clicking!");
+        }
+    }
+
+    /**
+     * Safely clear a player's cursor and return items to inventory - NEW METHOD
+     */
+    private void clearPlayerCursorSafely(Player player) {
+        ItemStack cursor = player.getItemOnCursor();
+        if (cursor != null && cursor.getType() != Material.AIR) {
+            // Try to add the item back to player's inventory
+            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(cursor);
+            
+            // If inventory is full, drop items at player's location
+            if (!leftover.isEmpty()) {
+                for (ItemStack item : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), item);
+                }
+                player.sendMessage(ChatColor.YELLOW + "Some items were dropped because your inventory is full!");
+            }
+            
+            // Clear the cursor
+            player.setItemOnCursor(null);
+        }
+    }
+
+    /**
+     * Clean up old violation data periodically - NEW TASK
+     */
+    private void startViolationCleanupTask() {
+        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            long currentTime = System.currentTimeMillis();
+            
+            // Remove old violation data (older than 30 seconds)
+            violationCount.entrySet().removeIf(entry -> {
+                UUID playerId = entry.getKey();
+                Long lastClick = lastClickTime.get(playerId);
+                return lastClick == null || (currentTime - lastClick) > 30000L;
+            });
+            
+        }, 600L, 600L); // Run every 30 seconds
+    }
+
+    /**
+     * Check if a player has recent violations - PUBLIC METHOD for manager access
+     */
+    public static boolean hasRecentViolations(UUID playerId) {
+        int violations = violationCount.getOrDefault(playerId, 0);
+        return violations > 2; // Consider recent if more than 2 violations
+    }
+
+    /**
+     * Reset violation count for a player - PUBLIC METHOD
+     */
+    public static void resetViolations(UUID playerId) {
+        violationCount.remove(playerId);
     }
 
     /**
@@ -363,13 +441,14 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Clean up rate limiting when player quits
+     * Clean up violation tracking when player quits - ENHANCED
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
         lastClickTime.remove(playerId);
         clickCount.remove(playerId);
+        violationCount.remove(playerId); // NEW: Clean up violation tracking
         CustomFurnaceGUI.removeActiveFurnaceGUI(event.getPlayer());
     }
     
