@@ -189,7 +189,59 @@ public class FurnaceData {
     }
     
     /**
-     * Progress tick method - ENHANCED: Better item state management for live updates
+     * Complete a smelting cycle - ENHANCED: Better item consumption tracking
+     */
+    private void completeSmeltingCycle() {
+        try {
+            ItemStack result = getSmeltingResult();
+            if (result == null) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Cannot complete smelting - no result available");
+                }
+                return;
+            }
+            
+            // ENHANCED: Consume input with detailed logging
+            if (inputItem != null && inputItem.getAmount() > 0) {
+                if (inputItem.getAmount() > 1) {
+                    inputItem.setAmount(inputItem.getAmount() - 1);
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FurnaceData] Consumed 1 input item, " + inputItem.getAmount() + " remaining");
+                    }
+                } else {
+                    inputItem = null;
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FurnaceData] Consumed last input item");
+                    }
+                }
+            }
+            
+            // Add result to output
+            addToOutput(result);
+            
+            // Reset smelting time for next cycle
+            smeltTime = 0;
+            
+            // Update smelting result for next cycle (in case input changed)
+            updateSmeltingResult();
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Completed smelting cycle, produced " + 
+                    result.getAmount() + "x " + result.getType());
+            }
+            
+        } catch (Exception e) {
+            Main.getInstance().getLogger().severe("[FurnaceData] Error completing smelting cycle: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Progress tick method - ENHANCED: Better fuel consumption tracking
      */
     public void tick() {
         // Only process if we have input to smelt
@@ -236,66 +288,21 @@ public class FurnaceData {
             }
         }
         
-        // Consume fuel
+        // ENHANCED: Consume fuel with detailed logging
+        int previousFuelTime = fuelTime;
         fuelTime--;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && fuelTime % 100 == 0) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[FurnaceData] Fuel burning: " + fuelTime + " ticks remaining");
+        }
         
         // Progress smelting
         smeltTime++;
         
         // Check if smelting is complete
         if (smeltTime >= maxSmeltTime) {
-            // ENHANCED: Complete the smelting with proper item management
             completeSmeltingCycle();
-        }
-    }
-
-    /**
-     * Complete a smelting cycle - NEW METHOD for better state management
-     */
-    private void completeSmeltingCycle() {
-        try {
-            ItemStack result = getSmeltingResult();
-            if (result == null) {
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[FurnaceData] Cannot complete smelting - no result available");
-                }
-                return;
-            }
-            
-            // Consume one input item
-            if (inputItem.getAmount() > 1) {
-                inputItem.setAmount(inputItem.getAmount() - 1);
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[FurnaceData] Consumed 1 input item, " + inputItem.getAmount() + " remaining");
-                }
-            } else {
-                inputItem = null;
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[FurnaceData] Consumed last input item");
-                }
-            }
-            
-            // Add result to output
-            addToOutput(result);
-            
-            // Reset smelting time for next cycle
-            smeltTime = 0;
-            
-            // Update smelting result for next cycle (in case input changed)
-            updateSmeltingResult();
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[FurnaceData] Completed smelting cycle, produced " + 
-                    result.getAmount() + "x " + result.getType());
-            }
-            
-        } catch (Exception e) {
-            Main.getInstance().getLogger().severe("[FurnaceData] Error completing smelting cycle: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 

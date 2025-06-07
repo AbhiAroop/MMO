@@ -515,7 +515,7 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Update furnace items safely during live updates - FIXED: Only sync when furnace produces items
+     * Update furnace items safely during live updates - FIXED: Enable input/fuel syncing with safety checks
      */
     private static void updateFurnaceItemsSafely(Inventory gui, FurnaceData furnaceData, Player player) {
         try {
@@ -529,11 +529,10 @@ public class CustomFurnaceManager {
                 return;
             }
             
-            // SIMPLIFIED: Only sync OUTPUT when new items are produced
+            // ALWAYS sync OUTPUT when new items are produced
             ItemStack currentOutputInGUI = gui.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
             ItemStack expectedOutput = furnaceData.getOutputItem();
             
-            // Only sync if output increased (new items produced)
             if (shouldSyncOutput(currentOutputInGUI, expectedOutput)) {
                 gui.setItem(CustomFurnaceGUI.OUTPUT_SLOT, 
                     expectedOutput != null ? expectedOutput.clone() : null);
@@ -544,8 +543,9 @@ public class CustomFurnaceManager {
                 }
             }
             
-            // REMOVED: Input and fuel syncing - these will only be updated on inventory close
-            // This prevents the item deletion issue while still showing live output updates
+            // ENHANCED: SAFE input and fuel syncing - only when items are consumed by the furnace
+            syncInputSafely(gui, furnaceData, player);
+            syncFuelSafely(gui, furnaceData, player);
             
         } catch (Exception e) {
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -556,7 +556,117 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Check if player is actively clicking RIGHT NOW - NEW METHOD
+     * Safely sync input items - only when consumed by furnace processing
+     */
+    private static void syncInputSafely(Inventory gui, FurnaceData furnaceData, Player player) {
+        try {
+            ItemStack currentInputInGUI = gui.getItem(CustomFurnaceGUI.INPUT_SLOT);
+            ItemStack expectedInput = furnaceData.getInputItem();
+            
+            // Only sync if items were consumed by the furnace (amount decreased or became null)
+            if (shouldSyncInputConsumption(currentInputInGUI, expectedInput)) {
+                gui.setItem(CustomFurnaceGUI.INPUT_SLOT, 
+                    expectedInput != null ? expectedInput.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Synced input consumption for " + player.getName() + 
+                        " - was: " + getItemDebugName(currentInputInGUI) + 
+                        " now: " + getItemDebugName(expectedInput));
+                }
+            }
+        } catch (Exception e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Error syncing input: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Safely sync fuel items - only when consumed by furnace processing
+     */
+    private static void syncFuelSafely(Inventory gui, FurnaceData furnaceData, Player player) {
+        try {
+            ItemStack currentFuelInGUI = gui.getItem(CustomFurnaceGUI.FUEL_SLOT);
+            ItemStack expectedFuel = furnaceData.getFuelItem();
+            
+            // Only sync if fuel was consumed by the furnace (amount decreased or became null)
+            if (shouldSyncFuelConsumption(currentFuelInGUI, expectedFuel)) {
+                gui.setItem(CustomFurnaceGUI.FUEL_SLOT, 
+                    expectedFuel != null ? expectedFuel.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Synced fuel consumption for " + player.getName() + 
+                        " - was: " + getItemDebugName(currentFuelInGUI) + 
+                        " now: " + getItemDebugName(expectedFuel));
+                }
+            }
+        } catch (Exception e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Error syncing fuel: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Check if input should be synced due to furnace consumption - NEW METHOD
+     */
+    private static boolean shouldSyncInputConsumption(ItemStack currentInput, ItemStack expectedInput) {
+        // If both are null or air, no sync needed
+        if ((currentInput == null || currentInput.getType() == Material.AIR) && 
+            (expectedInput == null || expectedInput.getType() == Material.AIR)) {
+            return false;
+        }
+        
+        // If GUI has item but furnace data shows null - item was completely consumed
+        if ((currentInput != null && currentInput.getType() != Material.AIR) && 
+            (expectedInput == null || expectedInput.getType() == Material.AIR)) {
+            return true;
+        }
+        
+        // If both have the same type but expected amount is less - item was partially consumed
+        if (currentInput != null && expectedInput != null &&
+            currentInput.getType() == expectedInput.getType() &&
+            expectedInput.getAmount() < currentInput.getAmount()) {
+            return true;
+        }
+        
+        // No consumption detected
+        return false;
+    }
+
+    /**
+     * Check if fuel should be synced due to furnace consumption - NEW METHOD
+     */
+    private static boolean shouldSyncFuelConsumption(ItemStack currentFuel, ItemStack expectedFuel) {
+        // If both are null or air, no sync needed
+        if ((currentFuel == null || currentFuel.getType() == Material.AIR) && 
+            (expectedFuel == null || expectedFuel.getType() == Material.AIR)) {
+            return false;
+        }
+        
+        // If GUI has fuel but furnace data shows null - fuel was completely consumed
+        if ((currentFuel != null && currentFuel.getType() != Material.AIR) && 
+            (expectedFuel == null || expectedFuel.getType() == Material.AIR)) {
+            return true;
+        }
+        
+        // If both have the same type but expected amount is less - fuel was partially consumed
+        if (currentFuel != null && expectedFuel != null &&
+            currentFuel.getType() == expectedFuel.getType() &&
+            expectedFuel.getAmount() < currentFuel.getAmount()) {
+            return true;
+        }
+        
+        // No consumption detected
+        return false;
+    }
+
+    /**
+     * Check if player is actively clicking RIGHT NOW - ADJUSTED timing
      */
     private static boolean isPlayerActivelyClicking(UUID playerId) {
         Map<UUID, Long> lastClickTime = getLastClickTimeMap();
@@ -564,7 +674,7 @@ public class CustomFurnaceManager {
         
         if (lastClick != null) {
             long timeSinceLastClick = System.currentTimeMillis() - lastClick;
-            return timeSinceLastClick < 100L; // Very short window - only during active clicking
+            return timeSinceLastClick < 200L; // INCREASED from 100ms to 300ms for better safety
         }
         
         return false;
