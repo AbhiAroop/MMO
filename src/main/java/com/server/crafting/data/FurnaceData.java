@@ -189,65 +189,152 @@ public class FurnaceData {
     }
     
     /**
-     * Progress tick method - FIXED: Stop fuel consumption when output is full
+     * Progress tick method - ENHANCED: Better item state management for live updates
      */
     public void tick() {
-        // Check if we should consume fuel - don't consume if output is full and we're trying to smelt
-        boolean shouldConsumeFuel = true;
-        if (isActive && inputItem != null && smeltingResult != null && !canAddToOutput(smeltingResult)) {
-            shouldConsumeFuel = false;
-        }
-        
-        // Only decrease fuel time if we should consume fuel and we have fuel
-        if (hasFuel && fuelTime > 0 && shouldConsumeFuel) {
-            fuelTime--;
-            if (fuelTime <= 0) {
-                setHasFuel(false);
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, "[FurnaceData] Fuel depleted");
-                }
-            }
-        }
-        
-        // Progress smelting if conditions are met
-        if (isActive && hasFuel && inputItem != null) {
-            // Check if output slot can accept more items before continuing
-            if (smeltingResult != null && !canAddToOutput(smeltingResult)) {
-                return; // Don't increment smelt time if output is full
-            }
-            
-            smeltTime++;
-            if (smeltTime >= maxSmeltTime) {
-                // Smelting complete - add result to output
-                if (smeltingResult != null && canAddToOutput(smeltingResult)) {
-                    addToOutput(smeltingResult);
-                    
-                    // Consume input item
-                    if (inputItem != null) {
-                        inputItem.setAmount(inputItem.getAmount() - 1);
-                        if (inputItem.getAmount() <= 0) {
-                            inputItem = null;
-                        }
-                    }
-                    
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[FurnaceData] Smelting completed! Output: " + 
-                            (outputItem != null ? outputItem.getAmount() + "x " + outputItem.getType() : "null"));
-                    }
-                }
-                
+        // Only process if we have input to smelt
+        if (inputItem == null || inputItem.getType() == Material.AIR || inputItem.getAmount() <= 0) {
+            if (isActive) {
                 setActive(false);
-                setSmeltingResult(null);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Stopped smelting - no input item");
+                }
             }
-        } else if (isActive && (!hasFuel || inputItem == null)) {
-            // Stop smelting if no fuel or no input
-            setActive(false);
+            return;
+        }
+        
+        // Check if we have fuel to continue
+        if (fuelTime <= 0) {
+            if (isActive) {
+                setActive(false);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Stopped smelting - no fuel");
+                }
+            }
+            return;
+        }
+        
+        // Check if output slot can accept the result
+        ItemStack result = getSmeltingResult();
+        if (result == null || !canAddToOutput(result)) {
+            // Pause smelting but don't consume fuel
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[FurnaceData] Stopping smelting - no fuel or input");
+                    "[FurnaceData] Smelting paused - output full or no result");
+            }
+            return;
+        }
+        
+        // We can proceed with smelting
+        if (!isActive) {
+            setActive(true);
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Started smelting");
             }
         }
+        
+        // Consume fuel
+        fuelTime--;
+        
+        // Progress smelting
+        smeltTime++;
+        
+        // Check if smelting is complete
+        if (smeltTime >= maxSmeltTime) {
+            // ENHANCED: Complete the smelting with proper item management
+            completeSmeltingCycle();
+        }
+    }
+
+    /**
+     * Complete a smelting cycle - NEW METHOD for better state management
+     */
+    private void completeSmeltingCycle() {
+        try {
+            ItemStack result = getSmeltingResult();
+            if (result == null) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Cannot complete smelting - no result available");
+                }
+                return;
+            }
+            
+            // Consume one input item
+            if (inputItem.getAmount() > 1) {
+                inputItem.setAmount(inputItem.getAmount() - 1);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Consumed 1 input item, " + inputItem.getAmount() + " remaining");
+                }
+            } else {
+                inputItem = null;
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Consumed last input item");
+                }
+            }
+            
+            // Add result to output
+            addToOutput(result);
+            
+            // Reset smelting time for next cycle
+            smeltTime = 0;
+            
+            // Update smelting result for next cycle (in case input changed)
+            updateSmeltingResult();
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Completed smelting cycle, produced " + 
+                    result.getAmount() + "x " + result.getType());
+            }
+            
+        } catch (Exception e) {
+            Main.getInstance().getLogger().severe("[FurnaceData] Error completing smelting cycle: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Update the smelting result based on current input - NEW METHOD
+     */
+    private void updateSmeltingResult() {
+        if (inputItem != null && inputItem.getType() != Material.AIR) {
+            // Get smelting recipes from CustomFurnaceManager
+            Map<Material, ItemStack> smeltingRecipes = getSmeltingRecipes();
+            ItemStack result = smeltingRecipes.get(inputItem.getType());
+            setSmeltingResult(result);
+        } else {
+            setSmeltingResult(null);
+        }
+    }
+
+    /**
+     * Get smelting recipes - HELPER METHOD
+     */
+    private Map<Material, ItemStack> getSmeltingRecipes() {
+        // This should ideally be injected or accessed through a proper reference
+        // For now, we'll create basic recipes inline
+        Map<Material, ItemStack> recipes = new HashMap<>();
+        recipes.put(Material.RAW_IRON, new ItemStack(Material.IRON_INGOT));
+        recipes.put(Material.RAW_GOLD, new ItemStack(Material.GOLD_INGOT));
+        recipes.put(Material.RAW_COPPER, new ItemStack(Material.COPPER_INGOT));
+        recipes.put(Material.COBBLESTONE, new ItemStack(Material.STONE));
+        recipes.put(Material.SAND, new ItemStack(Material.GLASS));
+        recipes.put(Material.CLAY_BALL, new ItemStack(Material.BRICK));
+        recipes.put(Material.BEEF, new ItemStack(Material.COOKED_BEEF));
+        recipes.put(Material.PORKCHOP, new ItemStack(Material.COOKED_PORKCHOP));
+        recipes.put(Material.MUTTON, new ItemStack(Material.COOKED_MUTTON));
+        recipes.put(Material.CHICKEN, new ItemStack(Material.COOKED_CHICKEN));
+        recipes.put(Material.COD, new ItemStack(Material.COOKED_COD));
+        recipes.put(Material.SALMON, new ItemStack(Material.COOKED_SALMON));
+        recipes.put(Material.POTATO, new ItemStack(Material.BAKED_POTATO));
+        recipes.put(Material.KELP, new ItemStack(Material.DRIED_KELP));
+        return recipes;
     }
 
     /**

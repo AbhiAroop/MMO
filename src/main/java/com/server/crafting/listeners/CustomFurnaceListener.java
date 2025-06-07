@@ -1,5 +1,9 @@
 package com.server.crafting.listeners;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -22,18 +26,25 @@ import com.server.crafting.manager.CustomFurnaceManager;
 import com.server.debug.DebugManager.DebugSystem;
 
 /**
- * Listener for custom furnace interactions - SIMPLIFIED VERSION
+ * Listener for custom furnace interactions - ENHANCED with aggressive spam protection
  */
 public class CustomFurnaceListener implements Listener {
     
     private final Main plugin;
+    
+    // ENHANCED: Aggressive rate limiting
+    private static final Map<UUID, Long> lastClickTime = new HashMap<>();
+    private static final Map<UUID, Integer> clickCount = new HashMap<>();
+    private static final long MIN_CLICK_INTERVAL = 200L; // 200ms minimum between clicks
+    private static final long RATE_LIMIT_WINDOW = 1000L; // 1 second window
+    private static final int MAX_CLICKS_PER_WINDOW = 3; // Max 3 clicks per second
     
     public CustomFurnaceListener(Main plugin) {
         this.plugin = plugin;
     }
     
     /**
-     * Handle inventory clicks - FIXED: Ensure smelting starts after item placement
+     * Handle inventory clicks - ENHANCED: Aggressive spam protection
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
@@ -46,6 +57,42 @@ public class CustomFurnaceListener implements Listener {
         if (!CustomFurnaceGUI.isCustomFurnaceGUI(inventory)) {
             return;
         }
+        
+        // CRITICAL: Aggressive rate limiting with multiple layers
+        UUID playerId = player.getUniqueId();
+        long currentTime = System.currentTimeMillis();
+        
+        // Layer 1: Minimum interval check
+        Long lastClick = lastClickTime.get(playerId);
+        if (lastClick != null && (currentTime - lastClick) < MIN_CLICK_INTERVAL) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] BLOCKED spam click - too fast: " + (currentTime - lastClick) + "ms");
+            }
+            event.setCancelled(true);
+            return;
+        }
+        
+        // Layer 2: Click count limiting within time window
+        clickCount.putIfAbsent(playerId, 0);
+        if (lastClick == null || (currentTime - lastClick) > RATE_LIMIT_WINDOW) {
+            // Reset click count if outside time window
+            clickCount.put(playerId, 0);
+        }
+        
+        int currentClickCount = clickCount.get(playerId);
+        if (currentClickCount >= MAX_CLICKS_PER_WINDOW) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] BLOCKED spam click - too many clicks: " + currentClickCount + "/" + MAX_CLICKS_PER_WINDOW);
+            }
+            event.setCancelled(true);
+            return;
+        }
+        
+        // Update rate limiting data
+        lastClickTime.put(playerId, currentTime);
+        clickCount.put(playerId, currentClickCount + 1);
         
         int slot = event.getRawSlot();
         
@@ -115,9 +162,20 @@ public class CustomFurnaceListener implements Listener {
             }
         }
         
-        // If we get here, the click is valid - let it proceed and save after a short delay
+        // CRITICAL: Only save if the click is actually changing something
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Processing valid click on slot " + slot);
+        }
+        
+        // If we get here, the click is valid - let it proceed and save after a delay
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             try {
+                // ENHANCED: Only save if the GUI is still open and valid
+                if (!player.getOpenInventory().getTitle().equals(GUI_TITLE)) {
+                    return; // Player closed GUI, don't save
+                }
+                
                 // Get the current state of slots after the click
                 ItemStack inputItem = inventory.getItem(CustomFurnaceGUI.INPUT_SLOT);
                 ItemStack fuelItem = inventory.getItem(CustomFurnaceGUI.FUEL_SLOT);
@@ -134,31 +192,95 @@ public class CustomFurnaceListener implements Listener {
                     outputItem = null;
                 }
                 
-                // Save to furnace data
-                furnaceData.setInputItem(inputItem != null ? inputItem.clone() : null);
-                furnaceData.setFuelItem(fuelItem != null ? fuelItem.clone() : null);
-                furnaceData.setOutputItem(outputItem != null ? outputItem.clone() : null);
+                // ENHANCED: Only update if something actually changed
+                boolean changed = false;
+                ItemStack currentInput = furnaceData.getInputItem();
+                ItemStack currentFuel = furnaceData.getFuelItem();
+                ItemStack currentOutput = furnaceData.getOutputItem();
                 
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Saved contents after click - Input: " + getItemDebugName(inputItem) + 
-                        ", Fuel: " + getItemDebugName(fuelItem) + 
-                        ", Output: " + getItemDebugName(outputItem));
+                if (!itemsEqual(currentInput, inputItem)) {
+                    furnaceData.setInputItem(inputItem != null ? inputItem.clone() : null);
+                    changed = true;
+                }
+                if (!itemsEqual(currentFuel, fuelItem)) {
+                    furnaceData.setFuelItem(fuelItem != null ? fuelItem.clone() : null);
+                    changed = true;
+                }
+                if (!itemsEqual(currentOutput, outputItem)) {
+                    furnaceData.setOutputItem(outputItem != null ? outputItem.clone() : null);
+                    changed = true;
                 }
                 
-                // CRITICAL: Try to start smelting after saving items
-                CustomFurnaceManager.getInstance().tryStartSmelting(furnaceData);
+                if (changed) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] Saved contents after click - Input: " + getItemDebugName(inputItem) + 
+                            ", Fuel: " + getItemDebugName(fuelItem) + 
+                            ", Output: " + getItemDebugName(outputItem));
+                    }
+                    
+                    // Try to start smelting after saving items
+                    CustomFurnaceManager.getInstance().tryStartSmelting(furnaceData);
+                } else {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] No changes detected, skipping save");
+                    }
+                }
                 
             } catch (Exception e) {
                 Main.getInstance().getLogger().warning("[Custom Furnace] Error saving after click: " + e.getMessage());
             }
-        }, 1L);
+        }, 2L); // Increased delay to 2 ticks
+    }
+
+    /**
+     * Get the last click time map for interaction detection - PUBLIC ACCESS
+     */
+    public static Map<UUID, Long> getLastClickTimeMap() {
+        return lastClickTime;
+    }
+
+    /**
+     * Check if a player is currently interacting with a furnace GUI - PUBLIC METHOD
+     */
+    public static boolean isPlayerCurrentlyInteracting(UUID playerId) {
+        Long lastClick = lastClickTime.get(playerId);
+        if (lastClick != null) {
+            long timeSinceLastClick = System.currentTimeMillis() - lastClick;
+            return timeSinceLastClick < 500L; // 500ms interaction window
+        }
+        return false;
+    }
+
+    /**
+     * Check if two items are equal for comparison purposes
+     */
+    private boolean itemsEqual(ItemStack item1, ItemStack item2) {
+        // Both null
+        if (item1 == null && item2 == null) return true;
+        
+        // One null, one not
+        if (item1 == null || item2 == null) return false;
+        
+        // Both air
+        if (item1.getType() == Material.AIR && item2.getType() == Material.AIR) return true;
+        
+        // One air, one not
+        if (item1.getType() == Material.AIR || item2.getType() == Material.AIR) return false;
+        
+        // Compare type and amount
+        if (item1.getType() != item2.getType()) return false;
+        if (item1.getAmount() != item2.getAmount()) return false;
+        
+        return true;
     }
 
     /**
      * Handle VALID shift-click from player inventory to furnace slots
      */
     private void handleValidShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, Inventory furnaceInventory) {
+        // Existing implementation remains the same...
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
         
@@ -209,7 +331,7 @@ public class CustomFurnaceListener implements Listener {
         if (moved) {
             event.setCancelled(true);
             
-            // Save changes after a short delay
+            // Save changes after a delay
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 Location furnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
                 if (furnaceLocation != null) {
@@ -224,7 +346,7 @@ public class CustomFurnaceListener implements Listener {
                     
                     CustomFurnaceManager.getInstance().tryStartSmelting(furnaceData);
                 }
-            }, 1L);
+            }, 2L);
         } else {
             event.setCancelled(true);
             player.sendMessage(ChatColor.YELLOW + "The target slot is full!");
@@ -241,15 +363,19 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Clean up when player quits
+     * Clean up rate limiting when player quits
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        lastClickTime.remove(playerId);
+        clickCount.remove(playerId);
         CustomFurnaceGUI.removeActiveFurnaceGUI(event.getPlayer());
     }
     
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
+        // Existing implementation remains the same...
         if (!(event.getPlayer() instanceof Player)) return;
         
         Player player = (Player) event.getPlayer();
@@ -260,7 +386,7 @@ public class CustomFurnaceListener implements Listener {
             if (furnaceLocation != null) {
                 FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(furnaceLocation);
                 
-                // CRITICAL FIX: Save contents properly before closing
+                // Save contents properly before closing
                 Inventory inventory = event.getInventory();
                 
                 // Get items from GUI slots BEFORE clearing associations
@@ -271,30 +397,18 @@ public class CustomFurnaceListener implements Listener {
                 // Save to furnace data with proper null checking
                 if (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0) {
                     furnaceData.setInputItem(inputItem.clone());
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Custom Furnace] Saved input on close: " + inputItem.getAmount() + "x " + inputItem.getType());
-                    }
                 } else {
                     furnaceData.setInputItem(null);
                 }
                 
                 if (fuelItem != null && fuelItem.getType() != Material.AIR && fuelItem.getAmount() > 0) {
                     furnaceData.setFuelItem(fuelItem.clone());
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Custom Furnace] Saved fuel on close: " + fuelItem.getAmount() + "x " + fuelItem.getType());
-                    }
                 } else {
                     furnaceData.setFuelItem(null);
                 }
                 
                 if (outputItem != null && outputItem.getType() != Material.AIR && outputItem.getAmount() > 0) {
                     furnaceData.setOutputItem(outputItem.clone());
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[Custom Furnace] Saved output on close: " + outputItem.getAmount() + "x " + outputItem.getType());
-                    }
                 } else {
                     furnaceData.setOutputItem(null);
                 }

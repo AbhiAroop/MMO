@@ -2,6 +2,7 @@ package com.server.crafting.manager;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -20,6 +21,7 @@ import org.bukkit.scheduler.BukkitTask;
 import com.server.Main;
 import com.server.crafting.data.FurnaceData;
 import com.server.crafting.gui.CustomFurnaceGUI;
+import com.server.crafting.listeners.CustomFurnaceListener;
 import com.server.debug.DebugManager.DebugSystem;
 
 /**
@@ -272,7 +274,7 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Start the furnace update task - SAFE VERSION: Reduce timer update frequency
+     * Start the furnace update task - OPTIMIZED: Better timing for live updates
      */
     private void startFurnaceUpdateTask() {
         BukkitRunnable runnable = new BukkitRunnable() {
@@ -294,12 +296,12 @@ public class CustomFurnaceManager {
                         furnaceData.tick();
                     }
                     
-                    // SAFE: Update timer displays every 20 ticks (1 time per second) to avoid conflicts
-                    if (tickCounter % 20 == 0) {
+                    // OPTIMIZED: Update GUI displays every 10 ticks (2 times per second) for smooth live updates
+                    if (tickCounter % 10 == 0) {
                         updateAllFurnaceTimersSafely();
                     }
                     
-                    // Update block animations every 20 ticks
+                    // Update block animations every 20 ticks to reduce lag
                     if (tickCounter % 20 == 0) {
                         updateAllFurnaceBlockStates();
                     }
@@ -398,7 +400,7 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Update all open furnace timer displays safely - ENHANCED: Also updates furnace contents
+     * Update all open furnace timer displays safely - ENHANCED: Also sync items when needed
      */
     public static void updateAllFurnaceTimersSafely() {
         // Create a copy of the map to avoid concurrent modification
@@ -428,13 +430,13 @@ public class CustomFurnaceManager {
                 updateCookTimerSafely(gui, furnaceData);
                 updateFuelTimerSafely(gui, furnaceData);
                 
-                // ENHANCED: Also update furnace contents safely without overwriting player interactions
-                updateFurnaceContentsSafely(gui, furnaceData, player);
+                // ENHANCED: Also sync items when furnace completes cooking or fuel runs out
+                updateFurnaceItemsSafely(gui, furnaceData, player);
                 
             } catch (Exception e) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Error updating GUI for " + player.getName() + ": " + e.getMessage());
+                        "[Custom Furnace] Error updating timers for " + player.getName() + ": " + e.getMessage());
                 }
                 // Remove problematic GUI to prevent repeated errors
                 CustomFurnaceGUI.removeActiveFurnaceGUI(player);
@@ -443,68 +445,133 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Update furnace contents safely without interfering with player interactions - NEW METHOD
+     * Update furnace items safely during live updates - ENHANCED: Only sync when safe
      */
-    private static void updateFurnaceContentsSafely(Inventory gui, FurnaceData furnaceData, Player player) {
+    private static void updateFurnaceItemsSafely(Inventory gui, FurnaceData furnaceData, Player player) {
         try {
-            // Get current cursor item to check if player is interacting
-            ItemStack cursor = player.getItemOnCursor();
-            boolean playerInteracting = (cursor != null && cursor.getType() != Material.AIR);
-            
-            // If player is actively holding an item, don't update to avoid conflicts
-            if (playerInteracting) {
+            // CRITICAL: Don't sync items if player is currently interacting with the GUI
+            if (isPlayerCurrentlyInteracting(player)) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Skipping content update - player has cursor item: " + cursor.getType());
+                        "[Custom Furnace] Skipping item sync - player is interacting");
                 }
                 return;
             }
             
-            // Update input slot only if it's different from current
-            ItemStack currentInput = gui.getItem(CustomFurnaceGUI.INPUT_SLOT);
-            ItemStack dataInput = furnaceData.getInputItem();
-            if (!itemsEqual(currentInput, dataInput)) {
-                gui.setItem(CustomFurnaceGUI.INPUT_SLOT, 
-                    dataInput != null ? dataInput.clone() : null);
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Updated input slot: " + getItemDebugName(dataInput));
+            // Only sync items if there's a significant change (cooking completed or fuel consumed)
+            boolean needsSync = false;
+            
+            // Check if output item has changed (cooking completed) - this is the main case we want to sync
+            ItemStack currentOutputInGUI = gui.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
+            ItemStack expectedOutput = furnaceData.getOutputItem();
+            
+            if (!itemsEqual(currentOutputInGUI, expectedOutput)) {
+                // Only sync output changes when items are produced, not consumed
+                if (expectedOutput != null && (currentOutputInGUI == null || 
+                    currentOutputInGUI.getType() == Material.AIR ||
+                    expectedOutput.getAmount() > currentOutputInGUI.getAmount())) {
+                    needsSync = true;
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] Output produced for " + player.getName() + 
+                            " - GUI: " + getItemDebugName(currentOutputInGUI) + 
+                            " | Data: " + getItemDebugName(expectedOutput));
+                    }
                 }
             }
             
-            // Update fuel slot only if it's different from current
-            ItemStack currentFuel = gui.getItem(CustomFurnaceGUI.FUEL_SLOT);
-            ItemStack dataFuel = furnaceData.getFuelItem();
-            if (!itemsEqual(currentFuel, dataFuel)) {
-                gui.setItem(CustomFurnaceGUI.FUEL_SLOT, 
-                    dataFuel != null ? dataFuel.clone() : null);
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Updated fuel slot: " + getItemDebugName(dataFuel));
+            // Check if input item has been consumed (only sync consumption, not player placement)
+            ItemStack currentInputInGUI = gui.getItem(CustomFurnaceGUI.INPUT_SLOT);
+            ItemStack expectedInput = furnaceData.getInputItem();
+            
+            if (!itemsEqual(currentInputInGUI, expectedInput)) {
+                // Only sync input consumption, not when player adds items
+                if (expectedInput == null || (currentInputInGUI != null && 
+                    expectedInput.getAmount() < currentInputInGUI.getAmount())) {
+                    needsSync = true;
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] Input consumed for " + player.getName() + 
+                            " - GUI: " + getItemDebugName(currentInputInGUI) + 
+                            " | Data: " + getItemDebugName(expectedInput));
+                    }
                 }
             }
             
-            // CRITICAL: Update output slot only if it's different from current
-            ItemStack currentOutput = gui.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
-            ItemStack dataOutput = furnaceData.getOutputItem();
-            if (!itemsEqual(currentOutput, dataOutput)) {
-                gui.setItem(CustomFurnaceGUI.OUTPUT_SLOT, 
-                    dataOutput != null ? dataOutput.clone() : null);
+            // Check if fuel item has been consumed (only sync consumption)
+            ItemStack currentFuelInGUI = gui.getItem(CustomFurnaceGUI.FUEL_SLOT);
+            ItemStack expectedFuel = furnaceData.getFuelItem();
+            
+            if (!itemsEqual(currentFuelInGUI, expectedFuel)) {
+                // Only sync fuel consumption, not when player adds fuel
+                if (expectedFuel == null || (currentFuelInGUI != null && 
+                    expectedFuel.getAmount() < currentFuelInGUI.getAmount())) {
+                    needsSync = true;
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] Fuel consumed for " + player.getName() + 
+                            " - GUI: " + getItemDebugName(currentFuelInGUI) + 
+                            " | Data: " + getItemDebugName(expectedFuel));
+                    }
+                }
+            }
+            
+            // Only sync if there's actually a change to avoid unnecessary updates
+            if (needsSync) {
+                // Update GUI slots with current furnace data - but only the specific slots that changed
+                if (!itemsEqual(currentInputInGUI, expectedInput)) {
+                    gui.setItem(CustomFurnaceGUI.INPUT_SLOT, 
+                        expectedInput != null ? expectedInput.clone() : null);
+                }
+                if (!itemsEqual(currentFuelInGUI, expectedFuel)) {
+                    gui.setItem(CustomFurnaceGUI.FUEL_SLOT, 
+                        expectedFuel != null ? expectedFuel.clone() : null);
+                }
+                if (!itemsEqual(currentOutputInGUI, expectedOutput)) {
+                    gui.setItem(CustomFurnaceGUI.OUTPUT_SLOT, 
+                        expectedOutput != null ? expectedOutput.clone() : null);
+                }
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI, 
-                        "[Custom Furnace] Updated output slot: " + getItemDebugName(dataOutput));
+                        "[Custom Furnace] Synced items for " + player.getName());
                 }
             }
             
         } catch (Exception e) {
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Error updating furnace contents safely: " + e.getMessage());
+                    "[Custom Furnace] Error syncing items for " + player.getName() + ": " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Check if a player is currently interacting with the GUI - NEW METHOD
+     */
+    private static boolean isPlayerCurrentlyInteracting(Player player) {
+        UUID playerId = player.getUniqueId();
+        
+        // Check recent click activity from CustomFurnaceListener
+        Map<UUID, Long> lastClickTime = getLastClickTimeMap();
+        Long lastClick = lastClickTime.get(playerId);
+        
+        if (lastClick != null) {
+            long timeSinceLastClick = System.currentTimeMillis() - lastClick;
+            // Consider player "interacting" if they clicked within the last 500ms
+            return timeSinceLastClick < 500L;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Get the last click time map from CustomFurnaceListener - HELPER METHOD
+     */
+    private static Map<UUID, Long> getLastClickTimeMap() {
+        // We need to access this from CustomFurnaceListener
+        // This is a temporary solution - ideally we'd have a shared interaction tracker
+        return CustomFurnaceListener.getLastClickTimeMap();
     }
 
     /**
