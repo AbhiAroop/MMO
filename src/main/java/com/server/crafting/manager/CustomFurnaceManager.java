@@ -939,10 +939,163 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Get debug name for an item - UTILITY METHOD
+     * Drop furnace contents with smart positioning - ENHANCED VERSION (Fixed null handling)
+     */
+    public void dropFurnaceContentsEnhanced(Location furnaceLocation, Player breaker) {
+        try {
+            FurnaceData furnaceData = getFurnaceData(furnaceLocation);
+            if (furnaceData == null) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] No furnace data found for enhanced drop");
+                }
+                return;
+            }
+            
+            // Ensure we have a valid world
+            org.bukkit.World world = furnaceLocation.getWorld();
+            if (world == null) {
+                if (breaker != null) {
+                    breaker.sendMessage(ChatColor.RED + "Error: Cannot drop items - invalid world!");
+                }
+                Main.getInstance().getLogger().warning("[Custom Furnace] Cannot drop items - world is null");
+                return;
+            }
+            
+            // Calculate drop positions around the furnace
+            Location[] dropPositions = calculateDropPositions(furnaceLocation);
+            int positionIndex = 0;
+            int totalDropped = 0;
+            
+            // Drop input item
+            ItemStack inputItem = furnaceData.getInputItem();
+            if (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0) {
+                Location dropPos = dropPositions[positionIndex % dropPositions.length];
+                world.dropItemNaturally(dropPos, inputItem.clone());
+                positionIndex++;
+                totalDropped++;
+                
+                // Send message to breaker (if present)
+                if (breaker != null) {
+                    breaker.sendMessage(ChatColor.YELLOW + "Dropped " + getItemDisplayName(inputItem) + 
+                        " from furnace input slot");
+                }
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Enhanced drop - input: " + getItemDisplayName(inputItem));
+                }
+            }
+            
+            // Drop fuel item
+            ItemStack fuelItem = furnaceData.getFuelItem();
+            if (fuelItem != null && fuelItem.getType() != Material.AIR && fuelItem.getAmount() > 0) {
+                Location dropPos = dropPositions[positionIndex % dropPositions.length];
+                world.dropItemNaturally(dropPos, fuelItem.clone());
+                positionIndex++;
+                totalDropped++;
+                
+                if (breaker != null) {
+                    breaker.sendMessage(ChatColor.YELLOW + "Dropped " + getItemDisplayName(fuelItem) + 
+                        " from furnace fuel slot");
+                }
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Enhanced drop - fuel: " + getItemDisplayName(fuelItem));
+                }
+            }
+            
+            // Drop output item
+            ItemStack outputItem = furnaceData.getOutputItem();
+            if (outputItem != null && outputItem.getType() != Material.AIR && outputItem.getAmount() > 0) {
+                Location dropPos = dropPositions[positionIndex % dropPositions.length];
+                world.dropItemNaturally(dropPos, outputItem.clone());
+                positionIndex++;
+                totalDropped++;
+                
+                if (breaker != null) {
+                    breaker.sendMessage(ChatColor.YELLOW + "Dropped " + getItemDisplayName(outputItem) + 
+                        " from furnace output slot");
+                }
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Enhanced drop - output: " + getItemDisplayName(outputItem));
+                }
+            }
+            
+            if (totalDropped == 0) {
+                if (breaker != null) {
+                    breaker.sendMessage(ChatColor.GRAY + "Furnace was empty");
+                }
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Enhanced drop - furnace was empty");
+                }
+            }
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Enhanced drop completed: " + totalDropped + " item stack(s)");
+            }
+            
+        } catch (Exception e) {
+            if (breaker != null) {
+                breaker.sendMessage(ChatColor.RED + "Error dropping furnace contents!");
+            }
+            Main.getInstance().getLogger().warning("[Custom Furnace] Error in enhanced drop: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Clean up furnace data without dropping items - NEW METHOD
+     */
+    public void cleanupFurnaceDataOnly(Location location) {
+        String key = locationToString(location);
+        
+        // Remove the furnace data WITHOUT dropping contents
+        FurnaceData data = furnaceDataMap.remove(key);
+        
+        if (data != null && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Cleaned up data for broken furnace at " + 
+                location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+        }
+    }
+
+    /**
+     * Update handleFurnaceBreak to use the enhanced method
+     */
+    public void handleFurnaceBreak(Location location) {
+        String key = locationToString(location);
+        
+        // UPDATED: Don't drop contents here since enhanced method already handles it
+        // Just remove the furnace data
+        FurnaceData data = furnaceDataMap.remove(key);
+        
+        if (data != null && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Cleaned up data for broken furnace at " + 
+                location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+        }
+    }
+
+    /**
+     * Update dropFurnaceContents to use enhanced method (for backward compatibility)
+     */
+    public void dropFurnaceContents(Location location) {
+        // For backward compatibility, just call the enhanced version with null player
+        dropFurnaceContentsEnhanced(location, null);
+    }
+
+    /**
+     * Get debug name for an item - HELPER METHOD
      */
     private static String getItemDebugName(ItemStack item) {
-        if (item == null) return "null";
+        if (item == null) return "NULL";
         if (item.getType() == Material.AIR) return "AIR";
         return item.getAmount() + "x " + item.getType().name();
     }
@@ -994,20 +1147,6 @@ public class CustomFurnaceManager {
         // Use the existing updateFuelTimer logic but return the item instead of setting it
         return CustomFurnaceGUI.createFuelTimerItem(furnaceData);
     }
-
-    /**
-     * Clean up furnace when block is broken - NEW METHOD
-     */
-    public void handleFurnaceBreak(Location location) {
-        String key = locationToString(location);
-        FurnaceData data = furnaceDataMap.remove(key);
-        
-        if (data != null && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Cleaned up data for broken furnace at " + 
-                location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
-        }
-    }
     
     /**
      * Stop the furnace update task
@@ -1017,6 +1156,41 @@ public class CustomFurnaceManager {
             furnaceUpdateTask.cancel();
             furnaceUpdateTask = null;
         }
+    }
+
+    /**
+     * Calculate smart drop positions around the furnace - NEW METHOD
+     */
+    private Location[] calculateDropPositions(Location furnaceLocation) {
+        Location[] positions = new Location[8];
+        
+        // Create positions in a circle around the furnace
+        double[] xOffsets = {0.3, 0.7, 0.7, 0.3, -0.3, -0.7, -0.7, -0.3};
+        double[] zOffsets = {0.7, 0.3, -0.3, -0.7, -0.7, -0.3, 0.3, 0.7};
+        
+        for (int i = 0; i < 8; i++) {
+            positions[i] = furnaceLocation.clone().add(xOffsets[i], 0.5, zOffsets[i]);
+        }
+        
+        return positions;
+    }
+
+    /**
+     * Get display name for an item - NEW METHOD
+     */
+    private String getItemDisplayName(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return "Nothing";
+        
+        String itemName;
+        if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            itemName = item.getItemMeta().getDisplayName();
+        } else {
+            // Convert MATERIAL_NAME to Material Name
+            itemName = item.getType().name().toLowerCase().replace("_", " ");
+            itemName = itemName.substring(0, 1).toUpperCase() + itemName.substring(1);
+        }
+        
+        return item.getAmount() + "x " + itemName;
     }
     
     /**

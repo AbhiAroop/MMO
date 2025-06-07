@@ -7,11 +7,13 @@ import java.util.UUID;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -522,7 +524,90 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Handle furnace block breaking - ENHANCED: Release access and notify users
+     * Handle explosion damage to furnaces - UPDATED: Use common explosion handler
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        if (event.isCancelled()) return;
+        
+        // Check if any furnaces are in the explosion
+        for (Block block : event.blockList()) {
+            if (block.getType() == Material.FURNACE) {
+                Location location = block.getLocation();
+                handleFurnaceExplosion(location);
+            }
+        }
+    }
+
+    /**
+     * Handle entity explosion damage to furnaces - NEW: Handle EntityExplodeEvent too
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntityExplode(org.bukkit.event.entity.EntityExplodeEvent event) {
+        if (event.isCancelled()) return;
+        
+        // Check if any furnaces are in the explosion
+        for (Block block : event.blockList()) {
+            if (block.getType() == Material.FURNACE) {
+                Location location = block.getLocation();
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Furnace found in entity explosion at " + 
+                        location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+                }
+                
+                // Use the same logic as block explosion
+                handleFurnaceExplosion(location);
+            }
+        }
+    }
+
+    /**
+     * Common method to handle furnace destruction by explosion - NEW METHOD
+     */
+    private void handleFurnaceExplosion(Location location) {
+        try {
+            // Notify users BEFORE dropping items
+            Player currentUser = CustomFurnaceManager.getInstance().getFurnaceUser(location);
+            if (currentUser != null) {
+                currentUser.sendMessage(ChatColor.RED + "Your furnace was destroyed by an explosion!");
+                currentUser.closeInventory();
+            }
+            
+            // Test if furnace data exists before attempting drop
+            FurnaceData testData = CustomFurnaceManager.getInstance().getFurnaceData(location);
+            if (testData == null) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] No furnace data found for explosion at " + 
+                        location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+                }
+            } else {
+                // Log what we're about to drop
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Furnace data found - Input: " + getItemDebugName(testData.getInputItem()) + 
+                        ", Fuel: " + getItemDebugName(testData.getFuelItem()) + 
+                        ", Output: " + getItemDebugName(testData.getOutputItem()));
+                }
+                
+                // Drop contents using enhanced method
+                CustomFurnaceManager.getInstance().dropFurnaceContentsEnhanced(location, null);
+            }
+            
+            // Clean up access and data
+            CustomFurnaceManager.getInstance().releaseFurnaceAccess(location);
+            CustomFurnaceManager.getInstance().cleanupFurnaceDataOnly(location);
+            
+        } catch (Exception e) {
+            Main.getInstance().getLogger().severe("[Custom Furnace] Error handling furnace explosion: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Handle furnace block breaking - ENHANCED: Use enhanced drop method
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onBlockBreak(BlockBreakEvent event) {
@@ -530,23 +615,27 @@ public class CustomFurnaceListener implements Listener {
         
         if (event.getBlock().getType() == Material.FURNACE) {
             Location location = event.getBlock().getLocation();
+            Player breaker = event.getPlayer();
             
             // Check if someone is currently using this furnace
             Player currentUser = CustomFurnaceManager.getInstance().getFurnaceUser(location);
-            if (currentUser != null && currentUser != event.getPlayer()) {
+            if (currentUser != null && currentUser != breaker) {
                 // Notify the user that their furnace was broken
                 currentUser.sendMessage(ChatColor.RED + "The furnace you were using has been broken!");
                 currentUser.closeInventory();
             }
             
-            // Release furnace access and clean up data
+            // UPDATED: Use the enhanced drop method instead of the simple one
+            CustomFurnaceManager.getInstance().dropFurnaceContentsEnhanced(location, breaker);
+            
+            // Release furnace access and clean up data (without dropping items again)
             CustomFurnaceManager.getInstance().releaseFurnaceAccess(location);
-            CustomFurnaceManager.getInstance().handleFurnaceBreak(location);
+            CustomFurnaceManager.getInstance().cleanupFurnaceDataOnly(location);
             
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
                     "[Custom Furnace] Furnace broken at " + location.getBlockX() + "," + 
-                    location.getBlockY() + "," + location.getBlockZ() + " - cleaned up access");
+                    location.getBlockY() + "," + location.getBlockZ() + " - dropped contents and cleaned up access");
             }
         }
     }
