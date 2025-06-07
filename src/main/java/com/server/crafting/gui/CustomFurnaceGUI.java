@@ -37,9 +37,15 @@ public class CustomFurnaceGUI {
     private static final Map<Player, Location> activeFurnaceGUIs = new HashMap<>();
     
     /**
-     * Open the custom furnace GUI for a player at a specific location
+     * Open the custom furnace GUI for a player at a specific location - ENHANCED: Access control
      */
     public static void openFurnaceGUI(Player player, Location furnaceLocation) {
+        // CRITICAL: Check if furnace is available for access
+        if (!CustomFurnaceManager.getInstance().acquireFurnaceAccess(furnaceLocation, player)) {
+            // Player will already receive a message from acquireFurnaceAccess
+            return;
+        }
+        
         // Create 5 row inventory (45 slots)
         Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
         
@@ -63,6 +69,22 @@ public class CustomFurnaceGUI {
         
         // Open the inventory
         player.openInventory(gui);
+    }
+
+    /**
+     * Remove a player's active furnace GUI - ENHANCED: Release furnace access
+     */
+    public static void removeActiveFurnaceGUI(Player player) {
+        Location furnaceLocation = activeFurnaceGUIs.remove(player);
+        if (furnaceLocation != null) {
+            // CRITICAL: Release furnace access when GUI is closed
+            CustomFurnaceManager.getInstance().releaseFurnaceAccess(furnaceLocation);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Removed GUI association and released access for " + player.getName());
+            }
+        }
     }
     
     /**
@@ -345,17 +367,6 @@ public class CustomFurnaceGUI {
      */
     public static Location getFurnaceLocation(Player player) {
         return activeFurnaceGUIs.get(player);
-    }
-    
-    /**
-     * Remove a player's active furnace GUI - ENHANCED: Don't save contents here
-     */
-    public static void removeActiveFurnaceGUI(Player player) {
-        Location removed = activeFurnaceGUIs.remove(player);
-        if (removed != null && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Removed GUI association for " + player.getName());
-        }
     }
     
     /**

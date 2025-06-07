@@ -32,7 +32,7 @@ public class CustomCraftingListener implements Listener {
         this.plugin = plugin;
     }
     
-   @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         

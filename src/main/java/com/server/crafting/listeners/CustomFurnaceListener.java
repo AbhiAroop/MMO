@@ -60,6 +60,22 @@ public class CustomFurnaceListener implements Listener {
         if (!CustomFurnaceGUI.isCustomFurnaceGUI(inventory)) {
             return;
         }
+
+        // CRITICAL: Validate that player still has access to this furnace
+        Location furnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
+        if (furnaceLocation == null || 
+            !CustomFurnaceManager.getInstance().hasAccessToFurnace(furnaceLocation, player)) {
+            
+            event.setCancelled(true);
+            player.closeInventory();
+            player.sendMessage(ChatColor.RED + "You no longer have access to this furnace!");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] " + player.getName() + " lost access to furnace during interaction");
+            }
+            return;
+        }
         
         // CRITICAL: Enhanced rate limiting with violation tracking
         UUID playerId = player.getUniqueId();
@@ -121,7 +137,6 @@ public class CustomFurnaceListener implements Listener {
         }
         
         // Get furnace data
-        Location furnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
         if (furnaceLocation == null) {
             event.setCancelled(true);
             return;
@@ -441,14 +456,17 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Clean up violation tracking when player quits - ENHANCED
+     * Clean up access tracking when player quits - ENHANCED
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
         lastClickTime.remove(playerId);
         clickCount.remove(playerId);
-        violationCount.remove(playerId); // NEW: Clean up violation tracking
+        violationCount.remove(playerId);
+        
+        // CRITICAL: Release any furnace access when player quits
+        CustomFurnaceManager.getInstance().releasePlayerAccess(event.getPlayer());
         CustomFurnaceGUI.removeActiveFurnaceGUI(event.getPlayer());
     }
     
@@ -503,14 +521,32 @@ public class CustomFurnaceListener implements Listener {
         }
     }
 
+    /**
+     * Handle furnace block breaking - ENHANCED: Release access and notify users
+     */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onBlockBreak(BlockBreakEvent event) {
+        if (event.isCancelled()) return;
+        
         if (event.getBlock().getType() == Material.FURNACE) {
-            CustomFurnaceManager.getInstance().handleFurnaceBreak(event.getBlock().getLocation());
+            Location location = event.getBlock().getLocation();
+            
+            // Check if someone is currently using this furnace
+            Player currentUser = CustomFurnaceManager.getInstance().getFurnaceUser(location);
+            if (currentUser != null && currentUser != event.getPlayer()) {
+                // Notify the user that their furnace was broken
+                currentUser.sendMessage(ChatColor.RED + "The furnace you were using has been broken!");
+                currentUser.closeInventory();
+            }
+            
+            // Release furnace access and clean up data
+            CustomFurnaceManager.getInstance().releaseFurnaceAccess(location);
+            CustomFurnaceManager.getInstance().handleFurnaceBreak(location);
             
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Furnace broken at " + event.getBlock().getLocation());
+                    "[Custom Furnace] Furnace broken at " + location.getBlockX() + "," + 
+                    location.getBlockY() + "," + location.getBlockZ() + " - cleaned up access");
             }
         }
     }

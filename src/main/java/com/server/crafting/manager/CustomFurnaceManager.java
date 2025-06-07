@@ -1,10 +1,12 @@
 package com.server.crafting.manager;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -33,6 +35,8 @@ public class CustomFurnaceManager {
     private final Map<String, FurnaceData> furnaceDataMap;
     private final Map<Material, ItemStack> smeltingRecipes;
     private BukkitTask furnaceUpdateTask;
+    private final Map<String, UUID> furnaceAccessMap = new HashMap<>();
+    private final Map<UUID, String> playerAccessMap = new HashMap<>();
     
     private CustomFurnaceManager() {
         this.furnaceDataMap = new HashMap<>();
@@ -46,6 +50,153 @@ public class CustomFurnaceManager {
             instance = new CustomFurnaceManager();
         }
         return instance;
+    }
+
+    /**
+     * Check if a furnace is currently being accessed by another player - NEW METHOD
+     */
+    public boolean isFurnaceInUse(Location location, Player player) {
+        String locationKey = locationToString(location);
+        UUID currentUser = furnaceAccessMap.get(locationKey);
+        
+        // Furnace is not in use
+        if (currentUser == null) {
+            return false;
+        }
+        
+        // Same player is accessing it
+        if (currentUser.equals(player.getUniqueId())) {
+            return false;
+        }
+        
+        // Check if the current user is still online and has the furnace open
+        Player currentPlayer = Bukkit.getPlayer(currentUser);
+        if (currentPlayer == null || !currentPlayer.isOnline()) {
+            // Player is offline, release the furnace
+            releaseFurnaceAccess(location);
+            return false;
+        }
+        
+        // Check if the player still has the furnace GUI open
+        if (currentPlayer.getOpenInventory() == null || 
+            !CustomFurnaceGUI.GUI_TITLE.equals(currentPlayer.getOpenInventory().getTitle())) {
+            // Player doesn't have furnace GUI open anymore, release the furnace
+            releaseFurnaceAccess(location);
+            return false;
+        }
+        
+        // Furnace is actively being used by another player
+        return true;
+    }
+    
+    /**
+     * Acquire exclusive access to a furnace for a player - NEW METHOD
+     */
+    public boolean acquireFurnaceAccess(Location location, Player player) {
+        String locationKey = locationToString(location);
+        UUID playerId = player.getUniqueId();
+        
+        // Check if player already has access to this furnace
+        if (playerId.equals(furnaceAccessMap.get(locationKey))) {
+            return true;
+        }
+        
+        // Check if furnace is in use by another player
+        if (isFurnaceInUse(location, player)) {
+            UUID currentUser = furnaceAccessMap.get(locationKey);
+            Player currentPlayer = Bukkit.getPlayer(currentUser);
+            
+            if (currentPlayer != null) {
+                player.sendMessage(ChatColor.RED + "This furnace is currently being used by " + 
+                    currentPlayer.getName() + "!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] " + player.getName() + " tried to access furnace in use by " + 
+                        currentPlayer.getName());
+                }
+            }
+            return false;
+        }
+        
+        // Release any previous furnace access for this player
+        String previousFurnace = playerAccessMap.get(playerId);
+        if (previousFurnace != null) {
+            furnaceAccessMap.remove(previousFurnace);
+        }
+        
+        // Grant access to this furnace
+        furnaceAccessMap.put(locationKey, playerId);
+        playerAccessMap.put(playerId, locationKey);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] " + player.getName() + " acquired access to furnace at " + 
+                location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Release a player's access to a furnace - NEW METHOD
+     */
+    public void releaseFurnaceAccess(Location location) {
+        String locationKey = locationToString(location);
+        UUID playerId = furnaceAccessMap.remove(locationKey);
+        
+        if (playerId != null) {
+            playerAccessMap.remove(playerId);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Player player = Bukkit.getPlayer(playerId);
+                String playerName = player != null ? player.getName() : playerId.toString();
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Released furnace access for " + playerName + " at " + 
+                    location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+            }
+        }
+    }
+    
+    /**
+     * Release a player's access to any furnace they might be using - NEW METHOD
+     */
+    public void releasePlayerAccess(Player player) {
+        UUID playerId = player.getUniqueId();
+        String furnaceLocation = playerAccessMap.remove(playerId);
+        
+        if (furnaceLocation != null) {
+            furnaceAccessMap.remove(furnaceLocation);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Released all furnace access for " + player.getName());
+            }
+        }
+    }
+    
+    /**
+     * Get the player currently accessing a furnace - NEW METHOD
+     */
+    public Player getFurnaceUser(Location location) {
+        String locationKey = locationToString(location);
+        UUID playerId = furnaceAccessMap.get(locationKey);
+        
+        if (playerId != null) {
+            return Bukkit.getPlayer(playerId);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Check if a player has access to a specific furnace - NEW METHOD
+     */
+    public boolean hasAccessToFurnace(Location location, Player player) {
+        String locationKey = locationToString(location);
+        UUID currentUser = furnaceAccessMap.get(locationKey);
+        
+        return player.getUniqueId().equals(currentUser);
     }
     
     /**
@@ -337,7 +488,7 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Start the furnace update task - ENHANCED DEBUG
+     * Start the furnace update task - ENHANCED: Include access cleanup
      */
     private void startFurnaceUpdateTask() {
         BukkitRunnable runnable = new BukkitRunnable() {
@@ -375,6 +526,11 @@ public class CustomFurnaceManager {
                         updateAllFurnaceBlockStates();
                     }
                     
+                    // NEW: Clean up stale furnace access every 5 seconds (100 ticks)
+                    if (tickCounter % 100 == 0) {
+                        cleanupStaleAccess();
+                    }
+                    
                 } catch (Exception e) {
                     Main.getInstance().getLogger().warning("Error in furnace update task: " + e.getMessage());
                     e.printStackTrace();
@@ -384,6 +540,52 @@ public class CustomFurnaceManager {
         
         // Run every tick for furnace processing
         furnaceUpdateTask = runnable.runTaskTimer(Main.getInstance(), 1L, 1L);
+    }
+
+    /**
+     * Clean up stale furnace access entries - NEW METHOD
+     */
+    private void cleanupStaleAccess() {
+        Iterator<Map.Entry<String, UUID>> iterator = furnaceAccessMap.entrySet().iterator();
+        int cleanedUp = 0;
+        
+        while (iterator.hasNext()) {
+            Map.Entry<String, UUID> entry = iterator.next();
+            String locationKey = entry.getKey();
+            UUID playerId = entry.getValue();
+            
+            Player player = Bukkit.getPlayer(playerId);
+            boolean shouldRemove = false;
+            
+            // Player is offline
+            if (player == null || !player.isOnline()) {
+                shouldRemove = true;
+            }
+            // Player doesn't have furnace GUI open
+            else if (player.getOpenInventory() == null || 
+                    !CustomFurnaceGUI.GUI_TITLE.equals(player.getOpenInventory().getTitle())) {
+                shouldRemove = true;
+            }
+            // Player is not associated with this furnace location
+            else {
+                Location playerFurnaceLocation = CustomFurnaceGUI.getFurnaceLocation(player);
+                if (playerFurnaceLocation == null || 
+                    !locationKey.equals(locationToString(playerFurnaceLocation))) {
+                    shouldRemove = true;
+                }
+            }
+            
+            if (shouldRemove) {
+                iterator.remove();
+                playerAccessMap.remove(playerId);
+                cleanedUp++;
+            }
+        }
+        
+        if (cleanedUp > 0 && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Cleaned up " + cleanedUp + " stale access entries");
+        }
     }
 
     /**
