@@ -26,6 +26,7 @@ com\server\abilities\AbilityManager$2.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\entities\npc\NPCDamageEffects$1.class
 com\server\profiles\skills\abilities\SkillAbility.class
+com\server\crafting\data\CustomFuelData.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
@@ -120,6 +121,7 @@ com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\entities\npc\dialogue\DialogueManager$1.class
 com\server\events\AbilityListener.class
+com\server\crafting\data\CustomFurnaceRecipe.class
 com\server\items\ItemRarity.class
 com\server\entities\npc\story\KaelenEchobound$2.class
 com\server\profiles\skills\gui\ConfirmationGUI.class

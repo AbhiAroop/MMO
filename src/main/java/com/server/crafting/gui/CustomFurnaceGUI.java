@@ -295,52 +295,63 @@ public class CustomFurnaceGUI {
     }
 
     /**
-     * Load current furnace contents into the GUI - FIXED: Throttled logging
+     * Load current furnace contents into the GUI - ENHANCED: Better fuel syncing
      */
     public static void loadFurnaceContents(Inventory gui, FurnaceData furnaceData) {
-        // Heavily throttle debug logging to prevent spam
-        boolean shouldLog = Main.getInstance().isDebugEnabled(DebugSystem.GUI);
-        
-        if (shouldLog) {
+        try {
+            // Only log periodically to avoid spam
             long currentTime = System.currentTimeMillis();
-            if (currentTime - lastLoadLogTime > 10000) { // Only log every 10 seconds
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Loading furnace contents...");
+            boolean shouldLog = (currentTime - lastLoadLogTime) > 5000; // Log every 5 seconds max
+            
+            if (shouldLog && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Loading furnace contents into GUI");
                 lastLoadLogTime = currentTime;
             }
-        }
-        
-        // Load input item
-        ItemStack inputItem = furnaceData.getInputItem();
-        if (inputItem != null && inputItem.getType() != Material.AIR) {
-            gui.setItem(INPUT_SLOT, inputItem.clone());
-        } else {
-            gui.setItem(INPUT_SLOT, null);
-        }
-        
-        // Load fuel item
-        ItemStack fuelItem = furnaceData.getFuelItem();
-        if (fuelItem != null && fuelItem.getType() != Material.AIR) {
-            gui.setItem(FUEL_SLOT, fuelItem.clone());
-        } else {
-            gui.setItem(FUEL_SLOT, null);
-        }
-        
-        // Load output item
-        ItemStack outputItem = furnaceData.getOutputItem();
-        if (outputItem != null && outputItem.getType() != Material.AIR) {
-            gui.setItem(OUTPUT_SLOT, outputItem.clone());
-        } else {
-            gui.setItem(OUTPUT_SLOT, null);
+            
+            // Load input item
+            ItemStack inputItem = furnaceData.getInputItem();
+            gui.setItem(INPUT_SLOT, inputItem != null ? inputItem.clone() : null);
+            
+            // ENHANCED: Load fuel item with better validation
+            ItemStack fuelItem = furnaceData.getFuelItem();
+            if (fuelItem != null && fuelItem.getType() != Material.AIR && fuelItem.getAmount() > 0) {
+                gui.setItem(FUEL_SLOT, fuelItem.clone());
+            } else {
+                gui.setItem(FUEL_SLOT, null);
+            }
+            
+            // Load output item
+            ItemStack outputItem = furnaceData.getOutputItem();
+            gui.setItem(OUTPUT_SLOT, outputItem != null ? outputItem.clone() : null);
+            
+            // Update timers
+            updateCookTimer(gui, furnaceData);
+            updateFuelTimer(gui, furnaceData);
+            
+            if (shouldLog && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Loaded - Input: " + getItemDebugName(inputItem) + 
+                    ", Fuel: " + getItemDebugName(fuelItem) + 
+                    ", Output: " + getItemDebugName(outputItem) +
+                    ", FuelTime: " + furnaceData.getFuelTime());
+            }
+            
+        } catch (Exception e) {
+            Main.getInstance().getLogger().warning("[Custom Furnace] Error loading furnace contents: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Check if a slot is a functional slot (can be interacted with)
+     * Helper method to get item debug name - STATIC VERSION
      */
-    public static boolean isFunctionalSlot(int slot) {
-        return slot == INPUT_SLOT || slot == FUEL_SLOT || slot == OUTPUT_SLOT;
+    private static String getItemDebugName(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return "AIR";
+        }
+        return item.getAmount() + "x " + item.getType().toString();
     }
-    
+        
     /**
      * Check if a slot is the input slot
      */
@@ -568,6 +579,41 @@ public class CustomFurnaceGUI {
      */
     public static Map<Player, Location> getActiveFurnaceGUIs() {
         return new HashMap<>(activeFurnaceGUIs);
+    }
+
+    /**
+     * Check if a slot is a functional slot (can be interacted with) - ENHANCED
+     */
+    public static boolean isFunctionalSlot(int slot) {
+        return slot == INPUT_SLOT || 
+            slot == FUEL_SLOT || 
+            slot == OUTPUT_SLOT;
+        // Note: Timer slots are not functional (players shouldn't interact with them)
+    }
+
+    /**
+     * Check if a slot is a timer/display slot that should be read-only - NEW METHOD
+     */
+    public static boolean isTimerSlot(int slot) {
+        return slot == COOK_TIMER_SLOT || slot == FUEL_TIMER_SLOT;
+    }
+
+    /**
+     * Check if a slot is decorative/filler and should not be interacted with - NEW METHOD
+     */
+    public static boolean isDecorativeSlot(int slot) {
+        // Functional slots can be interacted with
+        if (isFunctionalSlot(slot)) {
+            return false;
+        }
+        
+        // Timer slots are read-only but not decorative (they change)
+        if (isTimerSlot(slot)) {
+            return true; // Block interaction but they're not truly decorative
+        }
+        
+        // All other slots are decorative/border elements
+        return true;
     }
     
 }
