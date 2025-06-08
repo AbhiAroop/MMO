@@ -14,8 +14,10 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -49,7 +51,7 @@ public class CustomFurnaceListener implements Listener {
     }
     
     /**
-     * Handle inventory clicks - ENHANCED: Immediate input/fuel handling
+     * Handle inventory clicks - ENHANCED: Strict output slot protection
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
@@ -138,15 +140,57 @@ public class CustomFurnaceListener implements Listener {
         
         ItemStack cursor = player.getItemOnCursor();
         
-        // CRITICAL: Handle output slot clicks immediately to prevent duplication
+        // CRITICAL: COMPLETELY BLOCK any item placement in output slot
         if (CustomFurnaceGUI.isOutputSlot(slot)) {
+            // ENHANCED: Block ALL attempts to place items in output slot
             if (cursor != null && cursor.getType() != Material.AIR) {
                 event.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] BLOCKED attempt to place " + getItemDebugName(cursor) + 
+                        " in output slot by " + player.getName());
+                }
                 return;
             }
             
-            // Handle output slot immediately
+            // ENHANCED: Block ALL click types that could place items (including right-click, etc.)
+            switch (event.getClick()) {
+                case LEFT:
+                case RIGHT:
+                case SHIFT_LEFT:
+                case SHIFT_RIGHT:
+                    // Allow taking items OUT, but prevent any placement
+                    ItemStack currentOutput = inventory.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
+                    if (currentOutput == null || currentOutput.getType() == Material.AIR) {
+                        // Empty output slot - block any interaction that isn't taking items
+                        if (cursor != null && cursor.getType() != Material.AIR) {
+                            event.setCancelled(true);
+                            player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                            return;
+                        }
+                    }
+                    break;
+                case DROP:
+                case CONTROL_DROP:
+                case CREATIVE:
+                case SWAP_OFFHAND:
+                case NUMBER_KEY:
+                    // Always block these click types in output slot
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[Custom Furnace] BLOCKED " + event.getClick() + " in output slot by " + player.getName());
+                    }
+                    return;
+                default:
+                    break;
+            }
+            
+            // Handle output slot removal normally
             handleOutputSlotClick(player, inventory, furnaceLocation, event);
             return;
         }
@@ -339,7 +383,7 @@ public class CustomFurnaceListener implements Listener {
     }
 
     /**
-     * Handle output slot clicks immediately to prevent duplication - NEW METHOD
+     * Handle output slot clicks immediately to prevent duplication - ENHANCED: Strict placement prevention
      */
     private void handleOutputSlotClick(Player player, Inventory inventory, Location furnaceLocation, InventoryClickEvent event) {
         try {
@@ -350,13 +394,46 @@ public class CustomFurnaceListener implements Listener {
             ItemStack currentOutputInGUI = inventory.getItem(CustomFurnaceGUI.OUTPUT_SLOT);
             ItemStack playerCursor = player.getItemOnCursor();
             
+            // CRITICAL: Double-check that no items are being placed
+            if (playerCursor != null && playerCursor.getType() != Material.AIR) {
+                event.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] DOUBLE-BLOCKED attempt to place " + getItemDebugName(playerCursor) + 
+                        " in output slot by " + player.getName());
+                }
+                return;
+            }
+            
+            // ENHANCED: Only allow taking items OUT if there are items in the output
+            if (currentOutputInGUI == null || currentOutputInGUI.getType() == Material.AIR) {
+                // Empty output slot - only allow if it's a harmless click (no placement)
+                if (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT) {
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "Nothing to take from the output slot!");
+                    return;
+                }
+                
+                // Even for left/right clicks, ensure cursor is empty
+                if (playerCursor != null && playerCursor.getType() != Material.AIR) {
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                    return;
+                }
+                
+                // Empty slot with empty cursor - nothing to do
+                return;
+            }
+            
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
                     "[Custom Furnace] Output click - GUI has: " + getItemDebugName(currentOutputInGUI) + 
                     ", Cursor has: " + getItemDebugName(playerCursor));
             }
             
-            // Let the click happen naturally (don't cancel it)
+            // Let the click happen naturally (don't cancel it) - only for taking items OUT
             // But immediately update the furnace data after the click
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 try {
@@ -781,6 +858,43 @@ public class CustomFurnaceListener implements Listener {
         // CRITICAL: Release any furnace access when player quits
         CustomFurnaceManager.getInstance().releasePlayerAccess(event.getPlayer());
         CustomFurnaceGUI.removeActiveFurnaceGUI(event.getPlayer());
+    }
+
+    /**
+     * Handle inventory drag events - NEW: Prevent dragging into output slot
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        
+        Player player = (Player) event.getWhoClicked();
+        Inventory inventory = event.getInventory();
+        
+        // Check if this is our custom furnace GUI
+        if (!CustomFurnaceGUI.isCustomFurnaceGUI(inventory)) {
+            return;
+        }
+        
+        // Check if any dragged slots include the output slot
+        for (int slot : event.getRawSlots()) {
+            if (CustomFurnaceGUI.isOutputSlot(slot)) {
+                // Cancel drag event that would affect output slot
+                event.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] BLOCKED drag event into output slot by " + player.getName());
+                }
+                return;
+            }
+            
+            // Also block dragging into decorative slots
+            if (isDecorativeSlot(slot)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
     }
     
     @EventHandler

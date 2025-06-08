@@ -593,10 +593,26 @@ public class FurnaceData {
     }
 
     /**
-     * Add an item to the output slot - ENHANCED: Better conflict prevention
+     * Add an item to the output slot - ENHANCED: Prevent overwriting player items
      */
     private void addToOutput(ItemStack result) {
         if (result == null) return;
+        
+        // CRITICAL: Safety check - don't overwrite items that shouldn't be there
+        if (outputItem != null && outputItem.getType() != Material.AIR) {
+            // Check if the existing output is a valid smelting result
+            ItemStack expectedResult = getSmeltingResult();
+            if (expectedResult == null || !outputItem.isSimilar(expectedResult)) {
+                // The output contains an item that's not a smelting result (player placed item)
+                // Log this as a potential issue but don't overwrite it
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] WARNING: Output contains unexpected item: " + getItemDebugName(outputItem) + 
+                        ", expected: " + getItemDebugName(expectedResult) + ". Not overwriting.");
+                }
+                return;
+            }
+        }
         
         // Get current state before modifying
         ItemStack previousOutput = outputItem != null ? outputItem.clone() : null;

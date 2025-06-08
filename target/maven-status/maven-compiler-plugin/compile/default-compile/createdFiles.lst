@@ -74,6 +74,7 @@ com\server\events\NPCDamageListener.class
 com\server\profiles\skills\core\SkillRegistry.class
 com\server\entities\npc\behaviors\FleeingBehavior$1.class
 com\server\profiles\skills\gui\SkillDetailsGUI.class
+com\server\crafting\listeners\CustomFurnaceListener$1.class
 com\server\commands\CrystalCommand.class
 com\server\entities\mobs\duskhollow\DuskhollowFang.class
 com\server\entities\npc\types\CombatNPC.class
