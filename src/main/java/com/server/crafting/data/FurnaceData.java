@@ -423,36 +423,58 @@ public class FurnaceData {
     }
 
     /**
-     * Progress tick method - FIXED: Consistent validation
+     * Progress tick method - ENHANCED: Always burn fuel, only consume new fuel when needed
      */
     public void tick() {
         try {
-            // Fuel burning logic (always runs)
+            // CRITICAL: Check if we have valid input and can smelt BEFORE processing new fuel consumption
+            boolean hasValidInput = (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0);
+            boolean canSmeltInput = hasValidInput && CustomFurnaceManager.getInstance().canSmelt(inputItem);
+            ItemStack expectedResult = canSmeltInput ? CustomFurnaceManager.getInstance().getSmeltingResult(inputItem) : null;
+            boolean canAddOutput = (expectedResult != null) && canAddToOutput(expectedResult);
+            
+            // Can we productively use fuel for smelting?
+            boolean canUseProductively = canSmeltInput && canAddOutput;
+            
+            // ENHANCED: Fuel ALWAYS burns down (realistic behavior)
             if (fuelTime > 0) {
                 fuelTime--;
                 
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Burning fuel - " + fuelTime + " ticks remaining" + 
+                        (canUseProductively ? " (productive)" : " (wasted)"));
+                }
+                
                 if (fuelTime <= 0) {
+                    // Fuel ran out
                     setHasFuel(false);
                     
-                    // Try to consume new fuel automatically if available
-                    if (tryConsumeNewFuel()) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI, 
+                            "[FurnaceData] Fuel depleted. Can use productively: " + canUseProductively);
+                    }
+                    
+                    // CRITICAL: Only consume new fuel if we can use it productively
+                    if (canUseProductively && tryConsumeNewFuel()) {
                         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                             Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[FurnaceData] Auto-consumed new fuel, continuing operation");
+                                "[FurnaceData] Successfully consumed new fuel for productive smelting, fuel time: " + fuelTime);
                         }
                     } else {
                         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            String reason = !canUseProductively ? "cannot smelt productively" : "no fuel available";
                             Main.getInstance().debugLog(DebugSystem.GUI, 
-                                "[FurnaceData] No more fuel available, stopping");
+                                "[FurnaceData] Not consuming new fuel - " + reason);
                         }
                     }
                 }
             }
             
-            // CRITICAL: Always validate input exists before processing smelting
+            // Smelting logic (only runs when conditions are met AND fuel is available)
             if (isActive && hasFuel && smeltingResult != null) {
                 // ENHANCED: Validate that we still have input to smelt
-                if (inputItem == null || inputItem.getType() == Material.AIR || inputItem.getAmount() <= 0) {
+                if (!hasValidInput) {
                     // Input was removed - stop smelting immediately
                     setActive(false);
                     smeltingResult = null;
@@ -464,11 +486,7 @@ public class FurnaceData {
                     return;
                 }
                 
-                // FIXED: Use CustomFurnaceManager for consistent validation
-                boolean canStillSmelt = CustomFurnaceManager.getInstance().canSmelt(inputItem);
-                ItemStack expectedResult = CustomFurnaceManager.getInstance().getSmeltingResult(inputItem);
-                
-                if (!canStillSmelt || expectedResult == null) {
+                if (!canSmeltInput || expectedResult == null) {
                     // Input changed to something that can't be smelted - stop process
                     setActive(false);
                     smeltingResult = null;
@@ -476,7 +494,7 @@ public class FurnaceData {
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI, 
                             "[FurnaceData] Input cannot be smelted - stopping process. CanSmelt: " + 
-                            canStillSmelt + ", ExpectedResult: " + (expectedResult != null ? expectedResult.getType() : "null"));
+                            canSmeltInput + ", ExpectedResult: " + (expectedResult != null ? expectedResult.getType() : "null"));
                     }
                     return;
                 }
@@ -510,7 +528,7 @@ public class FurnaceData {
                     // Output slot is full - pause smelting but keep fuel burning
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[FurnaceData] Smelting paused - output slot full");
+                            "[FurnaceData] Smelting paused - output slot full, but fuel continues burning");
                     }
                 }
             } else if (isActive && !hasFuel) {
@@ -523,15 +541,13 @@ public class FurnaceData {
             }
             
             // Try to restart smelting if we have input, fuel, and can output
-            if (!isActive && inputItem != null && inputItem.getType() != Material.AIR && 
-                inputItem.getAmount() > 0 && hasFuel) {
-                
+            if (!isActive && hasValidInput && canSmeltInput && hasFuel && canAddOutput) {
                 updateSmeltingResult();
-                if (smeltingResult != null && canAddToOutput(smeltingResult)) {
+                if (smeltingResult != null) {
                     setActive(true);
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI, 
-                            "[FurnaceData] Restarted smelting - conditions met");
+                            "[FurnaceData] Restarted smelting - all conditions met");
                     }
                 }
             }
@@ -697,43 +713,167 @@ public class FurnaceData {
     }
 
     /**
-     * Try to consume new fuel when current fuel runs out - NEW METHOD
+     * Check if fuel is currently burning wastefully (not being used productively) - NEW METHOD
+     */
+    public boolean isFuelBeingWasted() {
+        if (!hasFuel || fuelTime <= 0) {
+            return false; // No fuel burning
+        }
+        
+        // Check if we have valid input and can smelt
+        boolean hasValidInput = (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0);
+        boolean canSmeltInput = hasValidInput && CustomFurnaceManager.getInstance().canSmelt(inputItem);
+        ItemStack expectedResult = canSmeltInput ? CustomFurnaceManager.getInstance().getSmeltingResult(inputItem) : null;
+        boolean canAddOutput = (expectedResult != null) && canAddToOutput(expectedResult);
+        
+        // Fuel is wasted if we can't use it productively
+        return !(canSmeltInput && canAddOutput);
+    }
+
+    /**
+     * Get a status message for fuel usage - NEW METHOD
+     */
+    public String getFuelStatusMessage() {
+        if (!hasFuel || fuelTime <= 0) {
+            return "No fuel";
+        }
+        
+        if (isFuelBeingWasted()) {
+            if (inputItem == null || inputItem.getType() == Material.AIR) {
+                return "Fuel burning wastefully - No input";
+            } else if (!CustomFurnaceManager.getInstance().canSmelt(inputItem)) {
+                return "Fuel burning wastefully - Cannot smelt input";
+            } else {
+                return "Fuel burning wastefully - Output full";
+            }
+        }
+        
+        return "Fuel burning productively";
+    }
+
+    /**
+     * Try to consume new fuel when current fuel runs out - ENHANCED: Only consume when productive
      */
     private boolean tryConsumeNewFuel() {
-        // Only consume new fuel if we have items to smelt
+        // CRITICAL: Only consume fuel if we actually have something to smelt
         if (inputItem == null || inputItem.getType() == Material.AIR || inputItem.getAmount() <= 0) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Not consuming new fuel - no input to smelt");
+            }
             return false;
         }
         
-        // Check if we have fuel to consume
+        // Check if the input can actually be smelted
+        if (!CustomFurnaceManager.getInstance().canSmelt(inputItem)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Not consuming new fuel - input cannot be smelted: " + getItemDebugName(inputItem));
+            }
+            return false;
+        }
+        
+        // Check if we can output the result
+        ItemStack expectedResult = CustomFurnaceManager.getInstance().getSmeltingResult(inputItem);
+        if (expectedResult == null || !canAddToOutput(expectedResult)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Not consuming new fuel - cannot output result (output full or no recipe)");
+            }
+            return false;
+        }
+        
         if (fuelItem == null || fuelItem.getType() == Material.AIR || fuelItem.getAmount() <= 0) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] No new fuel available to consume");
+            }
             return false;
         }
         
-        // Check if the fuel is valid
-        if (!FurnaceData.isFuel(fuelItem.getType())) {
+        // Check if the fuel item is valid
+        if (!FurnaceData.isFuel(fuelItem)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Fuel item is not valid fuel: " + getItemDebugName(fuelItem));
+            }
             return false;
         }
+        
+        // Get fuel value for this item
+        int fuelValue = FurnaceData.getFuelValue(fuelItem);
+        if (fuelValue <= 0) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[FurnaceData] Fuel item has no fuel value: " + getItemDebugName(fuelItem));
+            }
+            return false;
+        }
+        
+        // Track original fuel for logging
+        ItemStack originalFuel = fuelItem.clone();
         
         // Consume one fuel item
-        int fuelValue = FurnaceData.getFuelValue(fuelItem.getType());
-        setFuelTime(fuelValue);
-        setMaxFuelTime(fuelValue);
-        setHasFuel(true);
-        
-        // Remove one fuel item
         if (fuelItem.getAmount() > 1) {
             fuelItem.setAmount(fuelItem.getAmount() - 1);
         } else {
             fuelItem = null;
         }
         
+        // Set new fuel time
+        setFuelTime(fuelValue);
+        setMaxFuelTime(fuelValue);
+        setHasFuel(true);
+        
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[FurnaceData] Auto-consumed new fuel, " + fuelValue + " ticks remaining");
+                "[FurnaceData] Auto-consumed fuel productively: " + originalFuel.getType() + 
+                ", new fuel time: " + fuelValue + " ticks, remaining fuel: " + 
+                (fuelItem != null ? fuelItem.getAmount() + "x " + fuelItem.getType() : "none"));
         }
         
+        // CRITICAL: Update all GUIs to show fuel consumption
+        updateGUIViewersForFuelConsumption(originalFuel, fuelItem);
+        
         return true;
+    }
+
+    /**
+     * Update GUI viewers when fuel is consumed - NEW METHOD
+     */
+    private void updateGUIViewersForFuelConsumption(ItemStack originalFuel, ItemStack newFuel) {
+        try {
+            // Get all players who have this furnace open
+            Map<Player, Location> activeGUIs = CustomFurnaceGUI.getActiveFurnaceGUIs();
+            
+            for (Map.Entry<Player, Location> entry : activeGUIs.entrySet()) {
+                Player player = entry.getKey();
+                Location guiLocation = entry.getValue();
+                
+                // Check if this player has the same furnace open
+                if (guiLocation.equals(this.location)) {
+                    // Update this player's GUI immediately
+                    Inventory gui = player.getOpenInventory().getTopInventory();
+                    if (CustomFurnaceGUI.isCustomFurnaceGUI(gui)) {
+                        // Update fuel slot
+                        gui.setItem(CustomFurnaceGUI.FUEL_SLOT, newFuel != null ? newFuel.clone() : null);
+                        
+                        // Update fuel timer
+                        CustomFurnaceGUI.updateFuelTimer(gui, this);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI, 
+                                "[FurnaceData] Updated fuel GUI for " + player.getName() + 
+                                " - was: " + getItemDebugName(originalFuel) + 
+                                ", now: " + getItemDebugName(newFuel));
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            Main.getInstance().getLogger().warning("[FurnaceData] Error updating fuel GUI: " + e.getMessage());
+        }
     }
     
     // Fuel value mapping

@@ -1,7 +1,9 @@
 package com.server.crafting.gui;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -475,7 +477,7 @@ public class CustomFurnaceGUI {
     }
 
     /**
-     * Create fuel timer item without setting it in GUI - NEW METHOD
+     * Create fuel timer item without setting it in GUI - ENHANCED: Show wasteful burning
      */
     public static ItemStack createFuelTimerItem(FurnaceData furnaceData) {
         ItemStack timerItem;
@@ -484,23 +486,44 @@ public class CustomFurnaceGUI {
             // Calculate fuel remaining percentage
             double fuelProgress = furnaceData.getFuelProgress();
             
-            // Choose flame material and color based on fuel level
+            // Check if fuel is being wasted
+            boolean isWasted = furnaceData.isFuelBeingWasted();
+            
+            // Choose flame material and color based on fuel level and waste status
             Material flameMaterial;
             ChatColor flameColor;
             String statusText;
             
-            if (fuelProgress > 0.6) {
-                flameMaterial = Material.TORCH;
-                flameColor = ChatColor.GOLD;
-                statusText = "🔥 Strong Flame";
-            } else if (fuelProgress > 0.3) {
-                flameMaterial = Material.SOUL_TORCH;
-                flameColor = ChatColor.YELLOW;
-                statusText = "🔥 Burning";
+            if (isWasted) {
+                // Wasteful burning - use different colors/materials
+                if (fuelProgress > 0.6) {
+                    flameMaterial = Material.REDSTONE_TORCH;
+                    flameColor = ChatColor.RED;
+                    statusText = "🔥 Wasting Fuel";
+                } else if (fuelProgress > 0.3) {
+                    flameMaterial = Material.REDSTONE_TORCH;
+                    flameColor = ChatColor.DARK_RED;
+                    statusText = "🔥 Wasting Fuel";
+                } else {
+                    flameMaterial = Material.REDSTONE_TORCH;
+                    flameColor = ChatColor.DARK_RED;
+                    statusText = "🔥 Low Fuel (Wasted)";
+                }
             } else {
-                flameMaterial = Material.REDSTONE_TORCH;
-                flameColor = ChatColor.RED;
-                statusText = "🔥 Low Fuel";
+                // Productive burning - normal colors
+                if (fuelProgress > 0.6) {
+                    flameMaterial = Material.TORCH;
+                    flameColor = ChatColor.GOLD;
+                    statusText = "🔥 Strong Flame";
+                } else if (fuelProgress > 0.3) {
+                    flameMaterial = Material.SOUL_TORCH;
+                    flameColor = ChatColor.YELLOW;
+                    statusText = "🔥 Burning";
+                } else {
+                    flameMaterial = Material.REDSTONE_TORCH;
+                    flameColor = ChatColor.RED;
+                    statusText = "🔥 Low Fuel";
+                }
             }
             
             timerItem = new ItemStack(flameMaterial);
@@ -510,15 +533,21 @@ public class CustomFurnaceGUI {
             String fuelBar = createProgressBar(fuelProgress, 15, '█', '░');
             int remainingFuelTime = furnaceData.getRemainingFuelTime();
             
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Fuel Level: " + ChatColor.WHITE + String.format("%.1f%%", fuelProgress * 100),
-                ChatColor.GRAY + "Fuel Time: " + ChatColor.WHITE + formatTime(remainingFuelTime),
-                "",
-                ChatColor.GOLD + fuelBar,
-                "",
-                flameColor + statusText
-            ));
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Fuel Level: " + ChatColor.WHITE + String.format("%.1f%%", fuelProgress * 100));
+            lore.add(ChatColor.GRAY + "Fuel Time: " + ChatColor.WHITE + formatTime(remainingFuelTime));
+            lore.add("");
+            lore.add(ChatColor.GOLD + fuelBar);
+            lore.add("");
+            lore.add(flameColor + statusText);
             
+            if (isWasted) {
+                lore.add("");
+                lore.add(ChatColor.GRAY + "Status: " + ChatColor.RED + furnaceData.getFuelStatusMessage());
+                lore.add(ChatColor.YELLOW + "💡 Tip: Add input or clear output");
+            }
+            
+            meta.setLore(lore);
             timerItem.setItemMeta(meta);
         } else {
             // No fuel
@@ -537,8 +566,6 @@ public class CustomFurnaceGUI {
         
         return timerItem;
     }
-
-
     
     /**
      * Create a progress bar string

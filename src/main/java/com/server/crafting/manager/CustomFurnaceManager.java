@@ -585,10 +585,9 @@ public class CustomFurnaceManager {
                location.getBlockY() + "," + 
                location.getBlockZ();
     }
-
     
     /**
-     * Try to start smelting process - ENHANCED: Use ItemStack-based fuel checking with immediate GUI update
+     * Try to start smelting process - FIXED: Only consume fuel when all conditions are met
      */
     public boolean tryStartSmelting(FurnaceData furnaceData) {
         // Check if already active and has fuel
@@ -625,7 +624,7 @@ public class CustomFurnaceManager {
             return false;
         }
         
-        // Check if output can accept result
+        // CRITICAL: Check if output can accept result BEFORE consuming fuel
         ItemStack currentOutput = furnaceData.getOutputItem();
         if (currentOutput != null && currentOutput.getType() != Material.AIR) {
             if (currentOutput.getType() != result.getType() || 
@@ -638,7 +637,7 @@ public class CustomFurnaceManager {
             }
         }
         
-        // ENHANCED: Only consume new fuel if we don't have any burning fuel
+        // ENHANCED: Only consume new fuel if we don't have any burning fuel AND all conditions are met
         if (furnaceData.getFuelTime() <= 0) {
             ItemStack fuelItem = furnaceData.getFuelItem();
             if (fuelItem == null || fuelItem.getType() == Material.AIR || fuelItem.getAmount() <= 0) {
@@ -658,7 +657,7 @@ public class CustomFurnaceManager {
                 return false;
             }
             
-            // ENHANCED: Consume one fuel item and start burning using ItemStack
+            // ENHANCED: Only consume fuel if ALL conditions are met (input, recipe, output space)
             int fuelValue = getFuelValue(fuelItem);
             furnaceData.setFuelTime(fuelValue);
             furnaceData.setMaxFuelTime(fuelValue);
@@ -678,12 +677,18 @@ public class CustomFurnaceManager {
             
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Consumed fuel: " + originalFuel.getType() + 
-                    ", " + fuelValue + " ticks remaining");
+                    "[Custom Furnace] Consumed fuel for guaranteed smelting: " + originalFuel.getType() + 
+                    ", " + fuelValue + " ticks remaining, fuel slot now: " + 
+                    (fuelItem != null ? fuelItem.getAmount() + "x " + fuelItem.getType() : "empty"));
+            }
+        } else {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI, 
+                    "[Custom Furnace] Using existing fuel - " + furnaceData.getFuelTime() + " ticks remaining");
             }
         }
         
-        // Start smelting (we have fuel and valid input)
+        // Start smelting (we have fuel and valid input and can output)
         ItemStack resultClone = result.clone();
         furnaceData.setSmeltingResult(resultClone);
         furnaceData.setActive(true);
