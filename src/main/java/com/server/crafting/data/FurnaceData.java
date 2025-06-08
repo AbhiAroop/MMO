@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
+import com.server.items.ItemManager;
 
 /**
  * Data class to store furnace state and processing information
@@ -189,7 +190,7 @@ public class FurnaceData {
     }
     
     /**
-     * Complete a smelting cycle - ENHANCED: Better item consumption tracking
+     * Complete a smelting cycle - ENHANCED: Ensure rarity on results
      */
     private void completeSmeltingCycle() {
         try {
@@ -200,6 +201,16 @@ public class FurnaceData {
                         "[FurnaceData] Cannot complete smelting - no result available");
                 }
                 return;
+            }
+            
+            // ENHANCED: Ensure the result has rarity before adding to output
+            if (!ItemManager.hasRarity(result)) {
+                result = ItemManager.applyRarity(result);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[FurnaceData] Applied rarity to smelting result: " + result.getType());
+                }
             }
             
             // ENHANCED: Consume input with detailed logging
@@ -231,7 +242,7 @@ public class FurnaceData {
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, 
                     "[FurnaceData] Completed smelting cycle, produced " + 
-                    result.getAmount() + "x " + result.getType());
+                    result.getAmount() + "x " + result.getType() + " with rarity");
             }
             
         } catch (Exception e) {
@@ -409,7 +420,7 @@ public class FurnaceData {
     }
 
     /**
-     * Add an item to the output slot - IMPROVED with debugging
+     * Add an item to the output slot - IMPROVED with debugging and rarity preservation
      */
     private void addToOutput(ItemStack result) {
         if (outputItem == null) {
@@ -419,8 +430,10 @@ public class FurnaceData {
         }
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            String rarityInfo = ItemManager.hasRarity(outputItem) ? " (with rarity)" : " (no rarity)";
             Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[FurnaceData] Added to output: " + outputItem.getAmount() + "x " + outputItem.getType());
+                "[FurnaceData] Added to output: " + outputItem.getAmount() + "x " + 
+                outputItem.getType() + rarityInfo);
         }
     }
 

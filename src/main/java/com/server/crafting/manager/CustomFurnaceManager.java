@@ -25,6 +25,7 @@ import com.server.crafting.data.FurnaceData;
 import com.server.crafting.gui.CustomFurnaceGUI;
 import com.server.crafting.listeners.CustomFurnaceListener;
 import com.server.debug.DebugManager.DebugSystem;
+import com.server.items.ItemManager;
 
 /**
  * Manager for handling custom furnace operations and recipes
@@ -213,32 +214,60 @@ public class CustomFurnaceManager {
             }
         }
         
-        // Add common smelting recipes manually to ensure they exist
-        smeltingRecipes.put(Material.RAW_IRON, new ItemStack(Material.IRON_INGOT));
-        smeltingRecipes.put(Material.RAW_GOLD, new ItemStack(Material.GOLD_INGOT));
-        smeltingRecipes.put(Material.RAW_COPPER, new ItemStack(Material.COPPER_INGOT));
-        smeltingRecipes.put(Material.COBBLESTONE, new ItemStack(Material.STONE));
-        smeltingRecipes.put(Material.SAND, new ItemStack(Material.GLASS));
-        smeltingRecipes.put(Material.CLAY_BALL, new ItemStack(Material.BRICK));
-        smeltingRecipes.put(Material.NETHERRACK, new ItemStack(Material.NETHER_BRICK));
-        smeltingRecipes.put(Material.CACTUS, new ItemStack(Material.GREEN_DYE));
-        smeltingRecipes.put(Material.OAK_LOG, new ItemStack(Material.CHARCOAL));
-        smeltingRecipes.put(Material.BIRCH_LOG, new ItemStack(Material.CHARCOAL));
-        smeltingRecipes.put(Material.SPRUCE_LOG, new ItemStack(Material.CHARCOAL));
-        smeltingRecipes.put(Material.JUNGLE_LOG, new ItemStack(Material.CHARCOAL));
-        smeltingRecipes.put(Material.ACACIA_LOG, new ItemStack(Material.CHARCOAL));
-        smeltingRecipes.put(Material.DARK_OAK_LOG, new ItemStack(Material.CHARCOAL));
+        // Ores to ingots
+        smeltingRecipes.put(Material.RAW_IRON, ItemManager.applyRarity(new ItemStack(Material.IRON_INGOT)));
+        smeltingRecipes.put(Material.IRON_ORE, ItemManager.applyRarity(new ItemStack(Material.IRON_INGOT)));
+        smeltingRecipes.put(Material.RAW_GOLD, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        smeltingRecipes.put(Material.GOLD_ORE, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        smeltingRecipes.put(Material.RAW_COPPER, ItemManager.applyRarity(new ItemStack(Material.COPPER_INGOT)));
+        smeltingRecipes.put(Material.COPPER_ORE, ItemManager.applyRarity(new ItemStack(Material.COPPER_INGOT)));
+        smeltingRecipes.put(Material.NETHER_GOLD_ORE, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        smeltingRecipes.put(Material.ANCIENT_DEBRIS, ItemManager.applyRarity(new ItemStack(Material.NETHERITE_SCRAP)));
+        
+        // Other ores
+        smeltingRecipes.put(Material.COAL_ORE, ItemManager.applyRarity(new ItemStack(Material.COAL)));
+        smeltingRecipes.put(Material.DIAMOND_ORE, ItemManager.applyRarity(new ItemStack(Material.DIAMOND)));
+        smeltingRecipes.put(Material.EMERALD_ORE, ItemManager.applyRarity(new ItemStack(Material.EMERALD)));
+        smeltingRecipes.put(Material.REDSTONE_ORE, ItemManager.applyRarity(new ItemStack(Material.REDSTONE, 4)));
+        smeltingRecipes.put(Material.LAPIS_ORE, ItemManager.applyRarity(new ItemStack(Material.LAPIS_LAZULI, 4)));
+        smeltingRecipes.put(Material.NETHER_QUARTZ_ORE, ItemManager.applyRarity(new ItemStack(Material.QUARTZ)));
         
         // Food items
-        smeltingRecipes.put(Material.BEEF, new ItemStack(Material.COOKED_BEEF));
-        smeltingRecipes.put(Material.PORKCHOP, new ItemStack(Material.COOKED_PORKCHOP));
-        smeltingRecipes.put(Material.CHICKEN, new ItemStack(Material.COOKED_CHICKEN));
-        smeltingRecipes.put(Material.MUTTON, new ItemStack(Material.COOKED_MUTTON));
-        smeltingRecipes.put(Material.RABBIT, new ItemStack(Material.COOKED_RABBIT));
-        smeltingRecipes.put(Material.COD, new ItemStack(Material.COOKED_COD));
-        smeltingRecipes.put(Material.SALMON, new ItemStack(Material.COOKED_SALMON));
-        smeltingRecipes.put(Material.POTATO, new ItemStack(Material.BAKED_POTATO));
-        smeltingRecipes.put(Material.KELP, new ItemStack(Material.DRIED_KELP));
+        smeltingRecipes.put(Material.BEEF, ItemManager.applyRarity(new ItemStack(Material.COOKED_BEEF)));
+        smeltingRecipes.put(Material.PORKCHOP, ItemManager.applyRarity(new ItemStack(Material.COOKED_PORKCHOP)));
+        smeltingRecipes.put(Material.CHICKEN, ItemManager.applyRarity(new ItemStack(Material.COOKED_CHICKEN)));
+        smeltingRecipes.put(Material.MUTTON, ItemManager.applyRarity(new ItemStack(Material.COOKED_MUTTON)));
+        smeltingRecipes.put(Material.RABBIT, ItemManager.applyRarity(new ItemStack(Material.COOKED_RABBIT)));
+        smeltingRecipes.put(Material.COD, ItemManager.applyRarity(new ItemStack(Material.COOKED_COD)));
+        smeltingRecipes.put(Material.SALMON, ItemManager.applyRarity(new ItemStack(Material.COOKED_SALMON)));
+        smeltingRecipes.put(Material.POTATO, ItemManager.applyRarity(new ItemStack(Material.BAKED_POTATO)));
+        smeltingRecipes.put(Material.KELP, ItemManager.applyRarity(new ItemStack(Material.DRIED_KELP)));
+        
+        // Building materials
+        smeltingRecipes.put(Material.COBBLESTONE, ItemManager.applyRarity(new ItemStack(Material.STONE)));
+        smeltingRecipes.put(Material.STONE, ItemManager.applyRarity(new ItemStack(Material.SMOOTH_STONE)));
+        smeltingRecipes.put(Material.SAND, ItemManager.applyRarity(new ItemStack(Material.GLASS)));
+        smeltingRecipes.put(Material.NETHERRACK, ItemManager.applyRarity(new ItemStack(Material.NETHER_BRICK)));
+        smeltingRecipes.put(Material.CLAY_BALL, ItemManager.applyRarity(new ItemStack(Material.BRICK)));
+        smeltingRecipes.put(Material.WET_SPONGE, ItemManager.applyRarity(new ItemStack(Material.SPONGE)));
+        smeltingRecipes.put(Material.CACTUS, ItemManager.applyRarity(new ItemStack(Material.GREEN_DYE)));
+        
+        // Logs to charcoal
+        smeltingRecipes.put(Material.OAK_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.BIRCH_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.SPRUCE_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.JUNGLE_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.ACACIA_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.DARK_OAK_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.MANGROVE_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.CHERRY_LOG, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.CRIMSON_STEM, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        smeltingRecipes.put(Material.WARPED_STEM, ItemManager.applyRarity(new ItemStack(Material.CHARCOAL)));
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Initialized " + smeltingRecipes.size() + " smelting recipes with rarity");
+        }
     }
     
     /**
@@ -374,12 +403,30 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Get the smelting result for an item
+     * Get the smelting result for an item - ENHANCED: Always apply rarity
      */
     public ItemStack getSmeltingResult(ItemStack item) {
         if (item == null) return null;
+        
         ItemStack result = smeltingRecipes.get(item.getType());
-        return result != null ? result.clone() : null;
+        if (result != null) {
+            // Clone the result and ensure it has rarity applied
+            ItemStack clonedResult = result.clone();
+            
+            // Double-check that rarity is applied (in case it wasn't during initialization)
+            if (!ItemManager.hasRarity(clonedResult)) {
+                clonedResult = ItemManager.applyRarity(clonedResult);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, 
+                        "[Custom Furnace] Applied rarity to result: " + clonedResult.getType());
+                }
+            }
+            
+            return clonedResult;
+        }
+        
+        return null;
     }
     
     /**
@@ -1194,10 +1241,45 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Add a custom smelting recipe
+     * Add a custom smelting recipe with automatic rarity application
      */
     public void addSmeltingRecipe(Material input, ItemStack result) {
-        smeltingRecipes.put(input, result.clone());
+        // Ensure the result has rarity applied
+        ItemStack rarityResult = ItemManager.hasRarity(result) ? result.clone() : ItemManager.applyRarity(result.clone());
+        smeltingRecipes.put(input, rarityResult);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Added custom recipe: " + input + " -> " + rarityResult.getType() + " with rarity");
+        }
+    }
+
+    /**
+     * Update all existing recipes to have rarity - UTILITY METHOD
+     */
+    public void updateRecipesWithRarity() {
+        Map<Material, ItemStack> updatedRecipes = new HashMap<>();
+        
+        for (Map.Entry<Material, ItemStack> entry : smeltingRecipes.entrySet()) {
+            Material input = entry.getKey();
+            ItemStack result = entry.getValue();
+            
+            // Apply rarity if not already present
+            if (!ItemManager.hasRarity(result)) {
+                result = ItemManager.applyRarity(result);
+            }
+            
+            updatedRecipes.put(input, result);
+        }
+        
+        // Replace the old recipes
+        smeltingRecipes.clear();
+        smeltingRecipes.putAll(updatedRecipes);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI, 
+                "[Custom Furnace] Updated " + smeltingRecipes.size() + " recipes with rarity");
+        }
     }
     
     /**
@@ -1206,11 +1288,39 @@ public class CustomFurnaceManager {
     public void removeSmeltingRecipe(Material input) {
         smeltingRecipes.remove(input);
     }
-    
+
     /**
-     * Get all smelting recipes
+     * Get smelting recipes - HELPER METHOD with rarity application
      */
-    public Map<Material, ItemStack> getSmeltingRecipes() {
-        return new HashMap<>(smeltingRecipes);
+    private Map<Material, ItemStack> getSmeltingRecipes() {
+        Map<Material, ItemStack> recipes = new HashMap<>();
+        
+        // Apply rarity to all recipe results
+        recipes.put(Material.RAW_IRON, ItemManager.applyRarity(new ItemStack(Material.IRON_INGOT)));
+        recipes.put(Material.IRON_ORE, ItemManager.applyRarity(new ItemStack(Material.IRON_INGOT)));
+        recipes.put(Material.RAW_GOLD, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        recipes.put(Material.GOLD_ORE, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        recipes.put(Material.RAW_COPPER, ItemManager.applyRarity(new ItemStack(Material.COPPER_INGOT)));
+        recipes.put(Material.COPPER_ORE, ItemManager.applyRarity(new ItemStack(Material.COPPER_INGOT)));
+        recipes.put(Material.COAL_ORE, ItemManager.applyRarity(new ItemStack(Material.COAL)));
+        recipes.put(Material.DIAMOND_ORE, ItemManager.applyRarity(new ItemStack(Material.DIAMOND)));
+        recipes.put(Material.EMERALD_ORE, ItemManager.applyRarity(new ItemStack(Material.EMERALD)));
+        recipes.put(Material.REDSTONE_ORE, ItemManager.applyRarity(new ItemStack(Material.REDSTONE, 4)));
+        recipes.put(Material.LAPIS_ORE, ItemManager.applyRarity(new ItemStack(Material.LAPIS_LAZULI, 4)));
+        recipes.put(Material.NETHER_QUARTZ_ORE, ItemManager.applyRarity(new ItemStack(Material.QUARTZ)));
+        recipes.put(Material.NETHER_GOLD_ORE, ItemManager.applyRarity(new ItemStack(Material.GOLD_INGOT)));
+        recipes.put(Material.ANCIENT_DEBRIS, ItemManager.applyRarity(new ItemStack(Material.NETHERITE_SCRAP)));
+        
+        // Food with rarity
+        recipes.put(Material.BEEF, ItemManager.applyRarity(new ItemStack(Material.COOKED_BEEF)));
+        recipes.put(Material.PORKCHOP, ItemManager.applyRarity(new ItemStack(Material.COOKED_PORKCHOP)));
+        recipes.put(Material.CHICKEN, ItemManager.applyRarity(new ItemStack(Material.COOKED_CHICKEN)));
+        recipes.put(Material.MUTTON, ItemManager.applyRarity(new ItemStack(Material.COOKED_MUTTON)));
+        recipes.put(Material.COD, ItemManager.applyRarity(new ItemStack(Material.COOKED_COD)));
+        recipes.put(Material.SALMON, ItemManager.applyRarity(new ItemStack(Material.COOKED_SALMON)));
+        recipes.put(Material.POTATO, ItemManager.applyRarity(new ItemStack(Material.BAKED_POTATO)));
+        recipes.put(Material.KELP, ItemManager.applyRarity(new ItemStack(Material.DRIED_KELP)));
+        
+        return recipes;
     }
 }
