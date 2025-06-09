@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -59,7 +60,7 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
                 return handleSetTempCommand(sender, args);
             case "addfuel":
                 return handleAddFuelCommand(sender, args);
-            case "recipes": // NEW
+            case "recipes":
                 return handleRecipesCommand(sender, args);
             case "debug":
                 return handleDebugCommand(sender, args);
@@ -295,7 +296,7 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
-     * Add fuel to furnace (debug command)
+     * Add fuel to furnace (debug command) - ENHANCED with fuel selection
      */
     private boolean handleAddFuelCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
@@ -312,11 +313,71 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
-        // Add coal to first fuel slot
-        ItemStack coal = new ItemStack(Material.COAL, 64);
-        furnaceData.setFuelSlot(0, coal);
+        // Determine fuel type
+        String fuelType = "coal"; // default
+        int amount = 64; // default amount
         
-        sender.sendMessage(ChatColor.GREEN + "✓ Added 64 coal to furnace fuel slot!");
+        if (args.length >= 2) {
+            fuelType = args[1].toLowerCase();
+        }
+        if (args.length >= 3) {
+            try {
+                amount = Integer.parseInt(args[2]);
+                amount = Math.max(1, Math.min(64, amount)); // Clamp between 1 and 64
+            } catch (NumberFormatException e) {
+                sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[2]);
+                return true;
+            }
+        }
+        
+        ItemStack fuelItem = createFuelItem(fuelType, amount);
+        if (fuelItem == null) {
+            sender.sendMessage(ChatColor.RED + "Unknown fuel type: " + fuelType);
+            sender.sendMessage(ChatColor.YELLOW + "Available fuels: coal, charcoal, coal_block, blaze_rod, lava_bucket, stick, planks");
+            return true;
+        }
+        
+        // Add fuel to first available fuel slot
+        boolean added = false;
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack currentFuel = furnaceData.getFuelSlot(i);
+            if (currentFuel == null || currentFuel.getType() == Material.AIR) {
+                furnaceData.setFuelSlot(i, fuelItem);
+                added = true;
+                break;
+            } else if (currentFuel.isSimilar(fuelItem)) {
+                // Try to stack with existing fuel
+                int maxStack = currentFuel.getMaxStackSize();
+                int currentAmount = currentFuel.getAmount();
+                int spaceAvailable = maxStack - currentAmount;
+                
+                if (spaceAvailable > 0) {
+                    int toAdd = Math.min(spaceAvailable, amount);
+                    currentFuel.setAmount(currentAmount + toAdd);
+                    amount -= toAdd;
+                    
+                    if (amount <= 0) {
+                        added = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (added) {
+            com.server.crafting.fuel.FuelData fuelData = 
+                com.server.crafting.fuel.FuelRegistry.getInstance().getFuelData(fuelItem);
+            
+            sender.sendMessage(ChatColor.GREEN + "Added " + fuelItem.getAmount() + "x " + 
+                            fuelItem.getType().name().replace("_", " ") + " to furnace!");
+            
+            if (fuelData != null) {
+                sender.sendMessage(ChatColor.GRAY + "Fuel Temperature: " + fuelData.getTemperature());
+                sender.sendMessage(ChatColor.GRAY + "Burn Time: " + fuelData.getFormattedBurnTime());
+            }
+        } else {
+            sender.sendMessage(ChatColor.RED + "Furnace fuel slots are full!");
+        }
         
         return true;
     }
@@ -334,6 +395,55 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
                           (currentState ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
         
         return true;
+    }
+
+    /**
+     * Create a fuel item by type name
+     */
+    private ItemStack createFuelItem(String fuelType, int amount) {
+        Material material;
+        
+        switch (fuelType.toLowerCase()) {
+            case "coal":
+                material = Material.COAL;
+                break;
+            case "charcoal":
+                material = Material.CHARCOAL;
+                break;
+            case "coal_block":
+            case "coalblock":
+                material = Material.COAL_BLOCK;
+                break;
+            case "blaze_rod":
+            case "blazerod":
+                material = Material.BLAZE_ROD;
+                break;
+            case "lava_bucket":
+            case "lavabucket":
+            case "lava":
+                material = Material.LAVA_BUCKET;
+                break;
+            case "stick":
+                material = Material.STICK;
+                break;
+            case "planks":
+            case "wood":
+                material = Material.OAK_PLANKS;
+                break;
+            case "magma_block":
+            case "magmablock":
+            case "magma":
+                material = Material.MAGMA_BLOCK;
+                break;
+            case "netherite_scrap":
+            case "netheritescrap":
+                material = Material.NETHERITE_SCRAP;
+                break;
+            default:
+                return null;
+        }
+        
+        return new ItemStack(material, amount);
     }
     
     /**
@@ -378,7 +488,8 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace info" + ChatColor.GRAY + " - Show furnace info");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace give <player> <type>" + ChatColor.GRAY + " - Give furnace item");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace settemp <temp>" + ChatColor.GRAY + " - Set furnace temperature");
-        sender.sendMessage(ChatColor.YELLOW + "/adminfurnace addfuel" + ChatColor.GRAY + " - Add fuel to furnace");
+        sender.sendMessage(ChatColor.YELLOW + "/adminfurnace addfuel [type] [amount]" + ChatColor.GRAY + " - Add fuel to furnace");
+        sender.sendMessage(ChatColor.GRAY + "  Fuel types: coal, charcoal, coal_block, blaze_rod, lava_bucket, stick, planks");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace recipes <list|info|temp>" + ChatColor.GRAY + " - Recipe management");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace debug" + ChatColor.GRAY + " - Toggle debug mode");
         sender.sendMessage("");
@@ -393,27 +504,39 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
         
         if (args.length == 1) {
-            completions.addAll(Arrays.asList("create", "remove", "list", "info", "give", "settemp", "addfuel", "debug"));
+            completions.addAll(Arrays.asList("create", "remove", "list", "info", "give", "settemp", "addfuel", "recipes", "debug"));
         } else if (args.length == 2) {
             String subCommand = args[0].toLowerCase();
-            if ("create".equals(subCommand) || "give".equals(subCommand)) {
-                completions.addAll(Arrays.stream(FurnaceType.values())
-                    .map(Enum::name)
-                    .collect(Collectors.toList()));
-            } else if ("give".equals(subCommand)) {
-                completions.addAll(sender.getServer().getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .collect(Collectors.toList()));
+            switch (subCommand) {
+                case "create":
+                case "give":
+                    for (FurnaceType type : FurnaceType.values()) {
+                        completions.add(type.name().toLowerCase());
+                    }
+                    break;
+                case "addfuel":
+                    completions.addAll(Arrays.asList("coal", "charcoal", "coal_block", "blaze_rod", "lava_bucket", "stick", "planks", "magma_block", "netherite_scrap"));
+                    break;
+                case "recipes":
+                    completions.addAll(Arrays.asList("list", "info", "temp"));
+                    break;
             }
-        } else if (args.length == 3 && "give".equals(args[0].toLowerCase())) {
-            completions.addAll(Arrays.stream(FurnaceType.values())
-                .map(Enum::name)
-                .collect(Collectors.toList()));
+        } else if (args.length == 3) {
+            String subCommand = args[0].toLowerCase();
+            if ("give".equals(subCommand)) {
+                // Add player names
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    completions.add(player.getName());
+                }
+            } else if ("addfuel".equals(subCommand)) {
+                // Add amount suggestions
+                completions.addAll(Arrays.asList("1", "8", "16", "32", "64"));
+            }
         }
         
         return completions.stream()
-            .filter(completion -> completion.toLowerCase().startsWith(args[args.length - 1].toLowerCase()))
-            .collect(Collectors.toList());
+                .filter(s -> s.toLowerCase().startsWith(args[args.length - 1].toLowerCase()))
+                .collect(Collectors.toList());
     }
 
     /**

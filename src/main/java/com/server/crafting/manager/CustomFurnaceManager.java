@@ -18,6 +18,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
+import com.server.crafting.fuel.FuelData;
 import com.server.crafting.fuel.FuelRegistry;
 import com.server.crafting.furnace.FurnaceData;
 import com.server.crafting.furnace.FurnaceType;
@@ -586,9 +587,8 @@ public class CustomFurnaceManager {
         }
     }
     
-    /**
-     * Calculate heating rate based on fuel and furnace efficiency
-     * Step 2: Temperature calculation
+   /**
+     * Complete the calculate heating rate method - FIXED
      */
     private int calculateHeatingRate(FurnaceData furnaceData) {
         // Base heating rate: 2-5 degrees per tick depending on furnace type
@@ -615,36 +615,104 @@ public class CustomFurnaceManager {
                 baseRate = 7;
                 break;
             case VOID_EXTRACTOR:
-                baseRate = 1; // Slower heating for low-temp furnace
+                baseRate = 1; // Slower heating for specialized furnace
                 break;
+            default:
+                baseRate = 2;
+                break;
+        }
+        
+        // Apply fuel efficiency multiplier
+        if (furnaceData.hasFuel()) {
+            double fuelEfficiency = Math.min(2.0, furnaceData.getFuelProgress() + 0.5);
+            baseRate = (int) (baseRate * fuelEfficiency);
         }
         
         return baseRate;
     }
+
+    /**
+     * Calculate cooling rate when no fuel is burning
+     */
+    private int calculateCoolingRate(FurnaceData furnaceData) {
+        int currentTemp = furnaceData.getCurrentTemperature();
+        
+        // Use the temperature system's decay calculation
+        return TemperatureSystem.getTemperatureDecay(currentTemp);
+    }
     
     /**
-     * Process fuel consumption and temperature targets
-     * Step 2: Fuel management
+     * Process fuel consumption and heating
+     * Step 2: Fuel system - ENHANCED with better debugging
      */
     private void processFuel(FurnaceData furnaceData) {
-        if (furnaceData.hasFuel() && furnaceData.getFuelTime() > 0) {
-            // Consume fuel time
-            int newFuelTime = furnaceData.getFuelTime() - 1;
-            furnaceData.setFuelTime(newFuelTime);
+        if (furnaceData.getFuelTime() > 0) {
+            // Consume fuel
+            furnaceData.setFuelTime(furnaceData.getFuelTime() - 1);
+            furnaceData.setHasFuel(true);
             
-            if (newFuelTime <= 0) {
-                // Fuel depleted
-                furnaceData.setHasFuel(false);
-                furnaceData.setTargetTemperature(TemperatureSystem.ROOM_TEMPERATURE);
-                
+            if (furnaceData.getFuelTime() <= 0) {
+                // Fuel depleted, try to consume next fuel item
+                consumeNextFuelItem(furnaceData);
+            }
+        } else {
+            // No fuel burning, try to start new fuel
+            consumeNextFuelItem(furnaceData);
+        }
+    }
+
+    /**
+     * Consume the next available fuel item from fuel slots
+     * Step 2: Fuel consumption system - FIXED
+     */
+    private void consumeNextFuelItem(FurnaceData furnaceData) {
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack fuelItem = furnaceData.getFuelSlot(i);
+            
+            if (fuelItem != null && fuelItem.getType() != Material.AIR) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Fuel] Furnace fuel depleted at " + locationToString(furnaceData.getLocation()));
+                        "[Furnace] Checking fuel slot " + i + ": " + fuelItem.getType().name() + 
+                        " x" + fuelItem.getAmount());
                 }
                 
-                // Try to consume new fuel automatically
-                tryConsumeNewFuel(furnaceData);
+                FuelData fuelData = FuelRegistry.getInstance().getFuelData(fuelItem);
+                
+                if (fuelData != null) {
+                    // Consume one fuel item
+                    fuelItem.setAmount(fuelItem.getAmount() - 1);
+                    if (fuelItem.getAmount() <= 0) {
+                        furnaceData.setFuelSlot(i, null);
+                    }
+                    
+                    // Set fuel properties
+                    furnaceData.setFuelTime(fuelData.getBurnTime());
+                    furnaceData.setMaxFuelTime(fuelData.getBurnTime());
+                    furnaceData.setHasFuel(true);
+                    
+                    // Set target temperature based on fuel
+                    furnaceData.setTargetTemperature(fuelData.getTemperature());
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Furnace] Consumed fuel: " + fuelData.getFuelId() + 
+                            " (" + fuelData.getTemperature() + "°T, " + 
+                            fuelData.getFormattedBurnTime() + ") at " + 
+                            locationToString(furnaceData.getLocation()));
+                    }
+                    
+                    return; // Successfully consumed fuel
+                }
             }
+        }
+        
+        // No fuel found
+        furnaceData.setHasFuel(false);
+        furnaceData.setTargetTemperature(TemperatureSystem.ROOM_TEMPERATURE);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace] No fuel available at " + locationToString(furnaceData.getLocation()));
         }
     }
     

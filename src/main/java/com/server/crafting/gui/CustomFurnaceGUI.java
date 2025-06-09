@@ -880,7 +880,7 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update GUI for all viewers of a specific furnace
+     * Update GUI for all viewers of a specific furnace - FIXED
      * Step 3: Real-time updates
      */
     public static void updateFurnaceGUI(FurnaceData furnaceData) {
@@ -893,13 +893,84 @@ public class CustomFurnaceGUI {
                 if (gui != null && player.getOpenInventory().getTopInventory() == gui) {
                     FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
                     if (layout != null) {
-                        // Update real-time displays only (not the items)
+                        // CRITICAL FIX: Reload items from furnace data first
+                        loadFurnaceContents(gui, furnaceData, layout);
+                        
+                        // Then update real-time displays
                         updateTemperatureDisplay(gui, furnaceData, layout);
                         updateFuelTimer(gui, furnaceData, layout);
                         updateCookTimer(gui, furnaceData, layout);
                         updateStatusDisplay(gui, furnaceData, layout);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Custom Furnace GUI] Updated GUI for player " + player.getName() + 
+                                " viewing " + furnaceData.getFurnaceType().getDisplayName());
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Sync GUI contents back to furnace data - ENHANCED with debugging
+     * Step 3: Data synchronization
+     */
+    public static void syncGUIToFurnaceData(Player player) {
+        Inventory gui = activeFurnaceGUIs.get(player);
+        FurnaceData furnaceData = playerFurnaceData.get(player);
+        
+        if (gui == null || furnaceData == null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Sync failed - GUI or FurnaceData is null for " + player.getName());
+            }
+            return;
+        }
+        
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Sync failed - Layout is null for " + furnaceData.getFurnaceType());
+            }
+            return;
+        }
+        
+        // Sync input slots
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.inputSlots[i]);
+            furnaceData.setInputSlot(i, item);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Synced input slot " + i + ": " + 
+                    item.getType().name() + " x" + item.getAmount());
+            }
+        }
+        
+        // Sync fuel slots
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.fuelSlots[i]);
+            furnaceData.setFuelSlot(i, item);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Synced fuel slot " + i + ": " + 
+                    item.getType().name() + " x" + item.getAmount());
+            }
+        }
+        
+        // Sync output slots
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.outputSlots[i]);
+            furnaceData.setOutputSlot(i, item);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Synced output slot " + i + ": " + 
+                    item.getType().name() + " x" + item.getAmount());
             }
         }
     }
@@ -938,38 +1009,6 @@ public class CustomFurnaceGUI {
     public static void removeActiveFurnaceGUI(Player player) {
         activeFurnaceGUIs.remove(player);
         playerFurnaceData.remove(player);
-    }
-    
-    /**
-     * Sync GUI contents back to furnace data
-     * Step 3: Data synchronization
-     */
-    public static void syncGUIToFurnaceData(Player player) {
-        Inventory gui = activeFurnaceGUIs.get(player);
-        FurnaceData furnaceData = playerFurnaceData.get(player);
-        
-        if (gui == null || furnaceData == null) return;
-        
-        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
-        if (layout == null) return;
-        
-        // Sync input slots
-        for (int i = 0; i < layout.inputSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.inputSlots[i]);
-            furnaceData.setInputSlot(i, item);
-        }
-        
-        // Sync fuel slots
-        for (int i = 0; i < layout.fuelSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.fuelSlots[i]);
-            furnaceData.setFuelSlot(i, item);
-        }
-        
-        // Sync output slots
-        for (int i = 0; i < layout.outputSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.outputSlots[i]);
-            furnaceData.setOutputSlot(i, item);
-        }
     }
     
     // Utility methods

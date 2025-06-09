@@ -1,6 +1,5 @@
 package com.server.crafting.fuel;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -80,20 +79,25 @@ public class FuelRegistry {
     
     /**
      * Initialize custom fuel types
-     * Step 1: Custom fuel foundation
+     * Step 1: Custom fuel foundation - FIXED
      */
     private void initializeCustomFuels() {
         // Example: Custom staff as high-temperature fuel
         try {
             ItemStack emberwoodStaff = CustomItems.createEmberwoodStaff();
-            registerCustomFuel("emberwood_staff", emberwoodStaff, 12000, 1500);
+            registerCustomFuel("emberwood_staff", emberwoodStaff, 3200, 1500);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[FuelRegistry] Registered custom fuel: Emberwood Staff");
+            }
         } catch (Exception e) {
-            // Custom items may not be available yet
+            Main.getInstance().getLogger().warning("Failed to register Emberwood Staff as fuel: " + e.getMessage());
         }
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[FuelRegistry] Initialized custom fuels");
+                "[FuelRegistry] Initialized " + (fuels.size() - vanillaFuels.size()) + " custom fuels");
         }
     }
     
@@ -115,36 +119,68 @@ public class FuelRegistry {
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[FuelRegistry] Registered custom fuel: " + id + " (" + temperature + "°T)");
+                "[FuelRegistry] Registered custom fuel: " + id + " (" + temperature + "°T, " + (burnTime/20) + "s)");
         }
     }
     
     /**
-     * Get fuel data for an ItemStack
+     * Get fuel data for an ItemStack - FIXED with better debugging
      */
     public FuelData getFuelData(ItemStack item) {
-        if (item == null) {
+        if (item == null || item.getType() == Material.AIR) {
             return null;
         }
         
-        // Check custom fuels first
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[FuelRegistry] Checking fuel for: " + item.getType().name() + 
+                " (amount: " + item.getAmount() + 
+                ", hasCustomData: " + (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) + ")");
+        }
+        
+        // Check custom fuels first (they are more specific)
         for (FuelData fuelData : fuels.values()) {
             if (fuelData.isCustom() && fuelData.matches(item)) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[FuelRegistry] Found custom fuel match: " + fuelData.getFuelId());
+                }
                 return fuelData;
             }
         }
         
         // Check vanilla fuels
-        return vanillaFuels.get(item.getType());
+        FuelData vanillaFuel = vanillaFuels.get(item.getType());
+        if (vanillaFuel != null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[FuelRegistry] Found vanilla fuel match: " + vanillaFuel.getFuelId());
+            }
+            return vanillaFuel;
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[FuelRegistry] No fuel match found for: " + item.getType().name());
+        }
+        
+        return null;
     }
-    
+
     /**
-     * Check if an item is a valid fuel
+     * Check if an item is a valid fuel - FIXED
      */
     public boolean isFuel(ItemStack item) {
-        return getFuelData(item) != null;
+        boolean result = getFuelData(item) != null;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[FuelRegistry] isFuel(" + (item != null ? item.getType().name() : "null") + ") = " + result);
+        }
+        
+        return result;
     }
-    
+
     /**
      * Get fuel temperature for an item
      */
@@ -152,7 +188,7 @@ public class FuelRegistry {
         FuelData fuelData = getFuelData(item);
         return fuelData != null ? fuelData.getTemperature() : 0;
     }
-    
+
     /**
      * Get fuel burn time for an item
      */
@@ -171,14 +207,14 @@ public class FuelRegistry {
         }
         return item;
     }
-    
+
     /**
      * Get all registered fuels
      */
     public Map<String, FuelData> getAllFuels() {
-        return new HashMap<>(fuels);
+        return new java.util.HashMap<>(fuels);
     }
-    
+
     /**
      * Remove a custom fuel (for admin commands)
      */
