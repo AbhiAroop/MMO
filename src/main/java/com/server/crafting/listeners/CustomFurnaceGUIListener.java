@@ -94,7 +94,139 @@ public class CustomFurnaceGUIListener implements Listener {
     }
 
     /**
-     * Handle shift-clicks from player inventory with smart slot targeting
+     * Try to place an item in fuel slots - FIXED: Handle entire stacks
+     */
+    private boolean tryPlaceInFuelSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        ItemStack remainingItems = item.clone();
+        
+        // Try to add to existing stacks first
+        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem != null && slotItem.isSimilar(remainingItems)) {
+                int maxStack = slotItem.getMaxStackSize();
+                int currentAmount = slotItem.getAmount();
+                int spaceAvailable = maxStack - currentAmount;
+                
+                if (spaceAvailable > 0) {
+                    int toAdd = Math.min(spaceAvailable, remainingItems.getAmount());
+                    slotItem.setAmount(currentAmount + toAdd);
+                    gui.setItem(guiSlot, slotItem);
+                    remainingItems.setAmount(remainingItems.getAmount() - toAdd);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Fuel Slots] Added " + toAdd + " items to existing stack in slot " + i + 
+                            ", remaining: " + remainingItems.getAmount());
+                    }
+                }
+            }
+        }
+        
+        // Try to place remaining items in empty slots
+        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem == null || slotItem.getType() == Material.AIR) {
+                int maxStack = remainingItems.getMaxStackSize();
+                int toPlace = Math.min(maxStack, remainingItems.getAmount());
+                
+                ItemStack newStack = remainingItems.clone();
+                newStack.setAmount(toPlace);
+                gui.setItem(guiSlot, newStack);
+                remainingItems.setAmount(remainingItems.getAmount() - toPlace);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Fuel Slots] Placed " + toPlace + " items in empty slot " + i + 
+                        ", remaining: " + remainingItems.getAmount());
+                }
+            }
+        }
+        
+        // Return true if we placed all items, false if some items couldn't be placed
+        boolean allPlaced = remainingItems.getAmount() == 0;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Fuel Slots] Stack placement result: " + (allPlaced ? "SUCCESS" : "PARTIAL") + 
+                ", original: " + item.getAmount() + ", remaining: " + remainingItems.getAmount());
+        }
+        
+        return allPlaced;
+    }
+
+    /**
+     * Try to place an item in input slots - FIXED: Handle entire stacks
+     */
+    private boolean tryPlaceInInputSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        ItemStack remainingItems = item.clone();
+        
+        // Try to add to existing stacks first
+        for (int i = 0; i < layout.inputSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem != null && slotItem.isSimilar(remainingItems)) {
+                int maxStack = slotItem.getMaxStackSize();
+                int currentAmount = slotItem.getAmount();
+                int spaceAvailable = maxStack - currentAmount;
+                
+                if (spaceAvailable > 0) {
+                    int toAdd = Math.min(spaceAvailable, remainingItems.getAmount());
+                    slotItem.setAmount(currentAmount + toAdd);
+                    gui.setItem(guiSlot, slotItem);
+                    remainingItems.setAmount(remainingItems.getAmount() - toAdd);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Input Slots] Added " + toAdd + " items to existing stack in slot " + i + 
+                            ", remaining: " + remainingItems.getAmount());
+                    }
+                }
+            }
+        }
+        
+        // Try to place remaining items in empty slots
+        for (int i = 0; i < layout.inputSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem == null || slotItem.getType() == Material.AIR) {
+                int maxStack = remainingItems.getMaxStackSize();
+                int toPlace = Math.min(maxStack, remainingItems.getAmount());
+                
+                ItemStack newStack = remainingItems.clone();
+                newStack.setAmount(toPlace);
+                gui.setItem(guiSlot, newStack);
+                remainingItems.setAmount(remainingItems.getAmount() - toPlace);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Input Slots] Placed " + toPlace + " items in empty slot " + i + 
+                        ", remaining: " + remainingItems.getAmount());
+                }
+            }
+        }
+        
+        // Return true if we placed all items, false if some items couldn't be placed
+        boolean allPlaced = remainingItems.getAmount() == 0;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Input Slots] Stack placement result: " + (allPlaced ? "SUCCESS" : "PARTIAL") + 
+                ", original: " + item.getAmount() + ", remaining: " + remainingItems.getAmount());
+        }
+        
+        return allPlaced;
+    }
+
+    /**
+     * Handle shift-clicks from player inventory with smart slot targeting - ENHANCED: Full stack handling
      */
     private void handleShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, 
                                                 FurnaceData furnaceData, ItemStack item) {
@@ -103,117 +235,129 @@ public class CustomFurnaceGUIListener implements Listener {
         // Determine where this item should go
         boolean isFuel = FuelRegistry.getInstance().isFuel(item);
         
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Shift Click] Player " + player.getName() + " shift-clicking " + 
+                item.getType().name() + " x" + item.getAmount() + 
+                " (isFuel: " + isFuel + ")");
+        }
+        
         if (isFuel) {
-            // Try to place in fuel slots
+            // Try to place entire stack in fuel slots
             if (tryPlaceInFuelSlots(event.getInventory(), furnaceData, item)) {
-                // Successfully placed, consume one item from player inventory
-                item.setAmount(item.getAmount() - 1);
-                if (item.getAmount() <= 0) {
-                    event.setCurrentItem(null);
-                }
+                // All items were placed successfully
+                event.setCurrentItem(null);
                 
-                // Update GUI
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                    syncAndUpdateGUI(player, furnaceData);
-                }, 1L);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Shift Click] Successfully placed entire fuel stack of " + item.getAmount());
+                }
             } else {
-                player.sendMessage(ChatColor.RED + "Fuel slots are full!");
+                // Could only place some items - calculate how many were actually placed
+                ItemStack originalItem = event.getCurrentItem();
+                int originalAmount = originalItem.getAmount();
+                
+                // Count how many items are actually in the fuel slots now
+                int placedAmount = countItemsInFuelSlots(event.getInventory(), furnaceData, item);
+                int actuallyPlaced = Math.min(originalAmount, placedAmount);
+                
+                if (actuallyPlaced > 0) {
+                    originalItem.setAmount(originalAmount - actuallyPlaced);
+                    if (originalItem.getAmount() <= 0) {
+                        event.setCurrentItem(null);
+                    }
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Shift Click] Partially placed fuel stack: " + actuallyPlaced + "/" + originalAmount);
+                    }
+                } else {
+                    player.sendMessage(ChatColor.RED + "Fuel slots are full!");
+                }
             }
+            
+            // Update GUI
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                syncAndUpdateGUI(player, furnaceData);
+            }, 1L);
+            
         } else {
-            // Try to place in input slots (not output slots!)
+            // Try to place entire stack in input slots (not output slots!)
             if (tryPlaceInInputSlots(event.getInventory(), furnaceData, item)) {
-                // Successfully placed, consume one item from player inventory
-                item.setAmount(item.getAmount() - 1);
-                if (item.getAmount() <= 0) {
-                    event.setCurrentItem(null);
-                }
+                // All items were placed successfully
+                event.setCurrentItem(null);
                 
-                // Update GUI
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                    syncAndUpdateGUI(player, furnaceData);
-                }, 1L);
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Shift Click] Successfully placed entire input stack of " + item.getAmount());
+                }
             } else {
-                player.sendMessage(ChatColor.RED + "Input slots are full!");
-            }
-        }
-    }
-
-    /**
-     * Try to place an item in fuel slots
-     */
-    private boolean tryPlaceInFuelSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
-        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());  
-        
-        // Try to add to existing stacks first
-        for (int i = 0; i < layout.fuelSlots.length; i++) {
-            int guiSlot = layout.fuelSlots[i];
-            ItemStack slotItem = gui.getItem(guiSlot);
-            
-            if (slotItem != null && slotItem.isSimilar(item)) {
-                int maxStack = slotItem.getMaxStackSize();
-                int currentAmount = slotItem.getAmount();
+                // Could only place some items - calculate how many were actually placed
+                ItemStack originalItem = event.getCurrentItem();
+                int originalAmount = originalItem.getAmount();
                 
-                if (currentAmount < maxStack) {
-                    slotItem.setAmount(currentAmount + 1);
-                    gui.setItem(guiSlot, slotItem);
-                    return true;
+                // Count how many items are actually in the input slots now
+                int placedAmount = countItemsInInputSlots(event.getInventory(), furnaceData, item);
+                int actuallyPlaced = Math.min(originalAmount, placedAmount);
+                
+                if (actuallyPlaced > 0) {
+                    originalItem.setAmount(originalAmount - actuallyPlaced);
+                    if (originalItem.getAmount() <= 0) {
+                        event.setCurrentItem(null);
+                    }
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Shift Click] Partially placed input stack: " + actuallyPlaced + "/" + originalAmount);
+                    }
+                } else {
+                    player.sendMessage(ChatColor.RED + "Input slots are full!");
                 }
             }
-        }
-        
-        // Try to place in empty slots
-        for (int i = 0; i < layout.fuelSlots.length; i++) {
-            int guiSlot = layout.fuelSlots[i];
-            ItemStack slotItem = gui.getItem(guiSlot);
             
-            if (slotItem == null || slotItem.getType() == Material.AIR) {
-                ItemStack newItem = item.clone();
-                newItem.setAmount(1);
-                gui.setItem(guiSlot, newItem);
-                return true;
-            }
+            // Update GUI
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                syncAndUpdateGUI(player, furnaceData);
+            }, 1L);
         }
-        
-        return false;
     }
 
     /**
-     * Try to place an item in input slots
+     * Count how many of a specific item type are in fuel slots (for partial placement calculation)
      */
-    private boolean tryPlaceInInputSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
+    private int countItemsInFuelSlots(Inventory gui, FurnaceData furnaceData, ItemStack targetItem) {
         FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        int count = 0;
         
-        // Try to add to existing stacks first
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem != null && slotItem.isSimilar(targetItem)) {
+                count += slotItem.getAmount();
+            }
+        }
+        
+        return count;
+    }
+
+    /**
+     * Count how many of a specific item type are in input slots (for partial placement calculation)
+     */
+    private int countItemsInInputSlots(Inventory gui, FurnaceData furnaceData, ItemStack targetItem) {
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        int count = 0;
+        
         for (int i = 0; i < layout.inputSlots.length; i++) {
             int guiSlot = layout.inputSlots[i];
             ItemStack slotItem = gui.getItem(guiSlot);
             
-            if (slotItem != null && slotItem.isSimilar(item)) {
-                int maxStack = slotItem.getMaxStackSize();
-                int currentAmount = slotItem.getAmount();
-                
-                if (currentAmount < maxStack) {
-                    slotItem.setAmount(currentAmount + 1);
-                    gui.setItem(guiSlot, slotItem);
-                    return true;
-                }
+            if (slotItem != null && slotItem.isSimilar(targetItem)) {
+                count += slotItem.getAmount();
             }
         }
         
-        // Try to place in empty slots
-        for (int i = 0; i < layout.inputSlots.length; i++) {
-            int guiSlot = layout.inputSlots[i];
-            ItemStack slotItem = gui.getItem(guiSlot);
-            
-            if (slotItem == null || slotItem.getType() == Material.AIR) {
-                ItemStack newItem = item.clone();
-                newItem.setAmount(1);
-                gui.setItem(guiSlot, newItem);
-                return true;
-            }
-        }
-        
-        return false;
+        return count;
     }
 
     /**
