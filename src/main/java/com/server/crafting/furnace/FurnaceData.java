@@ -164,10 +164,42 @@ public class FurnaceData {
                currentTemperature <= furnaceType.getMaxTemperature();
     }
     
+    /**
+     * Check if furnace will explode (has active countdown)
+     * ENHANCED: Better explosion detection
+     */
     public boolean willExplode() {
-        return currentTemperature >= furnaceType.getExplosionTemperature();
+        return explosionCountdown > 0 && currentTemperature >= furnaceType.getExplosionTemperature();
     }
-    
+
+    /**
+     * Get formatted explosion countdown time
+     */
+    public String getFormattedExplosionCountdown() {
+        int seconds = explosionCountdown / 20;
+        int ticks = explosionCountdown % 20;
+        
+        if (seconds > 0) {
+            return seconds + "." + (ticks * 5 / 10) + "s";
+        } else {
+            return "0." + (ticks * 5 / 10) + "s";
+        }
+    }
+
+    /**
+     * Get formatted overheating time
+     */
+    public String getFormattedOverheatingTime() {
+        int seconds = overheatingTime / 20;
+        if (seconds < 60) {
+            return seconds + "s";
+        } else {
+            int minutes = seconds / 60;
+            int remainingSeconds = seconds % 60;
+            return minutes + "m " + remainingSeconds + "s";
+        }
+    }
+        
     public double getTemperatureEfficiency(int requiredTemp) {
         return TemperatureSystem.getTemperatureEfficiency(currentTemperature, requiredTemp);
     }
@@ -222,10 +254,10 @@ public class FurnaceData {
     }
 
     /**
-     * Check if furnace has space in output slots for specific item
+     * Check if furnace has space in output slots for specific item - ENHANCED
      * Step 4: Enhanced output checking
      */
-    public boolean hasOutputSpaceFor(org.bukkit.inventory.ItemStack item) {
+    public boolean hasOutputSpaceFor(ItemStack item) {
         if (item == null) return true;
         
         int requiredSpace = item.getAmount();
@@ -258,6 +290,27 @@ public class FurnaceData {
         }
         
         return requiredSpace <= 0;
+    }
+
+    /**
+     * Check if output slots are completely full
+     */
+    public boolean areOutputSlotsFull() {
+        for (int i = 0; i < outputSlots.length; i++) {
+            org.bukkit.inventory.ItemStack outputItem = outputSlots[i];
+            
+            // If there's an empty slot, not full
+            if (outputItem == null || outputItem.getType() == org.bukkit.Material.AIR) {
+                return false;
+            }
+            
+            // If there's a non-full stack, not full
+            if (outputItem.getAmount() < outputItem.getMaxStackSize()) {
+                return false;
+            }
+        }
+        
+        return true; // All slots are occupied with full stacks
     }
 
     /**

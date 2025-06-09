@@ -22,6 +22,7 @@ import com.server.crafting.fuel.FuelData;
 import com.server.crafting.fuel.FuelRegistry;
 import com.server.crafting.furnace.FurnaceData;
 import com.server.crafting.furnace.FurnaceType;
+import com.server.crafting.gui.CustomFurnaceGUI;
 import com.server.crafting.temperature.TemperatureSystem;
 import com.server.debug.DebugManager.DebugSystem;
 
@@ -262,26 +263,28 @@ public class CustomFurnaceManager {
      * Step 4: Recipe processing integration
      */
     private void processFurnaceTick(FurnaceData furnaceData, int tickCounter) {
-        // Temperature management
-        processTemperature(furnaceData);
-        
-        // Fuel consumption
-        processFuel(furnaceData);
-        
-        // Safety checks
+        // Safety checks FIRST - if exploded, exit immediately
         processSafety(furnaceData);
         
-        // Recipe processing (NEW)
+        // Check if furnace was destroyed by explosion
+        String locationKey = locationToString(furnaceData.getLocation());
+        if (!furnaceDataMap.containsKey(locationKey)) {
+            return; // Furnace was destroyed, stop processing
+        }
+        
+        // Continue with normal processing only if furnace still exists
+        processTemperature(furnaceData);
+        processFuel(furnaceData);
         processRecipes(furnaceData);
         
         // Update GUI for all viewers (every 10 ticks to avoid spam)
         if (tickCounter % 10 == 0) {
-            com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+            CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
         }
     }
 
     /**
-     * Process recipe cooking and completion
+     * Process recipe cooking and completion - ENHANCED: Output space checking
      * Step 4: Recipe processing system
      */
     private void processRecipes(FurnaceData furnaceData) {
@@ -319,6 +322,19 @@ public class CustomFurnaceManager {
             return;
         }
         
+        // CRITICAL: Check if output slots have space for the recipe outputs
+        if (!hasOutputSpaceForRecipe(furnaceData, currentRecipe)) {
+            // Output slots are full - pause cooking but don't reset progress
+            furnaceData.setPaused(true);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] Output slots full - pausing cooking at " + 
+                    locationToString(furnaceData.getLocation()));
+            }
+            return;
+        }
+        
         // Check temperature requirements
         int currentTemp = furnaceData.getCurrentTemperature();
         int requiredTemp = currentRecipe.getRequiredTemperature();
@@ -329,7 +345,7 @@ public class CustomFurnaceManager {
             return;
         }
         
-        // Temperature is sufficient - continue/start cooking
+        // Temperature is sufficient and we have output space - continue/start cooking
         furnaceData.setPaused(false);
         
         if (!furnaceData.isActive()) {
@@ -355,7 +371,20 @@ public class CustomFurnaceManager {
         
         // Check if cooking is complete
         if (furnaceData.getCookTime() >= furnaceData.getMaxCookTime()) {
-            completeCooking(furnaceData, currentRecipe);
+            // Double-check output space before completing
+            if (hasOutputSpaceForRecipe(furnaceData, currentRecipe)) {
+                completeCooking(furnaceData, currentRecipe);
+            } else {
+                // Output became full during cooking - pause at 99% completion
+                furnaceData.setCookTime(furnaceData.getMaxCookTime() - 1);
+                furnaceData.setPaused(true);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Furnace] Output full just before completion - pausing at " + 
+                        locationToString(furnaceData.getLocation()));
+                }
+            }
         }
     }
 
@@ -467,7 +496,7 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Add an item to the furnace output slots
+     * Add an item to the furnace output slots - ENHANCED: Better overflow handling
      * Step 4: Output slot management
      */
     private void addToOutputSlots(FurnaceData furnaceData, org.bukkit.inventory.ItemStack item) {
@@ -504,13 +533,15 @@ public class CustomFurnaceManager {
             }
         }
         
-        // If we reach here, output slots are full
-        // TODO: Handle overflow (maybe drop items or pause furnace)
+        // If we reach here, output slots are full - this should be prevented by pre-checks
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Furnace] Output slots full at " + locationToString(furnaceData.getLocation()) + 
-                " - could not place " + item.getType().name());
+                "[Furnace] CRITICAL: Output overflow at " + locationToString(furnaceData.getLocation()) + 
+                " - could not place " + item.getType().name() + " (this should not happen!)");
         }
+        
+        // Emergency: Drop the item at the furnace location
+        furnaceData.getLocation().getWorld().dropItemNaturally(furnaceData.getLocation(), item);
     }
 
     /**
@@ -642,7 +673,7 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Process fuel consumption and heating
+     * Process fuel consumption and heating - ENHANCED: Smart fuel consumption
      * Step 2: Fuel system - ENHANCED with better debugging
      */
     private void processFuel(FurnaceData furnaceData) {
@@ -652,13 +683,83 @@ public class CustomFurnaceManager {
             furnaceData.setHasFuel(true);
             
             if (furnaceData.getFuelTime() <= 0) {
-                // Fuel depleted, try to consume next fuel item
-                consumeNextFuelItem(furnaceData);
+                // Fuel depleted, check if we should consume more
+                if (shouldConsumeFuel(furnaceData)) {
+                    consumeNextFuelItem(furnaceData);
+                } else {
+                    // No need for more fuel
+                    furnaceData.setHasFuel(false);
+                    furnaceData.setTargetTemperature(TemperatureSystem.ROOM_TEMPERATURE);
+                }
             }
         } else {
-            // No fuel burning, try to start new fuel
-            consumeNextFuelItem(furnaceData);
+            // No fuel burning, check if we should start burning fuel
+            if (shouldConsumeFuel(furnaceData)) {
+                consumeNextFuelItem(furnaceData);
+            } else {
+                furnaceData.setHasFuel(false);
+                furnaceData.setTargetTemperature(TemperatureSystem.ROOM_TEMPERATURE);
+            }
         }
+    }
+
+    /**
+     * Determine if fuel should be consumed - SMART FUEL LOGIC
+     */
+    private boolean shouldConsumeFuel(FurnaceData furnaceData) {
+        // Check if there are items to process
+        List<org.bukkit.inventory.ItemStack> currentInputs = getCurrentInputItems(furnaceData);
+        if (currentInputs.isEmpty()) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] No items to process - not consuming fuel at " + 
+                    locationToString(furnaceData.getLocation()));
+            }
+            return false;
+        }
+        
+        // Check if there's a valid recipe
+        com.server.crafting.recipes.FurnaceRecipe recipe = 
+            com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
+        
+        if (recipe == null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] No valid recipe found - not consuming fuel at " + 
+                    locationToString(furnaceData.getLocation()));
+            }
+            return false;
+        }
+        
+        // Check if output slots have space for the recipe outputs
+        if (!hasOutputSpaceForRecipe(furnaceData, recipe)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] Output slots full - not consuming fuel at " + 
+                    locationToString(furnaceData.getLocation()));
+            }
+            return false;
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace] Valid recipe and space available - can consume fuel at " + 
+                locationToString(furnaceData.getLocation()));
+        }
+        
+        return true;
+    }
+
+    /**
+     * Check if output slots have space for a recipe's outputs
+     */
+    private boolean hasOutputSpaceForRecipe(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
+        for (org.bukkit.inventory.ItemStack output : recipe.getOutputs()) {
+            if (output != null && !furnaceData.hasOutputSpaceFor(output)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -759,56 +860,140 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Process safety systems and explosion prevention
-     * Step 2: Safety management
+     * Process safety checks and handle overheating/explosions
+     * Step 2: Safety system - ENHANCED: Close GUIs on explosion
      */
     private void processSafety(FurnaceData furnaceData) {
         int currentTemp = furnaceData.getCurrentTemperature();
-        FurnaceType type = furnaceData.getFurnaceType();
+        int maxSafe = furnaceData.getFurnaceType().getMaxTemperature();
+        int explosionTemp = furnaceData.getFurnaceType().getExplosionTemperature();
         
-        // Check for overheating
-        if (furnaceData.isOverheating()) {
-            int overheatingTime = furnaceData.getOverheatingTime() + 1;
-            furnaceData.setOverheatingTime(overheatingTime);
+        if (currentTemp > maxSafe) {
+            // Furnace is overheating
+            furnaceData.setOverheatingTime(furnaceData.getOverheatingTime() + 1);
             
-            // Warning phase (10 seconds of overheating)
-            if (overheatingTime > 200 && !furnaceData.isEmergencyShutdown()) {
-                furnaceData.emergencyShutdown();
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Safety] Emergency shutdown at " + locationToString(furnaceData.getLocation()) + 
-                        " due to overheating (" + currentTemp + "°T)");
+            if (currentTemp >= explosionTemp) {
+                // Start explosion countdown
+                if (furnaceData.getExplosionCountdown() <= 0) {
+                    furnaceData.setExplosionCountdown(100); // 5 seconds at 20 TPS
+                } else {
+                    furnaceData.setExplosionCountdown(furnaceData.getExplosionCountdown() - 1);
+                    
+                    if (furnaceData.getExplosionCountdown() <= 0) {
+                        // EXPLOSION! - Close all GUIs first, then explode
+                        handleFurnaceExplosion(furnaceData);
+                        return; // Exit early since furnace is destroyed
+                    }
                 }
             }
-            
         } else {
-            // Reset overheating timer if temperature is safe
-            furnaceData.setOverheatingTime(0);
-            
-            // Allow restart if emergency shutdown and temperature is safe
-            if (furnaceData.isEmergencyShutdown() && 
-                currentTemp <= type.getMaxTemperature() - 50) { // 50 degree safety margin
-                furnaceData.setEmergencyShutdown(false);
+            // Reset overheating if temperature is back to safe levels
+            if (furnaceData.getOverheatingTime() > 0) {
+                furnaceData.setOverheatingTime(Math.max(0, furnaceData.getOverheatingTime() - 2));
+            }
+            furnaceData.setExplosionCountdown(0);
+        }
+        
+        // Emergency shutdown for extremely high temperatures
+        if (currentTemp > explosionTemp + 200) {
+            if (!furnaceData.isEmergencyShutdown()) {
+                furnaceData.setEmergencyShutdown(true);
+                furnaceData.setActive(false);
+                furnaceData.setTargetTemperature(TemperatureSystem.ROOM_TEMPERATURE);
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Safety] Furnace safe to restart at " + locationToString(furnaceData.getLocation()));
+                        "[Safety] Emergency shutdown activated at " + locationToString(furnaceData.getLocation()));
                 }
             }
         }
+    }
+
+    /**
+     * Handle furnace explosion - ENHANCED: Close GUIs and cleanup
+     */
+    private void handleFurnaceExplosion(FurnaceData furnaceData) {
+        Location location = furnaceData.getLocation();
         
-        // Check for explosion risk
-        if (furnaceData.willExplode()) {
-            int explosionCountdown = furnaceData.getExplosionCountdown() + 1;
-            furnaceData.setExplosionCountdown(explosionCountdown);
-            
-            // Explode after 5 seconds at explosion temperature
-            if (explosionCountdown > 100) {
-                explodeFurnace(furnaceData);
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Safety] Furnace explosion at " + locationToString(location));
+        }
+        
+        // CRITICAL: Close all GUIs viewing this furnace BEFORE explosion
+        closeAllGUIsForFurnace(furnaceData);
+        
+        // Drop furnace contents
+        dropFurnaceContents(location, furnaceData);
+        
+        // Create explosion effect
+        location.getWorld().createExplosion(location, 4.0f, false, true);
+        
+        // Remove furnace data
+        String locationKey = locationToString(location);
+        furnaceDataMap.remove(locationKey);
+        
+        // Replace block with air
+        location.getBlock().setType(org.bukkit.Material.AIR);
+        
+        // Notify nearby players
+        for (org.bukkit.entity.Player nearbyPlayer : location.getWorld().getPlayers()) {
+            if (nearbyPlayer.getLocation().distance(location) <= 50) {
+                nearbyPlayer.sendMessage(org.bukkit.ChatColor.RED + "⚠ A furnace has exploded due to overheating!");
             }
-        } else {
-            furnaceData.setExplosionCountdown(0);
+        }
+    }
+
+    /**
+     * Close all GUIs currently viewing this furnace
+     * Step 2: GUI cleanup on explosion
+     */
+    private void closeAllGUIsForFurnace(FurnaceData furnaceData) {
+        // Get all players currently viewing this furnace's GUI
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            // Check if player has this furnace's GUI open
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                // Close their inventory (which will trigger the close event handler)
+                player.closeInventory();
+                
+                // Send explosion message
+                player.sendMessage(org.bukkit.ChatColor.DARK_RED + "💥 The furnace exploded due to overheating!");
+                player.sendMessage(org.bukkit.ChatColor.RED + "Temperature safety limits were exceeded!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Safety] Closed GUI for " + player.getName() + " due to furnace explosion");
+                }
+            }
+        }
+    }
+
+    /**
+     * Drop all furnace contents when exploded or destroyed
+     */
+    private void dropFurnaceContents(Location location, FurnaceData furnaceData) {
+        // Drop input items
+        for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots(); i++) {
+            ItemStack item = furnaceData.getInputSlot(i);
+            if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                location.getWorld().dropItemNaturally(location, item);
+            }
+        }
+        
+        // Drop fuel items
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack item = furnaceData.getFuelSlot(i);
+            if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                location.getWorld().dropItemNaturally(location, item);
+            }
+        }
+        
+        // Drop output items
+        for (int i = 0; i < furnaceData.getFurnaceType().getOutputSlots(); i++) {
+            ItemStack item = furnaceData.getOutputSlot(i);
+            if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                location.getWorld().dropItemNaturally(location, item);
+            }
         }
     }
     

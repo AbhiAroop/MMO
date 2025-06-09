@@ -415,7 +415,7 @@ public class CustomFurnaceGUI {
     
     /**
      * Update temperature display
-     * Step 3: Real-time temperature display
+     * Step 3: Real-time temperature display - FIXED: Format overheating time properly
      */
     private static void updateTemperatureDisplay(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
         int currentTemp = furnaceData.getCurrentTemperature();
@@ -457,7 +457,9 @@ public class CustomFurnaceGUI {
         // Temperature status
         if (furnaceData.isOverheating()) {
             lore.add(ChatColor.RED + "⚠ OVERHEATING! ⚠");
-            lore.add(ChatColor.RED + "Time: " + furnaceData.getOverheatingTime() + " ticks");
+            // FIXED: Convert ticks to seconds for display
+            int overheatingSeconds = furnaceData.getOverheatingTime() / 20;
+            lore.add(ChatColor.RED + "Time: " + formatTime(furnaceData.getOverheatingTime()));
         } else if (furnaceData.isHeating()) {
             lore.add(ChatColor.YELLOW + "🔥 Heating Up");
         } else if (furnaceData.isCooling()) {
@@ -470,7 +472,8 @@ public class CustomFurnaceGUI {
         if (furnaceData.willExplode()) {
             lore.add("");
             lore.add(ChatColor.DARK_RED + "💥 EXPLOSION IMMINENT!");
-            lore.add(ChatColor.RED + "Countdown: " + furnaceData.getExplosionCountdown() + " ticks");
+            // FIXED: Convert countdown ticks to seconds
+            lore.add(ChatColor.RED + "Countdown: " + formatTime(furnaceData.getExplosionCountdown()));
         } else if (furnaceData.isEmergencyShutdown()) {
             lore.add("");
             lore.add(ChatColor.DARK_RED + "🛑 EMERGENCY SHUTDOWN");
@@ -707,68 +710,61 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update status display
-     * Step 3: Status information display
+     * Get the layout for a specific furnace type - PUBLIC ACCESS
+     * Step 3: Layout access for validation
+     */
+    public static FurnaceGUILayout getFurnaceLayout(FurnaceType furnaceType) {
+        return furnaceLayouts.get(furnaceType);
+    }
+
+    /**
+     * Enhanced status display - FIXED: Show output full status
+     * Step 3: Status information
      */
     private static void updateStatusDisplay(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
-        FurnaceType type = furnaceData.getFurnaceType();
+        ItemStack statusItem;
         
-        Material statusMaterial;
-        ChatColor statusColor;
-        String statusTitle;
-        
-        if (furnaceData.isEmergencyShutdown()) {
-            statusMaterial = Material.BARRIER;
-            statusColor = ChatColor.DARK_RED;
-            statusTitle = "🛑 Emergency Shutdown";
-        } else if (furnaceData.willExplode()) {
-            statusMaterial = Material.TNT;
-            statusColor = ChatColor.DARK_RED;
-            statusTitle = "💥 Critical Danger";
-        } else if (furnaceData.isOverheating()) {
-            statusMaterial = Material.FIRE_CHARGE;
-            statusColor = ChatColor.RED;
-            statusTitle = "⚠ Overheating";
-        } else if (furnaceData.isActive()) {
-            statusMaterial = Material.EMERALD;
-            statusColor = ChatColor.GREEN;
-            statusTitle = "✓ Operating";
-        } else if (furnaceData.hasFuel()) {
-            statusMaterial = Material.YELLOW_DYE;
-            statusColor = ChatColor.YELLOW;
-            statusTitle = "⏳ Ready to Cook";
+        if (furnaceData.isActive()) {
+            if (furnaceData.isPaused()) {
+                // Check why it's paused
+                if (furnaceData.areOutputSlotsFull()) {
+                    statusItem = new ItemStack(Material.BARRIER);
+                    ItemMeta meta = statusItem.getItemMeta();
+                    meta.setDisplayName(ChatColor.RED + "⏸ Paused - Output Full");
+                    meta.setLore(Arrays.asList(
+                        ChatColor.GRAY + "Remove items from output slots",
+                        ChatColor.GRAY + "to continue cooking"
+                    ));
+                    statusItem.setItemMeta(meta);
+                } else {
+                    statusItem = new ItemStack(Material.ORANGE_TERRACOTTA);
+                    ItemMeta meta = statusItem.getItemMeta();
+                    meta.setDisplayName(ChatColor.YELLOW + "⏸ Paused - Low Temperature");
+                    meta.setLore(Arrays.asList(
+                        ChatColor.GRAY + "Add fuel to increase temperature"
+                    ));
+                    statusItem.setItemMeta(meta);
+                }
+            } else {
+                statusItem = new ItemStack(Material.GREEN_TERRACOTTA);
+                ItemMeta meta = statusItem.getItemMeta();
+                meta.setDisplayName(ChatColor.GREEN + "▶ Active - Cooking");
+                meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Recipe in progress"
+                ));
+                statusItem.setItemMeta(meta);
+            }
         } else {
-            statusMaterial = Material.GRAY_DYE;
-            statusColor = ChatColor.GRAY;
-            statusTitle = "⚫ Idle";
+            statusItem = new ItemStack(Material.GRAY_TERRACOTTA);
+            ItemMeta meta = statusItem.getItemMeta();
+            meta.setDisplayName(ChatColor.GRAY + "⏹ Idle");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Add items and fuel to start"
+            ));
+            statusItem.setItemMeta(meta);
         }
         
-        ItemStack statusItem = new ItemStack(statusMaterial);
-        ItemMeta meta = statusItem.getItemMeta();
-        meta.setDisplayName(statusColor + statusTitle);
-        
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Furnace: " + type.getColoredName());
-        lore.add("");
-        
-        // Current status details
-        lore.add(ChatColor.AQUA + "Current Status:");
-        lore.add(ChatColor.GRAY + "• Temperature: " + furnaceData.getFormattedTemperature());
-        lore.add(ChatColor.GRAY + "• Fuel: " + (furnaceData.hasFuel() ? 
-            ChatColor.GREEN + "Available" : ChatColor.RED + "Empty"));
-        lore.add(ChatColor.GRAY + "• Cooking: " + (furnaceData.isActive() ? 
-            ChatColor.GREEN + "Active" : ChatColor.RED + "Inactive"));
-        
-        // Slot configuration
-        lore.add("");
-        lore.add(ChatColor.GOLD + "Configuration:");
-        lore.add(ChatColor.GRAY + "• Input Slots: " + ChatColor.WHITE + type.getInputSlots());
-        lore.add(ChatColor.GRAY + "• Fuel Slots: " + ChatColor.WHITE + type.getFuelSlots());
-        lore.add(ChatColor.GRAY + "• Output Slots: " + ChatColor.WHITE + type.getOutputSlots());
-        
-        meta.setLore(lore);
-        statusItem.setItemMeta(meta);
-        
+        // Place status in an appropriate slot (adjust based on layout)
         gui.setItem(layout.statusSlot, statusItem);
     }
     
@@ -1075,6 +1071,29 @@ public class CustomFurnaceGUI {
             int minutes = seconds / 60;
             int remainingSeconds = seconds % 60;
             return minutes + "m " + remainingSeconds + "s";
+        }
+    }
+
+    /**
+     * Check if a player is currently viewing a specific furnace's GUI
+     * Step 3: GUI tracking for explosion handling
+     */
+    public static boolean isPlayerViewingFurnace(Player player, FurnaceData furnaceData) {
+        FurnaceData playerCurrentFurnace = playerFurnaceData.get(player);
+        return playerCurrentFurnace != null && playerCurrentFurnace == furnaceData;
+    }
+
+    /**
+     * Close and cleanup GUI for a specific player
+     * Step 3: Forced GUI closure
+     */
+    public static void forceClosePlayerGUI(Player player) {
+        activeFurnaceGUIs.remove(player);
+        playerFurnaceData.remove(player);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Custom Furnace GUI] Force closed GUI for " + player.getName());
         }
     }
 }
