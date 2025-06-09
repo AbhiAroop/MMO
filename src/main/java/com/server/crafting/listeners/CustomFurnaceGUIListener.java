@@ -1,5 +1,7 @@
 package com.server.crafting.listeners;
 
+import java.util.HashMap;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -34,7 +36,7 @@ public class CustomFurnaceGUIListener implements Listener {
     }
     
     /**
-     * Enhanced inventory click handler - FIXED: Better shift-click logic
+     * Enhanced inventory click handler - FIXED: Better shift-click logic with item loss prevention
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
@@ -46,30 +48,18 @@ public class CustomFurnaceGUIListener implements Listener {
         Inventory inventory = event.getInventory();
         
         // Check if this is a custom furnace GUI
-        if (!CustomFurnaceGUI.isFurnaceGUI(inventory)) {
-            return;
-        }
-        
         FurnaceData furnaceData = CustomFurnaceGUI.getPlayerFurnaceData(player);
         if (furnaceData == null) {
-            event.setCancelled(true);
             return;
         }
         
         int slot = event.getRawSlot();
         
-        // CRITICAL FIX: Handle shift-clicks from player inventory more carefully
+        // Handle player inventory clicks (shift-clicking items into furnace)
         if (slot >= inventory.getSize()) {
-            // This is a click in the player's inventory
-            ClickType clickType = event.getClick();
-            
-            if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-                ItemStack clickedItem = event.getCurrentItem();
-                if (clickedItem != null && clickedItem.getType() != Material.AIR) {
-                    // Try to place in appropriate slots with strict validation
-                    handleShiftClickFromPlayerInventory(event, player, furnaceData, clickedItem);
-                    return;
-                }
+            // CRITICAL FIX: Enhanced shift-click validation
+            if (event.getClick().isShiftClick() && event.getCurrentItem() != null) {
+                handleShiftClickFromPlayerInventory(event, player, furnaceData, event.getCurrentItem());
             }
             return; // Allow normal player inventory interactions
         }
@@ -94,77 +84,170 @@ public class CustomFurnaceGUIListener implements Listener {
     }
 
     /**
-     * Try to place an item in fuel slots - FIXED: Handle entire stacks
+     * Handle shift-clicks from player inventory with smart slot targeting - ENHANCED: Item loss prevention
      */
-    private boolean tryPlaceInFuelSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
-        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
-        ItemStack remainingItems = item.clone();
+    private void handleShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, 
+                                                FurnaceData furnaceData, ItemStack item) {
+        event.setCancelled(true); // Cancel the default shift-click behavior
         
-        // Try to add to existing stacks first
-        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
-            int guiSlot = layout.fuelSlots[i];
-            ItemStack slotItem = gui.getItem(guiSlot);
-            
-            if (slotItem != null && slotItem.isSimilar(remainingItems)) {
-                int maxStack = slotItem.getMaxStackSize();
-                int currentAmount = slotItem.getAmount();
-                int spaceAvailable = maxStack - currentAmount;
-                
-                if (spaceAvailable > 0) {
-                    int toAdd = Math.min(spaceAvailable, remainingItems.getAmount());
-                    slotItem.setAmount(currentAmount + toAdd);
-                    gui.setItem(guiSlot, slotItem);
-                    remainingItems.setAmount(remainingItems.getAmount() - toAdd);
-                    
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Fuel Slots] Added " + toAdd + " items to existing stack in slot " + i + 
-                            ", remaining: " + remainingItems.getAmount());
-                    }
-                }
-            }
-        }
-        
-        // Try to place remaining items in empty slots
-        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
-            int guiSlot = layout.fuelSlots[i];
-            ItemStack slotItem = gui.getItem(guiSlot);
-            
-            if (slotItem == null || slotItem.getType() == Material.AIR) {
-                int maxStack = remainingItems.getMaxStackSize();
-                int toPlace = Math.min(maxStack, remainingItems.getAmount());
-                
-                ItemStack newStack = remainingItems.clone();
-                newStack.setAmount(toPlace);
-                gui.setItem(guiSlot, newStack);
-                remainingItems.setAmount(remainingItems.getAmount() - toPlace);
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Fuel Slots] Placed " + toPlace + " items in empty slot " + i + 
-                        ", remaining: " + remainingItems.getAmount());
-                }
-            }
-        }
-        
-        // Return true if we placed all items, false if some items couldn't be placed
-        boolean allPlaced = remainingItems.getAmount() == 0;
+        // Determine where this item should go
+        boolean isFuel = FuelRegistry.getInstance().isFuel(item);
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Fuel Slots] Stack placement result: " + (allPlaced ? "SUCCESS" : "PARTIAL") + 
-                ", original: " + item.getAmount() + ", remaining: " + remainingItems.getAmount());
+                "[Shift Click] Player " + player.getName() + " shift-clicking " + 
+                item.getType().name() + " x" + item.getAmount() + 
+                " (isFuel: " + isFuel + ")");
         }
         
-        return allPlaced;
+        boolean success = false;
+        String failureReason = "";
+        
+        if (isFuel) {
+            // Try to place entire stack in fuel slots
+            if (tryPlaceInFuelSlots(event.getInventory(), furnaceData, item)) {
+                // All items were placed successfully
+                event.setCurrentItem(null);
+                success = true;
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Shift Click] Successfully placed entire fuel stack of " + item.getAmount());
+                }
+            } else {
+                // Could only place some items - calculate how many were actually placed
+                ItemStack originalItem = event.getCurrentItem();
+                int originalAmount = originalItem.getAmount();
+                
+                // Count how many items are actually in the fuel slots now
+                int currentInSlots = countItemsInFuelSlots(event.getInventory(), furnaceData, item);
+                
+                // Try to find how many were placed by comparing before/after
+                // This is a more reliable method than the previous approach
+                int actuallyPlaced = Math.min(originalAmount, calculatePlacedAmount(furnaceData, item, true));
+                
+                if (actuallyPlaced > 0) {
+                    originalItem.setAmount(originalAmount - actuallyPlaced);
+                    if (originalItem.getAmount() <= 0) {
+                        event.setCurrentItem(null);
+                    }
+                    success = true;
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Shift Click] Partially placed fuel stack: " + actuallyPlaced + "/" + originalAmount);
+                    }
+                } else {
+                    failureReason = "Fuel slots are full!";
+                }
+            }
+        } else {
+            // CRITICAL FIX: Only try input slots for non-fuel items, NEVER output slots
+            if (tryPlaceInInputSlots(event.getInventory(), furnaceData, item)) {
+                // All items were placed successfully
+                event.setCurrentItem(null);
+                success = true;
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Shift Click] Successfully placed entire input stack of " + item.getAmount());
+                }
+            } else {
+                // Could only place some items - calculate how many were actually placed
+                ItemStack originalItem = event.getCurrentItem();
+                int originalAmount = originalItem.getAmount();
+                
+                int actuallyPlaced = Math.min(originalAmount, calculatePlacedAmount(furnaceData, item, false));
+                
+                if (actuallyPlaced > 0) {
+                    originalItem.setAmount(originalAmount - actuallyPlaced);
+                    if (originalItem.getAmount() <= 0) {
+                        event.setCurrentItem(null);
+                    }
+                    success = true;
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Shift Click] Partially placed input stack: " + actuallyPlaced + "/" + originalAmount);
+                    }
+                } else {
+                    failureReason = "Input slots are full!";
+                }
+            }
+        }
+        
+        // CRITICAL FIX: Only show failure message if nothing was placed
+        if (!success && !failureReason.isEmpty()) {
+            player.sendMessage(ChatColor.RED + failureReason);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Shift Click] Failed to place any items: " + failureReason);
+            }
+        }
+        
+        // Update GUI regardless of success/failure
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            syncAndUpdateGUI(player, furnaceData);
+        }, 1L);
     }
 
     /**
-     * Try to place an item in input slots - FIXED: Handle entire stacks
+     * Calculate how many items were actually placed by checking slot capacity
+     * This is more reliable than counting existing items
+     */
+    private int calculatePlacedAmount(FurnaceData furnaceData, ItemStack item, boolean isFuel) {
+        int totalCapacity = 0;
+        int maxStackSize = item.getMaxStackSize();
+        
+        if (isFuel) {
+            FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+            
+            for (int i = 0; i < layout.fuelSlots.length; i++) {
+                ItemStack slotItem = furnaceData.getFuelSlot(i);
+                
+                if (slotItem == null || slotItem.getType() == Material.AIR) {
+                    // Empty slot can hold full stack
+                    totalCapacity += maxStackSize;
+                } else if (slotItem.isSimilar(item)) {
+                    // Partially filled slot
+                    int spaceAvailable = maxStackSize - slotItem.getAmount();
+                    totalCapacity += Math.max(0, spaceAvailable);
+                }
+                // Different item type = no capacity
+            }
+        } else {
+            FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+            
+            for (int i = 0; i < layout.inputSlots.length; i++) {
+                ItemStack slotItem = furnaceData.getInputSlot(i);
+                
+                if (slotItem == null || slotItem.getType() == Material.AIR) {
+                    // Empty slot can hold full stack
+                    totalCapacity += maxStackSize;
+                } else if (slotItem.isSimilar(item)) {
+                    // Partially filled slot
+                    int spaceAvailable = maxStackSize - slotItem.getAmount();
+                    totalCapacity += Math.max(0, spaceAvailable);
+                }
+                // Different item type = no capacity
+            }
+        }
+        
+        return totalCapacity;
+    }
+
+    /**
+     * Try to place an item in input slots - ENHANCED: Never try output slots
      */
     private boolean tryPlaceInInputSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
         FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
         ItemStack remainingItems = item.clone();
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Input Slots] Attempting to place " + item.getType().name() + " x" + item.getAmount());
+        }
         
         // Try to add to existing stacks first
         for (int i = 0; i < layout.inputSlots.length && remainingItems.getAmount() > 0; i++) {
@@ -180,6 +263,10 @@ public class CustomFurnaceGUIListener implements Listener {
                     int toAdd = Math.min(spaceAvailable, remainingItems.getAmount());
                     slotItem.setAmount(currentAmount + toAdd);
                     gui.setItem(guiSlot, slotItem);
+                    
+                    // CRITICAL FIX: Update furnace data immediately
+                    furnaceData.setInputSlot(i, slotItem);
+                    
                     remainingItems.setAmount(remainingItems.getAmount() - toAdd);
                     
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -203,6 +290,10 @@ public class CustomFurnaceGUIListener implements Listener {
                 ItemStack newStack = remainingItems.clone();
                 newStack.setAmount(toPlace);
                 gui.setItem(guiSlot, newStack);
+                
+                // CRITICAL FIX: Update furnace data immediately
+                furnaceData.setInputSlot(i, newStack);
+                
                 remainingItems.setAmount(remainingItems.getAmount() - toPlace);
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -226,100 +317,82 @@ public class CustomFurnaceGUIListener implements Listener {
     }
 
     /**
-     * Handle shift-clicks from player inventory with smart slot targeting - ENHANCED: Full stack handling
+     * Try to place an item in fuel slots - ENHANCED: Better feedback and data sync
      */
-    private void handleShiftClickFromPlayerInventory(InventoryClickEvent event, Player player, 
-                                                FurnaceData furnaceData, ItemStack item) {
-        event.setCancelled(true); // Cancel the default shift-click behavior
-        
-        // Determine where this item should go
-        boolean isFuel = FuelRegistry.getInstance().isFuel(item);
+    private boolean tryPlaceInFuelSlots(Inventory gui, FurnaceData furnaceData, ItemStack item) {
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        ItemStack remainingItems = item.clone();
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Shift Click] Player " + player.getName() + " shift-clicking " + 
-                item.getType().name() + " x" + item.getAmount() + 
-                " (isFuel: " + isFuel + ")");
+                "[Fuel Slots] Attempting to place " + item.getType().name() + " x" + item.getAmount());
         }
         
-        if (isFuel) {
-            // Try to place entire stack in fuel slots
-            if (tryPlaceInFuelSlots(event.getInventory(), furnaceData, item)) {
-                // All items were placed successfully
-                event.setCurrentItem(null);
+        // Try to add to existing stacks first
+        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem != null && slotItem.isSimilar(remainingItems)) {
+                int maxStack = slotItem.getMaxStackSize();
+                int currentAmount = slotItem.getAmount();
+                int spaceAvailable = maxStack - currentAmount;
                 
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Shift Click] Successfully placed entire fuel stack of " + item.getAmount());
-                }
-            } else {
-                // Could only place some items - calculate how many were actually placed
-                ItemStack originalItem = event.getCurrentItem();
-                int originalAmount = originalItem.getAmount();
-                
-                // Count how many items are actually in the fuel slots now
-                int placedAmount = countItemsInFuelSlots(event.getInventory(), furnaceData, item);
-                int actuallyPlaced = Math.min(originalAmount, placedAmount);
-                
-                if (actuallyPlaced > 0) {
-                    originalItem.setAmount(originalAmount - actuallyPlaced);
-                    if (originalItem.getAmount() <= 0) {
-                        event.setCurrentItem(null);
-                    }
+                if (spaceAvailable > 0) {
+                    int toAdd = Math.min(spaceAvailable, remainingItems.getAmount());
+                    slotItem.setAmount(currentAmount + toAdd);
+                    gui.setItem(guiSlot, slotItem);
+                    
+                    // CRITICAL FIX: Update furnace data immediately
+                    furnaceData.setFuelSlot(i, slotItem);
+                    
+                    remainingItems.setAmount(remainingItems.getAmount() - toAdd);
                     
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Shift Click] Partially placed fuel stack: " + actuallyPlaced + "/" + originalAmount);
+                            "[Fuel Slots] Added " + toAdd + " items to existing stack in slot " + i + 
+                            ", remaining: " + remainingItems.getAmount());
                     }
-                } else {
-                    player.sendMessage(ChatColor.RED + "Fuel slots are full!");
                 }
             }
-            
-            // Update GUI
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                syncAndUpdateGUI(player, furnaceData);
-            }, 1L);
-            
-        } else {
-            // Try to place entire stack in input slots (not output slots!)
-            if (tryPlaceInInputSlots(event.getInventory(), furnaceData, item)) {
-                // All items were placed successfully
-                event.setCurrentItem(null);
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Shift Click] Successfully placed entire input stack of " + item.getAmount());
-                }
-            } else {
-                // Could only place some items - calculate how many were actually placed
-                ItemStack originalItem = event.getCurrentItem();
-                int originalAmount = originalItem.getAmount();
-                
-                // Count how many items are actually in the input slots now
-                int placedAmount = countItemsInInputSlots(event.getInventory(), furnaceData, item);
-                int actuallyPlaced = Math.min(originalAmount, placedAmount);
-                
-                if (actuallyPlaced > 0) {
-                    originalItem.setAmount(originalAmount - actuallyPlaced);
-                    if (originalItem.getAmount() <= 0) {
-                        event.setCurrentItem(null);
-                    }
-                    
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                        Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Shift Click] Partially placed input stack: " + actuallyPlaced + "/" + originalAmount);
-                    }
-                } else {
-                    player.sendMessage(ChatColor.RED + "Input slots are full!");
-                }
-            }
-            
-            // Update GUI
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                syncAndUpdateGUI(player, furnaceData);
-            }, 1L);
         }
+        
+        // Try to place remaining items in empty slots
+        for (int i = 0; i < layout.fuelSlots.length && remainingItems.getAmount() > 0; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack slotItem = gui.getItem(guiSlot);
+            
+            if (slotItem == null || slotItem.getType() == Material.AIR) {
+                int maxStack = remainingItems.getMaxStackSize();
+                int toPlace = Math.min(maxStack, remainingItems.getAmount());
+                
+                ItemStack newStack = remainingItems.clone();
+                newStack.setAmount(toPlace);
+                gui.setItem(guiSlot, newStack);
+                
+                // CRITICAL FIX: Update furnace data immediately
+                furnaceData.setFuelSlot(i, newStack);
+                
+                remainingItems.setAmount(remainingItems.getAmount() - toPlace);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Fuel Slots] Placed " + toPlace + " items in empty slot " + i + 
+                        ", remaining: " + remainingItems.getAmount());
+                }
+            }
+        }
+        
+        // Return true if we placed all items, false if some items couldn't be placed
+        boolean allPlaced = remainingItems.getAmount() == 0;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Fuel Slots] Stack placement result: " + (allPlaced ? "SUCCESS" : "PARTIAL") + 
+                ", original: " + item.getAmount() + ", remaining: " + remainingItems.getAmount());
+        }
+        
+        return allPlaced;
     }
 
     /**
@@ -382,129 +455,226 @@ public class CustomFurnaceGUIListener implements Listener {
     }
     
     /**
-     * Handle input slot interactions
+     * Handle input slot interactions - ENHANCED: Immediate sync with delay
      * Step 3: Input slot management
      */
     private void handleInputSlotClick(InventoryClickEvent event, Player player, FurnaceData furnaceData, int slot) {
-        ItemStack cursor = player.getItemOnCursor();
-        ItemStack slotItem = event.getCurrentItem();
-        ClickType clickType = event.getClick();
+        // Allow the click to proceed normally for input slots
+        // The sync will happen after the click is processed
         
-        // For input slots, allow most interactions but validate items
-        // (Recipe validation will be handled in Step 4)
+        // CRITICAL FIX: Schedule both immediate and delayed sync
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            // Immediate sync
+            syncAndUpdateGUI(player, furnaceData);
+        });
         
-        if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-            // Shift-click from player inventory - only allow if item can be smelted
-            if (slotItem != null && slotItem.getType() != Material.AIR) {
-                // TODO: Add recipe validation in Step 4
-                // For now, allow all items
-            }
-        }
-        
-        // Schedule GUI update after click is processed
+        // ADDITIONAL SAFETY: Schedule another sync after a small delay
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             syncAndUpdateGUI(player, furnaceData);
-        }, 1L);
+            
+            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                plugin.debugLog(DebugSystem.GUI,
+                    "[Furnace GUI] Delayed sync completed for input slot interaction by " + player.getName());
+            }
+        }, 2L);
     }
-    
+
     /**
-     * Handle fuel slot interactions
+     * Handle fuel slot interactions - ENHANCED: Immediate sync
      * Step 3: Fuel slot management
      */
     private void handleFuelSlotClick(InventoryClickEvent event, Player player, FurnaceData furnaceData, int slot) {
-        ItemStack cursor = player.getItemOnCursor();
-        ItemStack slotItem = event.getCurrentItem();
-        ClickType clickType = event.getClick();
+        // Allow the click to proceed normally for fuel slots
         
-        // Validate fuel items
-        if (cursor != null && cursor.getType() != Material.AIR) {
-            // Check if cursor item is valid fuel
-            if (!FuelRegistry.getInstance().isFuel(cursor)) {
-                event.setCancelled(true);
-                player.sendMessage(ChatColor.RED + "This item cannot be used as fuel!");
-                return;
-            }
-        }
-        
-        if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-            // Shift-click from player inventory - validate fuel
-            if (slotItem != null && slotItem.getType() != Material.AIR) {
-                if (!FuelRegistry.getInstance().isFuel(slotItem)) {
-                    event.setCancelled(true);
-                    player.sendMessage(ChatColor.RED + "This item cannot be used as fuel!");
-                    return;
-                }
-            }
-        }
-        
-        // Schedule GUI update after click is processed
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        // CRITICAL FIX: Schedule immediate sync for fuel changes
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
             syncAndUpdateGUI(player, furnaceData);
-        }, 1L);
+        });
     }
     
     /**
-     * Handle output slot interactions
-     * Step 3: Output slot management - ENHANCED: Better protection against invalid placements
+     * Handle output slot interactions - ENHANCED: Complete protection against item placement
      */
     private void handleOutputSlotClick(InventoryClickEvent event, Player player, FurnaceData furnaceData, int slot) {
         ItemStack cursor = player.getItemOnCursor();
         ItemStack slotItem = event.getCurrentItem();
         ClickType clickType = event.getClick();
         
-        // CRITICAL FIX: Never allow placing items in output slots
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            String cursorName = cursor != null && cursor.getType() != Material.AIR ? 
+                cursor.getType().name() + " x" + cursor.getAmount() : "AIR";
+            String slotName = slotItem != null && slotItem.getType() != Material.AIR ? 
+                slotItem.getType().name() + " x" + slotItem.getAmount() : "AIR";
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Output Slot] Player " + player.getName() + " clicked output slot with cursor: " + 
+                cursorName + ", slot item: " + slotName + ", click type: " + clickType);
+        }
+        
+        // CRITICAL FIX: Comprehensive protection against item placement
+        
+        // 1. Never allow placing items with cursor
         if (cursor != null && cursor.getType() != Material.AIR) {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Output Slot] BLOCKED cursor placement attempt: " + cursor.getType().name());
+            }
             return;
         }
         
-        // CRITICAL FIX: Block all shift-clicks that try to place items in output slots
+        // 2. Block ALL shift-click attempts from player inventory
         if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-            // Check if this is a shift-click from player inventory trying to place an item
             if (event.getRawSlot() >= event.getInventory().getSize()) {
-                // This is a shift-click from player inventory - block it completely for output slots
+                // This is a shift-click from player inventory - absolutely forbidden
                 event.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Output Slot] BLOCKED shift-click placement attempt from player inventory");
+                }
                 return;
             }
         }
         
-        // Allow taking items from output slots only
+        // 3. Block number key swaps
+        if (clickType == ClickType.NUMBER_KEY) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Output Slot] BLOCKED number key swap attempt");
+            }
+            return;
+        }
+        
+        // 4. Block drop actions that might place items
+        if (clickType == ClickType.DROP || clickType == ClickType.CONTROL_DROP) {
+            event.setCancelled(true);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Output Slot] BLOCKED drop action attempt");
+            }
+            return;
+        }
+        
+        // 5. Allow taking items from output slots only
         if (slotItem != null && slotItem.getType() != Material.AIR) {
+            // ... existing output taking logic remains the same ...
+            // (The existing code for taking items from output slots)
+            
+            // Determine which output slot this is
+            FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+            int outputSlotIndex = -1;
+            for (int i = 0; i < layout.outputSlots.length; i++) {
+                if (layout.outputSlots[i] == slot) {
+                    outputSlotIndex = i;
+                    break;
+                }
+            }
+            
+            if (outputSlotIndex == -1) {
+                event.setCancelled(true);
+                return;
+            }
+            
+            // Handle shift-click to take output
             if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-                // Shift-click to take output - allow this but ensure it goes to player inventory
-                if (cursor == null || cursor.getType() == Material.AIR) {
-                    // Try to move to player inventory
-                    if (player.getInventory().firstEmpty() != -1 || 
-                        hasSpaceForItem(player, slotItem)) {
-                        // Allow the shift-click to take the item
-                        // The item will automatically go to player inventory
-                    } else {
-                        event.setCancelled(true);
-                        player.sendMessage(ChatColor.RED + "Your inventory is full!");
-                        return;
+                if (hasSpaceForItem(player, slotItem)) {
+                    ItemStack takenItem = slotItem.clone();
+                    furnaceData.setOutputSlot(outputSlotIndex, null);
+                    
+                    HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(takenItem);
+                    for (ItemStack drop : leftover.values()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                    }
+                    
+                    event.getInventory().setItem(slot, null);
+                    event.setCancelled(true);
+                    
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                    });
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Output Slot] Shift-clicked " + takenItem.getType().name() + 
+                            " x" + takenItem.getAmount() + " from output slot " + outputSlotIndex);
                     }
                 } else {
                     event.setCancelled(true);
-                    return;
+                    player.sendMessage(ChatColor.RED + "Your inventory is full!");
                 }
             } else {
-                // Normal click to take output - allow this
-                if (cursor == null || cursor.getType() == Material.AIR || 
-                    (cursor.isSimilar(slotItem) && cursor.getAmount() + slotItem.getAmount() <= cursor.getMaxStackSize())) {
-                    // Allow taking the item
-                } else {
+                // Handle normal click to take output
+                if (cursor == null || cursor.getType() == Material.AIR) {
+                    ItemStack takenItem = slotItem.clone();
+                    furnaceData.setOutputSlot(outputSlotIndex, null);
+                    player.setItemOnCursor(takenItem);
+                    event.getInventory().setItem(slot, null);
                     event.setCancelled(true);
-                    return;
+                    
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                    });
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Output Slot] Took " + takenItem.getType().name() + 
+                            " x" + takenItem.getAmount() + " from output slot " + outputSlotIndex);
+                    }
+                } else if (cursor.isSimilar(slotItem)) {
+                    // Handle stacking with similar item on cursor
+                    int maxStack = cursor.getMaxStackSize();
+                    int currentAmount = cursor.getAmount();
+                    int spaceAvailable = maxStack - currentAmount;
+                    
+                    if (spaceAvailable > 0) {
+                        int toTake = Math.min(spaceAvailable, slotItem.getAmount());
+                        cursor.setAmount(currentAmount + toTake);
+                        player.setItemOnCursor(cursor);
+                        
+                        if (slotItem.getAmount() <= toTake) {
+                            furnaceData.setOutputSlot(outputSlotIndex, null);
+                            event.getInventory().setItem(slot, null);
+                        } else {
+                            ItemStack remaining = slotItem.clone();
+                            remaining.setAmount(slotItem.getAmount() - toTake);
+                            furnaceData.setOutputSlot(outputSlotIndex, remaining);
+                            event.getInventory().setItem(slot, remaining);
+                        }
+                        
+                        event.setCancelled(true);
+                        
+                        plugin.getServer().getScheduler().runTask(plugin, () -> {
+                            CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                        });
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Output Slot] Stacked " + toTake + " items from output slot " + outputSlotIndex);
+                        }
+                    } else {
+                        event.setCancelled(true);
+                    }
+                } else {
+                    // Different item on cursor - can't take
+                    event.setCancelled(true);
                 }
             }
+        } else {
+            // No item in slot - just cancel any interaction
+            event.setCancelled(true);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Output Slot] Interaction with empty output slot - cancelled");
+            }
         }
-        
-        // Schedule GUI update after click is processed
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            syncAndUpdateGUI(player, furnaceData);
-        }, 1L);
     }
     
     /**
@@ -611,20 +781,27 @@ public class CustomFurnaceGUIListener implements Listener {
     }
     
     /**
-     * Synchronize GUI contents with furnace data and update displays
+     * Synchronize GUI contents with furnace data and update displays - ENHANCED: Immediate mode with forced sync
      * Step 3: Synchronization helper
      */
     private void syncAndUpdateGUI(Player player, FurnaceData furnaceData) {
         try {
-            // Sync GUI contents to furnace data
-            CustomFurnaceGUI.syncGUIToFurnaceData(player);
+            Inventory gui = CustomFurnaceGUI.getActiveFurnaceGUI(player);
             
-            // Update real-time displays
-            CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
-            
-            if (plugin.isDebugEnabled(DebugSystem.GUI)) {
-                plugin.debugLog(DebugSystem.GUI,
-                    "[Furnace GUI] Synced and updated GUI for " + player.getName());
+            if (gui != null && CustomFurnaceGUI.getPlayerFurnaceData(player) == furnaceData) {
+                // CRITICAL FIX: Force immediate bidirectional sync
+                CustomFurnaceGUI.syncGUIToFurnaceData(player);
+                
+                // CRITICAL FIX: Force immediate furnace-to-GUI sync to show consumed items
+                CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                
+                // Then update the visual displays
+                CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+                
+                if (plugin.isDebugEnabled(DebugSystem.GUI)) {
+                    plugin.debugLog(DebugSystem.GUI,
+                        "[Custom Furnace GUI] Complete bidirectional sync for " + player.getName());
+                }
             }
         } catch (Exception e) {
             plugin.getLogger().warning("[Furnace GUI] Error syncing GUI for " + player.getName() + ": " + e.getMessage());

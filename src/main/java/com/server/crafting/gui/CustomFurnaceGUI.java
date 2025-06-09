@@ -820,17 +820,44 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Check if a slot is an output slot
-     * Step 3: Slot type checking
+     * Check if a slot is an output slot for a specific furnace - ENHANCED: Safety validation
      */
     public static boolean isOutputSlot(int slot, FurnaceData furnaceData) {
         FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
-        if (layout == null) return false;
+        if (layout == null) {
+            return false;
+        }
         
         for (int outputSlot : layout.outputSlots) {
-            if (outputSlot == slot) return true;
+            if (outputSlot == slot) {
+                // CRITICAL SAFETY: Log any attempt to place items in output slots
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[SAFETY CHECK] Detected interaction with output slot " + slot + 
+                        " - this should be read-only!");
+                }
+                return true;
+            }
         }
         return false;
+    }
+
+    /**
+     * Validate item placement - prevent items from being placed in output slots
+     */
+    public static boolean canPlaceItemInSlot(int slot, FurnaceData furnaceData, ItemStack item) {
+        // CRITICAL: Never allow placing items in output slots
+        if (isOutputSlot(slot, furnaceData)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[ITEM PLACEMENT] BLOCKED attempt to place " + 
+                    (item != null ? item.getType().name() : "null") + 
+                    " in output slot " + slot);
+            }
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -876,8 +903,8 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update GUI for all viewers of a specific furnace - FIXED
-     * Step 3: Real-time updates
+     * Update GUI for all viewers of a specific furnace - ENHANCED: Smart output updates
+     * Step 3: Real-time updates with smart output handling
      */
     public static void updateFurnaceGUI(FurnaceData furnaceData) {
         // Find all players viewing this furnace
@@ -889,10 +916,13 @@ public class CustomFurnaceGUI {
                 if (gui != null && player.getOpenInventory().getTopInventory() == gui) {
                     FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
                     if (layout != null) {
-                        // CRITICAL FIX: Reload items from furnace data first
-                        loadFurnaceContents(gui, furnaceData, layout);
+                        // Update non-output slots during regular updates
+                        updateNonOutputSlots(gui, furnaceData, layout);
                         
-                        // Then update real-time displays
+                        // CRITICAL FIX: Smart output slot updates - only add new items, don't remove
+                        updateOutputSlotsAdditive(gui, furnaceData, layout);
+                        
+                        // Update real-time displays
                         updateTemperatureDisplay(gui, furnaceData, layout);
                         updateFuelTimer(gui, furnaceData, layout);
                         updateCookTimer(gui, furnaceData, layout);
@@ -901,7 +931,7 @@ public class CustomFurnaceGUI {
                         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                             Main.getInstance().debugLog(DebugSystem.GUI,
                                 "[Custom Furnace GUI] Updated GUI for player " + player.getName() + 
-                                " viewing " + furnaceData.getFurnaceType().getDisplayName());
+                                " viewing " + furnaceData.getFurnaceType().getDisplayName() + " (smart output updates)");
                         }
                     }
                 }
@@ -910,81 +940,285 @@ public class CustomFurnaceGUI {
     }
 
     /**
-     * Sync GUI contents back to furnace data - ENHANCED with debugging
-     * Step 3: Data synchronization
+     * Update output slots additively - only add new items, never remove existing ones
+     * This prevents duplication while allowing new outputs to appear
      */
-    public static void syncGUIToFurnaceData(Player player) {
-        Inventory gui = activeFurnaceGUIs.get(player);
-        FurnaceData furnaceData = playerFurnaceData.get(player);
-        
-        if (gui == null || furnaceData == null) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Custom Furnace GUI] Sync failed - GUI or FurnaceData is null for " + player.getName());
-            }
-            return;
-        }
-        
-        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
-        if (layout == null) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Custom Furnace GUI] Sync failed - Layout is null for " + furnaceData.getFurnaceType());
-            }
-            return;
-        }
-        
-        // Sync input slots
-        for (int i = 0; i < layout.inputSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.inputSlots[i]);
-            furnaceData.setInputSlot(i, item);
+    private static void updateOutputSlotsAdditive(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            int guiSlot = layout.outputSlots[i];
+            ItemStack furnaceItem = furnaceData.getOutputSlot(i);
+            ItemStack guiItem = gui.getItem(guiSlot);
             
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Custom Furnace GUI] Synced input slot " + i + ": " + 
-                    item.getType().name() + " x" + item.getAmount());
+            // CRITICAL LOGIC: Only update if furnace has an item but GUI slot is empty or has less
+            if (furnaceItem != null && furnaceItem.getType() != Material.AIR) {
+                if (guiItem == null || guiItem.getType() == Material.AIR) {
+                    // GUI slot is empty, safe to add the item
+                    gui.setItem(guiSlot, furnaceItem.clone());
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Custom Furnace GUI] Added new output item: " + furnaceItem.getType().name() + 
+                            " x" + furnaceItem.getAmount() + " to slot " + i);
+                    }
+                } else if (guiItem.isSimilar(furnaceItem) && guiItem.getAmount() < furnaceItem.getAmount()) {
+                    // GUI has same item but less quantity - player might have taken some
+                    // Only increase if furnace has more (new production)
+                    int difference = furnaceItem.getAmount() - guiItem.getAmount();
+                    if (difference > 0) {
+                        guiItem.setAmount(furnaceItem.getAmount());
+                        gui.setItem(guiSlot, guiItem);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Custom Furnace GUI] Increased output stack: +" + difference + " " + 
+                                furnaceItem.getType().name() + " in slot " + i);
+                        }
+                    }
+                    // If GUI has same or more than furnace, don't update (player interaction)
+                }
+                // If items are different types, don't update (player might have manually placed something)
+            }
+            // If furnace slot is empty, don't clear GUI slot (player might have taken items)
+        }
+    }
+
+    /**
+     * Force update output slots specifically - ONLY for recipe completion
+     * Step 3: Forced output updates for new production
+     */
+    public static void forceUpdateOutputSlotsForProduction(FurnaceData furnaceData) {
+        // Find all players viewing this furnace and update their output slots
+        for (Map.Entry<Player, FurnaceData> entry : playerFurnaceData.entrySet()) {
+            if (entry.getValue() == furnaceData) {
+                Player player = entry.getKey();
+                Inventory gui = activeFurnaceGUIs.get(player);
+                
+                if (gui != null && player.getOpenInventory().getTopInventory() == gui) {
+                    FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+                    if (layout != null) {
+                        // CRITICAL: Force update output slots from furnace data
+                        for (int i = 0; i < layout.outputSlots.length; i++) {
+                            int guiSlot = layout.outputSlots[i];
+                            ItemStack furnaceItem = furnaceData.getOutputSlot(i);
+                            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+                        }
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Custom Furnace GUI] Force updated output slots for production for " + player.getName());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Enhanced GUI synchronization - IMMEDIATE MODE with validation - OUTPUT SAFE
+     * Step 3: Real-time synchronization without affecting outputs taken by players
+     */
+    public static void syncGUIToFurnaceDataImmediate(Player player) {
+        FurnaceData furnaceData = playerFurnaceData.get(player);
+        Inventory gui = activeFurnaceGUIs.get(player);
+        
+        if (furnaceData == null || gui == null) {
+            return;
+        }
+        
+        FurnaceGUILayout layout = getFurnaceLayout(furnaceData.getFurnaceType());
+        
+        // CRITICAL: Sync input slots immediately to prevent duplication
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack furnaceItem = furnaceData.getInputSlot(i);
+            ItemStack guiItem = gui.getItem(guiSlot);
+            
+            // CRITICAL FIX: Always update if they're different to ensure consistency
+            if (!itemsEqual(furnaceItem, guiItem)) {
+                gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    String furnaceName = furnaceItem != null ? 
+                        furnaceItem.getType().name() + " x" + furnaceItem.getAmount() : "AIR";
+                    String guiName = guiItem != null ? 
+                        guiItem.getType().name() + " x" + guiItem.getAmount() : "AIR";
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Custom Furnace GUI] Input slot " + i + " sync: GUI " + guiName + " -> " + furnaceName);
+                }
             }
         }
         
         // Sync fuel slots
         for (int i = 0; i < layout.fuelSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.fuelSlots[i]);
-            furnaceData.setFuelSlot(i, item);
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack furnaceItem = furnaceData.getFuelSlot(i);
+            ItemStack guiItem = gui.getItem(guiSlot);
             
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Custom Furnace GUI] Synced fuel slot " + i + ": " + 
-                    item.getType().name() + " x" + item.getAmount());
+            if (!itemsEqual(furnaceItem, guiItem)) {
+                gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
             }
         }
         
-        // Sync output slots
-        for (int i = 0; i < layout.outputSlots.length; i++) {
-            ItemStack item = gui.getItem(layout.outputSlots[i]);
-            furnaceData.setOutputSlot(i, item);
+        // CRITICAL FIX: For output slots, use additive updates only
+        updateOutputSlotsAdditive(gui, furnaceData, layout);
+    }
+
+    /**
+     * Update only input and fuel slots, not output slots - CRITICAL FIX
+     */
+    private static void updateNonOutputSlots(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        // Update input slots only
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack furnaceItem = furnaceData.getInputSlot(i);
+            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+        }
+        
+        // Update fuel slots only
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack furnaceItem = furnaceData.getFuelSlot(i);
+            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+        }
+        
+        // DON'T update output slots here - they're managed separately
+    }
+
+    /**
+     * Force update all slots including outputs - ONLY for specific situations
+     * Step 3: Complete slot synchronization when needed
+     */
+    public static void forceUpdateAllSlots(Player player, FurnaceData furnaceData) {
+        Inventory gui = activeFurnaceGUIs.get(player);
+        if (gui == null) {
+            return;
+        }
+        
+        FurnaceGUILayout layout = getFurnaceLayout(furnaceData.getFurnaceType());
+        
+        // CRITICAL FIX: Update ALL input slots
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack furnaceItem = furnaceData.getInputSlot(i);
+            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
             
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && item != null) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                String itemName = furnaceItem != null ? 
+                    furnaceItem.getType().name() + " x" + furnaceItem.getAmount() : "AIR";
                 Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Custom Furnace GUI] Synced output slot " + i + ": " + 
-                    item.getType().name() + " x" + item.getAmount());
+                    "[Custom Furnace GUI] Force updated input slot " + i + " to " + itemName);
             }
+        }
+        
+        // Update fuel slots
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack furnaceItem = furnaceData.getFuelSlot(i);
+            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+        }
+        
+        // CRITICAL FIX: Update output slots ONLY from furnace data, never restore
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            int guiSlot = layout.outputSlots[i];
+            ItemStack furnaceItem = furnaceData.getOutputSlot(i);
+            gui.setItem(guiSlot, furnaceItem != null ? furnaceItem.clone() : null);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                String itemName = furnaceItem != null ? 
+                    furnaceItem.getType().name() + " x" + furnaceItem.getAmount() : "AIR";
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Force updated output slot " + i + " to " + itemName);
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Custom Furnace GUI] Force updated ALL slots for " + player.getName());
         }
     }
     
     /**
      * Get active furnace GUI for a player
-     * Step 3: GUI access
      */
     public static Inventory getActiveFurnaceGUI(Player player) {
         return activeFurnaceGUIs.get(player);
     }
-    
+
     /**
-     * Get furnace data for a player's open GUI
-     * Step 3: Data access
+     * Get player's furnace data
      */
     public static FurnaceData getPlayerFurnaceData(Player player) {
         return playerFurnaceData.get(player);
+    }
+
+    /**
+     * Sync GUI TO furnace data (for when player modifies GUI) - ENHANCED: Output-safe
+     * Step 3: GUI-to-furnace synchronization without affecting outputs
+     */
+    public static void syncGUIToFurnaceData(Player player) {
+        FurnaceData furnaceData = playerFurnaceData.get(player);
+        Inventory gui = activeFurnaceGUIs.get(player);
+        
+        if (furnaceData == null || gui == null) {
+            return;
+        }
+        
+        FurnaceGUILayout layout = getFurnaceLayout(furnaceData.getFurnaceType());
+        
+        // Sync GUI changes back to furnace data (INPUT SLOTS ONLY)
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            int guiSlot = layout.inputSlots[i];
+            ItemStack guiItem = gui.getItem(guiSlot);
+            ItemStack furnaceItem = furnaceData.getInputSlot(i);
+            
+            if (!itemsEqual(guiItem, furnaceItem)) {
+                furnaceData.setInputSlot(i, guiItem != null ? guiItem.clone() : null);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    String guiName = guiItem != null ? 
+                        guiItem.getType().name() + " x" + guiItem.getAmount() : "AIR";
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Custom Furnace GUI] Input slot " + i + " updated from GUI: " + guiName);
+                }
+            }
+        }
+        
+        // Sync fuel slots (FUEL SLOTS ONLY)
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            int guiSlot = layout.fuelSlots[i];
+            ItemStack guiItem = gui.getItem(guiSlot);
+            ItemStack furnaceItem = furnaceData.getFuelSlot(i);
+            
+            if (!itemsEqual(guiItem, furnaceItem)) {
+                furnaceData.setFuelSlot(i, guiItem != null ? guiItem.clone() : null);
+            }
+        }
+        
+        // CRITICAL FIX: NEVER sync output slots from GUI back to furnace data
+        // Output slots are read-only from GUI perspective and managed by the furnace processing
+        // This prevents taken items from being restored
+    }
+
+    /**
+     * Check if two ItemStacks are equal (including null handling) - ENHANCED
+     */
+    private static boolean itemsEqual(ItemStack item1, ItemStack item2) {
+        if (item1 == null && item2 == null) {
+            return true;
+        }
+        if (item1 == null || item2 == null) {
+            return false;
+        }
+        if ((item1.getType() == Material.AIR || item1.getAmount() <= 0) && 
+            (item2.getType() == Material.AIR || item2.getAmount() <= 0)) {
+            return true;
+        }
+        if ((item1.getType() == Material.AIR || item1.getAmount() <= 0) || 
+            (item2.getType() == Material.AIR || item2.getAmount() <= 0)) {
+            return false;
+        }
+        
+        return item1.isSimilar(item2) && item1.getAmount() == item2.getAmount();
     }
     
     /**
@@ -1075,12 +1309,17 @@ public class CustomFurnaceGUI {
     }
 
     /**
-     * Check if a player is currently viewing a specific furnace's GUI
-     * Step 3: GUI tracking for explosion handling
+     * Check if a player is currently viewing a specific furnace
      */
     public static boolean isPlayerViewingFurnace(Player player, FurnaceData furnaceData) {
-        FurnaceData playerCurrentFurnace = playerFurnaceData.get(player);
-        return playerCurrentFurnace != null && playerCurrentFurnace == furnaceData;
+        FurnaceData playerFurnace = playerFurnaceData.get(player);
+        if (playerFurnace == null || furnaceData == null) {
+            return false;
+        }
+        
+        // Compare locations to ensure it's the same furnace
+        return playerFurnace.getLocation().equals(furnaceData.getLocation()) && 
+            activeFurnaceGUIs.containsKey(player);
     }
 
     /**

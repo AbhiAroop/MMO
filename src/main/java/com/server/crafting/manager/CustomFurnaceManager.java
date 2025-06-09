@@ -1,9 +1,10 @@
 package com.server.crafting.manager;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -406,101 +407,90 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Complete the cooking process and produce outputs
-     * Step 4: Recipe completion
+     * Complete recipe cooking - ENHANCED: Smart output updates without duplication
+     * Step 4: Recipe completion with immediate output display
      */
     private void completeCooking(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
-        // Consume input ingredients
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace] Completing recipe: " + recipe.getDisplayName() + 
+                " at " + locationToString(furnaceData.getLocation()));
+        }
+        
+        // CRITICAL FIX: Consume ingredients FIRST with immediate updates
         consumeRecipeIngredients(furnaceData, recipe);
+        
+        // IMMEDIATE UPDATE: Force sync after ingredient consumption
+        updateAllViewingGUIsInputOnly(furnaceData);
         
         // Produce outputs
         produceRecipeOutputs(furnaceData, recipe);
         
-        // Reset cooking state
-        furnaceData.setActive(false);
+        // CRITICAL FIX: Immediately update output slots for all viewing players
+        com.server.crafting.gui.CustomFurnaceGUI.forceUpdateOutputSlotsForProduction(furnaceData);
+        
+        // Reset cooking progress
         furnaceData.setCookTime(0);
         furnaceData.setMaxCookTime(0);
+        furnaceData.setActive(false);
+        
+        // CRITICAL FIX: Final update - only update non-output slots
+        updateAllViewingGUIsInputOnly(furnaceData);
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Furnace] Completed cooking " + recipe.getDisplayName() + 
-                " at " + locationToString(furnaceData.getLocation()));
+                "[Furnace] Recipe completed with immediate output display at " + locationToString(furnaceData.getLocation()));
         }
-        
-        // Check if we can start cooking another batch immediately
-        processRecipes(furnaceData);
     }
 
     /**
-     * Consume ingredients according to recipe requirements
-     * Step 4: Ingredient consumption
+     * Update all GUIs currently viewing this furnace - INPUT/FUEL ONLY
+     * This prevents output interference while ensuring input updates
      */
-    private void consumeRecipeIngredients(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
-        List<org.bukkit.inventory.ItemStack> requiredInputs = recipe.getInputs();
-        
-        // Create a working copy of required ingredients
-        Map<String, Integer> ingredientsToConsume = new HashMap<>();
-        
-        for (org.bukkit.inventory.ItemStack required : requiredInputs) {
-            if (required != null) {
-                String key = createItemKey(required);
-                ingredientsToConsume.put(key, 
-                    ingredientsToConsume.getOrDefault(key, 0) + required.getAmount());
-            }
-        }
-        
-        // Consume from input slots
-        for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots(); i++) {
-            org.bukkit.inventory.ItemStack inputItem = furnaceData.getInputSlot(i);
-            
-            if (inputItem != null && inputItem.getType() != org.bukkit.Material.AIR) {
-                String itemKey = createItemKey(inputItem);
+    private void updateAllViewingGUIsInputOnly(FurnaceData furnaceData) {
+        // Get all players currently viewing this furnace and update their GUIs
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                // Force immediate input/fuel synchronization only
+                com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
                 
-                if (ingredientsToConsume.containsKey(itemKey)) {
-                    int needed = ingredientsToConsume.get(itemKey);
-                    int available = inputItem.getAmount();
-                    int toConsume = Math.min(needed, available);
-                    
-                    // Consume the items
-                    inputItem.setAmount(available - toConsume);
-                    if (inputItem.getAmount() <= 0) {
-                        furnaceData.setInputSlot(i, null);
-                    }
-                    
-                    // Update needed amount
-                    ingredientsToConsume.put(itemKey, needed - toConsume);
-                    if (ingredientsToConsume.get(itemKey) <= 0) {
-                        ingredientsToConsume.remove(itemKey);
-                    }
-                    
-                    if (ingredientsToConsume.isEmpty()) {
-                        break; // All ingredients consumed
-                    }
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Furnace] Updated input/fuel slots for " + player.getName());
                 }
             }
         }
     }
 
     /**
-     * Produce recipe outputs in furnace output slots
-     * Step 4: Output production
+     * Update all GUIs currently viewing this furnace - ENHANCED: Safe output handling
      */
-    private void produceRecipeOutputs(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
-        List<org.bukkit.inventory.ItemStack> outputs = recipe.getOutputs();
-        
-        for (org.bukkit.inventory.ItemStack output : outputs) {
-            if (output != null) {
-                addToOutputSlots(furnaceData, output.clone());
+    private void updateAllViewingGUIs(FurnaceData furnaceData) {
+        // Get all players currently viewing this furnace and update their GUIs
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                // CRITICAL FIX: Use the safe update method that includes smart output updates
+                com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Furnace] Safe GUI update for " + player.getName() + " (smart output handling)");
+                }
             }
         }
     }
 
     /**
-     * Add an item to the furnace output slots - ENHANCED: Better overflow handling
-     * Step 4: Output slot management
+     * Add an item to the furnace output slots - ENHANCED: Immediate GUI updates
+     * Step 4: Output slot management with real-time display
      */
     private void addToOutputSlots(FurnaceData furnaceData, org.bukkit.inventory.ItemStack item) {
         int outputSlots = furnaceData.getFurnaceType().getOutputSlots();
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace] Adding to output slots: " + item.getType().name() + " x" + item.getAmount());
+        }
         
         // Try to add to existing stacks first
         for (int i = 0; i < outputSlots; i++) {
@@ -514,7 +504,16 @@ public class CustomFurnaceManager {
                 if (spaceAvailable > 0) {
                     int toAdd = Math.min(spaceAvailable, item.getAmount());
                     outputItem.setAmount(currentAmount + toAdd);
+                    furnaceData.setOutputSlot(i, outputItem);
                     item.setAmount(item.getAmount() - toAdd);
+                    
+                    // CRITICAL FIX: Immediately update this specific slot in all viewing GUIs
+                    updateSpecificOutputSlotInGUIs(furnaceData, i, outputItem);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Furnace] Added " + toAdd + " to existing stack in output slot " + i);
+                    }
                     
                     if (item.getAmount() <= 0) {
                         return; // All items placed
@@ -529,19 +528,187 @@ public class CustomFurnaceManager {
             
             if (outputItem == null || outputItem.getType() == org.bukkit.Material.AIR) {
                 furnaceData.setOutputSlot(i, item.clone());
+                
+                // CRITICAL FIX: Immediately update this specific slot in all viewing GUIs
+                updateSpecificOutputSlotInGUIs(furnaceData, i, item);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Furnace] Placed " + item.getAmount() + " in empty output slot " + i);
+                }
                 return; // Item placed successfully
             }
         }
         
-        // If we reach here, output slots are full - this should be prevented by pre-checks
+        // If we reach here, output slots are full
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Furnace] CRITICAL: Output overflow at " + locationToString(furnaceData.getLocation()) + 
-                " - could not place " + item.getType().name() + " (this should not happen!)");
+                "[Furnace] Output slots full - dropping " + item.getType().name() + " x" + item.getAmount());
         }
         
         // Emergency: Drop the item at the furnace location
         furnaceData.getLocation().getWorld().dropItemNaturally(furnaceData.getLocation(), item);
+    }
+
+    /**
+     * Update a specific output slot in all viewing GUIs immediately
+     */
+    private void updateSpecificOutputSlotInGUIs(FurnaceData furnaceData, int slotIndex, org.bukkit.inventory.ItemStack item) {
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+            }
+        }
+    }
+
+    /**
+     * Consume ingredients according to recipe requirements - ENHANCED: Immediate GUI updates
+     * Step 4: Ingredient consumption with instant sync
+     */
+    private void consumeRecipeIngredients(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
+        List<org.bukkit.inventory.ItemStack> recipeInputs = recipe.getInputs();
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace] Consuming ingredients for recipe: " + recipe.getDisplayName());
+        }
+        
+        // CRITICAL FIX: Store which slots were modified for immediate GUI updates
+        Set<Integer> modifiedSlots = new HashSet<>();
+        
+        // Handle single input recipes specially
+        if (recipeInputs.size() == 1) {
+            org.bukkit.inventory.ItemStack requiredInput = recipeInputs.get(0);
+            int requiredAmount = requiredInput.getAmount();
+            
+            // Consume from leftmost input slots first
+            for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots() && requiredAmount > 0; i++) {
+                org.bukkit.inventory.ItemStack slotItem = furnaceData.getInputSlot(i);
+                
+                if (slotItem != null && itemsMatchForRecipe(slotItem, requiredInput)) {
+                    int availableAmount = slotItem.getAmount();
+                    int toConsume = Math.min(availableAmount, requiredAmount);
+                    
+                    // CRITICAL FIX: Properly handle item consumption
+                    if (availableAmount <= toConsume) {
+                        // Consume entire stack
+                        furnaceData.setInputSlot(i, null);
+                    } else {
+                        // Reduce stack size
+                        slotItem.setAmount(availableAmount - toConsume);
+                        furnaceData.setInputSlot(i, slotItem);
+                    }
+                    
+                    modifiedSlots.add(i);
+                    requiredAmount -= toConsume;
+                    
+                    // IMMEDIATE UPDATE: Update GUIs after each slot modification
+                    updateAllViewingGUIs(furnaceData);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Furnace] Consumed " + toConsume + " " + slotItem.getType().name() + 
+                            " from slot " + i + ", remaining needed: " + requiredAmount);
+                    }
+                }
+            }
+            
+            if (requiredAmount > 0) {
+                Main.getInstance().getLogger().warning("[Furnace] Could not consume enough ingredients for recipe: " + 
+                    recipe.getDisplayName() + " (missing " + requiredAmount + ")");
+            }
+        } else {
+            // Handle multi-input recipes (existing logic with tracking)
+            for (org.bukkit.inventory.ItemStack requiredInput : recipeInputs) {
+                int requiredAmount = requiredInput.getAmount();
+                boolean consumed = false;
+                
+                // Find and consume the required ingredient
+                for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots() && requiredAmount > 0; i++) {
+                    org.bukkit.inventory.ItemStack slotItem = furnaceData.getInputSlot(i);
+                    
+                    if (slotItem != null && itemsMatchForRecipe(slotItem, requiredInput)) {
+                        int availableAmount = slotItem.getAmount();
+                        int toConsume = Math.min(availableAmount, requiredAmount);
+                        
+                        // CRITICAL FIX: Properly handle item consumption
+                        if (availableAmount <= toConsume) {
+                            // Consume entire stack
+                            furnaceData.setInputSlot(i, null);
+                        } else {
+                            // Reduce stack size
+                            slotItem.setAmount(availableAmount - toConsume);
+                            furnaceData.setInputSlot(i, slotItem);
+                        }
+                        
+                        modifiedSlots.add(i);
+                        requiredAmount -= toConsume;
+                        consumed = true;
+                        
+                        // IMMEDIATE UPDATE: Update GUIs after each slot modification
+                        updateAllViewingGUIs(furnaceData);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Furnace] Consumed " + toConsume + " " + slotItem.getType().name() + 
+                                " from slot " + i);
+                        }
+                    }
+                }
+                
+                if (!consumed || requiredAmount > 0) {
+                    Main.getInstance().getLogger().warning("[Furnace] Could not consume required ingredient: " + 
+                        requiredInput.getType().name() + " x" + requiredInput.getAmount());
+                }
+            }
+        }
+        
+        // CRITICAL FIX: Final GUI update for all modified slots
+        if (!modifiedSlots.isEmpty()) {
+            updateAllViewingGUIs(furnaceData);
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] Final GUI update completed for modified slots: " + modifiedSlots);
+            }
+        }
+    }
+
+    /**
+     * Check if two items match for recipe purposes
+     */
+    private boolean itemsMatchForRecipe(org.bukkit.inventory.ItemStack item1, org.bukkit.inventory.ItemStack item2) {
+        if (item1 == null || item2 == null) {
+            return false;
+        }
+        
+        // Check basic material match
+        if (item1.getType() != item2.getType()) {
+            return false;
+        }
+        
+        // For custom items, check custom model data
+        if (item1.hasItemMeta() && item1.getItemMeta().hasCustomModelData() &&
+            item2.hasItemMeta() && item2.getItemMeta().hasCustomModelData()) {
+            return item1.getItemMeta().getCustomModelData() == item2.getItemMeta().getCustomModelData();
+        }
+        
+        // For vanilla items, basic type match is sufficient
+        return true;
+    }
+
+    /**
+     * Produce recipe outputs in furnace output slots
+     * Step 4: Output production
+     */
+    private void produceRecipeOutputs(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe) {
+        List<org.bukkit.inventory.ItemStack> outputs = recipe.getOutputs();
+        
+        for (org.bukkit.inventory.ItemStack output : outputs) {
+            if (output != null) {
+                addToOutputSlots(furnaceData, output.clone());
+            }
+        }
     }
 
     /**
