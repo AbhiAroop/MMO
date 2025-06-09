@@ -3,527 +3,514 @@ package com.server.crafting.gui;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.Main;
-import com.server.crafting.data.FurnaceData;
-import com.server.crafting.manager.CustomFurnaceManager;
+import com.server.crafting.fuel.FuelRegistry;
+import com.server.crafting.furnace.FurnaceData;
+import com.server.crafting.furnace.FurnaceType;
+import com.server.crafting.recipes.FurnaceRecipe;
+import com.server.crafting.temperature.TemperatureSystem;
 import com.server.debug.DebugManager.DebugSystem;
 
 /**
- * GUI for the custom furnace system
+ * Dynamic GUI system for custom furnaces with type-specific layouts
+ * Step 3: GUI foundation system
  */
 public class CustomFurnaceGUI {
     
-    public static final String GUI_TITLE = ChatColor.DARK_GRAY + "✦ " + ChatColor.GOLD + "Furnace" + ChatColor.DARK_GRAY + " ✦";
+    // GUI title patterns for different furnace types
+    private static final String GUI_TITLE_PATTERN = ChatColor.DARK_GRAY + "✦ " + ChatColor.GOLD + "%s" + ChatColor.DARK_GRAY + " ✦";
     
-    // Updated slot positions for 45-slot GUI (5 rows) with better center positioning
-    public static final int INPUT_SLOT = 11;        // Input item slot (left-center)
-    public static final int FUEL_SLOT = 29;         // Fuel slot (below input with 1 slot gap)
-    public static final int OUTPUT_SLOT = 15;       // Output slot (right-center)
-    public static final int COOK_TIMER_SLOT = 13;   // Cook timer indicator (center)
-    public static final int FUEL_TIMER_SLOT = 31;   // Fuel timer indicator (below center)
-    private static long lastLoadLogTime = 0;  // Throttling for debug messages
-
-    // Store active furnace GUIs for each player with their furnace location
-    private static final Map<Player, Location> activeFurnaceGUIs = new HashMap<>();
+    // Store active furnace GUIs for each player
+    private static final Map<Player, Inventory> activeFurnaceGUIs = new ConcurrentHashMap<>();
+    private static final Map<Player, FurnaceData> playerFurnaceData = new ConcurrentHashMap<>();
+    
+    // Dynamic slot layouts based on furnace type
+    private static final Map<FurnaceType, FurnaceGUILayout> furnaceLayouts = new HashMap<>();
+    
+    static {
+        initializeFurnaceLayouts();
+    }
     
     /**
-     * Open the custom furnace GUI for a player at a specific location - ENHANCED: Access control
+     * Layout configuration for different furnace types
+     * Step 3: Dynamic layout system
      */
-    public static void openFurnaceGUI(Player player, Location furnaceLocation) {
-        // CRITICAL: Check if furnace is available for access
-        if (!CustomFurnaceManager.getInstance().acquireFurnaceAccess(furnaceLocation, player)) {
-            // Player will already receive a message from acquireFurnaceAccess
+    public static class FurnaceGUILayout {
+        public final int guiSize;
+        public final int[] inputSlots;
+        public final int[] fuelSlots;
+        public final int[] outputSlots;
+        public final int temperatureDisplaySlot;
+        public final int fuelTimerSlot;
+        public final int cookTimerSlot;
+        public final int statusSlot;
+        
+        public FurnaceGUILayout(int guiSize, int[] inputSlots, int[] fuelSlots, int[] outputSlots,
+                               int temperatureDisplaySlot, int fuelTimerSlot, int cookTimerSlot, int statusSlot) {
+            this.guiSize = guiSize;
+            this.inputSlots = inputSlots.clone();
+            this.fuelSlots = fuelSlots.clone();
+            this.outputSlots = outputSlots.clone();
+            this.temperatureDisplaySlot = temperatureDisplaySlot;
+            this.fuelTimerSlot = fuelTimerSlot;
+            this.cookTimerSlot = cookTimerSlot;
+            this.statusSlot = statusSlot;
+        }
+    }
+    
+    /**
+     * Initialize GUI layouts for each furnace type
+     * Step 3: Layout configuration
+     */
+    private static void initializeFurnaceLayouts() {
+        // Stone Furnace (1 input, 1 fuel, 1 output) - 4 rows
+        furnaceLayouts.put(FurnaceType.STONE_FURNACE, new FurnaceGUILayout(
+            36, // 4 rows
+            new int[]{11}, // input slots
+            new int[]{13}, // fuel slots  
+            new int[]{15}, // output slots
+            4,  // temperature display
+            22, // fuel timer
+            20, // cook timer
+            31  // status
+        ));
+        
+        // Clay Kiln (2 input, 1 fuel, 2 output) - 5 rows
+        furnaceLayouts.put(FurnaceType.CLAY_KILN, new FurnaceGUILayout(
+            45, // 5 rows
+            new int[]{10, 11}, // input slots
+            new int[]{13}, // fuel slots
+            new int[]{15, 16}, // output slots
+            4,  // temperature display
+            31, // fuel timer
+            29, // cook timer
+            40  // status
+        ));
+        
+        // Iron Forge (2 input, 2 fuel, 2 output) - 5 rows
+        furnaceLayouts.put(FurnaceType.IRON_FORGE, new FurnaceGUILayout(
+            45, // 5 rows
+            new int[]{10, 11}, // input slots
+            new int[]{12, 13}, // fuel slots
+            new int[]{15, 16}, // output slots
+            4,  // temperature display
+            31, // fuel timer
+            29, // cook timer
+            40  // status
+        ));
+        
+        // Steel Furnace (3 input, 2 fuel, 3 output) - 6 rows
+        furnaceLayouts.put(FurnaceType.STEEL_FURNACE, new FurnaceGUILayout(
+            54, // 6 rows
+            new int[]{10, 11, 12}, // input slots
+            new int[]{19, 20}, // fuel slots
+            new int[]{15, 16, 17}, // output slots
+            4,  // temperature display
+            40, // fuel timer
+            38, // cook timer
+            49  // status
+        ));
+        
+        // Magmatic Forge (3 input, 3 fuel, 3 output) - 6 rows
+        furnaceLayouts.put(FurnaceType.MAGMATIC_FORGE, new FurnaceGUILayout(
+            54, // 6 rows
+            new int[]{10, 11, 12}, // input slots
+            new int[]{19, 20, 21}, // fuel slots
+            new int[]{15, 16, 17}, // output slots
+            4,  // temperature display
+            40, // fuel timer
+            38, // cook timer
+            49  // status
+        ));
+        
+        // Arcane Crucible (4 input, 3 fuel, 4 output) - 6 rows
+        furnaceLayouts.put(FurnaceType.ARCANE_CRUCIBLE, new FurnaceGUILayout(
+            54, // 6 rows
+            new int[]{9, 10, 11, 12}, // input slots
+            new int[]{19, 20, 21}, // fuel slots
+            new int[]{14, 15, 16, 17}, // output slots
+            4,  // temperature display
+            40, // fuel timer
+            38, // cook timer
+            49  // status
+        ));
+        
+        // Void Extractor (2 input, 2 fuel, 1 output) - 5 rows
+        furnaceLayouts.put(FurnaceType.VOID_EXTRACTOR, new FurnaceGUILayout(
+            45, // 5 rows
+            new int[]{10, 11}, // input slots
+            new int[]{12, 13}, // fuel slots
+            new int[]{16}, // output slots
+            4,  // temperature display
+            31, // fuel timer
+            29, // cook timer
+            40  // status
+        ));
+    }
+    
+    /**
+     * Open furnace GUI for a player
+     * Step 3: Dynamic GUI opening
+     */
+    public static void openFurnaceGUI(Player player, FurnaceData furnaceData) {
+        if (furnaceData == null) {
+            player.sendMessage(ChatColor.RED + "Error: No furnace data found!");
             return;
         }
         
-        // Create 5 row inventory (45 slots)
-        Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
+        FurnaceType furnaceType = furnaceData.getFurnaceType();
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceType);
         
-        // Get or create furnace data for this location
-        FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(furnaceLocation);
-        
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, 
-                "[Custom Furnace] Opening furnace GUI for " + player.getName() + 
-                " at " + furnaceLocation.getBlockX() + "," + furnaceLocation.getBlockY() + "," + furnaceLocation.getBlockZ());
+        if (layout == null) {
+            player.sendMessage(ChatColor.RED + "Error: Unsupported furnace type!");
+            return;
         }
         
-        // Create the simple decorative layout
-        createSimpleFurnaceLayout(gui, furnaceData);
+        // Create GUI with appropriate size
+        String title = String.format(GUI_TITLE_PATTERN, furnaceType.getDisplayName());
+        Inventory gui = Bukkit.createInventory(null, layout.guiSize, title);
         
-        // Load current furnace contents AFTER creating layout
-        loadFurnaceContents(gui, furnaceData);
+        // Create the furnace layout
+        createFurnaceLayout(gui, furnaceData, layout);
         
-        // Store the GUI association
-        activeFurnaceGUIs.put(player, furnaceLocation);
+        // Store GUI and data references
+        activeFurnaceGUIs.put(player, gui);
+        playerFurnaceData.put(player, furnaceData);
+        
+        // Play sound effect
+        player.playSound(player.getLocation(), Sound.BLOCK_FURNACE_FIRE_CRACKLE, 0.5f, 1.0f);
         
         // Open the inventory
         player.openInventory(gui);
-    }
-
-    /**
-     * Remove a player's active furnace GUI - ENHANCED: Release furnace access
-     */
-    public static void removeActiveFurnaceGUI(Player player) {
-        Location furnaceLocation = activeFurnaceGUIs.remove(player);
-        if (furnaceLocation != null) {
-            // CRITICAL: Release furnace access when GUI is closed
-            CustomFurnaceManager.getInstance().releaseFurnaceAccess(furnaceLocation);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Removed GUI association and released access for " + player.getName());
-            }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Custom Furnace] Opened " + furnaceType.getDisplayName() + 
+                " GUI for " + player.getName());
         }
     }
     
     /**
-     * Create simple decorative border around the GUI - SIMPLIFIED
+     * Create the furnace layout with borders and functional slots
+     * Step 3: Layout creation system
      */
-    private static void fillSimpleFurnaceBorder(Inventory gui) {
-        // Create simple glass panes
-        ItemStack grayBorder = createGlassPane(Material.GRAY_STAINED_GLASS_PANE, " ");
-        ItemStack orangeBorder = createGlassPane(Material.ORANGE_STAINED_GLASS_PANE, " ");
-        
-        // Fill all slots with gray glass initially
-        for (int i = 0; i < gui.getSize(); i++) {
-            gui.setItem(i, grayBorder);
-        }
-        
-        // Simple border pattern - just outline
-        // Top row
-        for (int i = 0; i < 9; i++) {
-            gui.setItem(i, orangeBorder);
-        }
-        // Bottom row
-        for (int i = 36; i < 45; i++) {
-            gui.setItem(i, orangeBorder);
-        }
-        // Side borders
-        for (int i = 1; i < 4; i++) {
-            gui.setItem(i * 9, orangeBorder);        // Left border
-            gui.setItem(i * 9 + 8, orangeBorder);    // Right border
-        }
-    }
-    
-    /**
-     * Add simple slot indicators - SIMPLIFIED
-     */
-    private static void addSimpleSlotIndicators(Inventory gui) {
-        // Input slot indicator (simple blue glass)
-        ItemStack inputIndicator = createGlassPane(Material.BLUE_STAINED_GLASS_PANE, 
-            ChatColor.BLUE + "Input Items");
-        gui.setItem(10, inputIndicator);  // Left of input slot
-        gui.setItem(2, inputIndicator);   // Above input slot
-        
-        // Fuel slot indicator (simple orange glass)
-        ItemStack fuelIndicator = createGlassPane(Material.ORANGE_STAINED_GLASS_PANE, 
-            ChatColor.GOLD + "Fuel Items");
-        gui.setItem(28, fuelIndicator);  // Left of fuel slot
-        gui.setItem(38, fuelIndicator);  // Below fuel slot
-        
-        // Output slot indicator (simple green glass)
-        ItemStack outputIndicator = createGlassPane(Material.LIME_STAINED_GLASS_PANE, 
-            ChatColor.GREEN + "Cooked Items");
-        gui.setItem(6, outputIndicator);   // Above output slot
-        gui.setItem(16, outputIndicator);  // Right of output slot
-        
-        // Simple arrow showing process
-        ItemStack arrow = new ItemStack(Material.ARROW);
-        ItemMeta arrowMeta = arrow.getItemMeta();
-        arrowMeta.setDisplayName(ChatColor.YELLOW + "→ Smelting Process");
-        arrowMeta.setLore(Arrays.asList(
-            ChatColor.GRAY + "Items cook from input to output"
-        ));
-        arrow.setItemMeta(arrowMeta);
-        gui.setItem(12, arrow);  // Between input and cook timer
-        gui.setItem(14, arrow);  // Between cook timer and output
-    }
-    
-    /**
-     * Add minimal decorative elements - SIMPLIFIED
-     */
-    private static void addSimpleDecorations(Inventory gui) {
-        // Simple furnace icon at top center
-        ItemStack furnaceIcon = new ItemStack(Material.FURNACE);
-        ItemMeta iconMeta = furnaceIcon.getItemMeta();
-        iconMeta.setDisplayName(ChatColor.GOLD + "Enhanced Furnace");
-        iconMeta.setLore(Arrays.asList(
-            ChatColor.GRAY + "Smelt items efficiently!",
-            "",
-            ChatColor.YELLOW + "• Place items in blue slot",
-            ChatColor.YELLOW + "• Add fuel in orange slot",
-            ChatColor.YELLOW + "• Collect results from green slot"
-        ));
-        furnaceIcon.setItemMeta(iconMeta);
-        gui.setItem(4, furnaceIcon); // Top center
-    }
-
-    /**
-     * Create the simple furnace layout - MUCH CLEANER
-     */
-    private static void createSimpleFurnaceLayout(Inventory gui, FurnaceData furnaceData) {
-        // Fill simple border
-        fillSimpleFurnaceBorder(gui);
+    private static void createFurnaceLayout(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        // Fill all slots with border glass initially
+        fillFurnaceBorder(gui);
         
         // Clear functional slots
-        gui.setItem(INPUT_SLOT, null);
-        gui.setItem(FUEL_SLOT, null);
-        gui.setItem(OUTPUT_SLOT, null);
+        clearFunctionalSlots(gui, layout);
         
-        // Add simple slot indicators
-        addSimpleSlotIndicators(gui);
+        // Load current furnace contents
+        loadFurnaceContents(gui, furnaceData, layout);
         
-        // Add minimal decorative elements
-        addSimpleDecorations(gui);
+        // Add slot indicators
+        addSlotIndicators(gui, layout);
         
-        // Initialize timer indicators
-        updateCookTimer(gui, furnaceData);
-        updateFuelTimer(gui, furnaceData);
+        // Add decorative elements
+        addDecorativeElements(gui, furnaceData, layout);
+        
+        // Update real-time displays
+        updateTemperatureDisplay(gui, furnaceData, layout);
+        updateFuelTimer(gui, furnaceData, layout);
+        updateCookTimer(gui, furnaceData, layout);
+        updateStatusDisplay(gui, furnaceData, layout);
     }
     
     /**
-     * Create a glass pane with specified material and name
+     * Fill GUI border with decorative glass panes
+     * Step 3: Border system
      */
-    private static ItemStack createGlassPane(Material material, String name) {
-        ItemStack pane = new ItemStack(material);
-        ItemMeta meta = pane.getItemMeta();
-        meta.setDisplayName(name);
-        pane.setItemMeta(meta);
-        return pane;
+    private static void fillFurnaceBorder(Inventory gui) {
+        ItemStack borderGlass = createGlassPane(Material.GRAY_STAINED_GLASS_PANE, " ");
+        ItemStack cornerGlass = createGlassPane(Material.BLACK_STAINED_GLASS_PANE, " ");
+        
+        int size = gui.getSize();
+        int rows = size / 9;
+        
+        // Fill all slots with border glass
+        for (int i = 0; i < size; i++) {
+            gui.setItem(i, borderGlass);
+        }
+        
+        // Set corners with special glass
+        gui.setItem(0, cornerGlass);
+        gui.setItem(8, cornerGlass);
+        gui.setItem(size - 9, cornerGlass);
+        gui.setItem(size - 1, cornerGlass);
     }
     
     /**
-     * Update the cook timer using the helper method
+     * Clear functional slots for item placement
+     * Step 3: Slot clearing
      */
-    public static void updateCookTimer(Inventory gui, FurnaceData furnaceData) {
-        ItemStack timerItem = createCookTimerItem(furnaceData);
-        gui.setItem(COOK_TIMER_SLOT, timerItem);
-    }
-
-    /**
-     * Update the fuel timer using the helper method
-     */
-    public static void updateFuelTimer(Inventory gui, FurnaceData furnaceData) {
-        ItemStack timerItem = createFuelTimerItem(furnaceData);
-        gui.setItem(FUEL_TIMER_SLOT, timerItem);
+    private static void clearFunctionalSlots(Inventory gui, FurnaceGUILayout layout) {
+        // Clear input slots
+        for (int slot : layout.inputSlots) {
+            gui.setItem(slot, null);
+        }
+        
+        // Clear fuel slots
+        for (int slot : layout.fuelSlots) {
+            gui.setItem(slot, null);
+        }
+        
+        // Clear output slots
+        for (int slot : layout.outputSlots) {
+            gui.setItem(slot, null);
+        }
     }
     
     /**
-     * Update all open furnace GUIs
+     * Load current furnace contents into GUI
+     * Step 3: Content loading
      */
-    public static void updateAllFurnaceGUIs() {
-        for (Map.Entry<Player, Location> entry : activeFurnaceGUIs.entrySet()) {
-            Player player = entry.getKey();
-            Location location = entry.getValue();
-            
-            if (player.isOnline() && player.getOpenInventory() != null && 
-                GUI_TITLE.equals(player.getOpenInventory().getTitle())) {
-                
-                FurnaceData furnaceData = CustomFurnaceManager.getInstance().getFurnaceData(location);
-                Inventory gui = player.getOpenInventory().getTopInventory();
-                
-                updateCookTimer(gui, furnaceData);
-                updateFuelTimer(gui, furnaceData);
-                
+    private static void loadFurnaceContents(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        // Load input items
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            ItemStack inputItem = furnaceData.getInputSlot(i);
+            if (inputItem != null) {
+                gui.setItem(layout.inputSlots[i], inputItem);
+            }
+        }
+        
+        // Load fuel items with enhanced lore
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            ItemStack fuelItem = furnaceData.getFuelSlot(i);
+            if (fuelItem != null) {
+                // Enhance fuel item with temperature information
+                ItemStack enhancedFuel = FuelRegistry.getInstance().enhanceFuelItem(fuelItem);
+                gui.setItem(layout.fuelSlots[i], enhancedFuel);
+            }
+        }
+        
+        // Load output items
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            ItemStack outputItem = furnaceData.getOutputSlot(i);
+            if (outputItem != null) {
+                gui.setItem(layout.outputSlots[i], outputItem);
             }
         }
     }
     
     /**
-     * Save GUI contents back to furnace data - FIXED: Proper null handling
+     * Add visual slot indicators
+     * Step 3: Visual indicators
      */
-    public static void saveFurnaceContents(Inventory gui, FurnaceData furnaceData) {
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Saving furnace contents...");
-        }
-        
-        // Save input item
-        ItemStack inputItem = gui.getItem(INPUT_SLOT);
-        if (inputItem != null && inputItem.getType() != Material.AIR && inputItem.getAmount() > 0) {
-            furnaceData.setInputItem(inputItem.clone());
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Saved input: " + inputItem.getAmount() + "x " + inputItem.getType());
-            }
-        } else {
-            furnaceData.setInputItem(null);
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Cleared input slot");
+    private static void addSlotIndicators(Inventory gui, FurnaceGUILayout layout) {
+        // Input slot indicators (above input slots)
+        for (int slot : layout.inputSlots) {
+            if (slot >= 9) { // Make sure we don't go above row 0
+                gui.setItem(slot - 9, createSlotIndicator(Material.ORANGE_STAINED_GLASS_PANE, 
+                    ChatColor.GOLD + "⬇ Input Slot", 
+                    Arrays.asList(ChatColor.GRAY + "Place items to smelt here")));
             }
         }
         
-        // Save fuel item
-        ItemStack fuelItem = gui.getItem(FUEL_SLOT);
-        if (fuelItem != null && fuelItem.getType() != Material.AIR && fuelItem.getAmount() > 0) {
-            furnaceData.setFuelItem(fuelItem.clone());
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Saved fuel: " + fuelItem.getAmount() + "x " + fuelItem.getType());
-            }
-        } else {
-            furnaceData.setFuelItem(null);
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Cleared fuel slot");
+        // Fuel slot indicators (below fuel slots if possible)
+        for (int slot : layout.fuelSlots) {
+            if (slot + 9 < gui.getSize()) { // Make sure we don't go below last row
+                gui.setItem(slot + 9, createSlotIndicator(Material.RED_STAINED_GLASS_PANE, 
+                    ChatColor.RED + "⬆ Fuel Slot", 
+                    Arrays.asList(
+                        ChatColor.GRAY + "Place fuel items here",
+                        ChatColor.YELLOW + "• Coal, Wood, Lava Bucket",
+                        ChatColor.YELLOW + "• Custom fuels supported"
+                    )));
             }
         }
         
-        // Save output item
-        ItemStack outputItem = gui.getItem(OUTPUT_SLOT);
-        if (outputItem != null && outputItem.getType() != Material.AIR && outputItem.getAmount() > 0) {
-            furnaceData.setOutputItem(outputItem.clone());
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Saved output: " + outputItem.getAmount() + "x " + outputItem.getType());
-            }
-        } else {
-            furnaceData.setOutputItem(null);
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Cleared output slot");
+        // Output slot indicators (above output slots)
+        for (int slot : layout.outputSlots) {
+            if (slot >= 9) { // Make sure we don't go above row 0
+                gui.setItem(slot - 9, createSlotIndicator(Material.GREEN_STAINED_GLASS_PANE, 
+                    ChatColor.GREEN + "⬇ Output Slot", 
+                    Arrays.asList(ChatColor.GRAY + "Smelted items appear here")));
             }
         }
-    }
-
-    /**
-     * Load current furnace contents into the GUI - ENHANCED: Better fuel syncing
-     */
-    public static void loadFurnaceContents(Inventory gui, FurnaceData furnaceData) {
-        try {
-            // Only log periodically to avoid spam
-            long currentTime = System.currentTimeMillis();
-            boolean shouldLog = (currentTime - lastLoadLogTime) > 5000; // Log every 5 seconds max
-            
-            if (shouldLog && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Loading furnace contents into GUI");
-                lastLoadLogTime = currentTime;
-            }
-            
-            // Load input item
-            ItemStack inputItem = furnaceData.getInputItem();
-            gui.setItem(INPUT_SLOT, inputItem != null ? inputItem.clone() : null);
-            
-            // ENHANCED: Load fuel item with better validation
-            ItemStack fuelItem = furnaceData.getFuelItem();
-            if (fuelItem != null && fuelItem.getType() != Material.AIR && fuelItem.getAmount() > 0) {
-                gui.setItem(FUEL_SLOT, fuelItem.clone());
-            } else {
-                gui.setItem(FUEL_SLOT, null);
-            }
-            
-            // Load output item
-            ItemStack outputItem = furnaceData.getOutputItem();
-            gui.setItem(OUTPUT_SLOT, outputItem != null ? outputItem.clone() : null);
-            
-            // Update timers
-            updateCookTimer(gui, furnaceData);
-            updateFuelTimer(gui, furnaceData);
-            
-            if (shouldLog && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[Custom Furnace] Loaded - Input: " + getItemDebugName(inputItem) + 
-                    ", Fuel: " + getItemDebugName(fuelItem) + 
-                    ", Output: " + getItemDebugName(outputItem) +
-                    ", FuelTime: " + furnaceData.getFuelTime());
-            }
-            
-        } catch (Exception e) {
-            Main.getInstance().getLogger().warning("[Custom Furnace] Error loading furnace contents: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Helper method to get item debug name - STATIC VERSION
-     */
-    private static String getItemDebugName(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) {
-            return "AIR";
-        }
-        return item.getAmount() + "x " + item.getType().toString();
-    }
-        
-    /**
-     * Check if a slot is the input slot
-     */
-    public static boolean isInputSlot(int slot) {
-        return slot == INPUT_SLOT;
     }
     
     /**
-     * Check if a slot is the fuel slot
+     * Add decorative elements specific to furnace type
+     * Step 3: Decorative system
      */
-    public static boolean isFuelSlot(int slot) {
-        return slot == FUEL_SLOT;
-    }
-    
-    /**
-     * Check if a slot is the output slot
-     */
-    public static boolean isOutputSlot(int slot) {
-        return slot == OUTPUT_SLOT;
-    }
-    
-    /**
-     * Get the furnace location for a player
-     */
-    public static Location getFurnaceLocation(Player player) {
-        return activeFurnaceGUIs.get(player);
-    }
-    
-    /**
-     * Check if an inventory is a custom furnace GUI
-     */
-    public static boolean isCustomFurnaceGUI(Inventory inventory) {
-        return inventory != null && 
-               !inventory.getViewers().isEmpty() && 
-               GUI_TITLE.equals(inventory.getViewers().get(0).getOpenInventory().getTitle());
-    }
-
-    /**
-     * Create cook timer item without setting it in GUI - NEW METHOD
-     */
-    public static ItemStack createCookTimerItem(FurnaceData furnaceData) {
-        ItemStack timerItem;
+    private static void addDecorativeElements(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        FurnaceType type = furnaceData.getFurnaceType();
         
-        if (furnaceData.isActive()) {
-            // Check if cooking is paused due to full output
-            if (furnaceData.isCookingPaused()) {
-                // Show paused state
-                timerItem = new ItemStack(Material.ORANGE_STAINED_GLASS);
-                ItemMeta meta = timerItem.getItemMeta();
-                meta.setDisplayName(ChatColor.GOLD + "⏸ Cooking Paused");
-                
-                double progress = furnaceData.getSmeltingProgress();
-                String progressBar = createProgressBar(progress, 20, '█', '░');
-                
-                meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
-                    ChatColor.GRAY + "Status: " + ChatColor.GOLD + "Output slot full!",
-                    "",
-                    ChatColor.GOLD + progressBar,
-                    "",
-                    ChatColor.YELLOW + "⚠ Remove items from output to continue"
-                ));
-                
-                timerItem.setItemMeta(meta);
-            } else {
-                // Normal active cooking state
-                double progress = furnaceData.getSmeltingProgress();
-                
-                // Choose material and color based on progress
-                Material timerMaterial = Material.CLOCK;
-                ChatColor progressColor;
-                String statusText;
-                
-                if (progress < 0.25) {
-                    progressColor = ChatColor.RED;
-                    statusText = "⚡ Starting";
-                } else if (progress < 0.5) {
-                    progressColor = ChatColor.GOLD;
-                    statusText = "🔥 Heating";
-                } else if (progress < 0.75) {
-                    progressColor = ChatColor.YELLOW;
-                    statusText = "⚡ Processing";
-                } else {
-                    progressColor = ChatColor.GREEN;
-                    statusText = "✨ Almost Done";
-                }
-                
-                timerItem = new ItemStack(timerMaterial);
-                ItemMeta meta = timerItem.getItemMeta();
-                meta.setDisplayName(progressColor + "⟲ Cooking Progress");
-                
-                // Create progress bar
-                String progressBar = createProgressBar(progress, 20, '█', '░');
-                int remainingTime = furnaceData.getRemainingSmeltTime();
-                
-                meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", progress * 100),
-                    ChatColor.GRAY + "Time Left: " + ChatColor.WHITE + formatTime(remainingTime),
-                    "",
-                    progressColor + progressBar,
-                    "",
-                    progressColor + statusText
-                ));
-                
-                timerItem.setItemMeta(meta);
-            }
-        } else {
-            // No active cooking
-            timerItem = new ItemStack(Material.BARRIER);
-            ItemMeta meta = timerItem.getItemMeta();
-            meta.setDisplayName(ChatColor.RED + "✗ Not Cooking");
+        // Add furnace type specific decorations
+        Material decorativeMaterial;
+        String decorativeName;
+        
+        switch (type) {
+            case STONE_FURNACE:
+                decorativeMaterial = Material.COBBLESTONE;
+                decorativeName = ChatColor.GRAY + "Stone Construction";
+                break;
+            case CLAY_KILN:
+                decorativeMaterial = Material.TERRACOTTA;
+                decorativeName = ChatColor.GOLD + "Clay Construction";
+                break;
+            case IRON_FORGE:
+                decorativeMaterial = Material.IRON_BLOCK;
+                decorativeName = ChatColor.WHITE + "Iron Reinforcement";
+                break;
+            case STEEL_FURNACE:
+                decorativeMaterial = Material.ANVIL;
+                decorativeName = ChatColor.DARK_GRAY + "Steel Framework";
+                break;
+            case MAGMATIC_FORGE:
+                decorativeMaterial = Material.MAGMA_BLOCK;
+                decorativeName = ChatColor.RED + "Magmatic Core";
+                break;
+            case ARCANE_CRUCIBLE:
+                decorativeMaterial = Material.ENCHANTING_TABLE;
+                decorativeName = ChatColor.DARK_PURPLE + "Arcane Matrix";
+                break;
+            case VOID_EXTRACTOR:
+                decorativeMaterial = Material.END_STONE;
+                decorativeName = ChatColor.DARK_AQUA + "Void Conduit";
+                break;
+            default:
+                decorativeMaterial = Material.FURNACE;
+                decorativeName = ChatColor.GRAY + "Standard Furnace";
+                break;
+        }
+        
+        // Place decorative elements in specific corners if space allows
+        int size = gui.getSize();
+        if (size >= 45) { // 5+ rows
+            ItemStack decoration = new ItemStack(decorativeMaterial);
+            ItemMeta meta = decoration.getItemMeta();
+            meta.setDisplayName(decorativeName);
             meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Place items in the input slot",
-                ChatColor.GRAY + "and fuel in the fuel slot",
-                ChatColor.GRAY + "to start cooking!"
+                ChatColor.GRAY + "Furnace Type: " + type.getColoredName(),
+                ChatColor.GRAY + "Decorative Element"
             ));
-            timerItem.setItemMeta(meta);
+            decoration.setItemMeta(meta);
+            
+            // Place in bottom corners if they're not functional slots
+            if (!isSlotFunctional(size - 18, layout)) {
+                gui.setItem(size - 18, decoration);
+            }
+            if (!isSlotFunctional(size - 10, layout)) {
+                gui.setItem(size - 10, decoration);
+            }
+        }
+    }
+    
+    /**
+     * Update temperature display
+     * Step 3: Real-time temperature display
+     */
+    private static void updateTemperatureDisplay(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        int currentTemp = furnaceData.getCurrentTemperature();
+        int targetTemp = furnaceData.getTargetTemperature();
+        FurnaceType type = furnaceData.getFurnaceType();
+        
+        // Choose thermometer material based on temperature
+        Material thermometerMaterial;
+        ChatColor tempColor;
+        
+        if (currentTemp <= 100) {
+            thermometerMaterial = Material.BLUE_ICE;
+            tempColor = ChatColor.AQUA;
+        } else if (currentTemp <= 400) {
+            thermometerMaterial = Material.YELLOW_TERRACOTTA;
+            tempColor = ChatColor.YELLOW;
+        } else if (currentTemp <= 800) {
+            thermometerMaterial = Material.ORANGE_TERRACOTTA;
+            tempColor = ChatColor.GOLD;
+        } else if (currentTemp <= 1500) {
+            thermometerMaterial = Material.RED_TERRACOTTA;
+            tempColor = ChatColor.RED;
+        } else {
+            thermometerMaterial = Material.MAGMA_BLOCK;
+            tempColor = ChatColor.DARK_RED;
         }
         
-        return timerItem;
+        ItemStack thermometer = new ItemStack(thermometerMaterial);
+        ItemMeta meta = thermometer.getItemMeta();
+        meta.setDisplayName(tempColor + "🌡 Temperature Monitor");
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Current: " + TemperatureSystem.formatTemperature(currentTemp));
+        lore.add(ChatColor.GRAY + "Target: " + TemperatureSystem.formatTemperature(targetTemp));
+        lore.add("");
+        lore.add(type.getTemperatureRange());
+        lore.add("");
+        
+        // Temperature status
+        if (furnaceData.isOverheating()) {
+            lore.add(ChatColor.RED + "⚠ OVERHEATING! ⚠");
+            lore.add(ChatColor.RED + "Time: " + furnaceData.getOverheatingTime() + " ticks");
+        } else if (furnaceData.isHeating()) {
+            lore.add(ChatColor.YELLOW + "🔥 Heating Up");
+        } else if (furnaceData.isCooling()) {
+            lore.add(ChatColor.AQUA + "❄ Cooling Down");
+        } else {
+            lore.add(ChatColor.GREEN + "✓ Stable Temperature");
+        }
+        
+        // Safety warnings
+        if (furnaceData.willExplode()) {
+            lore.add("");
+            lore.add(ChatColor.DARK_RED + "💥 EXPLOSION IMMINENT!");
+            lore.add(ChatColor.RED + "Countdown: " + furnaceData.getExplosionCountdown() + " ticks");
+        } else if (furnaceData.isEmergencyShutdown()) {
+            lore.add("");
+            lore.add(ChatColor.DARK_RED + "🛑 EMERGENCY SHUTDOWN");
+            lore.add(ChatColor.YELLOW + "Cool down to restart");
+        }
+        
+        meta.setLore(lore);
+        thermometer.setItemMeta(meta);
+        
+        gui.setItem(layout.temperatureDisplaySlot, thermometer);
     }
-
+    
     /**
-     * Create fuel timer item without setting it in GUI - ENHANCED: Show wasteful burning
+     * Update fuel timer display
+     * Step 3: Real-time fuel display
      */
-    public static ItemStack createFuelTimerItem(FurnaceData furnaceData) {
+    private static void updateFuelTimer(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
         ItemStack timerItem;
         
         if (furnaceData.hasFuel()) {
             // Calculate fuel remaining percentage
             double fuelProgress = furnaceData.getFuelProgress();
             
-            // Check if fuel is being wasted
-            boolean isWasted = furnaceData.isFuelBeingWasted();
-            
-            // Choose flame material and color based on fuel level and waste status
+            // Choose flame material based on fuel level
             Material flameMaterial;
             ChatColor flameColor;
             String statusText;
             
-            if (isWasted) {
-                // Wasteful burning - use different colors/materials
-                if (fuelProgress > 0.6) {
-                    flameMaterial = Material.REDSTONE_TORCH;
-                    flameColor = ChatColor.RED;
-                    statusText = "🔥 Wasting Fuel";
-                } else if (fuelProgress > 0.3) {
-                    flameMaterial = Material.REDSTONE_TORCH;
-                    flameColor = ChatColor.DARK_RED;
-                    statusText = "🔥 Wasting Fuel";
-                } else {
-                    flameMaterial = Material.REDSTONE_TORCH;
-                    flameColor = ChatColor.DARK_RED;
-                    statusText = "🔥 Low Fuel (Wasted)";
-                }
+            if (fuelProgress > 0.6) {
+                flameMaterial = Material.TORCH;
+                flameColor = ChatColor.GOLD;
+                statusText = "🔥 Strong Flame";
+            } else if (fuelProgress > 0.3) {
+                flameMaterial = Material.SOUL_TORCH;
+                flameColor = ChatColor.YELLOW;
+                statusText = "🔥 Burning";
             } else {
-                // Productive burning - normal colors
-                if (fuelProgress > 0.6) {
-                    flameMaterial = Material.TORCH;
-                    flameColor = ChatColor.GOLD;
-                    statusText = "🔥 Strong Flame";
-                } else if (fuelProgress > 0.3) {
-                    flameMaterial = Material.SOUL_TORCH;
-                    flameColor = ChatColor.YELLOW;
-                    statusText = "🔥 Burning";
-                } else {
-                    flameMaterial = Material.REDSTONE_TORCH;
-                    flameColor = ChatColor.RED;
-                    statusText = "🔥 Low Fuel";
-                }
+                flameMaterial = Material.REDSTONE_TORCH;
+                flameColor = ChatColor.RED;
+                statusText = "🔥 Low Fuel";
             }
             
             timerItem = new ItemStack(flameMaterial);
@@ -531,7 +518,7 @@ public class CustomFurnaceGUI {
             meta.setDisplayName(flameColor + "🔥 Fuel Status");
             
             String fuelBar = createProgressBar(fuelProgress, 15, '█', '░');
-            int remainingFuelTime = furnaceData.getRemainingFuelTime();
+            int remainingFuelTime = furnaceData.getFuelTime();
             
             List<String> lore = new ArrayList<>();
             lore.add(ChatColor.GRAY + "Fuel Level: " + ChatColor.WHITE + String.format("%.1f%%", fuelProgress * 100));
@@ -540,12 +527,6 @@ public class CustomFurnaceGUI {
             lore.add(ChatColor.GOLD + fuelBar);
             lore.add("");
             lore.add(flameColor + statusText);
-            
-            if (isWasted) {
-                lore.add("");
-                lore.add(ChatColor.GRAY + "Status: " + ChatColor.RED + furnaceData.getFuelStatusMessage());
-                lore.add(ChatColor.YELLOW + "💡 Tip: Add input or clear output");
-            }
             
             meta.setLore(lore);
             timerItem.setItemMeta(meta);
@@ -564,33 +545,490 @@ public class CustomFurnaceGUI {
             timerItem.setItemMeta(meta);
         }
         
-        return timerItem;
+        gui.setItem(layout.fuelTimerSlot, timerItem);
+    }
+    
+    /**
+     * Update cooking timer display - ENHANCED: Recipe information
+     * Step 4: Recipe progress display
+     */
+    private static void updateCookTimer(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        ItemStack timerItem;
+        
+        if (furnaceData.isActive()) {
+            FurnaceRecipe currentRecipe = furnaceData.getCurrentRecipe();
+            
+            if (currentRecipe != null) {
+                // Calculate cooking progress
+                double cookProgress = furnaceData.getCookProgress();
+                
+                // Choose material based on recipe type
+                Material cookMaterial = getRecipeTypeMaterial(currentRecipe.getRecipeType());
+                ChatColor cookColor = getRecipeTypeColor(currentRecipe.getRecipeType());
+                
+                timerItem = new ItemStack(cookMaterial);
+                ItemMeta meta = timerItem.getItemMeta();
+                meta.setDisplayName(cookColor + "⚗ " + currentRecipe.getDisplayName());
+                
+                String cookBar = createProgressBar(cookProgress, 15, '█', '░');
+                int remainingTime = furnaceData.getEstimatedTimeRemaining();
+                
+                List<String> lore = new ArrayList<>();
+                lore.add(ChatColor.GRAY + "Recipe Type: " + ChatColor.WHITE + currentRecipe.getRecipeType().getDisplayName());
+                lore.add(ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", cookProgress * 100));
+                lore.add(ChatColor.GRAY + "Time Left: " + ChatColor.WHITE + formatTime(remainingTime));
+                lore.add("");
+                lore.add(ChatColor.GREEN + cookBar);
+                lore.add("");
+                lore.add(ChatColor.GRAY + "Required Temp: " + currentRecipe.getFormattedTemperature());
+                lore.add(ChatColor.GRAY + "Cook Time: " + ChatColor.WHITE + currentRecipe.getFormattedCookTime());
+                
+                // Temperature efficiency indicator
+                int currentTemp = furnaceData.getCurrentTemperature();
+                double efficiency = com.server.crafting.temperature.TemperatureSystem
+                    .getTemperatureEfficiency(currentTemp, currentRecipe.getRequiredTemperature());
+                
+                if (efficiency > 1.0) {
+                    lore.add("");
+                    lore.add(ChatColor.GREEN + "⚡ Temperature Bonus: " + String.format("%.0f%%", (efficiency - 1.0) * 100));
+                }
+                
+                if (furnaceData.isPaused()) {
+                    lore.add("");
+                    lore.add(ChatColor.RED + "⏸ Paused - Temperature too low");
+                    lore.add(ChatColor.RED + "Current: " + furnaceData.getFormattedTemperature());
+                    lore.add(ChatColor.RED + "Required: " + currentRecipe.getFormattedTemperature());
+                }
+                
+                meta.setLore(lore);
+                timerItem.setItemMeta(meta);
+            } else {
+                // Active but no recipe found
+                timerItem = new ItemStack(Material.BARRIER);
+                ItemMeta meta = timerItem.getItemMeta();
+                meta.setDisplayName(ChatColor.RED + "⚠ No Valid Recipe");
+                meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "Current inputs don't match any recipe",
+                    ChatColor.YELLOW + "Check recipe requirements"
+                ));
+                timerItem.setItemMeta(meta);
+            }
+        } else {
+            // Not cooking - show available recipes
+            timerItem = new ItemStack(Material.BOOK);
+            ItemMeta meta = timerItem.getItemMeta();
+            meta.setDisplayName(ChatColor.GRAY + "📖 Recipe Book");
+            
+            // Get current inputs and suggest recipes
+            List<org.bukkit.inventory.ItemStack> currentInputs = new ArrayList<>();
+            for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots(); i++) {
+                org.bukkit.inventory.ItemStack item = furnaceData.getInputSlot(i);
+                if (item != null && item.getType() != Material.AIR) {
+                    currentInputs.add(item);
+                }
+            }
+            
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Add items and fuel to start cooking");
+            lore.add("");
+            
+            if (!currentInputs.isEmpty()) {
+                // Find potential recipes for current inputs
+                com.server.crafting.recipes.FurnaceRecipe matchingRecipe = 
+                    com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
+                
+                if (matchingRecipe != null) {
+                    lore.add(ChatColor.GREEN + "✓ Recipe Available:");
+                    lore.add(ChatColor.WHITE + "  " + matchingRecipe.getDisplayName());
+                    lore.add(ChatColor.GRAY + "  " + matchingRecipe.getFormattedTemperature());
+                    lore.add(ChatColor.GRAY + "  " + matchingRecipe.getFormattedCookTime());
+                } else {
+                    lore.add(ChatColor.YELLOW + "No recipe found for current items");
+                }
+            } else {
+                // Show furnace capabilities
+                lore.add(ChatColor.AQUA + "Furnace Capabilities:");
+                lore.add(ChatColor.GRAY + "Max Temperature: " + 
+                    com.server.crafting.temperature.TemperatureSystem.formatTemperature(
+                        furnaceData.getFurnaceType().getMaxTemperature()));
+                
+                // Show compatible recipe types
+                List<com.server.crafting.recipes.FurnaceRecipe> compatibleRecipes = 
+                    com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance()
+                        .getRecipesForTemperature(furnaceData.getFurnaceType().getMaxTemperature());
+                
+                Set<com.server.crafting.recipes.FurnaceRecipe.RecipeType> compatibleTypes = new HashSet<>();
+                for (com.server.crafting.recipes.FurnaceRecipe recipe : compatibleRecipes) {
+                    compatibleTypes.add(recipe.getRecipeType());
+                }
+                
+                lore.add("");
+                lore.add(ChatColor.GOLD + "Compatible Recipe Types:");
+                for (com.server.crafting.recipes.FurnaceRecipe.RecipeType type : compatibleTypes) {
+                    lore.add(ChatColor.WHITE + "• " + type.getDisplayName());
+                }
+            }
+            
+            meta.setLore(lore);
+            timerItem.setItemMeta(meta);
+        }
+        
+        gui.setItem(layout.cookTimerSlot, timerItem);
+    }
+
+    /**
+     * Get material for recipe type display
+     */
+    private static Material getRecipeTypeMaterial(com.server.crafting.recipes.FurnaceRecipe.RecipeType type) {
+        switch (type) {
+            case SMELTING: return Material.FURNACE;
+            case ALLOYING: return Material.ANVIL;
+            case REFINING: return Material.CAULDRON;
+            case CRYSTALLIZATION: return Material.AMETHYST_CLUSTER;
+            case EXTRACTION: return Material.BREWING_STAND;
+            case TRANSMUTATION: return Material.ENCHANTING_TABLE;
+            default: return Material.CRAFTING_TABLE;
+        }
+    }
+
+    /**
+     * Get color for recipe type display
+     */
+    private static ChatColor getRecipeTypeColor(com.server.crafting.recipes.FurnaceRecipe.RecipeType type) {
+        switch (type) {
+            case SMELTING: return ChatColor.GRAY;
+            case ALLOYING: return ChatColor.YELLOW;
+            case REFINING: return ChatColor.AQUA;
+            case CRYSTALLIZATION: return ChatColor.LIGHT_PURPLE;
+            case EXTRACTION: return ChatColor.GREEN;
+            case TRANSMUTATION: return ChatColor.DARK_PURPLE;
+            default: return ChatColor.WHITE;
+        }
+    }
+    
+    /**
+     * Update status display
+     * Step 3: Status information display
+     */
+    private static void updateStatusDisplay(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
+        FurnaceType type = furnaceData.getFurnaceType();
+        
+        Material statusMaterial;
+        ChatColor statusColor;
+        String statusTitle;
+        
+        if (furnaceData.isEmergencyShutdown()) {
+            statusMaterial = Material.BARRIER;
+            statusColor = ChatColor.DARK_RED;
+            statusTitle = "🛑 Emergency Shutdown";
+        } else if (furnaceData.willExplode()) {
+            statusMaterial = Material.TNT;
+            statusColor = ChatColor.DARK_RED;
+            statusTitle = "💥 Critical Danger";
+        } else if (furnaceData.isOverheating()) {
+            statusMaterial = Material.FIRE_CHARGE;
+            statusColor = ChatColor.RED;
+            statusTitle = "⚠ Overheating";
+        } else if (furnaceData.isActive()) {
+            statusMaterial = Material.EMERALD;
+            statusColor = ChatColor.GREEN;
+            statusTitle = "✓ Operating";
+        } else if (furnaceData.hasFuel()) {
+            statusMaterial = Material.YELLOW_DYE;
+            statusColor = ChatColor.YELLOW;
+            statusTitle = "⏳ Ready to Cook";
+        } else {
+            statusMaterial = Material.GRAY_DYE;
+            statusColor = ChatColor.GRAY;
+            statusTitle = "⚫ Idle";
+        }
+        
+        ItemStack statusItem = new ItemStack(statusMaterial);
+        ItemMeta meta = statusItem.getItemMeta();
+        meta.setDisplayName(statusColor + statusTitle);
+        
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Furnace: " + type.getColoredName());
+        lore.add("");
+        
+        // Current status details
+        lore.add(ChatColor.AQUA + "Current Status:");
+        lore.add(ChatColor.GRAY + "• Temperature: " + furnaceData.getFormattedTemperature());
+        lore.add(ChatColor.GRAY + "• Fuel: " + (furnaceData.hasFuel() ? 
+            ChatColor.GREEN + "Available" : ChatColor.RED + "Empty"));
+        lore.add(ChatColor.GRAY + "• Cooking: " + (furnaceData.isActive() ? 
+            ChatColor.GREEN + "Active" : ChatColor.RED + "Inactive"));
+        
+        // Slot configuration
+        lore.add("");
+        lore.add(ChatColor.GOLD + "Configuration:");
+        lore.add(ChatColor.GRAY + "• Input Slots: " + ChatColor.WHITE + type.getInputSlots());
+        lore.add(ChatColor.GRAY + "• Fuel Slots: " + ChatColor.WHITE + type.getFuelSlots());
+        lore.add(ChatColor.GRAY + "• Output Slots: " + ChatColor.WHITE + type.getOutputSlots());
+        
+        meta.setLore(lore);
+        statusItem.setItemMeta(meta);
+        
+        gui.setItem(layout.statusSlot, statusItem);
+    }
+    
+    /**
+     * Check if a slot is functional (used for item placement)
+     * Step 3: Slot validation
+     */
+    private static boolean isSlotFunctional(int slot, FurnaceGUILayout layout) {
+        // Check input slots
+        for (int inputSlot : layout.inputSlots) {
+            if (inputSlot == slot) return true;
+        }
+        
+        // Check fuel slots
+        for (int fuelSlot : layout.fuelSlots) {
+            if (fuelSlot == slot) return true;
+        }
+        
+        // Check output slots
+        for (int outputSlot : layout.outputSlots) {
+            if (outputSlot == slot) return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if a slot is an input slot
+     * Step 3: Slot type checking
+     */
+    public static boolean isInputSlot(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return false;
+        
+        for (int inputSlot : layout.inputSlots) {
+            if (inputSlot == slot) return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Check if a slot is a fuel slot
+     * Step 3: Slot type checking
+     */
+    public static boolean isFuelSlot(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return false;
+        
+        for (int fuelSlot : layout.fuelSlots) {
+            if (fuelSlot == slot) return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Check if a slot is an output slot
+     * Step 3: Slot type checking
+     */
+    public static boolean isOutputSlot(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return false;
+        
+        for (int outputSlot : layout.outputSlots) {
+            if (outputSlot == slot) return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Get input slot index from GUI slot
+     * Step 3: Slot mapping
+     */
+    public static int getInputSlotIndex(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return -1;
+        
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            if (layout.inputSlots[i] == slot) return i;
+        }
+        return -1;
+    }
+    
+    /**
+     * Get fuel slot index from GUI slot
+     * Step 3: Slot mapping
+     */
+    public static int getFuelSlotIndex(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return -1;
+        
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            if (layout.fuelSlots[i] == slot) return i;
+        }
+        return -1;
+    }
+    
+    /**
+     * Get output slot index from GUI slot
+     * Step 3: Slot mapping
+     */
+    public static int getOutputSlotIndex(int slot, FurnaceData furnaceData) {
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return -1;
+        
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            if (layout.outputSlots[i] == slot) return i;
+        }
+        return -1;
+    }
+    
+    /**
+     * Update GUI for all viewers of a specific furnace
+     * Step 3: Real-time updates
+     */
+    public static void updateFurnaceGUI(FurnaceData furnaceData) {
+        // Find all players viewing this furnace
+        for (Map.Entry<Player, FurnaceData> entry : playerFurnaceData.entrySet()) {
+            if (entry.getValue() == furnaceData) {
+                Player player = entry.getKey();
+                Inventory gui = activeFurnaceGUIs.get(player);
+                
+                if (gui != null && player.getOpenInventory().getTopInventory() == gui) {
+                    FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+                    if (layout != null) {
+                        // Update real-time displays only (not the items)
+                        updateTemperatureDisplay(gui, furnaceData, layout);
+                        updateFuelTimer(gui, furnaceData, layout);
+                        updateCookTimer(gui, furnaceData, layout);
+                        updateStatusDisplay(gui, furnaceData, layout);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get active furnace GUI for a player
+     * Step 3: GUI access
+     */
+    public static Inventory getActiveFurnaceGUI(Player player) {
+        return activeFurnaceGUIs.get(player);
+    }
+    
+    /**
+     * Get furnace data for a player's open GUI
+     * Step 3: Data access
+     */
+    public static FurnaceData getPlayerFurnaceData(Player player) {
+        return playerFurnaceData.get(player);
+    }
+    
+    /**
+     * Check if an inventory is a custom furnace GUI
+     * Step 3: GUI validation
+     */
+    public static boolean isFurnaceGUI(Inventory inventory) {
+        if (inventory == null) return false;
+        
+        // Check if this inventory is one of our active furnace GUIs
+        return activeFurnaceGUIs.containsValue(inventory);
+    }
+    
+    /**
+     * Remove player's active furnace GUI
+     * Step 3: Cleanup
+     */
+    public static void removeActiveFurnaceGUI(Player player) {
+        activeFurnaceGUIs.remove(player);
+        playerFurnaceData.remove(player);
+    }
+    
+    /**
+     * Sync GUI contents back to furnace data
+     * Step 3: Data synchronization
+     */
+    public static void syncGUIToFurnaceData(Player player) {
+        Inventory gui = activeFurnaceGUIs.get(player);
+        FurnaceData furnaceData = playerFurnaceData.get(player);
+        
+        if (gui == null || furnaceData == null) return;
+        
+        FurnaceGUILayout layout = furnaceLayouts.get(furnaceData.getFurnaceType());
+        if (layout == null) return;
+        
+        // Sync input slots
+        for (int i = 0; i < layout.inputSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.inputSlots[i]);
+            furnaceData.setInputSlot(i, item);
+        }
+        
+        // Sync fuel slots
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.fuelSlots[i]);
+            furnaceData.setFuelSlot(i, item);
+        }
+        
+        // Sync output slots
+        for (int i = 0; i < layout.outputSlots.length; i++) {
+            ItemStack item = gui.getItem(layout.outputSlots[i]);
+            furnaceData.setOutputSlot(i, item);
+        }
+    }
+    
+    // Utility methods
+    
+    /**
+     * Create a glass pane with specified properties
+     */
+    private static ItemStack createGlassPane(Material material, String name) {
+        ItemStack pane = new ItemStack(material);
+        ItemMeta meta = pane.getItemMeta();
+        meta.setDisplayName(name);
+        pane.setItemMeta(meta);
+        return pane;
+    }
+    
+    /**
+     * Create a slot indicator item
+     */
+    private static ItemStack createSlotIndicator(Material material, String name, List<String> lore) {
+        ItemStack indicator = new ItemStack(material);
+        ItemMeta meta = indicator.getItemMeta();
+        meta.setDisplayName(name);
+        meta.setLore(lore);
+        indicator.setItemMeta(meta);
+        return indicator;
     }
     
     /**
      * Create a progress bar string
      */
-    public static String createProgressBar(double progress, int length, char filled, char empty) {
-        int filledLength = (int) (progress * length);
+    private static String createProgressBar(double progress, int length, char filled, char empty) {
         StringBuilder bar = new StringBuilder();
+        int filledBars = (int) Math.round(progress * length);
         
-        bar.append(ChatColor.GREEN);
-        for (int i = 0; i < filledLength; i++) {
-            bar.append(filled);
+        bar.append(ChatColor.GRAY + "[");
+        
+        for (int i = 0; i < length; i++) {
+            if (i < filledBars) {
+                if (progress < 0.33) {
+                    bar.append(ChatColor.RED);
+                } else if (progress < 0.66) {
+                    bar.append(ChatColor.YELLOW);
+                } else {
+                    bar.append(ChatColor.GREEN);
+                }
+                bar.append(filled);
+            } else {
+                bar.append(ChatColor.DARK_GRAY).append(empty);
+            }
         }
         
-        bar.append(ChatColor.DARK_GRAY);
-        for (int i = filledLength; i < length; i++) {
-            bar.append(empty);
-        }
-        
+        bar.append(ChatColor.GRAY + "]");
         return bar.toString();
     }
     
     /**
-     * Format time in ticks to a readable string
+     * Format time in ticks to readable format
      */
-    public static String formatTime(int ticks) {
+    private static String formatTime(int ticks) {
         int seconds = ticks / 20;
         if (seconds < 60) {
             return seconds + "s";
@@ -600,47 +1038,4 @@ public class CustomFurnaceGUI {
             return minutes + "m " + remainingSeconds + "s";
         }
     }
-
-    /**
-     * Get the active furnace GUIs map - UTILITY METHOD for manager access
-     */
-    public static Map<Player, Location> getActiveFurnaceGUIs() {
-        return new HashMap<>(activeFurnaceGUIs);
-    }
-
-    /**
-     * Check if a slot is a functional slot (can be interacted with) - ENHANCED
-     */
-    public static boolean isFunctionalSlot(int slot) {
-        return slot == INPUT_SLOT || 
-            slot == FUEL_SLOT || 
-            slot == OUTPUT_SLOT;
-        // Note: Timer slots are not functional (players shouldn't interact with them)
-    }
-
-    /**
-     * Check if a slot is a timer/display slot that should be read-only - NEW METHOD
-     */
-    public static boolean isTimerSlot(int slot) {
-        return slot == COOK_TIMER_SLOT || slot == FUEL_TIMER_SLOT;
-    }
-
-    /**
-     * Check if a slot is decorative/filler and should not be interacted with - NEW METHOD
-     */
-    public static boolean isDecorativeSlot(int slot) {
-        // Functional slots can be interacted with
-        if (isFunctionalSlot(slot)) {
-            return false;
-        }
-        
-        // Timer slots are read-only but not decorative (they change)
-        if (isTimerSlot(slot)) {
-            return true; // Block interaction but they're not truly decorative
-        }
-        
-        // All other slots are decorative/border elements
-        return true;
-    }
-    
 }

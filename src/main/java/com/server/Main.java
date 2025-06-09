@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AdminFurnaceCommand;
 import com.server.commands.AdminProfileCommand;
 import com.server.commands.AdminSkillsCommand;
 import com.server.commands.AdminStatsCommand;
@@ -34,6 +35,7 @@ import com.server.cosmetics.CosmeticManager;
 import com.server.crafting.listeners.AdvancedCraftingListener;
 import com.server.crafting.listeners.AutoCraftingListener;
 import com.server.crafting.listeners.CustomCraftingListener;
+import com.server.crafting.listeners.CustomFurnaceGUIListener;
 import com.server.crafting.listeners.CustomFurnaceListener;
 import com.server.crafting.listeners.VanillaCraftingReplacer;
 import com.server.crafting.manager.CustomCraftingManager;
@@ -149,8 +151,7 @@ public class Main extends JavaPlugin {
         // Initialize custom crafting system
         CustomCraftingManager.getInstance();
 
-        // Initialize custom furnace system
-        CustomFurnaceManager.getInstance();
+        initializeFurnaceSystem();
 
         // Register commands and event listeners
         registerCommands();
@@ -212,13 +213,12 @@ public class Main extends JavaPlugin {
         // Cleanup cosmetics
         CosmeticManager.getInstance().cleanup();
 
-        // Stop custom furnace manager
-        if (CustomFurnaceManager.getInstance() != null) {
-            CustomFurnaceManager.getInstance().stopFurnaceUpdateTask();
-        }
-
         if (playtimeUpdateService != null) {
             playtimeUpdateService.shutdown();
+        }
+
+        if (CustomFurnaceManager.getInstance() != null) {
+            CustomFurnaceManager.getInstance().shutdown();
         }
         
         LOGGER.info("mmo disabled");
@@ -257,9 +257,10 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new AutoCraftingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new VanillaCraftingReplacer(), this);
 
-        // NEW: Register custom furnace listener
         this.getServer().getPluginManager().registerEvents(new CustomFurnaceListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new CustomFurnaceGUIListener(this), this);
         this.getServer().getPluginManager().registerEvents(new GUIListener(this), this);
+
     }
 
     public static Main getInstance() {
@@ -477,6 +478,13 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand adminFurnaceCommand = this.getCommand("adminfurnace");
+        if (adminFurnaceCommand != null) {
+            adminFurnaceCommand.setExecutor(new AdminFurnaceCommand());
+        } else {
+            LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
+        }
         
     }
 
@@ -585,6 +593,31 @@ public class Main extends JavaPlugin {
                 }
             }
         }, 30, 30, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Enhanced furnace system initialization
+     * Step 4: Complete system integration
+     */
+    private void initializeFurnaceSystem() {
+        try {
+            // Initialize fuel registry (loads all fuel types)
+            com.server.crafting.fuel.FuelRegistry.getInstance();
+            
+            // Initialize recipe registry (loads all recipes)
+            com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance();
+            
+            // Initialize furnace manager (starts processing loop)
+            com.server.crafting.manager.CustomFurnaceManager.getInstance();
+            
+            if (isDebugEnabled(DebugSystem.GUI)) {
+                debugLog(DebugSystem.GUI, "[Main] Initialized complete furnace system with recipes and processing");
+            }
+            
+        } catch (Exception e) {
+            getLogger().severe("Failed to initialize furnace system: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 }

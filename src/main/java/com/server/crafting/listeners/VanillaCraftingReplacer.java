@@ -10,10 +10,7 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 
-import com.server.Main;
 import com.server.crafting.gui.CustomCraftingGUI;
-import com.server.crafting.gui.CustomFurnaceGUI;
-import com.server.debug.DebugManager.DebugSystem;
 
 /**
  * Replaces vanilla crafting table and furnace interactions with our custom system
@@ -40,21 +37,6 @@ public class VanillaCraftingReplacer implements Listener {
             
             // Open our custom crafting table instead
             CustomCraftingGUI.openCraftingTable(player);
-            return;
-        }
-        
-        // Handle furnace interactions
-        if (blockType == Material.FURNACE) {
-            // Cancel the vanilla furnace opening
-            event.setCancelled(true);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI, 
-                    "[VanillaCraftingReplacer] Opening custom furnace for " + player.getName());
-            }
-            
-            // Open our custom furnace instead
-            CustomFurnaceGUI.openFurnaceGUI(player, event.getClickedBlock().getLocation());
             return;
         }
     }
