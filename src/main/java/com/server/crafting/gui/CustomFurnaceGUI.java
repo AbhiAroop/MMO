@@ -903,7 +903,7 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update GUI for all viewers of a specific furnace - ENHANCED: Smart output updates
+     * Update GUI for all viewers of a specific furnace - ENHANCED: Smart output updates - REDUCED LOGGING
      * Step 3: Real-time updates with smart output handling
      */
     public static void updateFurnaceGUI(FurnaceData furnaceData) {
@@ -928,7 +928,8 @@ public class CustomFurnaceGUI {
                         updateCookTimer(gui, furnaceData, layout);
                         updateStatusDisplay(gui, furnaceData, layout);
                         
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        // REDUCED LOGGING: Only log every 20 seconds per player
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 20000 < 50) {
                             Main.getInstance().debugLog(DebugSystem.GUI,
                                 "[Custom Furnace GUI] Updated GUI for player " + player.getName() + 
                                 " viewing " + furnaceData.getFurnaceType().getDisplayName() + " (smart output updates)");
@@ -940,7 +941,7 @@ public class CustomFurnaceGUI {
     }
 
     /**
-     * Update output slots additively - only add new items, never remove existing ones
+     * Update output slots additively - only add new items, never remove existing ones - ENHANCED: Multi-player safe
      * This prevents duplication while allowing new outputs to appear
      */
     private static void updateOutputSlotsAdditive(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
@@ -955,7 +956,8 @@ public class CustomFurnaceGUI {
                     // GUI slot is empty, safe to add the item
                     gui.setItem(guiSlot, furnaceItem.clone());
                     
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    // REDUCED LOGGING: Only log occasionally
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
                         Main.getInstance().debugLog(DebugSystem.GUI,
                             "[Custom Furnace GUI] Added new output item: " + furnaceItem.getType().name() + 
                             " x" + furnaceItem.getAmount() + " to slot " + i);
@@ -968,7 +970,8 @@ public class CustomFurnaceGUI {
                         guiItem.setAmount(furnaceItem.getAmount());
                         gui.setItem(guiSlot, guiItem);
                         
-                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        // REDUCED LOGGING: Only log occasionally
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
                             Main.getInstance().debugLog(DebugSystem.GUI,
                                 "[Custom Furnace GUI] Increased output stack: +" + difference + " " + 
                                 furnaceItem.getType().name() + " in slot " + i);
@@ -979,6 +982,33 @@ public class CustomFurnaceGUI {
                 // If items are different types, don't update (player might have manually placed something)
             }
             // If furnace slot is empty, don't clear GUI slot (player might have taken items)
+        }
+    }
+
+    /**
+     * Update a specific output slot for a viewing player - ENHANCED: Multi-player safe
+     */
+    public static void updateSpecificOutputSlot(Player player, FurnaceData furnaceData, int slotIndex, ItemStack item) {
+        Inventory gui = activeFurnaceGUIs.get(player);
+        if (gui == null) {
+            return;
+        }
+        
+        FurnaceGUILayout layout = getFurnaceLayout(furnaceData.getFurnaceType());
+        
+        if (slotIndex >= 0 && slotIndex < layout.outputSlots.length) {
+            int guiSlot = layout.outputSlots[slotIndex];
+            
+            // CRITICAL FIX: Always update to the exact furnace state for multi-player safety
+            gui.setItem(guiSlot, item != null ? item.clone() : null);
+            
+            // REDUCED LOGGING: Only log occasionally
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 3000 < 50) {
+                String itemName = item != null ? item.getType().name() + " x" + item.getAmount() : "AIR";
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Custom Furnace GUI] Updated specific output slot " + slotIndex + " to " + itemName + 
+                    " for " + player.getName());
+            }
         }
     }
 

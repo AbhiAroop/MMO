@@ -23,7 +23,6 @@ import com.server.crafting.fuel.FuelData;
 import com.server.crafting.fuel.FuelRegistry;
 import com.server.crafting.furnace.FurnaceData;
 import com.server.crafting.furnace.FurnaceType;
-import com.server.crafting.gui.CustomFurnaceGUI;
 import com.server.crafting.temperature.TemperatureSystem;
 import com.server.debug.DebugManager.DebugSystem;
 
@@ -258,31 +257,6 @@ public class CustomFurnaceManager {
             Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Started furnace update task");
         }
     }
-    
-    /**
-     * Process a single furnace tick - ENHANCED: Complete processing system
-     * Step 4: Recipe processing integration
-     */
-    private void processFurnaceTick(FurnaceData furnaceData, int tickCounter) {
-        // Safety checks FIRST - if exploded, exit immediately
-        processSafety(furnaceData);
-        
-        // Check if furnace was destroyed by explosion
-        String locationKey = locationToString(furnaceData.getLocation());
-        if (!furnaceDataMap.containsKey(locationKey)) {
-            return; // Furnace was destroyed, stop processing
-        }
-        
-        // Continue with normal processing only if furnace still exists
-        processTemperature(furnaceData);
-        processFuel(furnaceData);
-        processRecipes(furnaceData);
-        
-        // Update GUI for all viewers (every 10 ticks to avoid spam)
-        if (tickCounter % 10 == 0) {
-            CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
-        }
-    }
 
     /**
      * Process recipe cooking and completion - ENHANCED: Output space checking
@@ -457,24 +431,6 @@ public class CustomFurnaceManager {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI,
                         "[Furnace] Updated input/fuel slots for " + player.getName());
-                }
-            }
-        }
-    }
-
-    /**
-     * Update all GUIs currently viewing this furnace - ENHANCED: Safe output handling
-     */
-    private void updateAllViewingGUIs(FurnaceData furnaceData) {
-        // Get all players currently viewing this furnace and update their GUIs
-        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
-            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
-                // CRITICAL FIX: Use the safe update method that includes smart output updates
-                com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Furnace] Safe GUI update for " + player.getName() + " (smart output handling)");
                 }
             }
         }
@@ -871,13 +827,14 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Determine if fuel should be consumed - SMART FUEL LOGIC
+     * Determine if fuel should be consumed - SMART FUEL LOGIC - REDUCED LOGGING
      */
     private boolean shouldConsumeFuel(FurnaceData furnaceData) {
         // Check if there are items to process
         List<org.bukkit.inventory.ItemStack> currentInputs = getCurrentInputItems(furnaceData);
         if (currentInputs.isEmpty()) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            // REDUCED LOGGING: Only log every 10 seconds (200 ticks) instead of every tick
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
                 Main.getInstance().debugLog(DebugSystem.GUI,
                     "[Furnace] No items to process - not consuming fuel at " + 
                     locationToString(furnaceData.getLocation()));
@@ -890,7 +847,8 @@ public class CustomFurnaceManager {
             com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
         
         if (recipe == null) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            // REDUCED LOGGING: Only log occasionally
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
                 Main.getInstance().debugLog(DebugSystem.GUI,
                     "[Furnace] No valid recipe found - not consuming fuel at " + 
                     locationToString(furnaceData.getLocation()));
@@ -900,7 +858,8 @@ public class CustomFurnaceManager {
         
         // Check if output slots have space for the recipe outputs
         if (!hasOutputSpaceForRecipe(furnaceData, recipe)) {
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            // REDUCED LOGGING: Only log occasionally
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
                 Main.getInstance().debugLog(DebugSystem.GUI,
                     "[Furnace] Output slots full - not consuming fuel at " + 
                     locationToString(furnaceData.getLocation()));
@@ -908,7 +867,8 @@ public class CustomFurnaceManager {
             return false;
         }
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+        // REDUCED LOGGING: Only log success occasionally
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
             Main.getInstance().debugLog(DebugSystem.GUI,
                 "[Furnace] Valid recipe and space available - can consume fuel at " + 
                 locationToString(furnaceData.getLocation()));
@@ -916,6 +876,50 @@ public class CustomFurnaceManager {
         
         return true;
     }
+
+    /**
+     * Update all GUIs currently viewing this furnace - ENHANCED: Safe output handling - REDUCED LOGGING
+     */
+    private void updateAllViewingGUIs(FurnaceData furnaceData) {
+        // Get all players currently viewing this furnace and update their GUIs
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                // CRITICAL FIX: Use the safe update method that includes smart output updates
+                com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+                
+                // REDUCED LOGGING: Only log every 10 seconds per player
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Furnace] Safe GUI update for " + player.getName() + " (smart output handling)");
+                }
+            }
+        }
+    }
+
+    /**
+     * Process a single furnace tick - ENHANCED: Complete processing system with smart updates - REDUCED LOGGING
+     */
+    private void processFurnaceTick(FurnaceData furnaceData, int tickCounter) {
+        // Safety checks FIRST - if exploded, exit immediately
+        processSafety(furnaceData);
+        
+        // Check if furnace was destroyed by explosion
+        String locationKey = locationToString(furnaceData.getLocation());
+        if (!furnaceDataMap.containsKey(locationKey)) {
+            return; // Furnace was destroyed, stop processing
+        }
+        
+        // Continue with normal processing only if furnace still exists
+        processTemperature(furnaceData);
+        processFuel(furnaceData);
+        processRecipes(furnaceData);
+        
+        // Update GUI for all viewers (every 20 ticks = 1 second instead of every 10 ticks)
+        // REDUCED UPDATE FREQUENCY: Update every 20 ticks instead of 10 to reduce spam
+        if (tickCounter % 20 == 0) {
+            com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+        }
+}
 
     /**
      * Check if output slots have space for a recipe's outputs

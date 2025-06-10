@@ -493,22 +493,12 @@ public class CustomFurnaceGUIListener implements Listener {
     }
     
     /**
-     * Handle output slot interactions - ENHANCED: Complete protection against item placement
+     * Handle output slot interactions - ENHANCED: Multi-player synchronization and duplication prevention
      */
     private void handleOutputSlotClick(InventoryClickEvent event, Player player, FurnaceData furnaceData, int slot) {
         ItemStack cursor = player.getItemOnCursor();
         ItemStack slotItem = event.getCurrentItem();
         ClickType clickType = event.getClick();
-        
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            String cursorName = cursor != null && cursor.getType() != Material.AIR ? 
-                cursor.getType().name() + " x" + cursor.getAmount() : "AIR";
-            String slotName = slotItem != null && slotItem.getType() != Material.AIR ? 
-                slotItem.getType().name() + " x" + slotItem.getAmount() : "AIR";
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Output Slot] Player " + player.getName() + " clicked output slot with cursor: " + 
-                cursorName + ", slot item: " + slotName + ", click type: " + clickType);
-        }
         
         // CRITICAL FIX: Comprehensive protection against item placement
         
@@ -516,25 +506,14 @@ public class CustomFurnaceGUIListener implements Listener {
         if (cursor != null && cursor.getType() != Material.AIR) {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Output Slot] BLOCKED cursor placement attempt: " + cursor.getType().name());
-            }
             return;
         }
         
         // 2. Block ALL shift-click attempts from player inventory
         if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
             if (event.getRawSlot() >= event.getInventory().getSize()) {
-                // This is a shift-click from player inventory - absolutely forbidden
                 event.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
-                
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Output Slot] BLOCKED shift-click placement attempt from player inventory");
-                }
                 return;
             }
         }
@@ -543,30 +522,17 @@ public class CustomFurnaceGUIListener implements Listener {
         if (clickType == ClickType.NUMBER_KEY) {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "You cannot place items in the output slots!");
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Output Slot] BLOCKED number key swap attempt");
-            }
             return;
         }
         
         // 4. Block drop actions that might place items
         if (clickType == ClickType.DROP || clickType == ClickType.CONTROL_DROP) {
             event.setCancelled(true);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Output Slot] BLOCKED drop action attempt");
-            }
             return;
         }
         
         // 5. Allow taking items from output slots only
         if (slotItem != null && slotItem.getType() != Material.AIR) {
-            // ... existing output taking logic remains the same ...
-            // (The existing code for taking items from output slots)
-            
             // Determine which output slot this is
             FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
             int outputSlotIndex = -1;
@@ -582,27 +548,44 @@ public class CustomFurnaceGUIListener implements Listener {
                 return;
             }
             
-            // Handle shift-click to take output
+            // CRITICAL FIX: Double-check item still exists in furnace data (prevent race conditions)
+            ItemStack furnaceOutputItem = furnaceData.getOutputSlot(outputSlotIndex);
+            if (furnaceOutputItem == null || furnaceOutputItem.getType() == Material.AIR) {
+                // Item was already taken by another player
+                event.setCancelled(true);
+                event.getInventory().setItem(slot, null);
+                return;
+            }
+            
             if (clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT) {
-                if (hasSpaceForItem(player, slotItem)) {
-                    ItemStack takenItem = slotItem.clone();
+                // Shift-click to take output - move to player inventory
+                if (hasSpaceForItem(player, furnaceOutputItem)) {
+                    // CRITICAL FIX: Immediately remove from furnace data BEFORE adding to inventory
+                    ItemStack takenItem = furnaceOutputItem.clone();
                     furnaceData.setOutputSlot(outputSlotIndex, null);
                     
+                    // Add to player inventory
                     HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(takenItem);
+                    
+                    // Handle any leftover items
                     for (ItemStack drop : leftover.values()) {
                         player.getWorld().dropItemNaturally(player.getLocation(), drop);
                     }
                     
+                    // CRITICAL FIX: Immediately update the GUI slot
                     event.getInventory().setItem(slot, null);
                     event.setCancelled(true);
                     
+                    // CRITICAL FIX: Force immediate sync for ALL viewing players
+                    final FurnaceData finalFurnaceData = furnaceData;
+                    final int finalOutputSlotIndex = outputSlotIndex;
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                        updateAllViewersOutputSlot(finalFurnaceData, finalOutputSlotIndex, null);
                     });
                     
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Output Slot] Shift-clicked " + takenItem.getType().name() + 
+                            "[Output Slot] " + player.getName() + " shift-clicked " + takenItem.getType().name() + 
                             " x" + takenItem.getAmount() + " from output slot " + outputSlotIndex);
                     }
                 } else {
@@ -610,53 +593,77 @@ public class CustomFurnaceGUIListener implements Listener {
                     player.sendMessage(ChatColor.RED + "Your inventory is full!");
                 }
             } else {
-                // Handle normal click to take output
+                // Normal click to take output
                 if (cursor == null || cursor.getType() == Material.AIR) {
-                    ItemStack takenItem = slotItem.clone();
+                    // Taking item with empty cursor
+                    ItemStack takenItem = furnaceOutputItem.clone();
+                    
+                    // CRITICAL FIX: Immediately remove from furnace data
                     furnaceData.setOutputSlot(outputSlotIndex, null);
+                    
+                    // Set player cursor
                     player.setItemOnCursor(takenItem);
+                    
+                    // CRITICAL FIX: Immediately update the GUI slot
                     event.getInventory().setItem(slot, null);
                     event.setCancelled(true);
                     
+                    // CRITICAL FIX: Force immediate sync for ALL viewing players
+                    final FurnaceData finalFurnaceData = furnaceData;
+                    final int finalOutputSlotIndex = outputSlotIndex;
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
+                        updateAllViewersOutputSlot(finalFurnaceData, finalOutputSlotIndex, null);
                     });
                     
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Output Slot] Took " + takenItem.getType().name() + 
+                            "[Output Slot] " + player.getName() + " took " + takenItem.getType().name() + 
                             " x" + takenItem.getAmount() + " from output slot " + outputSlotIndex);
                     }
-                } else if (cursor.isSimilar(slotItem)) {
-                    // Handle stacking with similar item on cursor
+                } else if (cursor.isSimilar(furnaceOutputItem)) {
+                    // Stacking with similar item on cursor
                     int maxStack = cursor.getMaxStackSize();
                     int currentAmount = cursor.getAmount();
                     int spaceAvailable = maxStack - currentAmount;
                     
                     if (spaceAvailable > 0) {
-                        int toTake = Math.min(spaceAvailable, slotItem.getAmount());
+                        int toTake = Math.min(spaceAvailable, furnaceOutputItem.getAmount());
+                        
+                        // Update cursor
                         cursor.setAmount(currentAmount + toTake);
                         player.setItemOnCursor(cursor);
                         
-                        if (slotItem.getAmount() <= toTake) {
+                        // Update slot
+                        if (furnaceOutputItem.getAmount() <= toTake) {
+                            // CRITICAL FIX: Remove entire stack from furnace data
                             furnaceData.setOutputSlot(outputSlotIndex, null);
                             event.getInventory().setItem(slot, null);
+                            
+                            // CRITICAL FIX: Force immediate sync for ALL viewing players
+                            final FurnaceData finalFurnaceData = furnaceData;
+                            final int finalOutputSlotIndex = outputSlotIndex;
+                            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                                updateAllViewersOutputSlot(finalFurnaceData, finalOutputSlotIndex, null);
+                            });
                         } else {
-                            ItemStack remaining = slotItem.clone();
-                            remaining.setAmount(slotItem.getAmount() - toTake);
+                            // Reduce stack size
+                            ItemStack remaining = furnaceOutputItem.clone();
+                            remaining.setAmount(furnaceOutputItem.getAmount() - toTake);
                             furnaceData.setOutputSlot(outputSlotIndex, remaining);
-                            event.getInventory().setItem(slot, remaining);
+                            // CRITICAL FIX: Force immediate sync for ALL viewing players
+                            final FurnaceData finalFurnaceData = furnaceData;
+                            final int finalOutputSlotIndex = outputSlotIndex;
+                            final ItemStack finalRemaining = remaining;
+                            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                                updateAllViewersOutputSlot(finalFurnaceData, finalOutputSlotIndex, finalRemaining);
+                            });
                         }
                         
                         event.setCancelled(true);
                         
-                        plugin.getServer().getScheduler().runTask(plugin, () -> {
-                            CustomFurnaceGUI.forceUpdateAllSlots(player, furnaceData);
-                        });
-                        
                         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                             Main.getInstance().debugLog(DebugSystem.GUI,
-                                "[Output Slot] Stacked " + toTake + " items from output slot " + outputSlotIndex);
+                                "[Output Slot] " + player.getName() + " stacked " + toTake + " items from output slot " + outputSlotIndex);
                         }
                     } else {
                         event.setCancelled(true);
@@ -669,10 +676,36 @@ public class CustomFurnaceGUIListener implements Listener {
         } else {
             // No item in slot - just cancel any interaction
             event.setCancelled(true);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Output Slot] Interaction with empty output slot - cancelled");
+        }
+    }
+
+    /**
+     * Update a specific output slot for ALL players viewing this furnace
+     * CRITICAL FIX: Multi-player synchronization
+     */
+    private void updateAllViewersOutputSlot(FurnaceData furnaceData, int outputSlotIndex, ItemStack newItem) {
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        if (outputSlotIndex < 0 || outputSlotIndex >= layout.outputSlots.length) {
+            return;
+        }
+        
+        int guiSlot = layout.outputSlots[outputSlotIndex];
+        
+        // Update ALL players viewing this furnace
+        for (Player onlinePlayer : plugin.getServer().getOnlinePlayers()) {
+            if (CustomFurnaceGUI.isPlayerViewingFurnace(onlinePlayer, furnaceData)) {
+                Inventory viewerGui = CustomFurnaceGUI.getActiveFurnaceGUI(onlinePlayer);
+                if (viewerGui != null) {
+                    viewerGui.setItem(guiSlot, newItem != null ? newItem.clone() : null);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        String itemName = newItem != null ? 
+                            newItem.getType().name() + " x" + newItem.getAmount() : "AIR";
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Multi-Player Sync] Updated output slot " + outputSlotIndex + 
+                            " to " + itemName + " for viewer " + onlinePlayer.getName());
+                    }
+                }
             }
         }
     }
