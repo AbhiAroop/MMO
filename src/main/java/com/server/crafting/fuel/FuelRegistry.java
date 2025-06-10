@@ -131,22 +131,9 @@ public class FuelRegistry {
             return null;
         }
         
-        // REDUCED LOGGING: Only log occasionally
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[FuelRegistry] Checking fuel for: " + item.getType().name() + 
-                " (amount: " + item.getAmount() + 
-                ", hasCustomData: " + (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) + ")");
-        }
-        
         // Check custom fuels first (they are more specific)
         for (FuelData fuelData : fuels.values()) {
             if (fuelData.isCustom() && fuelData.matches(item)) {
-                // REDUCED LOGGING: Only log occasionally
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[FuelRegistry] Found custom fuel match: " + fuelData.getFuelId());
-                }
                 return fuelData;
             }
         }
@@ -154,18 +141,7 @@ public class FuelRegistry {
         // Check vanilla fuels
         FuelData vanillaFuel = vanillaFuels.get(item.getType());
         if (vanillaFuel != null) {
-            // REDUCED LOGGING: Only log occasionally
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[FuelRegistry] Found vanilla fuel match: " + vanillaFuel.getFuelId());
-            }
             return vanillaFuel;
-        }
-        
-        // REDUCED LOGGING: Only log failures occasionally
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[FuelRegistry] No fuel match found for: " + item.getType().name());
         }
         
         return null;
@@ -176,12 +152,6 @@ public class FuelRegistry {
      */
     public boolean isFuel(ItemStack item) {
         boolean result = getFuelData(item) != null;
-        
-        // REDUCED LOGGING: Only log occasionally and for important events
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && result && System.currentTimeMillis() % 5000 < 50) {
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[FuelRegistry] Fuel check: " + item.getType().name() + " = " + result);
-        }
         
         return result;
     }

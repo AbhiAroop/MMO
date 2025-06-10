@@ -231,8 +231,6 @@ public class CustomFurnaceManager {
                             processFurnaceTick(furnaceData, tickCounter);
                             
                         } catch (Exception e) {
-                            Main.getInstance().getLogger().warning(
-                                "[Custom Furnace] Error processing furnace " + entry.getKey() + ": " + e.getMessage());
                         }
                     }
                     
@@ -247,7 +245,6 @@ public class CustomFurnaceManager {
                     }
                     
                 } catch (Exception e) {
-                    Main.getInstance().getLogger().severe("[Custom Furnace] Critical error in update task: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
@@ -731,13 +728,6 @@ public class CustomFurnaceManager {
         if (tempChange != 0) {
             int newTemp = Math.max(TemperatureSystem.ROOM_TEMPERATURE, currentTemp + tempChange);
             furnaceData.setCurrentTemperature(newTemp);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && tempChange != 0) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Temperature] Furnace at " + locationToString(furnaceData.getLocation()) + 
-                    " temperature: " + currentTemp + " -> " + newTemp + 
-                    " (target: " + targetTemp + ", change: " + tempChange + ")");
-            }
         }
     }
     
@@ -833,12 +823,6 @@ public class CustomFurnaceManager {
         // Check if there are items to process
         List<org.bukkit.inventory.ItemStack> currentInputs = getCurrentInputItems(furnaceData);
         if (currentInputs.isEmpty()) {
-            // REDUCED LOGGING: Only log every 10 seconds (200 ticks) instead of every tick
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Furnace] No items to process - not consuming fuel at " + 
-                    locationToString(furnaceData.getLocation()));
-            }
             return false;
         }
         
@@ -847,31 +831,12 @@ public class CustomFurnaceManager {
             com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
         
         if (recipe == null) {
-            // REDUCED LOGGING: Only log occasionally
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Furnace] No valid recipe found - not consuming fuel at " + 
-                    locationToString(furnaceData.getLocation()));
-            }
             return false;
         }
         
         // Check if output slots have space for the recipe outputs
         if (!hasOutputSpaceForRecipe(furnaceData, recipe)) {
-            // REDUCED LOGGING: Only log occasionally
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 5000 < 50) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Furnace] Output slots full - not consuming fuel at " + 
-                    locationToString(furnaceData.getLocation()));
-            }
             return false;
-        }
-        
-        // REDUCED LOGGING: Only log success occasionally
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Furnace] Valid recipe and space available - can consume fuel at " + 
-                locationToString(furnaceData.getLocation()));
         }
         
         return true;
@@ -886,12 +851,6 @@ public class CustomFurnaceManager {
             if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
                 // CRITICAL FIX: Use the safe update method that includes smart output updates
                 com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
-                
-                // REDUCED LOGGING: Only log every 10 seconds per player
-                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && System.currentTimeMillis() % 10000 < 50) {
-                    Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Furnace] Safe GUI update for " + player.getName() + " (smart output handling)");
-                }
             }
         }
     }
