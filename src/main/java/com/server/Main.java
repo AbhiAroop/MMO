@@ -50,6 +50,7 @@ import com.server.entities.CustomEntityManager;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.dialogue.DialogueManager;
 import com.server.events.AbilityListener;
+import com.server.events.AutoItemEnhancementListener;
 import com.server.events.AutoRespawnListener;
 import com.server.events.CombatListener;
 import com.server.events.CustomMobListener;
@@ -226,6 +227,7 @@ public class Main extends JavaPlugin {
 
     private void registerListeners() {
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new AutoItemEnhancementListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         this.getServer().getPluginManager().registerEvents(mobDisplayManager, this);
         this.getServer().getPluginManager().registerEvents(damageIndicatorManager, this);

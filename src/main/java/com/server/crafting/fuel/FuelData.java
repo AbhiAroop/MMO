@@ -86,7 +86,7 @@ public class FuelData {
     }
     
     /**
-     * Apply fuel lore to an ItemStack
+     * Apply fuel lore to an ItemStack - ENHANCED: Better integration with existing lore
      */
     public static ItemStack applyFuelLore(ItemStack item, FuelData fuelData) {
         if (item == null || fuelData == null) {
@@ -109,17 +109,51 @@ public class FuelData {
             line.contains("Fuel Temperature:") || line.contains("Burn Time:"));
         
         if (!hasFuelLore) {
-            // Add fuel information
-            lore.add("");
-            lore.add(ChatColor.GOLD + "⚡ Fuel Properties:");
-            lore.add(ChatColor.GRAY + "Fuel Temperature: " + 
+            // Find insertion point - after rarity but before other properties
+            int insertIndex = lore.size();
+            
+            // Look for rarity line
+            for (int i = 0; i < lore.size(); i++) {
+                if (lore.get(i).contains("Rarity:")) {
+                    insertIndex = i + 1;
+                    break;
+                }
+            }
+            
+            // Add fuel information at the appropriate location
+            lore.add(insertIndex, "");
+            lore.add(insertIndex + 1, ChatColor.GOLD + "⚡ Fuel Properties:");
+            lore.add(insertIndex + 2, ChatColor.GRAY + "Fuel Temperature: " + 
                     com.server.crafting.temperature.TemperatureSystem.formatTemperature(fuelData.getTemperature()));
-            lore.add(ChatColor.GRAY + "Burn Time: " + ChatColor.YELLOW + fuelData.getFormattedBurnTime());
+            lore.add(insertIndex + 3, ChatColor.GRAY + "Burn Time: " + ChatColor.YELLOW + fuelData.getFormattedBurnTime());
+            
+            // Add fuel efficiency information based on temperature
+            String efficiencyInfo = getFuelEfficiencyDescription(fuelData.getTemperature());
+            if (!efficiencyInfo.isEmpty()) {
+                lore.add(insertIndex + 4, ChatColor.GRAY + "Efficiency: " + efficiencyInfo);
+            }
             
             meta.setLore(lore);
             fuelItem.setItemMeta(meta);
         }
         
         return fuelItem;
+    }
+
+    /**
+     * Get fuel efficiency description based on temperature - NEW METHOD
+     */
+    private static String getFuelEfficiencyDescription(int temperature) {
+        if (temperature >= 1500) {
+            return ChatColor.DARK_PURPLE + "Extreme Heat " + ChatColor.GRAY + "(For specialized furnaces)";
+        } else if (temperature >= 800) {
+            return ChatColor.RED + "High Heat " + ChatColor.GRAY + "(Advanced smelting)";
+        } else if (temperature >= 400) {
+            return ChatColor.GOLD + "Medium Heat " + ChatColor.GRAY + "(General purpose)";
+        } else if (temperature >= 200) {
+            return ChatColor.YELLOW + "Low Heat " + ChatColor.GRAY + "(Basic smelting)";
+        } else {
+            return ChatColor.AQUA + "Cool " + ChatColor.GRAY + "(Specialized processing)";
+        }
     }
 }

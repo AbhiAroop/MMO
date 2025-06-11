@@ -11,8 +11,15 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.server.crafting.fuel.FuelData;
+import com.server.crafting.fuel.FuelRegistry;
+
 public class ItemManager {
     
+    /**
+     * Apply comprehensive item enhancements including rarity and fuel properties
+     * ENHANCED: Now includes automatic fuel lore for all fuel items
+     */
     public static ItemStack applyRarity(ItemStack item) {
         ItemStack modifiedItem = item.clone();
         ItemMeta meta = modifiedItem.getItemMeta();
@@ -48,7 +55,73 @@ public class ItemManager {
             modifiedItem.setItemMeta(meta);
         }
         
+        // CRITICAL NEW FEATURE: Apply fuel lore for all fuel items automatically
+        modifiedItem = applyFuelLoreIfApplicable(modifiedItem);
+        
         return modifiedItem;
+    }
+    
+    /**
+     * Apply fuel lore to items that are valid fuels - NEW METHOD
+     * This ensures all fuel items always display their properties
+     */
+    public static ItemStack applyFuelLoreIfApplicable(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return item;
+        }
+        
+        // Check if this item is a valid fuel
+        FuelData fuelData = FuelRegistry.getInstance().getFuelData(item);
+        if (fuelData != null) {
+            // Apply fuel lore using the existing method from FuelData
+            return FuelData.applyFuelLore(item, fuelData);
+        }
+        
+        return item;
+    }
+    
+    /**
+     * Enhanced method to apply fuel properties to any item - PUBLIC ACCESS
+     * This can be called from anywhere to ensure fuel items have proper lore
+     */
+    public static ItemStack enhanceItemWithAllProperties(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return item;
+        }
+        
+        // Apply rarity first (which includes fuel lore)
+        ItemStack enhanced = applyRarity(item);
+        
+        // Double-check fuel lore is applied
+        enhanced = applyFuelLoreIfApplicable(enhanced);
+        
+        return enhanced;
+    }
+    
+    /**
+     * Check if an item is a fuel and needs fuel lore - NEW METHOD
+     */
+    public static boolean needsFuelLore(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return false;
+        }
+        
+        // Check if it's a fuel
+        FuelData fuelData = FuelRegistry.getInstance().getFuelData(item);
+        if (fuelData == null) {
+            return false;
+        }
+        
+        // Check if it already has fuel lore
+        if (!item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+            return true;
+        }
+        
+        List<String> lore = item.getItemMeta().getLore();
+        boolean hasFuelLore = lore.stream().anyMatch(line -> 
+            line.contains("Fuel Temperature:") || line.contains("Burn Time:"));
+        
+        return !hasFuelLore;
     }
 
     // For future custom items with attack speed
@@ -78,7 +151,6 @@ public class ItemManager {
         item.setItemMeta(meta);
         return item;
     }
-
 
     // Add method to check if item already has rarity
     public static boolean hasRarity(ItemStack item) {
@@ -158,8 +230,21 @@ public class ItemManager {
     }
 
     private static ItemRarity getItemRarity(Material material) {
-        // For now, return BASIC for all vanilla items
-        // This can be expanded later with custom rarity mappings
+        // Enhanced rarity detection for fuel items
+        if (FuelRegistry.getInstance().isFuel(new ItemStack(material))) {
+            FuelData fuelData = FuelRegistry.getInstance().getFuelData(new ItemStack(material));
+            if (fuelData != null) {
+                int temperature = fuelData.getTemperature();
+                
+                // Assign rarity based on fuel temperature
+                if (temperature >= 1500) return ItemRarity.ARCANE;      // Very high temp fuels
+                if (temperature >= 800) return ItemRarity.RARE;        // High temp fuels  
+                if (temperature >= 400) return ItemRarity.ENHANCED;    // Medium temp fuels
+                return ItemRarity.BASIC;                               // Low temp fuels
+            }
+        }
+        
+        // For non-fuel items, return BASIC for all vanilla items
         return ItemRarity.BASIC;
     }
 

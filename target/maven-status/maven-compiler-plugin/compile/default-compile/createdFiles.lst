@@ -160,6 +160,7 @@ com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
 com\server\profiles\skills\gui\SubskillDetailsGUI.class
 com\server\profiles\skills\events\SkillEventListener$1.class
+com\server\events\AutoItemEnhancementListener.class
 com\server\commands\ProfileCommand.class
 com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.class
 com\server\profiles\skills\core\SkillLevelupListener.class
