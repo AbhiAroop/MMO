@@ -556,8 +556,8 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Update cooking timer display - ENHANCED: Recipe information
-     * Step 4: Recipe progress display
+     * Update cooking timer display - ENHANCED: Recipe information with temperature bonus details
+     * Step 4: Recipe progress display with actual cook times
      */
     private static void updateCookTimer(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
         ItemStack timerItem;
@@ -580,6 +580,16 @@ public class CustomFurnaceGUI {
                 String cookBar = createProgressBar(cookProgress, 15, '█', '░');
                 int remainingTime = furnaceData.getEstimatedTimeRemaining();
                 
+                // CRITICAL ENHANCEMENT: Calculate actual cook times with temperature bonus
+                int baseCookTime = currentRecipe.getCookTime();
+                int currentTemp = furnaceData.getCurrentTemperature();
+                double efficiency = com.server.crafting.temperature.TemperatureSystem
+                    .getTemperatureEfficiency(currentTemp, currentRecipe.getRequiredTemperature());
+                
+                // Calculate actual cook time with efficiency
+                int actualCookTime = (int) (baseCookTime / Math.max(efficiency, 0.1)); // Prevent division by zero
+                int timeSaved = baseCookTime - actualCookTime;
+                
                 List<String> lore = new ArrayList<>();
                 lore.add(ChatColor.GRAY + "Recipe Type: " + ChatColor.WHITE + currentRecipe.getRecipeType().getDisplayName());
                 lore.add(ChatColor.GRAY + "Progress: " + ChatColor.WHITE + String.format("%.1f%%", cookProgress * 100));
@@ -587,24 +597,38 @@ public class CustomFurnaceGUI {
                 lore.add("");
                 lore.add(ChatColor.GREEN + cookBar);
                 lore.add("");
-                lore.add(ChatColor.GRAY + "Required Temp: " + currentRecipe.getFormattedTemperature());
-                lore.add(ChatColor.GRAY + "Cook Time: " + ChatColor.WHITE + currentRecipe.getFormattedCookTime());
                 
-                // Temperature efficiency indicator
-                int currentTemp = furnaceData.getCurrentTemperature();
-                double efficiency = com.server.crafting.temperature.TemperatureSystem
-                    .getTemperatureEfficiency(currentTemp, currentRecipe.getRequiredTemperature());
+                // ENHANCED: Show base cook time vs actual cook time with temperature bonus
+                lore.add(ChatColor.GRAY + "Base Cook Time: " + ChatColor.WHITE + formatTime(baseCookTime));
                 
                 if (efficiency > 1.0) {
+                    // Show enhanced cook time with time saved
+                    lore.add(ChatColor.GRAY + "Actual Cook Time: " + ChatColor.GREEN + formatTime(actualCookTime) + 
+                            ChatColor.GRAY + " (" + ChatColor.YELLOW + "-" + formatTime(timeSaved) + ChatColor.GRAY + " saved)");
+                    
                     lore.add("");
-                    lore.add(ChatColor.GREEN + "⚡ Temperature Bonus: " + String.format("%.0f%%", (efficiency - 1.0) * 100));
+                    lore.add(ChatColor.GREEN + "⚡ Temperature Bonus: " + ChatColor.YELLOW + String.format("%.0f%%", (efficiency - 1.0) * 100) + " faster");
+                    lore.add(ChatColor.GRAY + "Current: " + furnaceData.getFormattedTemperature());
+                    lore.add(ChatColor.GRAY + "Required: " + currentRecipe.getFormattedTemperature());
+                } else if (efficiency == 1.0) {
+                    // No bonus, show normal time
+                    lore.add(ChatColor.GRAY + "Actual Cook Time: " + ChatColor.WHITE + formatTime(actualCookTime) + 
+                            ChatColor.GRAY + " (optimal temp)");
+                    lore.add("");
+                    lore.add(ChatColor.GRAY + "Required Temp: " + currentRecipe.getFormattedTemperature());
+                } else {
+                    // Below required temperature - can't cook
+                    lore.add(ChatColor.GRAY + "Actual Cook Time: " + ChatColor.RED + "Cannot cook");
+                    lore.add("");
+                    lore.add(ChatColor.RED + "⚠ Temperature too low!");
+                    lore.add(ChatColor.GRAY + "Current: " + furnaceData.getFormattedTemperature());
+                    lore.add(ChatColor.GRAY + "Required: " + currentRecipe.getFormattedTemperature());
                 }
                 
                 if (furnaceData.isPaused()) {
                     lore.add("");
                     lore.add(ChatColor.RED + "⏸ Paused - Temperature too low");
-                    lore.add(ChatColor.RED + "Current: " + furnaceData.getFormattedTemperature());
-                    lore.add(ChatColor.RED + "Required: " + currentRecipe.getFormattedTemperature());
+                    lore.add(ChatColor.RED + "Increase furnace temperature to continue");
                 }
                 
                 meta.setLore(lore);
@@ -645,10 +669,29 @@ public class CustomFurnaceGUI {
                     com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
                 
                 if (matchingRecipe != null) {
+                    // ENHANCED: Show temperature bonus preview for available recipe
+                    int baseCookTime = matchingRecipe.getCookTime();
+                    int currentTemp = furnaceData.getCurrentTemperature();
+                    double efficiency = com.server.crafting.temperature.TemperatureSystem
+                        .getTemperatureEfficiency(currentTemp, matchingRecipe.getRequiredTemperature());
+                    
+                    int actualCookTime = (int) (baseCookTime / Math.max(efficiency, 0.1));
+                    int timeSaved = baseCookTime - actualCookTime;
+                    
                     lore.add(ChatColor.GREEN + "✓ Recipe Available:");
                     lore.add(ChatColor.WHITE + "  " + matchingRecipe.getDisplayName());
                     lore.add(ChatColor.GRAY + "  " + matchingRecipe.getFormattedTemperature());
-                    lore.add(ChatColor.GRAY + "  " + matchingRecipe.getFormattedCookTime());
+                    
+                    // Show cook time with potential bonus
+                    if (efficiency > 1.0) {
+                        lore.add(ChatColor.GRAY + "  Base Time: " + ChatColor.WHITE + formatTime(baseCookTime));
+                        lore.add(ChatColor.GRAY + "  With Bonus: " + ChatColor.GREEN + formatTime(actualCookTime) + 
+                                ChatColor.GRAY + " (" + ChatColor.YELLOW + "-" + formatTime(timeSaved) + ChatColor.GRAY + ")");
+                    } else if (efficiency == 1.0) {
+                        lore.add(ChatColor.GRAY + "  Cook Time: " + ChatColor.WHITE + formatTime(baseCookTime));
+                    } else {
+                        lore.add(ChatColor.GRAY + "  Cook Time: " + ChatColor.RED + "Need higher temp");
+                    }
                 } else {
                     lore.add(ChatColor.YELLOW + "No recipe found for current items");
                 }
