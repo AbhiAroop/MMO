@@ -3,6 +3,7 @@ package com.server.commands;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -490,7 +491,11 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace settemp <temp>" + ChatColor.GRAY + " - Set furnace temperature");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace addfuel [type] [amount]" + ChatColor.GRAY + " - Add fuel to furnace");
         sender.sendMessage(ChatColor.GRAY + "  Fuel types: coal, charcoal, coal_block, blaze_rod, lava_bucket, stick, planks");
-        sender.sendMessage(ChatColor.YELLOW + "/adminfurnace recipes <list|info|temp>" + ChatColor.GRAY + " - Recipe management");
+        sender.sendMessage(ChatColor.YELLOW + "/adminfurnace recipes <list|info|temp|all>" + ChatColor.GRAY + " - Recipe management");
+        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + "list" + ChatColor.GRAY + " - Show recipe summary by type");
+        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + "info <recipe_id>" + ChatColor.GRAY + " - Show specific recipe details");
+        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + "temp <temperature>" + ChatColor.GRAY + " - Show recipes for temperature");
+        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + "all" + ChatColor.GRAY + " - Show complete recipe database");
         sender.sendMessage(ChatColor.YELLOW + "/adminfurnace debug" + ChatColor.GRAY + " - Toggle debug mode");
         sender.sendMessage("");
         sender.sendMessage(ChatColor.GRAY + "Available furnace types: " + 
@@ -518,7 +523,7 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
                     completions.addAll(Arrays.asList("coal", "charcoal", "coal_block", "blaze_rod", "lava_bucket", "stick", "planks", "magma_block", "netherite_scrap"));
                     break;
                 case "recipes":
-                    completions.addAll(Arrays.asList("list", "info", "temp"));
+                    completions.addAll(Arrays.asList("list", "info", "temp", "all"));
                     break;
             }
         } else if (args.length == 3) {
@@ -531,6 +536,16 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
             } else if ("addfuel".equals(subCommand)) {
                 // Add amount suggestions
                 completions.addAll(Arrays.asList("1", "8", "16", "32", "64"));
+            } else if ("recipes".equals(subCommand) && "info".equals(args[1].toLowerCase())) {
+                // Add recipe IDs for info command
+                Collection<com.server.crafting.recipes.FurnaceRecipe> recipes = 
+                    com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().getAllRecipes();
+                for (com.server.crafting.recipes.FurnaceRecipe recipe : recipes) {
+                    completions.add(recipe.getRecipeId());
+                }
+            } else if ("recipes".equals(subCommand) && "temp".equals(args[1].toLowerCase())) {
+                // Add common temperature suggestions
+                completions.addAll(Arrays.asList("100", "200", "400", "600", "800", "1000", "1200", "1500", "1800"));
             }
         }
         
@@ -544,7 +559,7 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleRecipesCommand(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "Usage: /adminfurnace recipes <list|info <recipe_id>|temp <temperature>>");
+            sender.sendMessage(ChatColor.RED + "Usage: /adminfurnace recipes <list|info <recipe_id>|temp <temperature>|all>");
             return true;
         }
         
@@ -573,8 +588,12 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(ChatColor.RED + "Invalid temperature: " + args[2]);
                 }
                 break;
+            case "all":
+                showAllRecipeDetails(sender);
+                break;
             default:
                 sender.sendMessage(ChatColor.RED + "Unknown recipes subcommand: " + subCommand);
+                sender.sendMessage(ChatColor.YELLOW + "Available subcommands: list, info, temp, all");
                 break;
         }
         
@@ -582,19 +601,45 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * List all available recipes
+     * List all available recipes - ENHANCED: Better organization and statistics
      */
     private void listAllRecipes(CommandSender sender) {
         Collection<com.server.crafting.recipes.FurnaceRecipe> recipes = 
             com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().getAllRecipes();
         
-        sender.sendMessage(ChatColor.GOLD + "=== All Furnace Recipes (" + recipes.size() + ") ===");
+        sender.sendMessage(ChatColor.GOLD + "=== All Furnace Recipes (" + recipes.size() + " total) ===");
         
+        // Group recipes by type and count
         Map<com.server.crafting.recipes.FurnaceRecipe.RecipeType, List<com.server.crafting.recipes.FurnaceRecipe>> 
             recipesByType = recipes.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
                     com.server.crafting.recipes.FurnaceRecipe::getRecipeType));
         
+        // Show summary first
+        sender.sendMessage("");
+        sender.sendMessage(ChatColor.AQUA + "Recipe Type Summary:");
+        for (com.server.crafting.recipes.FurnaceRecipe.RecipeType type : 
+            com.server.crafting.recipes.FurnaceRecipe.RecipeType.values()) {
+            
+            List<com.server.crafting.recipes.FurnaceRecipe> typeRecipes = recipesByType.get(type);
+            int count = typeRecipes != null ? typeRecipes.size() : 0;
+            
+            if (count > 0) {
+                // Get temperature range for this type
+                int minTemp = typeRecipes.stream()
+                    .mapToInt(com.server.crafting.recipes.FurnaceRecipe::getRequiredTemperature)
+                    .min().orElse(0);
+                int maxTemp = typeRecipes.stream()
+                    .mapToInt(com.server.crafting.recipes.FurnaceRecipe::getRequiredTemperature)
+                    .max().orElse(0);
+                
+                sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + type.getDisplayName() + 
+                                ChatColor.GRAY + ": " + ChatColor.YELLOW + count + " recipes " +
+                                ChatColor.GRAY + "(" + minTemp + "°T - " + maxTemp + "°T)");
+            }
+        }
+        
+        // Show detailed recipes by type
         for (com.server.crafting.recipes.FurnaceRecipe.RecipeType type : 
             com.server.crafting.recipes.FurnaceRecipe.RecipeType.values()) {
             
@@ -602,13 +647,194 @@ public class AdminFurnaceCommand implements CommandExecutor, TabCompleter {
             if (typeRecipes != null && !typeRecipes.isEmpty()) {
                 sender.sendMessage("");
                 sender.sendMessage(ChatColor.AQUA + type.getDisplayName() + " (" + typeRecipes.size() + "):");
+                sender.sendMessage(ChatColor.GRAY + type.getDescription());
                 
                 for (com.server.crafting.recipes.FurnaceRecipe recipe : typeRecipes) {
+                    String difficultyColor = getDifficultyColor(recipe.getRequiredTemperature());
                     sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + recipe.getDisplayName() + 
-                                    ChatColor.GRAY + " - " + recipe.getFormattedTemperature() + 
-                                    ", " + recipe.getFormattedCookTime());
+                                    ChatColor.GRAY + " - " + difficultyColor + recipe.getFormattedTemperature() + 
+                                    ChatColor.GRAY + ", " + ChatColor.YELLOW + recipe.getFormattedCookTime() +
+                                    ChatColor.GRAY + " (ID: " + ChatColor.DARK_GRAY + recipe.getRecipeId() + ChatColor.GRAY + ")");
                 }
             }
+        }
+        
+        // Show usage instructions
+        sender.sendMessage("");
+        sender.sendMessage(ChatColor.YELLOW + "Use '/adminfurnace recipes info <recipe_id>' for detailed recipe information");
+        sender.sendMessage(ChatColor.YELLOW + "Use '/adminfurnace recipes temp <temperature>' to filter by temperature");
+        sender.sendMessage(ChatColor.YELLOW + "Use '/adminfurnace recipes all' to see full recipe details");
+    }
+
+    /**
+     * Show all recipes with complete details - NEW METHOD
+     */
+    private void showAllRecipeDetails(CommandSender sender) {
+        Collection<com.server.crafting.recipes.FurnaceRecipe> recipes = 
+            com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().getAllRecipes();
+        
+        sender.sendMessage(ChatColor.GOLD + "=== Complete Recipe Database (" + recipes.size() + " recipes) ===");
+        
+        // Sort recipes by temperature for better organization
+        List<com.server.crafting.recipes.FurnaceRecipe> sortedRecipes = recipes.stream()
+            .sorted((r1, r2) -> Integer.compare(r1.getRequiredTemperature(), r2.getRequiredTemperature()))
+            .collect(java.util.stream.Collectors.toList());
+        
+        int currentPage = 1;
+        int recipesPerPage = 5;
+        int totalPages = (int) Math.ceil((double) recipes.size() / recipesPerPage);
+        
+        for (int i = 0; i < sortedRecipes.size(); i++) {
+            com.server.crafting.recipes.FurnaceRecipe recipe = sortedRecipes.get(i);
+            
+            // Page header
+            if (i % recipesPerPage == 0) {
+                if (i > 0) {
+                    sender.sendMessage("");
+                    sender.sendMessage(ChatColor.GRAY + "--- Page " + currentPage + " of " + totalPages + " ---");
+                    sender.sendMessage("");
+                }
+                currentPage++;
+            }
+            
+            // Recipe header
+            String difficultyColor = getDifficultyColor(recipe.getRequiredTemperature());
+            sender.sendMessage(ChatColor.GOLD + "▼ " + recipe.getDisplayName() + 
+                            ChatColor.GRAY + " (ID: " + recipe.getRecipeId() + ")");
+            
+            // Recipe details
+            sender.sendMessage(ChatColor.GRAY + "   Type: " + ChatColor.WHITE + recipe.getRecipeType().getDisplayName());
+            sender.sendMessage(ChatColor.GRAY + "   Temperature: " + difficultyColor + recipe.getFormattedTemperature());
+            sender.sendMessage(ChatColor.GRAY + "   Cook Time: " + ChatColor.YELLOW + recipe.getFormattedCookTime());
+            
+            if (!recipe.getDescription().isEmpty()) {
+                sender.sendMessage(ChatColor.GRAY + "   Description: " + ChatColor.ITALIC + recipe.getDescription());
+            }
+            
+            // Show inputs
+            sender.sendMessage(ChatColor.AQUA + "   Inputs:");
+            for (ItemStack input : recipe.getInputs()) {
+                String inputName = formatItemName(input);
+                sender.sendMessage(ChatColor.WHITE + "     • " + input.getAmount() + "x " + inputName);
+            }
+            
+            // Show outputs
+            sender.sendMessage(ChatColor.GREEN + "   Outputs:");
+            for (ItemStack output : recipe.getOutputs()) {
+                String outputName = formatItemName(output);
+                sender.sendMessage(ChatColor.WHITE + "     • " + output.getAmount() + "x " + outputName);
+            }
+            
+            // Efficiency information
+            double baseEfficiency = com.server.crafting.temperature.TemperatureSystem
+                .getTemperatureEfficiency(recipe.getRequiredTemperature(), recipe.getRequiredTemperature());
+            double highTempEfficiency = com.server.crafting.temperature.TemperatureSystem
+                .getTemperatureEfficiency(recipe.getRequiredTemperature() + 200, recipe.getRequiredTemperature());
+            
+            if (highTempEfficiency > baseEfficiency) {
+                int timeSaved = (int) (recipe.getCookTime() * (1.0 - (baseEfficiency / highTempEfficiency)));
+                sender.sendMessage(ChatColor.YELLOW + "   Efficiency: " + ChatColor.GREEN + 
+                                String.format("%.0f%% faster", (highTempEfficiency - 1.0) * 100) + 
+                                ChatColor.GRAY + " at " + (recipe.getRequiredTemperature() + 200) + "°T " +
+                                ChatColor.GRAY + "(" + formatTime(timeSaved) + " saved)");
+            }
+            
+            sender.sendMessage(""); // Spacing between recipes
+        }
+        
+        // Show statistics
+        sender.sendMessage(ChatColor.GOLD + "=== Recipe Statistics ===");
+        
+        // Temperature distribution
+        Map<String, Integer> tempRanges = new HashMap<>();
+        tempRanges.put("Low (0-400°T)", 0);
+        tempRanges.put("Medium (400-800°T)", 0);
+        tempRanges.put("High (800-1200°T)", 0);
+        tempRanges.put("Very High (1200-1600°T)", 0);
+        tempRanges.put("Extreme (1600°T+)", 0);
+        
+        for (com.server.crafting.recipes.FurnaceRecipe recipe : recipes) {
+            int temp = recipe.getRequiredTemperature();
+            if (temp < 400) {
+                tempRanges.put("Low (0-400°T)", tempRanges.get("Low (0-400°T)") + 1);
+            } else if (temp < 800) {
+                tempRanges.put("Medium (400-800°T)", tempRanges.get("Medium (400-800°T)") + 1);
+            } else if (temp < 1200) {
+                tempRanges.put("High (800-1200°T)", tempRanges.get("High (800-1200°T)") + 1);
+            } else if (temp < 1600) {
+                tempRanges.put("Very High (1200-1600°T)", tempRanges.get("Very High (1200-1600°T)") + 1);
+            } else {
+                tempRanges.put("Extreme (1600°T+)", tempRanges.get("Extreme (1600°T+)") + 1);
+            }
+        }
+        
+        sender.sendMessage(ChatColor.AQUA + "Temperature Distribution:");
+        for (Map.Entry<String, Integer> entry : tempRanges.entrySet()) {
+            if (entry.getValue() > 0) {
+                sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + entry.getKey() + 
+                                ChatColor.GRAY + ": " + ChatColor.YELLOW + entry.getValue() + " recipes");
+            }
+        }
+        
+        // Average cook time
+        double avgCookTime = recipes.stream()
+            .mapToInt(com.server.crafting.recipes.FurnaceRecipe::getCookTime)
+            .average().orElse(0.0);
+        sender.sendMessage(ChatColor.AQUA + "Average Cook Time: " + ChatColor.YELLOW + formatTime((int) avgCookTime));
+        
+        // Recipe complexity (input count)
+        double avgInputs = recipes.stream()
+            .mapToInt(r -> r.getInputs().size())
+            .average().orElse(0.0);
+        sender.sendMessage(ChatColor.AQUA + "Average Inputs per Recipe: " + ChatColor.YELLOW + String.format("%.1f", avgInputs));
+    }
+
+    /**
+     * Get difficulty color based on temperature
+     */
+    private String getDifficultyColor(int temperature) {
+        if (temperature >= 1600) {
+            return ChatColor.DARK_RED.toString();
+        } else if (temperature >= 1200) {
+            return ChatColor.RED.toString();
+        } else if (temperature >= 800) {
+            return ChatColor.GOLD.toString();
+        } else if (temperature >= 400) {
+            return ChatColor.YELLOW.toString();
+        } else {
+            return ChatColor.GREEN.toString();
+        }
+    }
+
+    /**
+     * Format item name for display
+     */
+    private String formatItemName(ItemStack item) {
+        if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            return ChatColor.stripColor(item.getItemMeta().getDisplayName());
+        }
+        
+        // Convert MATERIAL_NAME to Material Name
+        String[] words = item.getType().name().toLowerCase().split("_");
+        StringBuilder formatted = new StringBuilder();
+        for (String word : words) {
+            if (formatted.length() > 0) formatted.append(" ");
+            formatted.append(word.substring(0, 1).toUpperCase()).append(word.substring(1));
+        }
+        return formatted.toString();
+    }
+
+    /**
+     * Format time from ticks to readable format
+     */
+    private String formatTime(int ticks) {
+        int seconds = ticks / 20;
+        if (seconds < 60) {
+            return seconds + "s";
+        } else {
+            int minutes = seconds / 60;
+            int remainingSeconds = seconds % 60;
+            return minutes + "m " + remainingSeconds + "s";
         }
     }
 
