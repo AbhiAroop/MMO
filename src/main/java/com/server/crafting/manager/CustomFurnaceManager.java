@@ -1,6 +1,7 @@
 package com.server.crafting.manager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,12 @@ public class CustomFurnaceManager {
     private final Map<String, FurnaceData> furnaceDataMap;
     private final Map<UUID, Location> playerFurnaceAccess;
     private BukkitTask furnaceUpdateTask;
+
+    // Offline progression system
+    private final Map<String, Long> furnaceLastActiveTime = new ConcurrentHashMap<>();
+    private final Set<String> activeFurnaces = new HashSet<>();
+    private static final double FURNACE_ACTIVITY_RANGE = 64.0; // Blocks
+    
     
     private CustomFurnaceManager() {
         this.furnaceDataMap = new ConcurrentHashMap<>();
@@ -212,8 +219,8 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Start the main furnace update task
-     * Step 2: Core processing loop
+     * Start the main furnace update task - ENHANCED: Proximity-based processing
+     * Step 2: Core processing loop with offline calculations
      */
     private void startFurnaceUpdateTask() {
         furnaceUpdateTask = new BukkitRunnable() {
@@ -224,14 +231,12 @@ public class CustomFurnaceManager {
                 try {
                     tickCounter++;
                     
-                    // Process all furnaces every tick
-                    for (Map.Entry<String, FurnaceData> entry : furnaceDataMap.entrySet()) {
-                        try {
-                            FurnaceData furnaceData = entry.getValue();
-                            processFurnaceTick(furnaceData, tickCounter);
-                            
-                        } catch (Exception e) {
-                        }
+                    // Process only active furnaces every tick
+                    processActiveFurnaces(tickCounter);
+                    
+                    // Check furnace proximity every 5 seconds (100 ticks)
+                    if (tickCounter % 100 == 0) {
+                        updateFurnaceActivity();
                     }
                     
                     // Update block states every 20 ticks (1 second)
@@ -245,13 +250,14 @@ public class CustomFurnaceManager {
                     }
                     
                 } catch (Exception e) {
+                    Main.getInstance().getLogger().severe("[Furnace Manager] Error in update task: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
         }.runTaskTimer(Main.getInstance(), 1L, 1L);
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Started furnace update task");
+            Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Started lightweight furnace update task");
         }
     }
 
@@ -665,12 +671,12 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Create a unique key for an item (for ingredient matching)
+     * Create a unique key for an item (for ingredient matching) - ENHANCED: Better key generation
      * Step 4: Item identification
      */
     private String createItemKey(org.bukkit.inventory.ItemStack item) {
-        if (item == null) {
-            return "null";
+        if (item == null || item.getType() == org.bukkit.Material.AIR) {
+            return "AIR";
         }
         
         StringBuilder key = new StringBuilder();
@@ -678,12 +684,12 @@ public class CustomFurnaceManager {
         
         // Include custom model data for custom items
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
-            key.append(":cmd:").append(item.getItemMeta().getCustomModelData());
+            key.append(":CMD:").append(item.getItemMeta().getCustomModelData());
         }
         
         // Include display name for named items
         if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-            key.append(":name:").append(item.getItemMeta().getDisplayName());
+            key.append(":NAME:").append(item.getItemMeta().getDisplayName().replaceAll("§[0-9a-fk-or]", ""));
         }
         
         return key.toString();
@@ -1248,5 +1254,500 @@ public class CustomFurnaceManager {
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI, "[Custom Furnace] Manager shutdown complete");
         }
+    }
+
+    /**
+     * Process only furnaces that have players nearby
+     */
+    private void processActiveFurnaces(int tickCounter) {
+        for (String locationKey : activeFurnaces) {
+            FurnaceData furnaceData = furnaceDataMap.get(locationKey);
+            if (furnaceData != null) {
+                try {
+                    processFurnaceTick(furnaceData, tickCounter);
+                } catch (Exception e) {
+                    Main.getInstance().getLogger().warning("[Furnace] Error processing furnace at " + locationKey + ": " + e.getMessage());
+                }
+            }
+        }
+    }
+    
+    /**
+     * Update which furnaces are active based on player proximity
+     */
+    private void updateFurnaceActivity() {
+        Set<String> newActiveFurnaces = new HashSet<>();
+        
+        for (Map.Entry<String, FurnaceData> entry : furnaceDataMap.entrySet()) {
+            String locationKey = entry.getKey();
+            FurnaceData furnaceData = entry.getValue();
+            Location furnaceLocation = furnaceData.getLocation();
+            
+            boolean hasNearbyPlayers = false;
+            
+            // Check if any players are within range
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.getWorld().equals(furnaceLocation.getWorld())) {
+                    double distance = player.getLocation().distance(furnaceLocation);
+                    if (distance <= FURNACE_ACTIVITY_RANGE) {
+                        hasNearbyPlayers = true;
+                        break;
+                    }
+                }
+            }
+            
+            boolean wasActive = activeFurnaces.contains(locationKey);
+            
+            if (hasNearbyPlayers) {
+                // Player is nearby - process offline progress if needed
+                if (!wasActive && furnaceData.hasOfflineProgress()) {
+                    processOfflineProgress(furnaceData);
+                }
+                newActiveFurnaces.add(locationKey);
+            } else {
+                // No players nearby - prepare for offline mode
+                if (wasActive) {
+                    furnaceData.enterOfflineMode();
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Offline Mode] Furnace at " + locationKey + " entering offline mode");
+                    }
+                }
+            }
+        }
+        
+        // Update active furnaces set
+        int previousActive = activeFurnaces.size();
+        activeFurnaces.clear();
+        activeFurnaces.addAll(newActiveFurnaces);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI) && previousActive != activeFurnaces.size()) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Furnace Manager] Active furnaces: " + previousActive + " -> " + activeFurnaces.size());
+        }
+    }
+    
+    /**
+     * Process offline progress for a furnace that just became active - ENHANCED: Complete consumption
+     */
+    private void processOfflineProgress(FurnaceData furnaceData) {
+        if (!furnaceData.hasOfflineProgress()) {
+            return;
+        }
+        
+        long offlineTimeTicks = furnaceData.getOfflineTimeTicks();
+        if (offlineTimeTicks <= 0) {
+            furnaceData.clearOfflineProgress();
+            return;
+        }
+        
+        // Cap offline time to prevent excessive calculations (max 24 hours)
+        long maxOfflineTime = 24 * 60 * 60 * 20; // 24 hours in ticks
+        offlineTimeTicks = Math.min(offlineTimeTicks, maxOfflineTime);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Progress] Processing " + offlineTimeTicks + " ticks for furnace at " + 
+                locationToString(furnaceData.getLocation()));
+        }
+        
+        // Restore saved state
+        furnaceData.setCookTime(furnaceData.getSavedCookProgress());
+        furnaceData.setFuelTime(furnaceData.getSavedFuelTime());
+        furnaceData.setCurrentTemperature(furnaceData.getSavedCurrentTemp());
+        furnaceData.setActive(furnaceData.wasActiveWhenLeft());
+        
+        // Process offline time
+        OfflineProgressResult result = calculateOfflineProgress(furnaceData, offlineTimeTicks);
+        
+        // Apply results
+        furnaceData.setCookTime(result.finalCookTime);
+        furnaceData.setFuelTime(result.finalFuelTime);
+        furnaceData.setCurrentTemperature(result.finalTemperature);
+        furnaceData.setActive(result.stillActive);
+        
+        // CRITICAL FIX: Apply ingredient consumption BEFORE producing outputs
+        applyOfflineIngredientConsumption(furnaceData, result);
+        
+        // Complete any finished recipes (produce outputs)
+        for (int completedRecipes : result.completedRecipesList) {
+            for (int i = 0; i < completedRecipes; i++) {
+                if (result.currentRecipe != null) {
+                    produceRecipeOutputs(furnaceData, result.currentRecipe);
+                }
+            }
+        }
+        
+        // CRITICAL FIX: Consume fuel items from actual furnace slots
+        for (int i = 0; i < result.fuelItemsConsumed; i++) {
+            consumeOneFuelItem(furnaceData);
+        }
+        
+        // Clear offline progress
+        furnaceData.clearOfflineProgress();
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Progress] Completed processing. Recipes completed: " + result.totalRecipesCompleted + 
+                ", Fuel consumed: " + result.fuelItemsConsumed + ", Final active: " + result.stillActive +
+                ", Ingredients consumed: " + result.ingredientsConsumed.size());
+        }
+    }
+    
+    /**
+     * Calculate what would happen during offline time - ENHANCED: Temperature efficiency and proper consumption
+     */
+    private OfflineProgressResult calculateOfflineProgress(FurnaceData furnaceData, long offlineTimeTicks) {
+        OfflineProgressResult result = new OfflineProgressResult();
+        
+        // Get current recipe if any
+        List<ItemStack> currentInputs = getCurrentInputItems(furnaceData);
+        result.currentRecipe = currentInputs.isEmpty() ? null : 
+            com.server.crafting.recipes.FurnaceRecipeRegistry.getInstance().findRecipe(currentInputs);
+        
+        // Simulate processing
+        long remainingTime = offlineTimeTicks;
+        result.finalCookTime = furnaceData.getSavedCookProgress();
+        result.finalFuelTime = furnaceData.getSavedFuelTime();
+        result.finalTemperature = furnaceData.getSavedCurrentTemp();
+        result.stillActive = furnaceData.wasActiveWhenLeft();
+        
+        // CRITICAL FIX: Store ingredient consumption tracking
+        result.ingredientsConsumed = new ArrayList<>();
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Progress] Starting simulation - Recipe: " + (result.currentRecipe != null ? result.currentRecipe.getDisplayName() : "None") +
+                ", Active: " + result.stillActive + ", Time: " + remainingTime + " ticks");
+        }
+        
+        // Only process if furnace was active and has a valid recipe
+        if (!result.stillActive || result.currentRecipe == null) {
+            // Just cool down temperature
+            result.finalTemperature = simulateCooling(result.finalTemperature, remainingTime);
+            result.stillActive = false;
+            return result;
+        }
+        
+        // CRITICAL FIX: Simulate each tick individually to properly apply temperature efficiency
+        for (long tick = 0; tick < remainingTime && result.finalFuelTime > 0; tick++) {
+            // Check if we still have ingredients to process
+            if (!hasIngredientsForRecipe(furnaceData, result.currentRecipe, result.ingredientsConsumed)) {
+                result.stillActive = false;
+                break;
+            }
+            
+            // Check if output has space
+            if (!hasOutputSpaceForRecipe(furnaceData, result.currentRecipe)) {
+                result.stillActive = false;
+                break;
+            }
+            
+            // CRITICAL FIX: Apply temperature efficiency to cooking speed
+            int requiredTemp = result.currentRecipe.getRequiredTemperature();
+            double efficiency = TemperatureSystem.getTemperatureEfficiency(result.finalTemperature, requiredTemp);
+            
+            if (efficiency <= 0) {
+                // Temperature too low - can't cook
+                continue;
+            }
+            
+            // CRITICAL FIX: Apply efficiency to cooking progress
+            int cookProgress = (int) (efficiency * 1.0); // Base 1 tick progress, modified by efficiency
+            result.finalCookTime += cookProgress;
+            
+            // Check if recipe is complete
+            if (result.finalCookTime >= result.currentRecipe.getCookTime()) {
+                // Recipe completed!
+                result.totalRecipesCompleted++;
+                result.completedRecipesList.add(1);
+                result.finalCookTime = 0; // Reset for next recipe
+                
+                // CRITICAL FIX: Track ingredient consumption for this recipe
+                consumeIngredientsForOfflineRecipe(furnaceData, result.currentRecipe, result);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Offline Progress] Recipe completed at tick " + tick + ", efficiency: " + efficiency);
+                }
+                
+                // Check if we can start another recipe with remaining ingredients
+                if (!hasIngredientsForRecipe(furnaceData, result.currentRecipe, result.ingredientsConsumed)) {
+                    result.stillActive = false;
+                    break;
+                }
+            }
+            
+            // Consume fuel time
+            result.finalFuelTime--;
+            
+            // If fuel depleted, try to consume next fuel item
+            if (result.finalFuelTime <= 0) {
+                if (hasAvailableFuel(furnaceData)) {
+                    result.fuelItemsConsumed++;
+                    
+                    // Get fuel properties for next fuel item
+                    FuelData nextFuel = getNextAvailableFuel(furnaceData);
+                    if (nextFuel != null) {
+                        result.finalFuelTime = nextFuel.getBurnTime();
+                        result.finalTemperature = nextFuel.getTemperature();
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Offline Progress] Consumed fuel at tick " + tick + ", new temp: " + result.finalTemperature);
+                        }
+                    } else {
+                        // No more fuel
+                        result.stillActive = false;
+                        break;
+                    }
+                } else {
+                    // No more fuel available
+                    result.stillActive = false;
+                    break;
+                }
+            }
+        }
+        
+        // Cool down if no fuel
+        if (result.finalFuelTime <= 0) {
+            long remainingCoolTime = Math.max(0, remainingTime - (remainingTime - result.finalFuelTime));
+            result.finalTemperature = simulateCooling(result.finalTemperature, remainingCoolTime);
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Progress] Simulation complete - Recipes: " + result.totalRecipesCompleted +
+                ", Fuel consumed: " + result.fuelItemsConsumed + ", Ingredients consumed: " + result.ingredientsConsumed.size());
+        }
+        
+        return result;
+    }
+
+    /**
+     * Check if furnace has ingredients for recipe, accounting for already consumed items
+     */
+    private boolean hasIngredientsForRecipe(FurnaceData furnaceData, com.server.crafting.recipes.FurnaceRecipe recipe, 
+                                        List<ItemStack> alreadyConsumed) {
+        List<ItemStack> requiredInputs = recipe.getInputs();
+        
+        // Create a map of available ingredients (current slots minus already consumed)
+        Map<String, Integer> availableIngredients = new HashMap<>();
+        
+        // Count current ingredients in furnace
+        for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots(); i++) {
+            ItemStack slotItem = furnaceData.getInputSlot(i);
+            if (slotItem != null && slotItem.getType() != Material.AIR) {
+                String itemKey = createItemKey(slotItem);
+                availableIngredients.put(itemKey, availableIngredients.getOrDefault(itemKey, 0) + slotItem.getAmount());
+            }
+        }
+        
+        // Subtract already consumed ingredients
+        for (ItemStack consumed : alreadyConsumed) {
+            String itemKey = createItemKey(consumed);
+            int currentAmount = availableIngredients.getOrDefault(itemKey, 0);
+            availableIngredients.put(itemKey, Math.max(0, currentAmount - consumed.getAmount()));
+        }
+        
+        // Check if we have enough ingredients for this recipe
+        for (ItemStack required : requiredInputs) {
+            String itemKey = createItemKey(required);
+            int availableAmount = availableIngredients.getOrDefault(itemKey, 0);
+            
+            if (availableAmount < required.getAmount()) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Track ingredient consumption for offline recipe completion
+     */
+    private void consumeIngredientsForOfflineRecipe(FurnaceData furnaceData, 
+                                                com.server.crafting.recipes.FurnaceRecipe recipe,
+                                                OfflineProgressResult result) {
+        List<ItemStack> requiredInputs = recipe.getInputs();
+        
+        for (ItemStack requiredInput : requiredInputs) {
+            // Track this consumption
+            result.ingredientsConsumed.add(requiredInput.clone());
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Offline Progress] Tracked consumption: " + requiredInput.getType().name() + " x" + requiredInput.getAmount());
+            }
+        }
+    }
+
+    /**
+     * Actually consume ingredients from furnace data based on offline progress
+     */
+    private void applyOfflineIngredientConsumption(FurnaceData furnaceData, OfflineProgressResult result) {
+        if (result.ingredientsConsumed.isEmpty()) {
+            return;
+        }
+        
+        // Group consumed ingredients by item type
+        Map<String, Integer> totalConsumed = new HashMap<>();
+        for (ItemStack consumed : result.ingredientsConsumed) {
+            String itemKey = createItemKey(consumed);
+            totalConsumed.put(itemKey, totalConsumed.getOrDefault(itemKey, 0) + consumed.getAmount());
+        }
+        
+        // Apply consumption to furnace slots
+        for (Map.Entry<String, Integer> entry : totalConsumed.entrySet()) {
+            String itemKey = entry.getKey();
+            int amountToConsume = entry.getValue();
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Offline Progress] Applying consumption: " + itemKey + " x" + amountToConsume);
+            }
+            
+            // Find and consume from input slots
+            for (int i = 0; i < furnaceData.getFurnaceType().getInputSlots() && amountToConsume > 0; i++) {
+                ItemStack slotItem = furnaceData.getInputSlot(i);
+                
+                if (slotItem != null && createItemKey(slotItem).equals(itemKey)) {
+                    int availableAmount = slotItem.getAmount();
+                    int toConsume = Math.min(availableAmount, amountToConsume);
+                    
+                    if (availableAmount <= toConsume) {
+                        // Consume entire stack
+                        furnaceData.setInputSlot(i, null);
+                    } else {
+                        // Reduce stack size
+                        slotItem.setAmount(availableAmount - toConsume);
+                        furnaceData.setInputSlot(i, slotItem);
+                    }
+                    
+                    amountToConsume -= toConsume;
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Offline Progress] Consumed " + toConsume + " from slot " + i + ", remaining to consume: " + amountToConsume);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Simulate temperature cooling over time - ENHANCED: More realistic cooling
+     */
+    private int simulateCooling(int startTemp, long ticks) {
+        if (startTemp <= TemperatureSystem.ROOM_TEMPERATURE) {
+            return startTemp;
+        }
+        
+        int currentTemp = startTemp;
+        
+        // Apply cooling each tick for more accurate simulation
+        for (long i = 0; i < ticks && currentTemp > TemperatureSystem.ROOM_TEMPERATURE; i++) {
+            int coolingRate = TemperatureSystem.getTemperatureDecay(currentTemp);
+            currentTemp = Math.max(TemperatureSystem.ROOM_TEMPERATURE, currentTemp - coolingRate);
+        }
+        
+        return currentTemp;
+    }
+    
+    /**
+     * Check if furnace has available fuel
+     */
+    private boolean hasAvailableFuel(FurnaceData furnaceData) {
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack fuelItem = furnaceData.getFuelSlot(i);
+            if (fuelItem != null && fuelItem.getAmount() > 0 && 
+                FuelRegistry.getInstance().isFuel(fuelItem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Get next available fuel data
+     */
+    private FuelData getNextAvailableFuel(FurnaceData furnaceData) {
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack fuelItem = furnaceData.getFuelSlot(i);
+            if (fuelItem != null && fuelItem.getAmount() > 0) {
+                FuelData fuelData = FuelRegistry.getInstance().getFuelData(fuelItem);
+                if (fuelData != null) {
+                    return fuelData;
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Consume one fuel item (for offline processing)
+     */
+    private void consumeOneFuelItem(FurnaceData furnaceData) {
+        for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
+            ItemStack fuelItem = furnaceData.getFuelSlot(i);
+            if (fuelItem != null && fuelItem.getAmount() > 0 && 
+                FuelRegistry.getInstance().isFuel(fuelItem)) {
+                
+                fuelItem.setAmount(fuelItem.getAmount() - 1);
+                if (fuelItem.getAmount() <= 0) {
+                    furnaceData.setFuelSlot(i, null);
+                }
+                return;
+            }
+        }
+    }
+    
+    /**
+     * Data structure for offline progress calculation results
+     */
+    private static class OfflineProgressResult {
+        public int finalCookTime = 0;
+        public int finalFuelTime = 0;
+        public int finalTemperature = TemperatureSystem.ROOM_TEMPERATURE;
+        public boolean stillActive = false;
+        public int totalRecipesCompleted = 0;
+        public int fuelItemsConsumed = 0;
+        public List<Integer> completedRecipesList = new ArrayList<>();
+        public com.server.crafting.recipes.FurnaceRecipe currentRecipe = null;
+        public List<ItemStack> ingredientsConsumed = new ArrayList<>();
+    }
+
+    /**
+     * Process offline progress when GUI is opened (public method)
+     */
+    public void processOfflineProgressForGUI(FurnaceData furnaceData) {
+        if (furnaceData.hasOfflineProgress()) {
+            processOfflineProgress(furnaceData);
+            
+            // Force update all viewing GUIs immediately after offline processing
+            updateAllViewingGUIs(furnaceData);
+        }
+    }
+
+    /**
+     * Check if a furnace should be actively processed
+     */
+    public boolean isFurnaceActive(String locationKey) {
+        return activeFurnaces.contains(locationKey);
+    }
+
+    /**
+     * Get the number of actively processed furnaces
+     */
+    public int getActiveFurnaceCount() {
+        return activeFurnaces.size();
+    }
+
+    /**
+     * Get total furnace count
+     */
+    public int getTotalFurnaceCount() {
+        return furnaceDataMap.size();
     }
 }

@@ -5,7 +5,9 @@ import java.util.Arrays;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
 
+import com.server.Main;
 import com.server.crafting.temperature.TemperatureSystem;
+import com.server.debug.DebugManager.DebugSystem;
 
 /**
  * Data structure for individual furnace instances
@@ -42,6 +44,14 @@ public class FurnaceData {
     private int overheatingTime;    // How long furnace has been overheating
     private int explosionCountdown; // Countdown to explosion
     private boolean isEmergencyShutdown;
+
+    // Offline progression system
+    private long lastActiveTime;        // When furnace was last actively processed
+    private boolean wasActiveWhenLeft;  // Whether furnace was processing when player left
+    private int savedCookProgress;      // Cooking progress when player left
+    private int savedFuelTime;          // Fuel time remaining when player left
+    private int savedCurrentTemp;       // Temperature when player left
+    private boolean hasOfflineProgress; // Whether offline calculations are pending
     
     public FurnaceData(Location location, FurnaceType furnaceType) {
         this.location = location.clone();
@@ -73,6 +83,14 @@ public class FurnaceData {
         this.overheatingTime = 0;
         this.explosionCountdown = 0;
         this.isEmergencyShutdown = false;
+
+        // Initialize offline progression
+        this.lastActiveTime = System.currentTimeMillis();
+        this.wasActiveWhenLeft = false;
+        this.savedCookProgress = 0;
+        this.savedFuelTime = 0;
+        this.savedCurrentTemp = TemperatureSystem.ROOM_TEMPERATURE;
+        this.hasOfflineProgress = false;
     }
     
     // Basic getters
@@ -143,6 +161,78 @@ public class FurnaceData {
         if (index >= 0 && index < outputSlots.length) {
             outputSlots[index] = item;
         }
+    }
+
+    // Offline progression getters/setters
+    public long getLastActiveTime() { return lastActiveTime; }
+    public boolean wasActiveWhenLeft() { return wasActiveWhenLeft; }
+    public int getSavedCookProgress() { return savedCookProgress; }
+    public int getSavedFuelTime() { return savedFuelTime; }
+    public int getSavedCurrentTemp() { return savedCurrentTemp; }
+    public boolean hasOfflineProgress() { return hasOfflineProgress; }
+    
+    public void setLastActiveTime(long time) { this.lastActiveTime = time; }
+    public void setWasActiveWhenLeft(boolean active) { this.wasActiveWhenLeft = active; }
+    public void setSavedCookProgress(int progress) { this.savedCookProgress = progress; }
+    public void setSavedFuelTime(int time) { this.savedFuelTime = time; }
+    public void setSavedCurrentTemp(int temp) { this.savedCurrentTemp = temp; }
+    public void setHasOfflineProgress(boolean hasProgress) { this.hasOfflineProgress = hasProgress; }
+    
+    /**
+     * Prepare furnace for offline mode (save current state)
+     */
+    public void enterOfflineMode() {
+        this.lastActiveTime = System.currentTimeMillis();
+        this.wasActiveWhenLeft = this.isActive;
+        this.savedCookProgress = this.cookTime;
+        this.savedFuelTime = this.fuelTime;
+        this.savedCurrentTemp = this.currentTemperature;
+        this.hasOfflineProgress = true;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Mode] Furnace at " + locationToString(location) + 
+                " entered offline mode. Active: " + wasActiveWhenLeft + 
+                ", Cook: " + savedCookProgress + ", Fuel: " + savedFuelTime + 
+                ", Temp: " + savedCurrentTemp);
+        }
+    }
+    
+    /**
+     * Clear offline progress after it's been processed
+     */
+    public void clearOfflineProgress() {
+        this.hasOfflineProgress = false;
+        this.wasActiveWhenLeft = false;
+        this.savedCookProgress = 0;
+        this.savedFuelTime = 0;
+        this.savedCurrentTemp = TemperatureSystem.ROOM_TEMPERATURE;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Mode] Cleared offline progress for furnace at " + locationToString(location));
+        }
+    }
+    
+    /**
+     * Get offline time in milliseconds
+     */
+    public long getOfflineTimeMs() {
+        return System.currentTimeMillis() - lastActiveTime;
+    }
+    
+    /**
+     * Get offline time in ticks (for processing calculations)
+     */
+    public long getOfflineTimeTicks() {
+        return getOfflineTimeMs() / 50; // 50ms per tick
+    }
+    
+    /**
+     * Helper method to convert location to string
+     */
+    private String locationToString(Location loc) {
+        return loc.getWorld().getName() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
     }
     
     // Safety system

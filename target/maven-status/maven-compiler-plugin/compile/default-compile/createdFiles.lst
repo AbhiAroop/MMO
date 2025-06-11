@@ -235,6 +235,7 @@ com\server\profiles\skills\minigames\GemCarvingMinigame.class
 com\server\entities\npc\CombatHandler$3.class
 com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class
+com\server\crafting\manager\CustomFurnaceManager$OfflineProgressResult.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility$1.class
 com\server\events\PlayerListener$1.class
 com\server\display\MobDisplayManager.class

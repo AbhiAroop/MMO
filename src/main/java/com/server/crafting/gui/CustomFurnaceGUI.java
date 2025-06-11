@@ -22,6 +22,7 @@ import com.server.Main;
 import com.server.crafting.fuel.FuelRegistry;
 import com.server.crafting.furnace.FurnaceData;
 import com.server.crafting.furnace.FurnaceType;
+import com.server.crafting.manager.CustomFurnaceManager;
 import com.server.crafting.recipes.FurnaceRecipe;
 import com.server.crafting.temperature.TemperatureSystem;
 import com.server.debug.DebugManager.DebugSystem;
@@ -164,28 +165,28 @@ public class CustomFurnaceGUI {
     }
     
     /**
-     * Open furnace GUI for a player
-     * Step 3: Dynamic GUI opening
+     * Open furnace GUI for a player - ENHANCED: Offline progress processing
+     * Step 3: Dynamic GUI opening with offline calculations
      */
     public static void openFurnaceGUI(Player player, FurnaceData furnaceData) {
-        if (furnaceData == null) {
-            player.sendMessage(ChatColor.RED + "Error: No furnace data found!");
-            return;
+        // CRITICAL: Process offline progress BEFORE opening GUI
+        if (furnaceData.hasOfflineProgress()) {
+            CustomFurnaceManager.getInstance().processOfflineProgressForGUI(furnaceData);
         }
         
         FurnaceType furnaceType = furnaceData.getFurnaceType();
         FurnaceGUILayout layout = furnaceLayouts.get(furnaceType);
         
         if (layout == null) {
-            player.sendMessage(ChatColor.RED + "Error: Unsupported furnace type!");
+            player.sendMessage(ChatColor.RED + "Error: Unknown furnace type!");
             return;
         }
         
-        // Create GUI with appropriate size
-        String title = String.format(GUI_TITLE_PATTERN, furnaceType.getDisplayName());
+        // Create GUI
+        String title = String.format(GUI_TITLE_PATTERN, furnaceType.getColoredName());
         Inventory gui = Bukkit.createInventory(null, layout.guiSize, title);
         
-        // Create the furnace layout
+        // Create the layout and load contents
         createFurnaceLayout(gui, furnaceData, layout);
         
         // Store GUI and data references
@@ -200,8 +201,11 @@ public class CustomFurnaceGUI {
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Custom Furnace] Opened " + furnaceType.getDisplayName() + 
-                " GUI for " + player.getName());
+                "[Custom Furnace GUI] Opened " + furnaceType.getDisplayName() + 
+                " for " + player.getName() + " at " + 
+                furnaceData.getLocation().getBlockX() + ", " + 
+                furnaceData.getLocation().getBlockY() + ", " + 
+                furnaceData.getLocation().getBlockZ());
         }
     }
     
