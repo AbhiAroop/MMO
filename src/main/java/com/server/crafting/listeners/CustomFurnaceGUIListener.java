@@ -480,15 +480,39 @@ public class CustomFurnaceGUIListener implements Listener {
     }
 
     /**
-     * Handle fuel slot interactions - ENHANCED: Immediate sync
+     * Handle fuel slot interactions - ENHANCED: Immediate sync after changes
      * Step 3: Fuel slot management
      */
     private void handleFuelSlotClick(InventoryClickEvent event, Player player, FurnaceData furnaceData, int slot) {
-        // Allow the click to proceed normally for fuel slots
+        // Allow normal interaction with fuel slots
+        // The sync will happen on the next tick to reflect the changes
         
-        // CRITICAL FIX: Schedule immediate sync for fuel changes
+        // Store the current state before the click
+        FurnaceGUILayout layout = CustomFurnaceGUI.getFurnaceLayout(furnaceData.getFurnaceType());
+        int fuelSlotIndex = -1;
+        for (int i = 0; i < layout.fuelSlots.length; i++) {
+            if (layout.fuelSlots[i] == slot) {
+                fuelSlotIndex = i;
+                break;
+            }
+        }
+        
+        final int finalFuelSlotIndex = fuelSlotIndex;
+        
+        // Schedule immediate synchronization after the click is processed
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            syncAndUpdateGUI(player, furnaceData);
+            // Sync the modified slot immediately
+            ItemStack currentSlotItem = event.getInventory().getItem(slot);
+            furnaceData.setFuelSlot(finalFuelSlotIndex, currentSlotItem);
+            
+            // Force immediate synchronization for all viewers
+            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                String itemName = currentSlotItem != null ? 
+                    currentSlotItem.getType().name() + " x" + currentSlotItem.getAmount() : "AIR";
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Fuel Slot] Player " + player.getName() + " modified fuel slot " + finalFuelSlotIndex + 
+                    " to " + itemName + " - immediate sync performed");
+            }
         });
     }
     

@@ -262,8 +262,8 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Process recipe cooking and completion - ENHANCED: Output space checking
-     * Step 4: Recipe processing system
+     * Process recipe cooking and completion - ENHANCED: Initial fuel consumption trigger
+     * Step 4: Recipe processing system with proper fuel initialization
      */
     private void processRecipes(FurnaceData furnaceData) {
         // Check if furnace is in emergency shutdown
@@ -302,20 +302,35 @@ public class CustomFurnaceManager {
         
         // CRITICAL: Check if output slots have space for the recipe outputs
         if (!hasOutputSpaceForRecipe(furnaceData, currentRecipe)) {
-            // Output slots are full - pause cooking but don't reset progress
+            // Output full - pause but don't reset cooking progress
             furnaceData.setPaused(true);
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-                Main.getInstance().debugLog(DebugSystem.GUI,
-                    "[Furnace] Output slots full - pausing cooking at " + 
-                    locationToString(furnaceData.getLocation()));
-            }
             return;
         }
         
+        // CRITICAL FIX: Check for fuel BEFORE starting cooking process
+        // This ensures fuel is consumed when we first start a recipe
+        if (!furnaceData.hasFuel() && furnaceData.getFuelTime() <= 0) {
+            // No active fuel - try to start fuel consumption
+            if (shouldConsumeFuel(furnaceData)) {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Recipe] Triggering initial fuel consumption for recipe: " + 
+                        currentRecipe.getDisplayName());
+                }
+                // This will be handled in processFuel() method
+            } else {
+                // No fuel available - can't start cooking
+                if (furnaceData.isActive()) {
+                    furnaceData.setActive(false);
+                    furnaceData.setPaused(true);
+                }
+                return;
+            }
+        }
+        
         // Check temperature requirements
-        int currentTemp = furnaceData.getCurrentTemperature();
         int requiredTemp = currentRecipe.getRequiredTemperature();
+        int currentTemp = furnaceData.getCurrentTemperature();
         
         if (currentTemp < requiredTemp) {
             // Temperature too low - pause cooking
@@ -323,13 +338,14 @@ public class CustomFurnaceManager {
             return;
         }
         
-        // Temperature is sufficient and we have output space - continue/start cooking
-        furnaceData.setPaused(false);
+        // Resume cooking if it was paused
+        if (furnaceData.isPaused()) {
+            furnaceData.setPaused(false);
+        }
         
+        // Start cooking if not already active
         if (!furnaceData.isActive()) {
-            // Start new cooking process
             furnaceData.setActive(true);
-            furnaceData.setCookTime(0);
             furnaceData.setMaxCookTime(currentRecipe.getCookTime());
             
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
@@ -359,8 +375,7 @@ public class CustomFurnaceManager {
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Furnace] Output full just before completion - pausing at " + 
-                        locationToString(furnaceData.getLocation()));
+                        "[Furnace] Paused at 99% - output full at " + locationToString(furnaceData.getLocation()));
                 }
             }
         }
@@ -792,8 +807,8 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Process fuel consumption and heating - ENHANCED: Smart fuel consumption
-     * Step 2: Fuel system - ENHANCED with better debugging
+     * Process fuel consumption and heating - ENHANCED: Smart fuel consumption with initial consumption
+     * Step 2: Fuel system - ENHANCED with better debugging and initial fuel consumption
      */
     private void processFuel(FurnaceData furnaceData) {
         if (furnaceData.getFuelTime() > 0) {
@@ -812,8 +827,15 @@ public class CustomFurnaceManager {
                 }
             }
         } else {
-            // No fuel burning, check if we should start burning fuel
+            // CRITICAL FIX: No fuel burning, but check if we should start burning fuel
+            // This handles the initial fuel consumption when smelting starts
             if (shouldConsumeFuel(furnaceData)) {
+                // Start consuming fuel for the first time or continue after depletion
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Fuel] Starting/resuming fuel consumption at " + 
+                        locationToString(furnaceData.getLocation()));
+                }
                 consumeNextFuelItem(furnaceData);
             } else {
                 furnaceData.setHasFuel(false);
@@ -862,7 +884,8 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Process a single furnace tick - ENHANCED: Complete processing system with smart updates - REDUCED LOGGING
+     * Process a single furnace tick - ENHANCED: More frequent updates for fuel changes
+     * Step 2: Complete processing system with smart updates
      */
     private void processFurnaceTick(FurnaceData furnaceData, int tickCounter) {
         // Safety checks FIRST - if exploded, exit immediately
@@ -874,17 +897,32 @@ public class CustomFurnaceManager {
             return; // Furnace was destroyed, stop processing
         }
         
-        // Continue with normal processing only if furnace still exists
-        processTemperature(furnaceData);
-        processFuel(furnaceData);
+        // Store previous fuel state to detect changes
+        boolean hadFuelBefore = furnaceData.hasFuel();
+        int fuelTimeBefore = furnaceData.getFuelTime();
+        
+        // CRITICAL FIX: Process recipes BEFORE fuel to trigger initial fuel consumption
         processRecipes(furnaceData);
         
-        // Update GUI for all viewers (every 20 ticks = 1 second instead of every 10 ticks)
-        // REDUCED UPDATE FREQUENCY: Update every 20 ticks instead of 10 to reduce spam
-        if (tickCounter % 20 == 0) {
+        // Continue with fuel and temperature processing
+        processFuel(furnaceData);
+        processTemperature(furnaceData);
+        
+        // CRITICAL FIX: Check if fuel state changed and force immediate update
+        boolean fuelStateChanged = (hadFuelBefore != furnaceData.hasFuel()) || 
+                                (Math.abs(fuelTimeBefore - furnaceData.getFuelTime()) > 100); // Significant fuel change
+        
+        // Update GUI more frequently, especially when fuel changes
+        if (fuelStateChanged || tickCounter % 5 == 0) {
             com.server.crafting.gui.CustomFurnaceGUI.updateFurnaceGUI(furnaceData);
+            
+            if (fuelStateChanged && Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                Main.getInstance().debugLog(DebugSystem.GUI,
+                    "[Furnace] Fuel state changed - forcing immediate GUI update at " + 
+                    locationToString(furnaceData.getLocation()));
+            }
         }
-}
+    }
 
     /**
      * Check if output slots have space for a recipe's outputs
@@ -899,8 +937,8 @@ public class CustomFurnaceManager {
     }
 
     /**
-     * Consume the next available fuel item from fuel slots
-     * Step 2: Fuel consumption system - FIXED
+     * Consume the next available fuel item from fuel slots - ENHANCED: Immediate GUI synchronization
+     * Step 2: Fuel consumption system - FIXED with immediate GUI updates
      */
     private void consumeNextFuelItem(FurnaceData furnaceData) {
         for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
@@ -909,17 +947,36 @@ public class CustomFurnaceManager {
             if (fuelItem != null && fuelItem.getType() != Material.AIR) {
                 if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                     Main.getInstance().debugLog(DebugSystem.GUI,
-                        "[Furnace] Checking fuel slot " + i + ": " + fuelItem.getType().name() + 
-                        " x" + fuelItem.getAmount());
+                        "[Fuel] Checking fuel slot " + i + ": " + fuelItem.getType().name() + 
+                        " x" + fuelItem.getAmount() + " (first consumption check)");
                 }
                 
                 FuelData fuelData = FuelRegistry.getInstance().getFuelData(fuelItem);
                 
                 if (fuelData != null) {
+                    // CRITICAL FIX: Always consume one fuel item when this method is called
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Fuel] CONSUMING fuel item: " + fuelData.getFuelId() + 
+                            " from slot " + i + " (amount before: " + fuelItem.getAmount() + ")");
+                    }
+                    
                     // Consume one fuel item
                     fuelItem.setAmount(fuelItem.getAmount() - 1);
                     if (fuelItem.getAmount() <= 0) {
                         furnaceData.setFuelSlot(i, null);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Fuel] Slot " + i + " is now empty after consumption");
+                        }
+                    } else {
+                        furnaceData.setFuelSlot(i, fuelItem);
+                        
+                        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                            Main.getInstance().debugLog(DebugSystem.GUI,
+                                "[Fuel] Slot " + i + " now has " + fuelItem.getAmount() + " items remaining");
+                        }
                     }
                     
                     // Set fuel properties
@@ -930,15 +987,40 @@ public class CustomFurnaceManager {
                     // Set target temperature based on fuel
                     furnaceData.setTargetTemperature(fuelData.getTemperature());
                     
+                    // CRITICAL FIX: Immediately update ALL viewing GUIs to show fuel consumption
+                    final int slotIndex = i; // Make a final copy for use in lambda
+                    Main.getInstance().getServer().getScheduler().runTask(Main.getInstance(), () -> {
+                        updateAllViewingGUIs(furnaceData);
+                        
+                        // Force an additional update specifically for fuel slots
+                        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                                // Force update the specific fuel slot that was consumed
+                                updateSpecificFuelSlotInGUIs(furnaceData, slotIndex, furnaceData.getFuelSlot(slotIndex));
+                            }
+                        }
+                    });
+                    
                     if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                         Main.getInstance().debugLog(DebugSystem.GUI,
-                            "[Furnace] Consumed fuel: " + fuelData.getFuelId() + 
+                            "[Fuel] Successfully consumed and activated fuel: " + fuelData.getFuelId() + 
                             " (" + fuelData.getTemperature() + "°T, " + 
                             fuelData.getFormattedBurnTime() + ") at " + 
-                            locationToString(furnaceData.getLocation()));
+                            locationToString(furnaceData.getLocation()) + 
+                            " - Fuel time set to: " + furnaceData.getFuelTime() + ", GUI updated");
                     }
                     
                     return; // Successfully consumed fuel
+                } else {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Fuel] Item in slot " + i + " is not a valid fuel: " + fuelItem.getType().name());
+                    }
+                }
+            } else {
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Fuel] Slot " + i + " is empty or null");
                 }
             }
         }
@@ -949,7 +1031,18 @@ public class CustomFurnaceManager {
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Furnace] No fuel available at " + locationToString(furnaceData.getLocation()));
+                "[Fuel] No fuel available at " + locationToString(furnaceData.getLocation()));
+        }
+    }
+
+    /**
+     * Update a specific fuel slot in all viewing GUIs immediately - NEW METHOD
+     */
+    private void updateSpecificFuelSlotInGUIs(FurnaceData furnaceData, int slotIndex, org.bukkit.inventory.ItemStack item) {
+        for (org.bukkit.entity.Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (com.server.crafting.gui.CustomFurnaceGUI.isPlayerViewingFurnace(player, furnaceData)) {
+                com.server.crafting.gui.CustomFurnaceGUI.updateSpecificFuelSlot(player, furnaceData, slotIndex, item);
+            }
         }
     }
     
@@ -1686,7 +1779,7 @@ public class CustomFurnaceManager {
     }
     
     /**
-     * Consume one fuel item (for offline processing)
+     * Consume one fuel item (for offline processing) - ENHANCED: Better logging and validation
      */
     private void consumeOneFuelItem(FurnaceData furnaceData) {
         for (int i = 0; i < furnaceData.getFurnaceType().getFuelSlots(); i++) {
@@ -1694,12 +1787,33 @@ public class CustomFurnaceManager {
             if (fuelItem != null && fuelItem.getAmount() > 0 && 
                 FuelRegistry.getInstance().isFuel(fuelItem)) {
                 
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[Offline Fuel] Consuming fuel from slot " + i + ": " + 
+                        fuelItem.getType().name() + " (before: " + fuelItem.getAmount() + ")");
+                }
+                
                 fuelItem.setAmount(fuelItem.getAmount() - 1);
                 if (fuelItem.getAmount() <= 0) {
                     furnaceData.setFuelSlot(i, null);
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Offline Fuel] Slot " + i + " emptied after consumption");
+                    }
+                } else {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                        Main.getInstance().debugLog(DebugSystem.GUI,
+                            "[Offline Fuel] Slot " + i + " now has " + fuelItem.getAmount() + " remaining");
+                    }
                 }
                 return;
             }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+            Main.getInstance().debugLog(DebugSystem.GUI,
+                "[Offline Fuel] No fuel available for consumption");
         }
     }
     
