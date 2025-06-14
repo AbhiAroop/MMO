@@ -76,7 +76,7 @@ public class CustomFurnaceGUI {
     
     /**
      * Initialize GUI layouts for each furnace type
-     * Step 3: Layout configuration
+     * Step 3: Layout configuration - ENHANCED: Improved consistency
      */
     private static void initializeFurnaceLayouts() {
         // Stone Furnace (1 input, 1 fuel, 1 output) - 4 rows
@@ -104,10 +104,11 @@ public class CustomFurnaceGUI {
         ));
         
         // Iron Forge (2 input, 2 fuel, 2 output) - 5 rows
+        // UPDATED: Move fuel slots under input slots for consistency
         furnaceLayouts.put(FurnaceType.IRON_FORGE, new FurnaceGUILayout(
             45, // 5 rows
             new int[]{10, 11}, // input slots
-            new int[]{12, 13}, // fuel slots
+            new int[]{19, 20}, // fuel slots - MOVED: Now under input slots (was 12, 13)
             new int[]{15, 16}, // output slots
             4,  // temperature display
             31, // fuel timer
@@ -128,11 +129,12 @@ public class CustomFurnaceGUI {
         ));
         
         // Magmatic Forge (3 input, 3 fuel, 3 output) - 6 rows
+        // UPDATED: Move output slots 1 slot to the left for consistency
         furnaceLayouts.put(FurnaceType.MAGMATIC_FORGE, new FurnaceGUILayout(
             54, // 6 rows
             new int[]{10, 11, 12}, // input slots
             new int[]{19, 20, 21}, // fuel slots
-            new int[]{15, 16, 17}, // output slots
+            new int[]{14, 15, 16}, // output slots - MOVED: 1 slot left (was 15, 16, 17)
             4,  // temperature display
             40, // fuel timer
             38, // cook timer
@@ -152,10 +154,11 @@ public class CustomFurnaceGUI {
         ));
         
         // Void Extractor (2 input, 2 fuel, 1 output) - 5 rows
+        // UPDATED: Move fuel slots 1 slot to the right for consistency
         furnaceLayouts.put(FurnaceType.VOID_EXTRACTOR, new FurnaceGUILayout(
             45, // 5 rows
             new int[]{10, 11}, // input slots
-            new int[]{12, 13}, // fuel slots
+            new int[]{13, 14}, // fuel slots - MOVED: 1 slot right (was 12, 13)
             new int[]{16}, // output slots
             4,  // temperature display
             31, // fuel timer
@@ -282,7 +285,7 @@ public class CustomFurnaceGUI {
     
     /**
      * Load current furnace contents into GUI
-     * Step 3: Content loading
+     * Step 3: Content loading - ENHANCED: Debug layout changes
      */
     private static void loadFurnaceContents(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
         // Load input items
@@ -290,6 +293,12 @@ public class CustomFurnaceGUI {
             ItemStack inputItem = furnaceData.getInputSlot(i);
             if (inputItem != null) {
                 gui.setItem(layout.inputSlots[i], inputItem);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[GUI Layout] Loaded input slot " + i + " at GUI position " + layout.inputSlots[i] + 
+                        ": " + inputItem.getType().name() + " x" + inputItem.getAmount());
+                }
             }
         }
         
@@ -300,6 +309,12 @@ public class CustomFurnaceGUI {
                 // Enhance fuel item with temperature information
                 ItemStack enhancedFuel = FuelRegistry.getInstance().enhanceFuelItem(fuelItem);
                 gui.setItem(layout.fuelSlots[i], enhancedFuel);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[GUI Layout] Loaded fuel slot " + i + " at GUI position " + layout.fuelSlots[i] + 
+                        ": " + fuelItem.getType().name() + " x" + fuelItem.getAmount());
+                }
             }
         }
         
@@ -308,13 +323,19 @@ public class CustomFurnaceGUI {
             ItemStack outputItem = furnaceData.getOutputSlot(i);
             if (outputItem != null) {
                 gui.setItem(layout.outputSlots[i], outputItem);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI,
+                        "[GUI Layout] Loaded output slot " + i + " at GUI position " + layout.outputSlots[i] + 
+                        ": " + outputItem.getType().name() + " x" + outputItem.getAmount());
+                }
             }
         }
     }
     
     /**
      * Add visual slot indicators
-     * Step 3: Visual indicators
+     * Step 3: Visual indicators - ENHANCED: Updated for new layouts
      */
     private static void addSlotIndicators(Inventory gui, FurnaceGUILayout layout) {
         // Input slot indicators (above input slots)
@@ -351,19 +372,17 @@ public class CustomFurnaceGUI {
     
     /**
      * Add decorative elements specific to furnace type
-     * Step 3: Decorative system
+     * Step 3: Decorative system - ENHANCED: Improved positioning for consistency
      */
     private static void addDecorativeElements(Inventory gui, FurnaceData furnaceData, FurnaceGUILayout layout) {
         FurnaceType type = furnaceData.getFurnaceType();
-        
-        // Add furnace type specific decorations
         Material decorativeMaterial;
         String decorativeName;
         
         switch (type) {
             case STONE_FURNACE:
-                decorativeMaterial = Material.COBBLESTONE;
-                decorativeName = ChatColor.GRAY + "Stone Construction";
+                decorativeMaterial = Material.STONE;
+                decorativeName = ChatColor.GRAY + "Stone Framework";
                 break;
             case CLAY_KILN:
                 decorativeMaterial = Material.TERRACOTTA;
@@ -407,16 +426,27 @@ public class CustomFurnaceGUI {
             ));
             decoration.setItemMeta(meta);
             
-            // Place in bottom corners if they're not functional slots
+            // Place in corners that don't interfere with functional slots
+            // Bottom corners are usually safe for decoration
             if (!isSlotFunctional(size - 18, layout)) {
-                gui.setItem(size - 18, decoration);
+                gui.setItem(size - 18, decoration); // Bottom left area
             }
             if (!isSlotFunctional(size - 10, layout)) {
-                gui.setItem(size - 10, decoration);
+                gui.setItem(size - 10, decoration); // Bottom right area
+            }
+            
+            // For larger furnaces, add more decorative elements
+            if (size >= 54) { // 6 rows
+                if (!isSlotFunctional(size - 27, layout)) {
+                    gui.setItem(size - 27, decoration); // Middle left area
+                }
+                if (!isSlotFunctional(size - 19, layout)) {
+                    gui.setItem(size - 19, decoration); // Middle right area
+                }
             }
         }
     }
-    
+        
     /**
      * Update temperature display
      * Step 3: Real-time temperature display - FIXED: Format overheating time properly
