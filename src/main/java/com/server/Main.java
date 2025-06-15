@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
+import com.server.commands.AdminEnchantingCommand;
 import com.server.commands.AdminFurnaceCommand;
 import com.server.commands.AdminProfileCommand;
 import com.server.commands.AdminSkillsCommand;
@@ -46,6 +47,8 @@ import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
+import com.server.enchanting.listeners.CustomEnchantingGUIListener;
+import com.server.enchanting.listeners.VanillaEnchantingReplacer;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.dialogue.DialogueManager;
@@ -153,6 +156,8 @@ public class Main extends JavaPlugin {
         CustomCraftingManager.getInstance();
 
         initializeFurnaceSystem();
+
+        initializeEnchantingSystem();
 
         // Register commands and event listeners
         registerCommands();
@@ -262,6 +267,9 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new CustomFurnaceListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CustomFurnaceGUIListener(this), this);
         this.getServer().getPluginManager().registerEvents(new GUIListener(this), this);
+
+        this.getServer().getPluginManager().registerEvents(new CustomEnchantingGUIListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new VanillaEnchantingReplacer(), this);
 
     }
 
@@ -487,6 +495,15 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
         }
+
+        org.bukkit.command.PluginCommand adminEnchantingCommand = this.getCommand("adminenchanting");
+        if (adminEnchantingCommand != null) {
+            AdminEnchantingCommand adminEnchantingHandler = new AdminEnchantingCommand();
+            adminEnchantingCommand.setExecutor(adminEnchantingHandler);
+            adminEnchantingCommand.setTabCompleter(adminEnchantingHandler);
+        } else {
+            LOGGER.warning("Command 'adminenchanting' not registered in plugin.yml file!");
+        }
         
     }
 
@@ -618,6 +635,25 @@ public class Main extends JavaPlugin {
             
         } catch (Exception e) {
             getLogger().severe("Failed to initialize furnace system: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Initialize the custom enchanting system
+     */
+    private void initializeEnchantingSystem() {
+        try {
+            // Initialize enchantment registries
+            com.server.enchanting.CustomEnchantmentRegistry.getInstance();
+            com.server.enchanting.RuneBookRegistry.getInstance();
+            
+            if (isDebugEnabled(DebugSystem.GUI)) {
+                debugLog(DebugSystem.GUI, "[Main] Initialized custom enchanting system");
+            }
+            
+        } catch (Exception e) {
+            getLogger().severe("Failed to initialize enchanting system: " + e.getMessage());
             e.printStackTrace();
         }
     }

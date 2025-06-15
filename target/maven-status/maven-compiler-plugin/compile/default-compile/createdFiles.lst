@@ -8,6 +8,7 @@ com\server\events\CustomMobListener.class
 com\server\entities\mobs\CustomMob$1.class
 com\server\profiles\skills\gui\SkillTreeGUI$1.class
 com\server\entities\npc\CombatHandler$1.class
+com\server\enchanting\RuneBook$RuneTier.class
 com\server\crafting\gui\CustomCraftingGUI.class
 com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
@@ -39,6 +40,7 @@ com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
 com\server\display\DamageIndicatorManager$3.class
 com\server\profiles\gui\StatsGUI.class
+com\server\enchanting\EnchantmentStatsApplicator.class
 com\server\cosmetics\CosmeticManager$2.class
 com\server\crafting\temperature\TemperatureSystem$TemperatureZone.class
 com\server\entities\npc\dialogue\DialogueManager.class
@@ -79,6 +81,7 @@ com\server\crafting\recipes\FurnaceRecipe$RecipeType.class
 com\server\events\NPCDamageListener.class
 com\server\profiles\skills\core\SkillRegistry.class
 com\server\crafting\furnace\FurnaceData.class
+com\server\commands\AdminEnchantingCommand.class
 com\server\entities\npc\behaviors\FleeingBehavior$1.class
 com\server\profiles\skills\gui\SkillDetailsGUI.class
 com\server\commands\CrystalCommand.class
@@ -96,6 +99,7 @@ com\server\entities\npc\CombatHandler$3$1.class
 com\server\profiles\skills\events\MiningListener.class
 com\server\profiles\skills\trees\PlayerSkillTreeData.class
 com\server\entities\npc\story\dialogue\StoryDialogues.class
+com\server\enchanting\listeners\CustomEnchantingGUIListener.class
 com\server\entities\npc\NPCFactory.class
 com\server\profiles\skills\trees\SkillTree.class
 com\server\profiles\skills\skills\fishing\FishingSkill.class
@@ -107,6 +111,7 @@ com\server\events\ItemListener.class
 com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
 com\server\entities\mobs\MobRegistry.class
+com\server\enchanting\RuneBookRegistry.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\profiles\skills\trees\builders\SkillTreeBuilder.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
@@ -116,14 +121,17 @@ com\server\crafting\listeners\VanillaCraftingReplacer.class
 com\server\entities\npc\NPCInteractionListener.class
 com\server\crafting\gui\AutoCraftingGUI.class
 com\server\entities\mobs\CustomMob$1$1.class
+com\server\enchanting\EnchantingLevelCalculator$EnchantingLevel.class
 com\server\profiles\skills\abilities\gui\AbilityListGUI.class
 com\server\commands\AdminSkillsCommand.class
 com\server\display\DamageIndicatorManager.class
 com\server\profiles\skills\rewards\rewards\ItemReward.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\debug\DebugManager.class
+com\server\enchanting\RuneBook.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\events\AutoRespawnListener$1.class
+com\server\enchanting\EnchantingLevelCalculator.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\crafting\recipes\FurnaceRecipeRegistry.class
@@ -133,11 +141,13 @@ com\server\items\ItemRarity.class
 com\server\entities\npc\story\KaelenEchobound$2.class
 com\server\profiles\skills\gui\ConfirmationGUI.class
 com\server\entities\npc\story\NellMossgleam.class
+com\server\enchanting\EnchantmentMaterial.class
 com\server\crafting\manager\CustomCraftingManager$CustomRecipeData.class
 com\server\entities\npc\dialogue\DialogueResponse.class
 com\server\commands\CraftingCommand.class
 com\server\profiles\skills\tokens\SkillToken$TokenInfo.class
 com\server\crafting\temperature\TemperatureSystem.class
+com\server\enchanting\gui\CustomEnchantingGUI$1.class
 com\server\events\PlayerListener$2.class
 com\server\profiles\skills\display\SkillActionBarManager$1.class
 com\server\display\DamageIndicatorManager$1.class
@@ -181,6 +191,9 @@ com\server\events\CustomMobListener$1.class
 com\server\crafting\recipes\FurnaceRecipe.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
+com\server\enchanting\EnchantingLevelCalculator$ChiseledBookshelfData.class
+com\server\enchanting\listeners\CustomEnchantingGUIListener$1.class
+com\server\enchanting\EnchantmentApplicator.class
 com\server\entities\npc\types\HostileNPC.class
 com\server\cosmetics\CosmeticManager$1.class
 com\server\entities\npc\NPCStats.class
@@ -195,6 +208,8 @@ com\server\commands\GemCarvingToolCommand.class
 com\server\profiles\skills\abilities\gui\AbilitiesGUI.class
 com\server\commands\MenuCommand.class
 com\server\entities\mobs\CustomMob.class
+com\server\enchanting\gui\CustomEnchantingGUI.class
+com\server\enchanting\listeners\VanillaEnchantingReplacer.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
 com\server\events\PlayerListener$3.class
@@ -218,6 +233,7 @@ com\server\events\CustomMobListener$2.class
 com\server\events\RangedCombatManager.class
 com\server\profiles\skills\skills\farming\FarmingSkill.class
 com\server\commands\FlyCommand.class
+com\server\enchanting\EnchantmentMaterial$Registry.class
 com\server\commands\CurrencyCommand$TransferRequest.class
 com\server\profiles\skills\gui\SubskillDetailsGUI$CrystalTier.class
 com\server\display\ActionBarManager$1.class
@@ -253,6 +269,7 @@ com\server\profiles\skills\core\SkillType.class
 com\server\entities\npc\types\PassiveNPC.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.class
 net\citizensnpcs\api\trait\trait\Attackable.class
+com\server\enchanting\CustomEnchantment$ItemCategory.class
 com\server\profiles\ProfileManager.class
 com\server\profiles\skills\rewards\rewards\UnlockReward.class
 com\server\events\RangedDamageListener.class

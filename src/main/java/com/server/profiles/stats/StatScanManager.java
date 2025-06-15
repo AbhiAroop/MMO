@@ -22,6 +22,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
+import com.server.enchanting.EnchantmentStatsApplicator;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -389,6 +390,9 @@ public class StatScanManager {
             
             // Apply bonuses to player stats
             applyBonusesToStats(stats, bonuses);
+
+            // NEW: Apply enchantment bonuses
+            EnchantmentStatsApplicator.applyEnchantmentBonuses(player, stats);
             
             // Apply attributes to player based on the updated stats
             applyAttributesToPlayer(player, stats);
