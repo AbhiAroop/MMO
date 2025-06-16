@@ -445,7 +445,7 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Clear all enchantments AND remove stat bonuses - NEW METHOD
+     * Clear all enchantments AND remove stat bonuses - FIXED: Proper return handling
      */
     public static ItemStack clearAllEnchantmentsAndStatBonuses(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
@@ -455,23 +455,47 @@ public class EnchantmentApplicator {
         ItemStack cleanedItem = item.clone();
         ItemMeta meta = cleanedItem.getItemMeta();
         
-        // Remove all custom enchantments from persistent data
-        for (CustomEnchantment enchantment : CustomEnchantmentRegistry.getInstance().getAllEnchantments()) {
-            NamespacedKey key = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantment.getId());
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "CLEARING ALL ENCHANTMENTS AND STAT BONUSES");
+            debugItemLore(cleanedItem, "BEFORE CLEARING");
+        }
+        
+        // Remove all custom enchantment persistent data
+        Set<NamespacedKey> keysToRemove = new HashSet<>();
+        for (NamespacedKey key : meta.getPersistentDataContainer().getKeys()) {
+            if (key.getNamespace().equals(Main.getInstance().getName()) && 
+                key.getKey().startsWith(ENCHANTMENT_PREFIX)) {
+                keysToRemove.add(key);
+            }
+        }
+        
+        for (NamespacedKey key : keysToRemove) {
             meta.getPersistentDataContainer().remove(key);
         }
         
-        // Remove visual glint effect
+        // Remove visual enchantment glint
         meta.removeEnchant(org.bukkit.enchantments.Enchantment.PROTECTION);
-        meta.removeItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
         
-        // CRITICAL: Clean all stat bonuses from lore
-        cleanStatBonusesFromLore(meta);
-        
-        // Remove enchantment section from lore
-        removeEnchantmentSectionFromLore(meta);
-        
+        // CRITICAL: Apply meta changes before lore operations
         cleanedItem.setItemMeta(meta);
+        
+        // Clean stat bonuses from lore (lines with brackets)
+        meta = cleanedItem.getItemMeta(); // Get fresh meta
+        cleanStatBonusesFromLore(meta);
+        cleanedItem.setItemMeta(meta);
+        
+        // Remove enchantment section from lore (including descriptions)
+        meta = cleanedItem.getItemMeta(); // Get fresh meta again
+        removeEnchantmentSectionFromLore(meta);
+        cleanedItem.setItemMeta(meta);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            debugItemLore(cleanedItem, "AFTER CLEARING");
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Successfully cleared all enchantments and stat bonuses");
+        }
+        
         return cleanedItem;
     }
 
@@ -649,7 +673,7 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Remove entire enchantment section from lore - ENHANCED METHOD
+     * Remove entire enchantment section from lore - ENHANCED: Remove descriptions too
      */
     private static void removeEnchantmentSectionFromLore(ItemMeta meta) {
         List<String> lore = meta.getLore();
@@ -657,35 +681,72 @@ public class EnchantmentApplicator {
             return;
         }
         
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "REMOVING ENCHANTMENT SECTION: Starting with " + lore.size() + " lines");
+        }
+        
         List<String> cleanedLore = new ArrayList<>();
         boolean inEnchantSection = false;
         boolean foundEnchantSection = false;
+        boolean skipNextBlankLine = false;
         
         for (int i = 0; i < lore.size(); i++) {
             String line = lore.get(i);
+            String cleanLine = ChatColor.stripColor(line).trim();
             
             // Check if this is the start of enchantment section
             if (line.contains("✦ Enchantments:")) {
                 inEnchantSection = true;
                 foundEnchantSection = true;
+                skipNextBlankLine = true; // Skip the blank line that typically follows
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "Found enchantment section header at line " + i);
+                }
                 continue; // Skip this line
             }
             
             // If we're in enchant section
             if (inEnchantSection) {
+                // ENHANCED: Check for enchantment lines (start with "•") OR description lines (start with "»")
+                if (line.contains("•") || line.contains("»")) {
+                    // Skip enchantment names and descriptions
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "Skipping enchantment/description line: " + line);
+                    }
+                    continue;
+                }
+                
                 // Check if this line ends the enchant section
-                if (line.trim().isEmpty() && (i + 1 >= lore.size() || !lore.get(i + 1).contains("•"))) {
-                    inEnchantSection = false;
-                    // Don't add the blank line that was specifically for enchantments
-                    continue;
-                } else if (line.contains("•")) {
-                    // Skip enchantment lines
-                    continue;
-                } else if (!line.contains("•") && !line.trim().isEmpty()) {
-                    // End of enchant section (hit non-enchantment content)
+                if (line.trim().isEmpty()) {
+                    if (skipNextBlankLine) {
+                        // This is the blank line right after enchantments header
+                        skipNextBlankLine = false;
+                        continue;
+                    } else {
+                        // This might be the end of the enchant section
+                        // Check if the next line (if exists) is non-enchantment content
+                        if (i + 1 >= lore.size() || 
+                            (!lore.get(i + 1).contains("•") && 
+                            !lore.get(i + 1).contains("»") && 
+                            !lore.get(i + 1).trim().isEmpty())) {
+                            inEnchantSection = false;
+                            // Don't add this blank line as it was separating enchantments
+                            continue;
+                        } else {
+                            // Still in enchantments, skip this blank line too
+                            continue;
+                        }
+                    }
+                } else if (!line.contains("•") && !line.contains("»") && !cleanLine.isEmpty()) {
+                    // Hit non-enchantment content, end of section
                     inEnchantSection = false;
                     cleanedLore.add(line);
                 }
+                // If none of the above, skip the line (it's part of enchantments)
             } else {
                 cleanedLore.add(line);
             }
@@ -701,6 +762,11 @@ public class EnchantmentApplicator {
                     cleanedLore.remove(lastIndex);
                 }
             }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "ENCHANTMENT SECTION REMOVAL: " + lore.size() + " -> " + cleanedLore.size() + " lines");
         }
         
         meta.setLore(cleanedLore);
@@ -1246,7 +1312,7 @@ public class EnchantmentApplicator {
     }
     
     /**
-     * Remove a custom enchantment from an item - FIXED: Proper stat cleanup
+     * Remove a custom enchantment from an item - FIXED: Proper meta handling
      */
     public static ItemStack removeEnchantment(ItemStack item, String enchantmentId) {
         if (item == null || !item.hasItemMeta()) {
@@ -1256,56 +1322,93 @@ public class EnchantmentApplicator {
         ItemStack modifiedItem = item.clone();
         ItemMeta meta = modifiedItem.getItemMeta();
         
-        // Remove from persistent data
-        NamespacedKey key = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantmentId);
-        meta.getPersistentDataContainer().remove(key);
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "REMOVING ENCHANTMENT: " + enchantmentId + " from item");
+            debugItemLore(modifiedItem, "BEFORE REMOVAL");
+        }
+        
+        // Check if the item has this enchantment
+        NamespacedKey enchKey = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantmentId);
+        if (!meta.getPersistentDataContainer().has(enchKey, PersistentDataType.INTEGER)) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "Item does not have enchantment: " + enchantmentId);
+            }
+            return modifiedItem; // Item doesn't have this enchantment
+        }
+        
+        // Get the enchantment for reference
+        CustomEnchantment enchantment = CustomEnchantmentRegistry.getInstance().getEnchantment(enchantmentId);
+        
+        // Remove the enchantment from persistent data
+        meta.getPersistentDataContainer().remove(enchKey);
         
         // Get all remaining enchantments
-        Map<String, Integer> remainingEnchantments = new HashMap<>();
-        for (CustomEnchantment enchantment : CustomEnchantmentRegistry.getInstance().getAllEnchantments()) {
-            if (!enchantment.getId().equals(enchantmentId)) {
-                NamespacedKey enchKey = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantment.getId());
-                if (meta.getPersistentDataContainer().has(enchKey, PersistentDataType.INTEGER)) {
-                    int level = meta.getPersistentDataContainer().get(enchKey, PersistentDataType.INTEGER);
-                    remainingEnchantments.put(enchantment.getId(), level);
+        List<EnchantmentRandomizer.AppliedEnchantment> remainingEnchantments = new ArrayList<>();
+        Map<String, Integer> allEnchantments = getCustomEnchantments(modifiedItem);
+        allEnchantments.remove(enchantmentId); // Remove the one we're deleting
+        
+        for (Map.Entry<String, Integer> entry : allEnchantments.entrySet()) {
+            CustomEnchantment ench = CustomEnchantmentRegistry.getInstance().getEnchantment(entry.getKey());
+            if (ench != null) {
+                remainingEnchantments.add(new EnchantmentRandomizer.AppliedEnchantment(ench, entry.getValue()));
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Remaining enchantments after removal: " + remainingEnchantments.size());
+        }
+        
+        // CRITICAL FIX: Apply the meta changes first, then clear
+        modifiedItem.setItemMeta(meta);
+        
+        // CRITICAL FIX: Completely rebuild the item lore from scratch
+        if (remainingEnchantments.isEmpty()) {
+            // No enchantments left - remove all enchantment-related content
+            modifiedItem = clearAllEnchantmentsAndStatBonuses(modifiedItem);
+            
+            // FIXED: Get the meta after clearing and remove visual glint effect
+            meta = modifiedItem.getItemMeta();
+            if (meta != null) {
+                meta.removeEnchant(org.bukkit.enchantments.Enchantment.PROTECTION);
+                modifiedItem.setItemMeta(meta);
+            }
+        } else {
+            // Rebuild the item with remaining enchantments
+            // First, clean all existing enchantment content
+            modifiedItem = clearAllEnchantmentsAndStatBonuses(modifiedItem);
+            meta = modifiedItem.getItemMeta();
+            
+            if (meta != null) {
+                // Re-add all remaining enchantments to persistent data
+                for (EnchantmentRandomizer.AppliedEnchantment applied : remainingEnchantments) {
+                    NamespacedKey key = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + applied.enchantment.getId());
+                    meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, applied.level);
+                }
+                
+                // Apply visual glint effect
+                meta.addEnchant(org.bukkit.enchantments.Enchantment.PROTECTION, 1, true);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+                
+                modifiedItem.setItemMeta(meta);
+                
+                // Rebuild lore with remaining enchantments and stats
+                meta = modifiedItem.getItemMeta();
+                if (meta != null) {
+                    updateItemLoreWithEnchantmentsAndStats(meta, remainingEnchantments);
+                    modifiedItem.setItemMeta(meta);
                 }
             }
         }
         
-        // If no enchantments remain, completely clean the item
-        if (remainingEnchantments.isEmpty()) {
-            modifiedItem = clearAllEnchantmentsAndStatBonuses(modifiedItem);
-            return modifiedItem;
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            debugItemLore(modifiedItem, "AFTER REMOVAL");
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Successfully removed enchantment: " + enchantmentId);
         }
         
-        // Otherwise, reapply all remaining enchantments from scratch
-        // First clean everything
-        modifiedItem = clearAllEnchantmentsAndStatBonuses(modifiedItem);
-        meta = modifiedItem.getItemMeta();
-        
-        // Rebuild the enchantments
-        List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : remainingEnchantments.entrySet()) {
-            CustomEnchantment enchantment = CustomEnchantmentRegistry.getInstance().getEnchantment(entry.getKey());
-            if (enchantment != null) {
-                appliedEnchantments.add(new EnchantmentRandomizer.AppliedEnchantment(enchantment, entry.getValue()));
-                
-                // Re-add to persistent data
-                NamespacedKey enchKey = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantment.getId());
-                meta.getPersistentDataContainer().set(enchKey, PersistentDataType.INTEGER, entry.getValue());
-            }
-        }
-        
-        // Apply visual glint effect if there are remaining enchantments
-        if (!appliedEnchantments.isEmpty()) {
-            meta.addEnchant(org.bukkit.enchantments.Enchantment.PROTECTION, 1, true);
-            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
-            
-            // Update lore with remaining enchantments
-            updateItemLoreWithEnchantmentsAndStats(meta, appliedEnchantments);
-        }
-        
-        modifiedItem.setItemMeta(meta);
         return modifiedItem;
     }
     
