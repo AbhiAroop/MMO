@@ -142,16 +142,16 @@ public class AdminEnchantingCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Remove an enchantment from an item (admin command)
+     * Remove an enchantment from an item (admin command) - FIXED
      */
     private boolean handleRemoveEnchantCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players!");
+            sender.sendMessage(ChatColor.RED + "This command must be used by a player!");
             return true;
         }
         
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "Usage: /adminenchanting remove <enchantment> [player]");
+            sender.sendMessage(ChatColor.RED + "Usage: /adminenchanting remove <enchantment_id> [player]");
             return true;
         }
         
@@ -175,19 +175,25 @@ public class AdminEnchantingCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
-        // Check if item has the enchantment
+        // Check if item has this enchantment
         if (com.server.enchanting.EnchantmentApplicator.getEnchantmentLevel(item, enchantmentId) == 0) {
             sender.sendMessage(ChatColor.RED + "Item does not have enchantment: " + enchantmentId);
             return true;
         }
         
-        // Remove enchantment
+        // Remove the enchantment
         ItemStack modifiedItem = com.server.enchanting.EnchantmentApplicator.removeEnchantment(item, enchantmentId);
-        player.getInventory().setItemInMainHand(modifiedItem);
         
-        sender.sendMessage(ChatColor.GREEN + "Removed enchantment " + enchantmentId + " from " + 
-                        player.getName() + "'s " + item.getType().name());
-        player.sendMessage(ChatColor.YELLOW + "Enchantment " + enchantmentId + " has been removed from your item");
+        if (modifiedItem != null) {
+            player.getInventory().setItemInMainHand(modifiedItem);
+            sender.sendMessage(ChatColor.GREEN + "Removed enchantment '" + enchantmentId + "' from " + player.getName() + "'s item");
+            
+            if (sender != player) {
+                player.sendMessage(ChatColor.YELLOW + "Enchantment '" + enchantmentId + "' was removed from your item by an admin");
+            }
+        } else {
+            sender.sendMessage(ChatColor.RED + "Failed to remove enchantment!");
+        }
         
         return true;
     }

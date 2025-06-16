@@ -22,6 +22,7 @@ com\server\events\PlayerListener$5.class
 com\server\events\PlayerListener$5$1.class
 com\server\crafting\gui\CustomFurnaceGUI$FurnaceGUILayout.class
 com\server\cosmetics\CosmeticGUI.class
+com\server\enchanting\EnchantmentRandomizer$AppliedEnchantment.class
 com\server\profiles\skills\events\MiningListener$1.class
 com\server\crafting\furnace\FurnaceType.class
 com\server\crafting\manager\CustomCraftingManager$AdvancedRecipeData.class
@@ -34,6 +35,7 @@ com\server\profiles\skills\abilities\SkillAbility.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
+com\server\enchanting\EnchantmentRandomizer$1.class
 com\server\entities\npc\story\KaelenEchobound.class
 com\server\profiles\skills\abilities\active\ActiveAbility.class
 com\server\commands\AnimationDebugCommand$2.class
@@ -132,6 +134,7 @@ com\server\enchanting\RuneBook.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\events\AutoRespawnListener$1.class
 com\server\enchanting\EnchantingLevelCalculator.class
+com\server\enchanting\EnchantmentApplicator$StatBonuses.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\crafting\recipes\FurnaceRecipeRegistry.class
@@ -194,9 +197,11 @@ com\server\entities\mobs\colossus\DuneetchedColossus.class
 com\server\enchanting\EnchantingLevelCalculator$ChiseledBookshelfData.class
 com\server\enchanting\listeners\CustomEnchantingGUIListener$1.class
 com\server\enchanting\EnchantmentApplicator.class
+com\server\enchanting\EnchantmentRandomizer.class
 com\server\entities\npc\types\HostileNPC.class
 com\server\cosmetics\CosmeticManager$1.class
 com\server\entities\npc\NPCStats.class
+com\server\enchanting\EnchantmentRandomizer$EnchantmentSelection.class
 com\server\entities\CustomEntityManager$1.class
 com\server\entities\npc\dialogue\DialogueNode.class
 com\server\commands\AdminStatsCommand.class
@@ -259,6 +264,7 @@ com\server\display\MobDisplayManager.class
 com\server\entities\npc\dialogue\DialogueAction.class
 com\server\entities\npc\CombatHandler$2.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession.class
+com\server\enchanting\EnchantmentApplicator$1.class
 com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.class
 com\server\entities\CustomMobStats.class
 com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.class

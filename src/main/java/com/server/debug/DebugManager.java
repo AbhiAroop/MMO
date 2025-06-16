@@ -37,7 +37,8 @@ public class DebugManager {
         ANIMATION("animation", "Animation system"),
         DIALOGUE("dialogue", "NPC dialogue system"),
         ENTITY("entity", "Custom entity system"),
-        PROFILE("profile", "Profile system");
+        PROFILE("profile", "Profile system"),
+        ENCHANTING("enchanting", "Enchanting system and stat processing");
         
         private final String id;
         private final String description;

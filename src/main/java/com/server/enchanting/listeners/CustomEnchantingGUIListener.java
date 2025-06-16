@@ -1,5 +1,7 @@
 package com.server.enchanting.listeners;
 
+import java.util.List;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -15,8 +17,10 @@ import org.bukkit.inventory.ItemStack;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
+import com.server.enchanting.EnchantingLevelCalculator.EnchantingLevel;
 import com.server.enchanting.EnchantmentApplicator;
 import com.server.enchanting.EnchantmentMaterial;
+import com.server.enchanting.EnchantmentRandomizer;
 import com.server.enchanting.gui.CustomEnchantingGUI;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -197,7 +201,7 @@ public class CustomEnchantingGUIListener implements Listener {
     }
     
     /**
-     * Perform the actual enchantment process
+     * Perform the actual multi-enchantment process
      */
     private boolean performEnchantment(Player player, Inventory gui) {
         ItemStack itemToEnchant = gui.getItem(21);
@@ -207,28 +211,35 @@ public class CustomEnchantingGUIListener implements Listener {
         }
         
         // Get enchanting level and data
-        com.server.enchanting.EnchantingLevelCalculator.EnchantingLevel enchantingLevel = CustomEnchantingGUI.getPlayerEnchantingLevel(player);
+        EnchantingLevel enchantingLevel = CustomEnchantingGUI.getPlayerEnchantingLevel(player);
         if (enchantingLevel == null) {
             player.sendMessage(ChatColor.RED + "Enchanting table data not found!");
-            return false;
-        }
-        
-        // Get available enchantment
-        com.server.enchanting.CustomEnchantment enchantment = getAvailableEnchantment(player, itemToEnchant, enchantingLevel);
-        if (enchantment == null) {
-            player.sendMessage(ChatColor.RED + "No compatible enchantments available!");
             return false;
         }
         
         // Get enhancement materials
         ItemStack[] enhancementMaterials = getEnhancementMaterials(gui);
         
-        // Calculate enchantment level
-        int enchLevel = calculateEnchantmentLevel(enchantment, enhancementMaterials, enchantingLevel);
+        // Generate enchantment selections
+        List<EnchantmentRandomizer.EnchantmentSelection> selections = 
+            EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
         
-        // Calculate costs
-        int xpCost = enchantment.getXpCost(enchLevel);
-        int essenceCost = enchantment.getEssenceCost(enchLevel);
+        if (selections.isEmpty()) {
+            player.sendMessage(ChatColor.RED + "No compatible enchantments available!");
+            return false;
+        }
+        
+        // Calculate total costs (based on primary enchantment)
+        EnchantmentRandomizer.EnchantmentSelection primarySelection = selections.get(0);
+        int xpCost = primarySelection.enchantment.getXpCost(primarySelection.level);
+        int essenceCost = primarySelection.enchantment.getEssenceCost(primarySelection.level);
+        
+        // Add costs for additional enchantments (reduced cost)
+        for (int i = 1; i < selections.size(); i++) {
+            EnchantmentRandomizer.EnchantmentSelection selection = selections.get(i);
+            xpCost += (selection.enchantment.getXpCost(selection.level) / (i + 1)); // Reduced cost for additional enchantments
+            essenceCost += (selection.enchantment.getEssenceCost(selection.level) / (i + 1));
+        }
         
         // Check if player can afford
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[
@@ -249,15 +260,11 @@ public class CustomEnchantingGUIListener implements Listener {
             return false;
         }
         
-        // Calculate success rate
-        double baseSuccessRate = calculateBaseSuccessRate(enchantment, enchantingLevel);
-        double bonusFromMaterials = calculateMaterialBonus(enchantment, enhancementMaterials);
-        double totalSuccessRate = Math.min(baseSuccessRate + bonusFromMaterials, 1.0);
+        // Execute enchantment selections
+        List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments = 
+            EnchantmentRandomizer.executeEnchantmentSelections(selections);
         
-        // Roll for success
-        boolean enchantmentSuccess = Math.random() < totalSuccessRate;
-        
-        if (!enchantmentSuccess) {
+        if (appliedEnchantments.isEmpty()) {
             // Failed enchantment - still consume resources but at reduced cost
             int failedXpCost = xpCost / 2;
             int failedEssenceCost = essenceCost / 2;
@@ -268,17 +275,17 @@ public class CustomEnchantingGUIListener implements Listener {
             // Consume enhancement materials on failure too
             consumeEnhancementMaterials(gui, enhancementMaterials);
             
-            player.sendMessage(ChatColor.RED + "✦ Enchantment failed! ✦");
+            player.sendMessage(ChatColor.RED + "✦ All enchantments failed! ✦");
             player.sendMessage(ChatColor.GRAY + "Lost " + failedXpCost + " XP and " + failedEssenceCost + " essence");
             
             return false;
         }
         
-        // Success! Apply enchantment
-        ItemStack enchantedItem = EnchantmentApplicator.applyEnchantment(itemToEnchant, enchantment, enchLevel);
+        // Success! Apply multiple enchantments
+        ItemStack enchantedItem = EnchantmentApplicator.applyMultipleEnchantments(itemToEnchant, appliedEnchantments);
         
         if (enchantedItem == null) {
-            player.sendMessage(ChatColor.RED + "Failed to apply enchantment!");
+            player.sendMessage(ChatColor.RED + "Failed to apply enchantments!");
             return false;
         }
         
@@ -292,10 +299,25 @@ public class CustomEnchantingGUIListener implements Listener {
         // Replace item in GUI
         gui.setItem(21, enchantedItem);
         
+        // Send success message with details
+        StringBuilder successMessage = new StringBuilder();
+        successMessage.append(ChatColor.GREEN).append("✦ Successfully applied ").append(appliedEnchantments.size()).append(" enchantment");
+        if (appliedEnchantments.size() > 1) {
+            successMessage.append("s");
+        }
+        successMessage.append("! ✦");
+        
+        player.sendMessage(successMessage.toString());
+        
+        // List applied enchantments
+        for (EnchantmentRandomizer.AppliedEnchantment applied : appliedEnchantments) {
+            player.sendMessage(ChatColor.GRAY + "• " + applied.enchantment.getFormattedName(applied.level));
+        }
+        
         if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
             Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Enchanting] Applied " + enchantment.getFormattedName(enchLevel) + 
-                " to " + itemToEnchant.getType().name() + " (Cost: " + xpCost + " XP, " + essenceCost + " essence)");
+                "[Enchanting] Applied " + appliedEnchantments.size() + " enchantments to " + 
+                itemToEnchant.getType().name() + " (Cost: " + xpCost + " XP, " + essenceCost + " essence)");
         }
         
         return true;

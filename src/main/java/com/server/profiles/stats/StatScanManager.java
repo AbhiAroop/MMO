@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -22,7 +23,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
-import com.server.enchanting.EnchantmentStatsApplicator;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -390,9 +390,6 @@ public class StatScanManager {
             
             // Apply bonuses to player stats
             applyBonusesToStats(stats, bonuses);
-
-            // NEW: Apply enchantment bonuses
-            EnchantmentStatsApplicator.applyEnchantmentBonuses(player, stats);
             
             // Apply attributes to player based on the updated stats
             applyAttributesToPlayer(player, stats);
@@ -567,191 +564,301 @@ public class StatScanManager {
         // It's a weapon if it fits any of these criteria
         return isVanillaWeapon || isCustomWeapon || hasWeaponStats;
     }
-    
+
     /**
-     * Extract all stats from a single item
+     * Extract base integer stat value from a line - FIXED: Handle integer format after enchanting
+     */
+    private int extractBaseIntStat(String loreLine, String statName) {
+        if (!loreLine.contains(statName)) {
+            return 0;
+        }
+        
+        // Find the stat name in the line
+        int statIndex = loreLine.indexOf(statName);
+        if (statIndex == -1) {
+            return 0;
+        }
+        
+        // Get everything after the stat name
+        String afterStat = loreLine.substring(statIndex + statName.length()).trim();
+        
+        // CRITICAL FIX: Look for the TOTAL value (first number), NOT the bracketed bonus
+        // Pattern: "Health: +15 (5)" - we want 15, not 5
+        // ENHANCED: Handle both integer and decimal total values
+        Pattern totalPattern = Pattern.compile("\\+(\\d+(?:\\.\\d+)?)");
+        Matcher matcher = totalPattern.matcher(afterStat);
+        
+        if (matcher.find()) {
+            try {
+                String valueStr = matcher.group(1);
+                // FIXED: Parse as double first, then convert to int to handle decimal totals
+                double totalValue = Double.parseDouble(valueStr);
+                int result = (int) totalValue; // Truncate to integer
+                
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, 
+                        "STAT SCAN: " + statName + " extracted TOTAL value " + result + " (from " + valueStr + ") from: " + loreLine);
+                }
+                
+                return result;
+            } catch (NumberFormatException e) {
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, 
+                        "STAT SCAN: Failed to parse " + statName + " from: " + loreLine);
+                }
+            }
+        } else {
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING, 
+                    "STAT SCAN: No value found for " + statName + " in: " + loreLine);
+            }
+        }
+        
+        return 0;
+    }
+
+    /**
+     * Extract base double stat value from a line - FIXED: Handle both integer and decimal totals
+     */
+    private double extractBaseDoubleStat(String loreLine, String statName) {
+        if (!loreLine.contains(statName)) {
+            return 0.0;
+        }
+        
+        // Find the stat name in the line
+        int statIndex = loreLine.indexOf(statName);
+        if (statIndex == -1) {
+            return 0.0;
+        }
+        
+        // Get everything after the stat name
+        String afterStat = loreLine.substring(statIndex + statName.length()).trim();
+        
+        // CRITICAL FIX: Look for the TOTAL value (first number), NOT the bracketed bonus
+        // Pattern: "Mining Speed: +0.4 (0.2)" - we want 0.4, not 0.2
+        // Pattern: "Mining Fortune: +5 (0.5)" - we want 5, not 0.5
+        Pattern totalPattern = Pattern.compile("\\+(\\d+(?:\\.\\d+)?)");
+        Matcher matcher = totalPattern.matcher(afterStat);
+        
+        if (matcher.find()) {
+            try {
+                String valueStr = matcher.group(1);
+                double totalValue = Double.parseDouble(valueStr);
+                
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, 
+                        "STAT SCAN: " + statName + " extracted TOTAL value " + totalValue + " from: " + loreLine);
+                }
+                
+                return totalValue;
+            } catch (NumberFormatException e) {
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, 
+                        "STAT SCAN: Failed to parse " + statName + " from: " + loreLine);
+                }
+            }
+        } else {
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING, 
+                    "STAT SCAN: No value found for " + statName + " in: " + loreLine);
+            }
+        }
+        
+        return 0.0;
+    }
+
+    /**
+     * Enhanced extractStatsFromItem method - FIXED: Read total values from bracketed lines
      */
     private void extractStatsFromItem(ItemStack item, ItemStatBonuses bonuses) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
+        
+        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+            plugin.debugLog(DebugSystem.ENCHANTING, 
+                "STAT SCAN: Extracting stats from " + item.getType().name() + 
+                (item.hasItemMeta() && item.getItemMeta().hasDisplayName() ? 
+                    " (" + ChatColor.stripColor(item.getItemMeta().getDisplayName()) + ")" : ""));
+        }
         
         // Extract stats from any item with lore that contains stat information
         for (String loreLine : item.getItemMeta().getLore()) {
             // Strip color codes for regex matching
             String cleanLine = stripColorCodes(loreLine);
             
-            // Debug log for understanding what's being processed
-            if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                if (cleanLine.contains("Health:") || 
-                    cleanLine.contains("Armor:") || 
-                    cleanLine.contains("Magic Resist:") ||
-                    cleanLine.contains("Physical Damage:") ||
-                    cleanLine.contains("Magic Damage:") ||
-                    cleanLine.contains("Ranged Damage:") ||
-                    cleanLine.contains("Mana:") ||
-                    cleanLine.contains("Size:") ||
-                    cleanLine.contains("Lifesteal:")||
-                    cleanLine.contains("Omnivamp:")) {
-                    plugin.debugLog(DebugSystem.STATS,"Processing stat line: " + cleanLine);
-                }
+            // CRITICAL FIX: Don't skip bracketed lines - read the total value from them
+            boolean hasBrackets = cleanLine.contains("(") && cleanLine.contains(")");
+            
+            if (hasBrackets && plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING, 
+                    "STAT SCAN: Processing enchanted stat line: " + cleanLine);
             }
             
-            // Extract all possible stats
-            int healthBonus = extractIntStat(cleanLine, HEALTH_PATTERN);
+            // Skip lines that are clearly enchantment-only stats (where base value would be 0)
+            if (isEnchantmentOnlyStatLine(cleanLine)) {
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, 
+                        "STAT SCAN: SKIPPING enchantment-only stat: " + cleanLine);
+                }
+                continue;
+            }
+            
+            // Process each stat type - ALL use consistent extraction methods
+            int healthBonus = extractBaseIntStat(cleanLine, "Health:");
             if (healthBonus > 0) {
                 bonuses.health += healthBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added health: " + healthBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added health: " + healthBonus + " (total: " + bonuses.health + ")");
+                }
             }
             
-            int armorBonus = extractIntStat(cleanLine, ARMOR_PATTERN);
+            int armorBonus = extractBaseIntStat(cleanLine, "Armor:");
             if (armorBonus > 0) {
                 bonuses.armor += armorBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added armor: " + armorBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added armor: " + armorBonus + " (total: " + bonuses.armor + ")");
+                }
             }
             
-            int mrBonus = extractIntStat(cleanLine, MAGIC_RESIST_PATTERN);
+            int mrBonus = extractBaseIntStat(cleanLine, "Magic Resist:");
             if (mrBonus > 0) {
                 bonuses.magicResist += mrBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added magic resist: " + mrBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added magic resist: " + mrBonus + " (total: " + bonuses.magicResist + ")");
+                }
             }
             
-            int pdBonus = extractIntStat(cleanLine, PHYSICAL_DAMAGE_PATTERN);
+            int pdBonus = extractBaseIntStat(cleanLine, "Physical Damage:");
             if (pdBonus > 0) {
                 bonuses.physicalDamage += pdBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added physical damage: " + pdBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added physical damage: " + pdBonus + " (total: " + bonuses.physicalDamage + ")");
+                }
             }
 
-            int rdBonus = extractIntStat(cleanLine, RANGED_DAMAGE_PATTERN);
+            int rdBonus = extractBaseIntStat(cleanLine, "Ranged Damage:");
             if (rdBonus > 0) {
                 bonuses.rangedDamage += rdBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS, "Added ranged damage: " + rdBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added ranged damage: " + rdBonus + " (total: " + bonuses.rangedDamage + ")");
                 }
             }
             
-            int mdBonus = extractIntStat(cleanLine, MAGIC_DAMAGE_PATTERN);
+            int mdBonus = extractBaseIntStat(cleanLine, "Magic Damage:");
             if (mdBonus > 0) {
                 bonuses.magicDamage += mdBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added magic damage: " + mdBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added magic damage: " + mdBonus + " (total: " + bonuses.magicDamage + ")");
+                }
             }
             
-            int manaBonus = extractIntStat(cleanLine, MANA_PATTERN);
+            int manaBonus = extractBaseIntStat(cleanLine, "Mana:");
             if (manaBonus > 0) {
                 bonuses.mana += manaBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added mana: " + manaBonus);
-            }
-            
-            // Process the rest of the stats similarly with debug logging
-            bonuses.cooldownReduction += extractIntStat(cleanLine, COOLDOWN_REDUCTION_PATTERN);
-            bonuses.healthRegen += extractDoubleStat(cleanLine, HEALTH_REGEN_PATTERN);
-            bonuses.attackSpeed += extractDoubleStat(cleanLine, ATTACK_SPEED_PATTERN);
-            bonuses.attackRange += extractDoubleStat(cleanLine, ATTACK_RANGE_PATTERN);
-            
-            double sizeBonus = extractDoubleStat(cleanLine, SIZE_PATTERN);
-            if (sizeBonus > 0) {
-                bonuses.size += sizeBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) plugin.debugLog(DebugSystem.STATS,"Added size: " + sizeBonus);
-            }
-               
-            // Try specific pattern first
-            bonuses.lifeSteal += extractDoubleStat(cleanLine, LIFE_STEAL_PATTERN);
-            bonuses.omnivamp += extractDoubleStat(cleanLine, OMNIVAMP_PATTERN);
-
-
-            bonuses.critChance += extractDoubleStat(cleanLine, CRIT_CHANCE_PATTERN);
-            bonuses.critDamage += extractDoubleStat(cleanLine, CRIT_DAMAGE_PATTERN);
-
-            double miningFortuneBonus = extractDoubleStat(cleanLine, MINING_FORTUNE_PATTERN);
-            if (miningFortuneBonus > 0) {
-                // We'll add the mining fortune to a new field in ItemStatBonuses
-                bonuses.miningFortune += miningFortuneBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Added mining fortune: " + miningFortuneBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added mana: " + manaBonus + " (total: " + bonuses.mana + ")");
                 }
             }
-
-            double miningSpeedBonus = extractDoubleStat(cleanLine, MINING_SPEED_PATTERN);
+            
+            // CRITICAL FIX: Process double stats from enchanted lines
+            double miningSpeedBonus = extractBaseDoubleStat(cleanLine, "Mining Speed:");
             if (miningSpeedBonus > 0) {
                 bonuses.miningSpeed += miningSpeedBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Added mining speed: " + miningSpeedBonus);
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added mining speed: " + miningSpeedBonus + " (total: " + bonuses.miningSpeed + ")");
                 }
             }
-
-            double buildRangeBonus = extractDoubleStat(cleanLine, BUILD_RANGE_PATTERN);
-            if (buildRangeBonus > 0) {
-                bonuses.buildRange += buildRangeBonus;
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS, "Added build range: " + buildRangeBonus);
+            
+            // CRITICAL FIX: Process Mining Fortune from enchanted lines
+            double miningFortuneBonus = extractBaseDoubleStat(cleanLine, "Mining Fortune:");
+            if (miningFortuneBonus > 0) {
+                bonuses.miningFortune += miningFortuneBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added mining fortune: " + miningFortuneBonus + " (total: " + bonuses.miningFortune + ")");
                 }
             }
-        }
-    }
-
-    /**
-     * Helper method to extract int stat from lore line
-     */
-    private int extractIntStat(String loreLine, Pattern pattern) {
-        Matcher matcher = pattern.matcher(loreLine);
-        if (matcher.find()) {
-            try {
-                String valuePart = matcher.group(1);
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Extracted value: " + valuePart + " from line: " + loreLine);
-                }
-                return Integer.parseInt(valuePart);
-            } catch (NumberFormatException e) {
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Failed to parse int value from: " + loreLine);
-                }
-            }
-        }
-        return 0;
-    }
-
-    private double extractDoubleStat(String loreLine, Pattern pattern) {
-        Matcher matcher = pattern.matcher(loreLine);
-        if (matcher.find()) {
-            try {
-                String valuePart = matcher.group(1);
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Extracted double value: " + valuePart + " from line: " + loreLine);
-                }
-                return Double.parseDouble(valuePart);
-            } catch (NumberFormatException e) {
-                if (plugin.isDebugEnabled(DebugSystem.STATS)) {
-                    plugin.debugLog(DebugSystem.STATS,"Failed to parse double value from: " + loreLine);
-                }
-            }
-        } else {
-            if (plugin.isDebugEnabled(DebugSystem.STATS) && loreLine.toLowerCase().contains("mining speed")) {
-                plugin.debugLog(DebugSystem.STATS,"Mining speed pattern didn't match: " + loreLine);
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * Check if an item is a vanilla item (not custom)
-     */
-    private boolean isVanillaItem(ItemStack item) {
-        // If the item has custom model data, it's definitely not vanilla
-        if (item != null && item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
-            return false;
+            
+            // Process other stats...
+            bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
+            bonuses.healthRegen += extractBaseDoubleStat(cleanLine, "Health Regen:");
+            bonuses.attackSpeed += extractBaseDoubleStat(cleanLine, "Attack Speed:");
+            bonuses.attackRange += extractBaseDoubleStat(cleanLine, "Attack Range:");
+            bonuses.size += extractBaseDoubleStat(cleanLine, "Size:");
+            bonuses.lifeSteal += extractBaseDoubleStat(cleanLine, "Life Steal:");
+            bonuses.critChance += extractBaseDoubleStat(cleanLine, "Critical Chance:");
+            bonuses.critDamage += extractBaseDoubleStat(cleanLine, "Critical Damage:");
+            bonuses.omnivamp += extractBaseDoubleStat(cleanLine, "Omnivamp:");
+            bonuses.buildRange += extractBaseDoubleStat(cleanLine, "Build Range:");
         }
         
-        Material material = item.getType();
-        String name = material.name();
-        return name.endsWith("_SWORD") || 
-            name.endsWith("_AXE") ||
-            name.endsWith("_PICKAXE") ||
-            name.endsWith("_SHOVEL") ||
-            name.endsWith("_HOE") ||
-            name.endsWith("_HELMET") ||
-            name.endsWith("_CHESTPLATE") ||
-            name.endsWith("_LEGGINGS") ||
-            name.endsWith("_BOOTS");
+        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+            plugin.debugLog(DebugSystem.ENCHANTING, 
+                "STAT SCAN: Final bonuses - Health:" + bonuses.health + 
+                " Armor:" + bonuses.armor + " PhysDmg:" + bonuses.physicalDamage + 
+                " MagicDmg:" + bonuses.magicDamage + " Mana:" + bonuses.mana +
+                " MiningSpeed:" + bonuses.miningSpeed + " MiningFortune:" + bonuses.miningFortune);
+        }
     }
-    
+
+    /**
+     * Check if a stat line is an enchantment-only stat - ENHANCED: Better detection
+     */
+    private boolean isEnchantmentOnlyStatLine(String cleanLine) {
+        // For lines with brackets, check if they would have a base value of 0
+        if (cleanLine.contains("(") && cleanLine.contains(")")) {
+            String beforeBrackets = cleanLine.substring(0, cleanLine.indexOf("(")).trim();
+            String inBrackets = cleanLine.substring(cleanLine.indexOf("(") + 1, cleanLine.indexOf(")")).trim();
+            
+            // Find stat name
+            String[] statPrefixes = {
+                "Health:", "Armor:", "Magic Resist:", "Physical Damage:", "Magic Damage:",
+                "Mana:", "Critical Chance:", "Critical Damage:", "Mining Fortune:", 
+                "Mining Speed:", "Farming Fortune:", "Looting Fortune:", "Fishing Fortune:",
+                "Build Range:", "Cooldown Reduction:", "Health Regen:", "Speed:", "Luck:"
+            };
+            
+            String statName = null;
+            for (String prefix : statPrefixes) {
+                if (cleanLine.contains(prefix)) {
+                    statName = prefix;
+                    break;
+                }
+            }
+            
+            if (statName != null) {
+                try {
+                    // Extract total and bonus values
+                    String totalValueStr = beforeBrackets.substring(beforeBrackets.indexOf(statName) + statName.length()).trim();
+                    totalValueStr = totalValueStr.replace("+", "").trim();
+                    
+                    String bonusValueStr = inBrackets.replace("+", "").replace("-", "").trim();
+                    
+                    // Parse as double to handle both integer and decimal values
+                    double totalValue = Double.parseDouble(totalValueStr);
+                    double bonusValue = Double.parseDouble(bonusValueStr);
+                    
+                    // Check if total equals bonus (meaning base value is 0)
+                    boolean isEnchantmentOnly = Math.abs(totalValue - bonusValue) < 0.001; // Use small epsilon for floating point comparison
+                    
+                    if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        plugin.debugLog(DebugSystem.ENCHANTING, 
+                            "ENCHANTMENT-ONLY CHECK: " + statName + " total=" + totalValue + " bonus=" + bonusValue + " -> " + isEnchantmentOnly);
+                    }
+                    
+                    return isEnchantmentOnly;
+                } catch (NumberFormatException e) {
+                    if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        plugin.debugLog(DebugSystem.ENCHANTING, 
+                            "ENCHANTMENT-ONLY CHECK: Parse error for " + cleanLine + ", assuming not enchantment-only");
+                    }
+                    return false;
+                }
+            }
+        }
+        
+        // Lines without brackets are never enchantment-only
+        return false;
+    }
+        
     /**
      * Apply the extracted bonuses to player stats
      */

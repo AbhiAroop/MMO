@@ -22,6 +22,7 @@ import com.server.enchanting.CustomEnchantmentRegistry;
 import com.server.enchanting.EnchantingLevelCalculator;
 import com.server.enchanting.EnchantingLevelCalculator.EnchantingLevel;
 import com.server.enchanting.EnchantmentMaterial;
+import com.server.enchanting.EnchantmentRandomizer;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -44,6 +45,7 @@ public class CustomEnchantingGUI {
     private static final int ENCHANTING_LEVEL_SLOT = 13;
     private static final int SUCCESS_RATE_SLOT = 14;
     private static final int ENCHANTMENT_PREVIEW_SLOT = 15;
+    
     
     // Store active enchanting GUIs and their data
     private static final Map<Player, Inventory> activeEnchantingGUIs = new ConcurrentHashMap<>();
@@ -95,6 +97,179 @@ public class CustomEnchantingGUI {
         
         // Update display information
         updateEnchantingDisplays(gui, player, enchantingLevel);
+    }
+
+    /**
+     * Update enchantment preview display with multiple enchantments and probabilities
+     */
+    private static void updateEnchantmentPreview(Inventory gui, Player player, ItemStack itemToEnchant, 
+                                            ItemStack[] enhancementMaterials, EnchantingLevel enchantingLevel) {
+        ItemStack previewDisplay = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemMeta meta = previewDisplay.getItemMeta();
+        
+        if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
+            meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Place an item to see available enchantments"
+            ));
+        } else {
+            // Generate enchantment selections
+            List<EnchantmentRandomizer.EnchantmentSelection> selections = 
+                EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+            
+            if (!selections.isEmpty()) {
+                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Enchantment Preview ✦");
+                
+                List<String> lore = new ArrayList<>();
+                lore.add(ChatColor.GOLD + "Possible Enchantments:");
+                lore.add("");
+                
+                // Show each possible enchantment with probability
+                for (int i = 0; i < selections.size(); i++) {
+                    EnchantmentRandomizer.EnchantmentSelection selection = selections.get(i);
+                    
+                    // Color code by probability
+                    ChatColor probabilityColor;
+                    if (selection.probability >= 0.8) {
+                        probabilityColor = ChatColor.GREEN;
+                    } else if (selection.probability >= 0.5) {
+                        probabilityColor = ChatColor.YELLOW;
+                    } else if (selection.probability >= 0.3) {
+                        probabilityColor = ChatColor.GOLD;
+                    } else {
+                        probabilityColor = ChatColor.RED;
+                    }
+                    
+                    String priorityLabel = "";
+                    if (selection.isGuaranteed) {
+                        priorityLabel = ChatColor.AQUA + " [GUARANTEED]";
+                    } else if (i == 1) {
+                        priorityLabel = ChatColor.YELLOW + " [SECONDARY]";
+                    } else if (i > 1) {
+                        priorityLabel = ChatColor.GRAY + " [BONUS]";
+                    }
+                    
+                    lore.add(ChatColor.GRAY + "• " + selection.enchantment.getFormattedName(selection.level) + priorityLabel);
+                    lore.add(ChatColor.GRAY + "  Chance: " + probabilityColor + 
+                            String.format("%.1f%%", selection.probability * 100));
+                    lore.add(ChatColor.GRAY + "  " + selection.enchantment.getDescription());
+                    
+                    if (i < selections.size() - 1) {
+                        lore.add("");
+                    }
+                }
+                
+                lore.add("");
+                lore.add(ChatColor.DARK_GRAY + "Note: Multiple enchantments may be applied!");
+                lore.add(ChatColor.DARK_GRAY + "Higher enchanting levels increase bonus chances.");
+                
+                meta.setLore(lore);
+            } else {
+                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
+                
+                List<String> lore = new ArrayList<>();
+                lore.add(ChatColor.RED + "No compatible enchantments");
+                lore.add("");
+                lore.add(ChatColor.GRAY + "This item cannot be enchanted, or");
+                lore.add(ChatColor.GRAY + "your enchanting level is too low");
+                
+                meta.setLore(lore);
+            }
+        }
+        
+        previewDisplay.setItemMeta(meta);
+        gui.setItem(ENCHANTMENT_PREVIEW_SLOT, previewDisplay);
+    }
+
+    /**
+     * Update success rate display with multiple enchantment information
+     */
+    private static void updateSuccessRateDisplay(Inventory gui, Player player, ItemStack itemToEnchant, 
+                                            ItemStack[] enhancementMaterials, EnchantingLevel enchantingLevel) {
+        ItemStack successDisplay = new ItemStack(Material.CLOCK);
+        ItemMeta meta = successDisplay.getItemMeta();
+        
+        if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
+            meta.setDisplayName(ChatColor.YELLOW + "Success Rate: " + ChatColor.GRAY + "No item");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Place an item to see success rates"
+            ));
+        } else {
+            List<EnchantmentRandomizer.EnchantmentSelection> selections = 
+                EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+            
+            if (!selections.isEmpty()) {
+                // Calculate overall success metrics
+                double guaranteedCount = selections.stream().mapToDouble(s -> s.isGuaranteed ? 1.0 : 0.0).sum();
+                double expectedEnchantments = guaranteedCount + 
+                    selections.stream().filter(s -> !s.isGuaranteed).mapToDouble(s -> s.probability).sum();
+                
+                ChatColor rateColor = expectedEnchantments >= 3.0 ? ChatColor.GREEN : 
+                                    expectedEnchantments >= 2.0 ? ChatColor.YELLOW : 
+                                    expectedEnchantments >= 1.0 ? ChatColor.GOLD : ChatColor.RED;
+                
+                meta.setDisplayName(ChatColor.YELLOW + "Expected Enchantments: " + rateColor + 
+                                String.format("%.1f", expectedEnchantments));
+                
+                List<String> lore = new ArrayList<>();
+                lore.add(ChatColor.GRAY + "Guaranteed: " + ChatColor.GREEN + String.format("%.0f", guaranteedCount));
+                lore.add(ChatColor.GRAY + "Expected Total: " + rateColor + String.format("%.1f", expectedEnchantments));
+                lore.add("");
+                
+                // Show breakdown by enchantment
+                lore.add(ChatColor.AQUA + "Individual Success Rates:");
+                for (EnchantmentRandomizer.EnchantmentSelection selection : selections) {
+                    ChatColor chanceColor = selection.probability >= 0.8 ? ChatColor.GREEN : 
+                                        selection.probability >= 0.5 ? ChatColor.YELLOW : ChatColor.RED;
+                    
+                    String guaranteedText = selection.isGuaranteed ? " ✓" : "";
+                    lore.add(ChatColor.GRAY + "• " + selection.enchantment.getDisplayName() + ": " + 
+                            chanceColor + String.format("%.1f%%", selection.probability * 100) + guaranteedText);
+                }
+                
+                lore.add("");
+                if (expectedEnchantments >= 3.0) {
+                    lore.add(ChatColor.GREEN + "✓ Excellent enchanting potential!");
+                } else if (expectedEnchantments >= 2.0) {
+                    lore.add(ChatColor.YELLOW + "⚠ Good enchanting potential");
+                } else if (expectedEnchantments >= 1.0) {
+                    lore.add(ChatColor.GOLD + "⚠ Moderate enchanting potential");
+                } else {
+                    lore.add(ChatColor.RED + "✗ Low enchanting potential");
+                }
+                
+                meta.setLore(lore);
+            } else {
+                meta.setDisplayName(ChatColor.YELLOW + "Success Rate: " + ChatColor.GRAY + "No enchantments");
+                meta.setLore(Arrays.asList(
+                    ChatColor.GRAY + "No applicable enchantments for this item"
+                ));
+            }
+        }
+        
+        successDisplay.setItemMeta(meta);
+        gui.setItem(SUCCESS_RATE_SLOT, successDisplay);
+    }
+
+    /**
+     * Get enchantment selections for current GUI state (for listener use)
+     */
+    public static List<EnchantmentRandomizer.EnchantmentSelection> getCurrentEnchantmentSelections(Player player) {
+        Inventory gui = getPlayerEnchantingGUI(player);
+        EnchantingLevel enchantingLevel = getPlayerEnchantingLevel(player);
+        
+        if (gui == null || enchantingLevel == null) {
+            return new ArrayList<>();
+        }
+        
+        ItemStack itemToEnchant = gui.getItem(ITEM_TO_ENCHANT_SLOT);
+        ItemStack[] enhancementMaterials = getEnhancementMaterials(gui);
+        
+        if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
+            return new ArrayList<>();
+        }
+        
+        return EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
     }
     
     /**
@@ -363,115 +538,6 @@ public class CustomEnchantingGUI {
         meta.setLore(lore);
         levelDisplay.setItemMeta(meta);
         gui.setItem(ENCHANTING_LEVEL_SLOT, levelDisplay);
-    }
-    
-    /**
-     * Update success rate display
-     */
-    private static void updateSuccessRateDisplay(Inventory gui, Player player, ItemStack itemToEnchant, 
-                                               ItemStack[] enhancementMaterials, EnchantingLevel enchantingLevel) {
-        ItemStack successDisplay = new ItemStack(Material.CLOCK);
-        ItemMeta meta = successDisplay.getItemMeta();
-        
-        if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
-            meta.setDisplayName(ChatColor.YELLOW + "Success Rate: " + ChatColor.GRAY + "No item");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Place an item to see success rate"
-            ));
-        } else {
-            CustomEnchantment enchantment = getAvailableEnchantment(player, itemToEnchant, enchantingLevel);
-            if (enchantment != null) {
-                double baseSuccessRate = calculateBaseSuccessRate(enchantment, enchantingLevel);
-                double bonusFromMaterials = calculateMaterialBonus(enchantment, enhancementMaterials);
-                double totalSuccessRate = Math.min(baseSuccessRate + bonusFromMaterials, 1.0);
-                
-                ChatColor rateColor = totalSuccessRate >= 0.8 ? ChatColor.GREEN : 
-                                    totalSuccessRate >= 0.5 ? ChatColor.YELLOW : ChatColor.RED;
-                
-                meta.setDisplayName(ChatColor.YELLOW + "Success Rate: " + rateColor + 
-                                  String.format("%.1f%%", totalSuccessRate * 100));
-                
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.GRAY + "Base Rate: " + ChatColor.WHITE + String.format("%.1f%%", baseSuccessRate * 100));
-                
-                if (bonusFromMaterials > 0) {
-                    lore.add(ChatColor.GRAY + "Material Bonus: " + ChatColor.GREEN + "+" + 
-                           String.format("%.1f%%", bonusFromMaterials * 100));
-                }
-                
-                lore.add("");
-                if (totalSuccessRate >= 0.9) {
-                    lore.add(ChatColor.GREEN + "✓ Excellent chance of success!");
-                } else if (totalSuccessRate >= 0.7) {
-                    lore.add(ChatColor.YELLOW + "⚠ Good chance of success");
-                } else if (totalSuccessRate >= 0.5) {
-                    lore.add(ChatColor.GOLD + "⚠ Moderate chance of success");
-                } else {
-                    lore.add(ChatColor.RED + "✗ Low chance of success");
-                }
-                
-                meta.setLore(lore);
-            } else {
-                meta.setDisplayName(ChatColor.YELLOW + "Success Rate: " + ChatColor.GRAY + "No enchantment");
-                meta.setLore(Arrays.asList(
-                    ChatColor.GRAY + "No applicable enchantments for this item"
-                ));
-            }
-        }
-        
-        successDisplay.setItemMeta(meta);
-        gui.setItem(SUCCESS_RATE_SLOT, successDisplay);
-    }
-    
-    /**
-     * Update enchantment preview display
-     */
-    private static void updateEnchantmentPreview(Inventory gui, Player player, ItemStack itemToEnchant, 
-                                               ItemStack[] enhancementMaterials, EnchantingLevel enchantingLevel) {
-        ItemStack previewDisplay = new ItemStack(Material.ENCHANTED_BOOK);
-        ItemMeta meta = previewDisplay.getItemMeta();
-        
-        if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
-            meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Place an item to see available enchantments"
-            ));
-        } else {
-            CustomEnchantment enchantment = getAvailableEnchantment(player, itemToEnchant, enchantingLevel);
-            if (enchantment != null) {
-                int level = calculateEnchantmentLevel(enchantment, enhancementMaterials, enchantingLevel);
-                
-                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Preview: " + enchantment.getFormattedName(level));
-                
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.GRAY + "Category: " + enchantment.getCategory().getColor() + 
-                        enchantment.getCategory().getDisplayName());
-                lore.add(ChatColor.GRAY + "Rarity: " + enchantment.getRarity().getFormattedName());
-                lore.add("");
-                lore.add(ChatColor.YELLOW + enchantment.getDescription());
-                
-                if (level > 1) {
-                    lore.add("");
-                    lore.add(ChatColor.AQUA + "Level " + level + " Effect:");
-                    lore.add(ChatColor.GRAY + "Enhanced power compared to level 1");
-                }
-                
-                meta.setLore(lore);
-            } else {
-                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
-                
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.RED + "No compatible enchantments");
-                lore.add("");
-                lore.add(ChatColor.GRAY + "This item cannot be enchanted, or");
-                lore.add(ChatColor.GRAY + "your enchanting level is too low");
-                
-                meta.setLore(lore);
-            }
-        }
-        
-        previewDisplay.setItemMeta(meta);
-        gui.setItem(ENCHANTMENT_PREVIEW_SLOT, previewDisplay);
     }
     
     /**

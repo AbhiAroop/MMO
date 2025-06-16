@@ -50,7 +50,7 @@ public class EnchantmentStatsApplicator {
     }
     
     /**
-     * Apply bonuses from a specific enchantment
+     * Apply bonuses from a specific enchantment - FIXED: Correct decimal values
      */
     private static void applyEnchantmentBonus(CustomEnchantment enchantment, int level, PlayerStats stats) {
         String enchantmentId = enchantment.getId();
@@ -61,31 +61,31 @@ public class EnchantmentStatsApplicator {
                 stats.setPhysicalDamage(stats.getPhysicalDamage() + (3 * level));
                 break;
             case "executioner":
-                stats.setCriticalChance(stats.getCriticalChance() + (0.05 * level)); // 5% per level
-                stats.setCriticalDamage(stats.getCriticalDamage() + (0.1 * level)); // 0.1x per level
+                stats.setCriticalChance(stats.getCriticalChance() + (5 * level / 100.0)); // Convert to decimal
+                stats.setCriticalDamage(stats.getCriticalDamage() + (10 * level / 100.0)); // Convert to decimal
                 break;
             case "spell_power":
                 stats.setMagicDamage(stats.getMagicDamage() + (2 * level));
                 break;
                 
-            // Tool Enchantments (PlayerStats integration)
+            // Tool Enchantments - FIXED: Use proper decimal values
             case "prospector":
-                stats.setMiningFortune(stats.getMiningFortune() + (0.5 * level));
+                stats.setMiningFortune(stats.getMiningFortune() + (0.5 * level)); // 0.5 per level
                 break;
             case "swiftbreak":
-                stats.setMiningSpeed(stats.getMiningSpeed() + (0.2 * level));
+                stats.setMiningSpeed(stats.getMiningSpeed() + (0.2 * level)); // 0.2 per level
                 break;
             case "cultivator":
-                stats.setFarmingFortune(stats.getFarmingFortune() + (0.3 * level));
+                stats.setFarmingFortune(stats.getFarmingFortune() + (0.3 * level)); // 0.3 per level
                 break;
             case "treasure_hunter":
-                stats.setLootingFortune(stats.getLootingFortune() + (0.2 * level));
+                stats.setLootingFortune(stats.getLootingFortune() + (0.2 * level)); // 0.2 per level
                 break;
             case "angler":
-                stats.setFishingFortune(stats.getFishingFortune() + (0.3 * level));
+                stats.setFishingFortune(stats.getFishingFortune() + (0.3 * level)); // 0.3 per level
                 break;
             case "architect":
-                stats.setBuildRange(stats.getBuildRange() + (1.0 * level));
+                stats.setBuildRange(stats.getBuildRange() + (1.0 * level)); // 1.0 per level
                 break;
                 
             // Protection Enchantments
@@ -96,12 +96,12 @@ public class EnchantmentStatsApplicator {
                 stats.setMagicResist(stats.getMagicResist() + (5 * level));
                 break;
             case "regeneration":
-                stats.setHealthRegen(stats.getHealthRegen() + (0.5 * level));
+                stats.setHealthRegen(stats.getHealthRegen() + (0.5 * level)); // 0.5 per level
                 break;
                 
             // Utility Enchantments
             case "swift":
-                stats.setSpeed(stats.getSpeed() + (0.01 * level)); // 1% per level
+                stats.setSpeed(stats.getSpeed() + (0.01 * level)); // 0.01 per level for movement
                 break;
             case "lucky":
                 stats.setLuck(stats.getLuck() + level);
@@ -124,14 +124,13 @@ public class EnchantmentStatsApplicator {
             case "glass_cannon":
                 stats.setPhysicalDamage((int)(stats.getPhysicalDamage() * (1.0 + 0.1 * level)));
                 stats.setMagicDamage((int)(stats.getMagicDamage() * (1.0 + 0.1 * level)));
-                stats.setHealth((int)(stats.getHealth() * (1.0 - 0.05 * level))); // Reduce health
+                stats.setHealth((int)(stats.getHealth() * (1.0 - 0.05 * level)));
                 break;
             case "mana_burn":
                 stats.setTotalMana(stats.getTotalMana() + (5 * level));
                 break;
                 
             default:
-                // Unknown enchantment, skip
                 break;
         }
     }
