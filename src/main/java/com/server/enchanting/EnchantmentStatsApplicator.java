@@ -59,7 +59,7 @@ public class EnchantmentStatsApplicator {
         switch (enchantmentId) {
             // Combat Enchantments
             case "savagery":
-                int savageryBonus = 3 * level;
+                int savageryBonus = 5 * level;
                 stats.setPhysicalDamage(stats.getPhysicalDamage() + savageryBonus);
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
@@ -92,16 +92,16 @@ public class EnchantmentStatsApplicator {
                 
             // Tool Enchantments - FIXED: Use proper decimal values
             case "prospector":
-                stats.setMiningFortune(stats.getMiningFortune() + (0.5 * level)); // 0.5 per level
+                stats.setMiningFortune(stats.getMiningFortune() + (5 * level)); // 0.5 per level
                 break;
             case "swiftbreak":
                 stats.setMiningSpeed(stats.getMiningSpeed() + (0.2 * level)); // 0.2 per level
                 break;
             case "cultivator":
-                stats.setFarmingFortune(stats.getFarmingFortune() + (0.3 * level)); // 0.3 per level
+                stats.setFarmingFortune(stats.getFarmingFortune() + (5 * level)); // 0.3 per level
                 break;
             case "treasure_hunter":
-                stats.setLootingFortune(stats.getLootingFortune() + (0.2 * level)); // 0.2 per level
+                stats.setLootingFortune(stats.getLootingFortune() + (5 * level)); // 0.2 per level
                 break;
             case "angler":
                 stats.setFishingFortune(stats.getFishingFortune() + (0.3 * level)); // 0.3 per level
@@ -112,13 +112,13 @@ public class EnchantmentStatsApplicator {
                 
             // Protection Enchantments
             case "fortification":
-                stats.setArmor(stats.getArmor() + (3 * level));
+                stats.setArmor(stats.getArmor() + (5 * level));
                 break;
             case "warding":
                 stats.setMagicResist(stats.getMagicResist() + (5 * level));
                 break;
             case "regeneration":
-                stats.setHealthRegen(stats.getHealthRegen() + (0.5 * level)); // 0.5 per level
+                stats.setHealthRegen(stats.getHealthRegen() + (0.3 * level)); // 0.3 per level
                 break;
                 
             // Utility Enchantments

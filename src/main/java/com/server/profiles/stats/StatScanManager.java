@@ -35,29 +35,6 @@ public class StatScanManager {
     private Map<UUID, ItemStatBonuses> lastHeldItemBonuses = new HashMap<>();
     private static final int SCAN_INTERVAL = 5; // Update every 5 ticks (1/4 second)
     
-    // Stat extraction patterns for parsing lore
-    private static final Pattern HEALTH_PATTERN = Pattern.compile("Health: \\+(\\d+)");
-    private static final Pattern ARMOR_PATTERN = Pattern.compile("Armor: \\+(\\d+)");
-    private static final Pattern MAGIC_RESIST_PATTERN = Pattern.compile("Magic Resist: \\+(\\d+)");
-    private static final Pattern PHYSICAL_DAMAGE_PATTERN = Pattern.compile("Physical Damage: \\+(\\d+)");
-    private static final Pattern MAGIC_DAMAGE_PATTERN = Pattern.compile("Magic Damage: \\+(\\d+)");
-    private static final Pattern RANGED_DAMAGE_PATTERN = Pattern.compile("Ranged Damage: \\+(\\d+)");
-    private static final Pattern MANA_PATTERN = Pattern.compile("Mana: \\+(\\d+)");
-    private static final Pattern COOLDOWN_REDUCTION_PATTERN = Pattern.compile("Cooldown Reduction: \\+(\\d+)%");
-    private static final Pattern HEALTH_REGEN_PATTERN = Pattern.compile("Health Regen: \\+(\\d+\\.?\\d*)");
-    private static final Pattern ATTACK_SPEED_PATTERN = Pattern.compile("Attack Speed: \\+(\\d+\\.?\\d*)");
-    private static final Pattern ATTACK_RANGE_PATTERN = Pattern.compile("Attack Range: \\+(\\d+\\.?\\d*)");
-    private static final Pattern SIZE_PATTERN = Pattern.compile("Size: \\+(\\d+\\.?\\d*)");
-    private static final Pattern LIFE_STEAL_PATTERN = Pattern.compile("(?:Life Steal|Lifesteal): \\+(\\d+\\.?\\d*)%?");
-    private static final Pattern CRIT_CHANCE_PATTERN = Pattern.compile("Critical Chance: \\+(\\d+\\.?\\d*)%");
-    private static final Pattern CRIT_DAMAGE_PATTERN = Pattern.compile("Critical Damage: \\+(\\d+\\.?\\d*)x");
-    private static final Pattern OMNIVAMP_PATTERN = Pattern.compile("(?:Omnivamp|Omni Vamp): \\+(\\d+\\.?\\d*)%?");
-
-    // Mining-specific patterns
-    private static final Pattern MINING_FORTUNE_PATTERN = Pattern.compile("Mining Fortune: \\+(\\d+\\.?\\d*)");
-    private static final Pattern MINING_SPEED_PATTERN = Pattern.compile("Mining Speed: \\+(\\d+\\.?\\d*)");
-    private static final Pattern BUILD_RANGE_PATTERN = Pattern.compile("Build Range: \\+(\\d+\\.?\\d*)");
-
     // Attribute modifier name constants for proper tracking and removal
     private static final String MMO_HEALTH_MODIFIER = "mmo.health";
     private static final String MMO_SIZE_MODIFIER = "mmo.size";
@@ -668,7 +645,7 @@ public class StatScanManager {
     }
 
     /**
-     * Enhanced extractStatsFromItem method - FIXED: Read total values from bracketed lines
+     * Enhanced extractStatsFromItem method - FIXED: Force Health Regen processing
      */
     private void extractStatsFromItem(ItemStack item, ItemStatBonuses bonuses) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
@@ -691,6 +668,19 @@ public class StatScanManager {
             if (hasBrackets && plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
                 plugin.debugLog(DebugSystem.ENCHANTING, 
                     "STAT SCAN: Processing enchanted stat line: " + cleanLine);
+            }
+            
+            // SPECIAL CASE: Always process Health Regen lines regardless of enchantment-only status
+            if (cleanLine.contains("Health Regen:")) {
+                double healthRegenBonus = extractBaseDoubleStat(cleanLine, "Health Regen:");
+                if (healthRegenBonus > 0) {
+                    bonuses.healthRegen += healthRegenBonus;
+                    if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        plugin.debugLog(DebugSystem.ENCHANTING, 
+                            "STAT SCAN: FORCED Health Regen processing: " + healthRegenBonus + " (total: " + bonuses.healthRegen + ")");
+                    }
+                }
+                continue; // Skip the normal enchantment-only check for Health Regen
             }
             
             // Skip lines that are clearly enchantment-only stats (where base value would be 0)
@@ -779,7 +769,9 @@ public class StatScanManager {
             
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
-            bonuses.healthRegen += extractBaseDoubleStat(cleanLine, "Health Regen:");
+            
+            // Note: Health Regen is handled at the top of the loop now
+            
             bonuses.attackSpeed += extractBaseDoubleStat(cleanLine, "Attack Speed:");
             bonuses.attackRange += extractBaseDoubleStat(cleanLine, "Attack Range:");
             bonuses.size += extractBaseDoubleStat(cleanLine, "Size:");
@@ -794,13 +786,14 @@ public class StatScanManager {
             plugin.debugLog(DebugSystem.ENCHANTING, 
                 "STAT SCAN: Final bonuses - Health:" + bonuses.health + 
                 " Armor:" + bonuses.armor + " PhysDmg:" + bonuses.physicalDamage + 
-                " MagicDmg:" + bonuses.magicDamage + " Mana:" + bonuses.mana +
-                " MiningSpeed:" + bonuses.miningSpeed + " MiningFortune:" + bonuses.miningFortune);
+                " MagicDmg:" + bonuses.magicDamage + " Mana:" + bonuses.mana + 
+                " MiningSpeed:" + bonuses.miningSpeed + " MiningFortune:" + bonuses.miningFortune +
+                " HealthRegen:" + bonuses.healthRegen); // Added health regen to debug output
         }
     }
 
     /**
-     * Check if a stat line is an enchantment-only stat - ENHANCED: Better detection
+     * Check if a stat line is an enchantment-only stat - FIXED: Proper Health Regen handling
      */
     private boolean isEnchantmentOnlyStatLine(String cleanLine) {
         // For lines with brackets, check if they would have a base value of 0
@@ -836,6 +829,16 @@ public class StatScanManager {
                     double totalValue = Double.parseDouble(totalValueStr);
                     double bonusValue = Double.parseDouble(bonusValueStr);
                     
+                    // CRITICAL FIX: Health Regen should NEVER be considered enchantment-only
+                    // Health Regen always has a base value (even if it's 0), so it should always be processed
+                    if (statName.equals("Health Regen:")) {
+                        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                            plugin.debugLog(DebugSystem.ENCHANTING, 
+                                "ENCHANTMENT-ONLY CHECK: " + statName + " is NEVER enchantment-only - always process");
+                        }
+                        return false; // Always process Health Regen stats
+                    }
+                    
                     // Check if total equals bonus (meaning base value is 0)
                     boolean isEnchantmentOnly = Math.abs(totalValue - bonusValue) < 0.001; // Use small epsilon for floating point comparison
                     
@@ -863,11 +866,14 @@ public class StatScanManager {
      * Apply the extracted bonuses to player stats
      */
     private void applyBonusesToStats(PlayerStats stats, ItemStatBonuses bonuses) {
-        // Store current health and mana directly (no percentage calculation)
+        // Store current health and mana to preserve them
         double currentHealth = stats.getCurrentHealth();
         int currentMana = stats.getMana();
         
-        // IMPORTANT: Only apply item bonuses, don't double up stats
+        // Reset to defaults first
+        stats.resetToDefaults();
+        
+        // Apply bonuses
         stats.setHealth(stats.getDefaultHealth() + bonuses.health);
         stats.setArmor(stats.getDefaultArmor() + bonuses.armor);
         stats.setMagicResist(stats.getDefaultMagicResist() + bonuses.magicResist);
@@ -875,15 +881,27 @@ public class StatScanManager {
         stats.setRangedDamage(stats.getDefaultRangedDamage() + bonuses.rangedDamage);
         stats.setMagicDamage(stats.getDefaultMagicDamage() + bonuses.magicDamage);
         stats.setTotalMana(stats.getDefaultMana() + bonuses.mana);
+        
+        // CRITICAL FIX: Apply health regen bonus with enhanced debugging
+        double oldHealthRegen = stats.getHealthRegen();
+        double newHealthRegen = stats.getDefaultHealthRegen() + bonuses.healthRegen;
+        stats.setHealthRegen(newHealthRegen);
+        
+        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+            plugin.debugLog(DebugSystem.STATS, 
+                "HEALTH REGEN APPLICATION: default=" + stats.getDefaultHealthRegen() + 
+                " + bonus=" + bonuses.healthRegen + " = " + newHealthRegen + 
+                " (was " + oldHealthRegen + ")");
+        }
+        
         stats.setCooldownReduction(stats.getDefaultCooldownReduction() + bonuses.cooldownReduction);
-        stats.setHealthRegen(stats.getDefaultHealthRegen() + bonuses.healthRegen);
         stats.setAttackSpeed(stats.getDefaultAttackSpeed() + bonuses.attackSpeed);
         stats.setAttackRange(stats.getDefaultAttackRange() + bonuses.attackRange);
         stats.setSize(stats.getDefaultSize() + bonuses.size);
         stats.setLifeSteal(stats.getDefaultLifeSteal() + bonuses.lifeSteal);
-        stats.setOmnivamp(stats.getDefaultOmnivamp() + bonuses.omnivamp);
-        stats.setCriticalChance(stats.getDefaultCriticalChance() + (bonuses.critChance / 100.0)); // Convert % to decimal
+        stats.setCriticalChance(stats.getDefaultCriticalChance() + bonuses.critChance);
         stats.setCriticalDamage(stats.getDefaultCriticalDamage() + bonuses.critDamage);
+        stats.setOmnivamp(stats.getDefaultOmnivamp() + bonuses.omnivamp);
         
         // Keep current health as is, just cap it if needed
         stats.setCurrentHealth(Math.min(currentHealth, stats.getHealth()));
@@ -895,6 +913,12 @@ public class StatScanManager {
         stats.setMiningFortune(stats.getDefaultMiningFortune() + bonuses.miningFortune);
         stats.setMiningSpeed(stats.getDefaultMiningSpeed() + bonuses.miningSpeed);
         stats.setBuildRange(stats.getDefaultBuildRange() + bonuses.buildRange);
+        
+        if (plugin.isDebugEnabled(DebugSystem.STATS)) {
+            plugin.debugLog(DebugSystem.STATS,
+                "Applied stat bonuses to " + stats.toString() + 
+                " | HealthRegen: " + stats.getHealthRegen() + " (+" + bonuses.healthRegen + ")");
+        }
     }
         
     /**
@@ -916,7 +940,10 @@ public class StatScanManager {
         stats.setRangedDamage(stats.getDefaultRangedDamage());
         stats.setTotalMana(stats.getDefaultMana());
         stats.setCooldownReduction(stats.getDefaultCooldownReduction());
+        
+        // CRITICAL: Reset health regen to default before applying equipment bonuses
         stats.setHealthRegen(stats.getDefaultHealthRegen());
+        
         stats.setAttackSpeed(stats.getDefaultAttackSpeed());
         stats.setAttackRange(stats.getDefaultAttackRange());
         stats.setSize(stats.getDefaultSize());
@@ -932,9 +959,10 @@ public class StatScanManager {
         stats.setMana(Math.min(currentMana, stats.getTotalMana()));
 
         stats.setMiningSpeed(stats.getDefaultMiningSpeed());
-        stats.setMiningFortune(stats.getMiningFortune());
+        stats.setMiningFortune(stats.getDefaultMiningFortune());
         stats.setBuildRange(stats.getDefaultBuildRange());
     }
+
     /**
      * Apply stats to player's Minecraft attributes
      */
@@ -1420,16 +1448,20 @@ public class StatScanManager {
         plugin.debugLog(DebugSystem.STATS,"  Ranged Damage: +" + bonuses.rangedDamage);
         plugin.debugLog(DebugSystem.STATS,"  Mana: +" + bonuses.mana);
         plugin.debugLog(DebugSystem.STATS,"  Cooldown Reduction: +" + bonuses.cooldownReduction + "%");
-        plugin.debugLog(DebugSystem.STATS,"  Health Regen: +" + bonuses.healthRegen);
+        
+        // ENHANCED: Better health regen debugging
+        plugin.debugLog(DebugSystem.STATS,"  Health Regen: +" + bonuses.healthRegen + " (CRITICAL STAT)");
+        
         plugin.debugLog(DebugSystem.STATS,"  Attack Speed: +" + bonuses.attackSpeed);
         plugin.debugLog(DebugSystem.STATS,"  Attack Range: +" + bonuses.attackRange);
         plugin.debugLog(DebugSystem.STATS,"  Size: +" + bonuses.size);
         plugin.debugLog(DebugSystem.STATS,"  Life Steal: +" + bonuses.lifeSteal + "%");
         plugin.debugLog(DebugSystem.STATS,"  Omnivamp: +" + bonuses.omnivamp + "%");
-        plugin.debugLog(DebugSystem.STATS,"  Crit Chance: +" + bonuses.critChance + "%");
-        plugin.debugLog(DebugSystem.STATS,"  Crit Damage: +" + bonuses.critDamage + "x");
-        plugin.debugLog(DebugSystem.STATS,"  Mining Speed: +" + bonuses.miningSpeed + "x");
-        plugin.debugLog(DebugSystem.STATS, "  Build Range: +" + bonuses.buildRange);
+        plugin.debugLog(DebugSystem.STATS,"  Critical Chance: +" + bonuses.critChance + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Critical Damage: +" + bonuses.critDamage + "%");
+        plugin.debugLog(DebugSystem.STATS,"  Mining Fortune: +" + bonuses.miningFortune);
+        plugin.debugLog(DebugSystem.STATS,"  Mining Speed: +" + bonuses.miningSpeed);
+        plugin.debugLog(DebugSystem.STATS,"  Build Range: +" + bonuses.buildRange);
     }
     
     
