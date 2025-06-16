@@ -4,7 +4,8 @@ import java.util.Map;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-
+import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.stats.PlayerStats;
 
 /**
@@ -50,7 +51,7 @@ public class EnchantmentStatsApplicator {
     }
     
     /**
-     * Apply bonuses from a specific enchantment - FIXED: Correct decimal values
+     * Apply bonuses from a specific enchantment - ENHANCED: Percentage-based calculations
      */
     private static void applyEnchantmentBonus(CustomEnchantment enchantment, int level, PlayerStats stats) {
         String enchantmentId = enchantment.getId();
@@ -60,9 +61,22 @@ public class EnchantmentStatsApplicator {
             case "savagery":
                 stats.setPhysicalDamage(stats.getPhysicalDamage() + (3 * level));
                 break;
+            case "brutality":
+                // NEW: Percentage-based physical damage increase
+                int currentPhysicalDamage = stats.getPhysicalDamage();
+                double percentIncrease = 10 * level; // 10% per level
+                int bonusDamage = (int) Math.round(currentPhysicalDamage * (percentIncrease / 100.0));
+                stats.setPhysicalDamage(currentPhysicalDamage + bonusDamage);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "BRUTALITY: Applied " + percentIncrease + "% bonus to " + currentPhysicalDamage + 
+                        " physical damage = +" + bonusDamage + " (new total: " + stats.getPhysicalDamage() + ")");
+                }
+                break;
             case "executioner":
-                stats.setCriticalChance(stats.getCriticalChance() + (5 * level / 100.0)); // Convert to decimal
-                stats.setCriticalDamage(stats.getCriticalDamage() + (10 * level / 100.0)); // Convert to decimal
+                stats.setCriticalChance(stats.getCriticalChance() + (5 * level / 100.0));
+                stats.setCriticalDamage(stats.getCriticalDamage() + (10 * level / 100.0));
                 break;
             case "spell_power":
                 stats.setMagicDamage(stats.getMagicDamage() + (2 * level));

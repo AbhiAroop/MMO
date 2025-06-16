@@ -24,30 +24,25 @@ public class EnchantmentApplicator {
     private static final String ENCHANTMENT_PREFIX = "custom_enchant_";
     
     /**
-     * Apply a custom enchantment to an item
+     * Apply a custom enchantment to an item - FIXED: Ensure lore is updated properly
      */
     public static ItemStack applyEnchantment(ItemStack item, CustomEnchantment enchantment, int level) {
-        if (item == null || enchantment == null || level <= 0) {
-            return null;
+        if (item == null || !item.hasItemMeta()) {
+            return item;
         }
         
         ItemStack enchantedItem = item.clone();
         ItemMeta meta = enchantedItem.getItemMeta();
-        if (meta == null) {
-            return null;
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "APPLYING ENCHANTMENT: " + enchantment.getId() + " level " + level + " to item");
+            debugItemLore(enchantedItem, "BEFORE ENCHANTMENT");
         }
         
-        // Check if item already has conflicting enchantments
-        if (hasConflictingEnchantment(enchantedItem, enchantment)) {
-            return null;
-        }
-        
-        // Store enchantment data in persistent data container
-        NamespacedKey enchantmentKey = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantment.getId());
-        meta.getPersistentDataContainer().set(enchantmentKey, PersistentDataType.INTEGER, level);
-        
-        // Add enchantment to lore
-        addEnchantmentToLore(meta, enchantment, level);
+        // Store the enchantment in persistent data
+        NamespacedKey key = new NamespacedKey(Main.getInstance(), ENCHANTMENT_PREFIX + enchantment.getId());
+        meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, level);
         
         // Apply visual glint effect
         meta.addEnchant(org.bukkit.enchantments.Enchantment.PROTECTION, 1, true);
@@ -55,10 +50,37 @@ public class EnchantmentApplicator {
         
         enchantedItem.setItemMeta(meta);
         
-        if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
-            Main.getInstance().debugLog(DebugSystem.GUI,
-                "[Enchantment Applicator] Applied " + enchantment.getFormattedName(level) + 
-                " to " + item.getType().name());
+        // CRITICAL FIX: Now update the item's lore with enchantments and stat bonuses
+        meta = enchantedItem.getItemMeta(); // Get fresh meta after setting
+        
+        // Get all enchantments on this item (including the one we just added)
+        Map<String, Integer> allEnchantments = getCustomEnchantments(enchantedItem);
+        List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments = new ArrayList<>();
+        
+        for (Map.Entry<String, Integer> entry : allEnchantments.entrySet()) {
+            CustomEnchantment ench = CustomEnchantmentRegistry.getInstance().getEnchantment(entry.getKey());
+            if (ench != null) {
+                appliedEnchantments.add(new EnchantmentRandomizer.AppliedEnchantment(ench, entry.getValue()));
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "UPDATING LORE: Found " + appliedEnchantments.size() + " enchantments to apply");
+            for (EnchantmentRandomizer.AppliedEnchantment applied : appliedEnchantments) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "- " + applied.enchantment.getDisplayName() + " Level " + applied.level);
+            }
+        }
+        
+        // Update lore with enchantments and enhanced stats
+        updateItemLoreWithEnchantmentsAndStats(meta, appliedEnchantments);
+        enchantedItem.setItemMeta(meta);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            debugItemLore(enchantedItem, "AFTER ENCHANTMENT");
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Successfully applied enchantment: " + enchantment.getFormattedName(level));
         }
         
         return enchantedItem;
@@ -418,13 +440,17 @@ public class EnchantmentApplicator {
         int cooldownReduction = 0;
         int speed = 0;
         int luck = 0;
+
+        int physicalDamagePercent = 0; 
+        int magicDamagePercent = 0; 
         
         boolean hasAnyBonuses() {
             return health != 0 || armor != 0 || magicResist != 0 || physicalDamage != 0 || 
                 magicDamage != 0 || mana != 0 || criticalChance != 0 || criticalDamage != 0 ||
                 miningFortune != 0.0 || miningSpeed != 0.0 || farmingFortune != 0.0 ||
                 lootingFortune != 0.0 || fishingFortune != 0.0 || buildRange != 0.0 ||
-                healthRegen != 0.0 || cooldownReduction != 0 || speed != 0 || luck != 0;
+                healthRegen != 0.0 || cooldownReduction != 0 || speed != 0 || luck != 0 ||
+                physicalDamagePercent != 0 || magicDamagePercent != 0; // Added percentage checks
         }
         
         @Override
@@ -434,6 +460,7 @@ public class EnchantmentApplicator {
             if (armor != 0) sb.append("Armor:").append(armor).append(" ");
             if (magicResist != 0) sb.append("MagicResist:").append(magicResist).append(" ");
             if (physicalDamage != 0) sb.append("PhysicalDamage:").append(physicalDamage).append(" ");
+            if (physicalDamagePercent != 0) sb.append("PhysicalDamage%:").append(physicalDamagePercent).append("% ");
             if (magicDamage != 0) sb.append("MagicDamage:").append(magicDamage).append(" ");
             if (mana != 0) sb.append("Mana:").append(mana).append(" ");
             if (criticalChance != 0) sb.append("CritChance:").append(criticalChance).append(" ");
@@ -487,7 +514,11 @@ public class EnchantmentApplicator {
         
         // Remove enchantment section from lore (including descriptions)
         meta = cleanedItem.getItemMeta(); // Get fresh meta again
-        removeEnchantmentSectionFromLore(meta);
+        List<String> lore = meta.getLore();
+        if (lore != null) {
+            removeEnchantmentSectionFromLore(lore);
+            meta.setLore(lore);
+        }
         cleanedItem.setItemMeta(meta);
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
@@ -500,22 +531,27 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Remove stat bonuses (brackets) from a single stat line - FIXED: Preserve base stats
+     * Remove stat bonuses (brackets) from a single stat line - ENHANCED: Handle lines without brackets
      */
     private static String removeStatBonuses(String statLine) {
+        if (statLine == null || statLine.trim().isEmpty()) {
+            return statLine;
+        }
+        
         String cleanLine = ChatColor.stripColor(statLine).trim();
         
         if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
             Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                "REMOVING BONUSES: Processing line: " + statLine);
+                "REMOVING BONUSES: Processing line: " + cleanLine);
         }
         
-        // Check if this line has brackets (enchantment bonuses)
+        // Check if this line has brackets (enchanted stat)
         if (cleanLine.contains("(") && cleanLine.contains(")")) {
-            // This line has enchantment bonuses - extract the base value
+            // Extract the part before brackets and the part in brackets
+            String beforeBrackets = cleanLine.substring(0, cleanLine.indexOf("(")).trim();
+            String inBrackets = cleanLine.substring(cleanLine.indexOf("(") + 1, cleanLine.indexOf(")")).trim();
             
             // Find the stat name
-            String statName = null;
             String[] statPrefixes = {
                 "Health:", "Armor:", "Magic Resist:", "Physical Damage:", "Magic Damage:",
                 "Mana:", "Critical Chance:", "Critical Damage:", "Mining Fortune:", 
@@ -523,6 +559,7 @@ public class EnchantmentApplicator {
                 "Build Range:", "Cooldown Reduction:", "Health Regen:", "Speed:", "Luck:"
             };
             
+            String statName = null;
             for (String prefix : statPrefixes) {
                 if (cleanLine.contains(prefix)) {
                     statName = prefix;
@@ -530,83 +567,75 @@ public class EnchantmentApplicator {
                 }
             }
             
-            if (statName == null) {
-                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
-                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                        "REMOVING BONUSES: Unknown stat type, returning null");
-                }
-                return null; // Unknown stat type
-            }
-            
-            // Extract the total value (before brackets) and enchantment bonus (in brackets)
-            String beforeBrackets = cleanLine.substring(0, cleanLine.indexOf("(")).trim();
-            String inBrackets = cleanLine.substring(cleanLine.indexOf("(") + 1, cleanLine.indexOf(")")).trim();
-            
-            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
-                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                    "REMOVING BONUSES: Before brackets: '" + beforeBrackets + "', In brackets: '" + inBrackets + "'");
-            }
-            
-            // Extract total value and bonus value
-            String totalValueStr = beforeBrackets.substring(beforeBrackets.indexOf(statName) + statName.length()).trim();
-            totalValueStr = totalValueStr.replace("+", "").trim();
-            
-            String bonusValueStr = inBrackets.replace("+", "").replace("-", "").trim();
-            
-            try {
-                // Calculate base value = total - bonus
-                if (isIntegerStat(statName)) {
-                    int totalValue = Integer.parseInt(totalValueStr);
-                    int bonusValue = Integer.parseInt(bonusValueStr);
-                    int baseValue = totalValue - bonusValue;
+            if (statName != null) {
+                try {
+                    // Extract total and bonus values
+                    String totalValueStr = beforeBrackets.substring(beforeBrackets.indexOf(statName) + statName.length()).trim();
+                    totalValueStr = totalValueStr.replace("+", "").trim();
                     
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
-                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                            "REMOVING BONUSES: " + statName + " total=" + totalValue + " bonus=" + bonusValue + " base=" + baseValue);
-                    }
+                    String bonusValueStr = inBrackets.replace("+", "").replace("-", "").trim();
                     
-                    if (baseValue > 0) {
-                        // This stat has a base value - preserve it
-                        String colorCode = getStatColorCode(statLine);
-                        return colorCode + statName + " " + colorCode + "+" + baseValue;
-                    } else {
-                        // This stat is purely from enchantments - remove it
+                    // Handle both integer and double stats
+                    if (isIntegerStat(statName)) {
+                        int totalValue = Integer.parseInt(totalValueStr);
+                        int bonusValue = Integer.parseInt(bonusValueStr);
+                        int baseValue = totalValue - bonusValue;
+                        
                         if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                             Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                                "REMOVING BONUSES: Purely enchantment stat, removing");
+                                "REMOVING BONUSES: " + statName + " total=" + totalValue + " bonus=" + bonusValue + " base=" + baseValue);
                         }
-                        return null;
-                    }
-                } else {
-                    // Handle double stats (Mining Speed, Mining Fortune, etc.)
-                    double totalValue = Double.parseDouble(totalValueStr);
-                    double bonusValue = Double.parseDouble(bonusValueStr);
-                    double baseValue = totalValue - bonusValue;
-                    
-                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
-                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                            "REMOVING BONUSES: " + statName + " total=" + totalValue + " bonus=" + bonusValue + " base=" + baseValue);
-                    }
-                    
-                    if (baseValue > 0) {
-                        // This stat has a base value - preserve it
-                        String colorCode = getStatColorCode(statLine);
-                        return colorCode + statName + " " + colorCode + "+" + String.format("%.1f", baseValue);
+                        
+                        // If base value is 0 or negative, this is purely an enchantment stat
+                        if (baseValue <= 0) {
+                            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                                    "REMOVING BONUSES: Purely enchantment stat, removing");
+                            }
+                            return null;
+                        }
+                        
+                        // Reconstruct the line with only base value
+                        String originalColor = getStatColorCode(statLine);
+                        return originalColor + statName + " " + originalColor + "+" + baseValue;
                     } else {
-                        // This stat is purely from enchantments - remove it
+                        // Handle double stats (Mining Speed, Mining Fortune, etc.)
+                        double totalValue = Double.parseDouble(totalValueStr);
+                        double bonusValue = Double.parseDouble(bonusValueStr);
+                        double baseValue = totalValue - bonusValue;
+                        
                         if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                             Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                                "REMOVING BONUSES: Purely enchantment stat, removing");
+                                "REMOVING BONUSES: " + statName + " total=" + totalValue + " bonus=" + bonusValue + " base=" + baseValue);
                         }
-                        return null;
+                        
+                        // If base value is 0 or negative, this is purely an enchantment stat
+                        if (baseValue <= 0.001) {
+                            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                                    "REMOVING BONUSES: Purely enchantment stat, removing");
+                            }
+                            return null;
+                        }
+                        
+                        // Reconstruct the line with only base value
+                        String originalColor = getStatColorCode(statLine);
+                        if (baseValue == Math.floor(baseValue)) {
+                            return originalColor + statName + " " + originalColor + "+" + (int)baseValue;
+                        } else {
+                            return originalColor + statName + " " + originalColor + "+" + String.format("%.1f", baseValue);
+                        }
                     }
+                } catch (NumberFormatException e) {
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "REMOVING BONUSES: Failed to parse numbers, keeping original line");
+                    }
+                    // If we can't parse the numbers, keep the original line
+                    return statLine;
                 }
-            } catch (NumberFormatException e) {
-                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
-                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                        "REMOVING BONUSES: Failed to parse numbers, keeping original line");
-                }
-                // If we can't parse the numbers, keep the original line
+            } else {
+                // Unknown stat type, keep original
                 return statLine;
             }
         } else {
@@ -673,11 +702,92 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Remove entire enchantment section from lore - ENHANCED: Remove descriptions too
+     * Add enchantment section to item lore - NEW METHOD
      */
-    private static void removeEnchantmentSectionFromLore(ItemMeta meta) {
-        List<String> lore = meta.getLore();
-        if (lore == null) {
+    private static void addEnchantmentSection(List<String> lore, List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments) {
+        if (appliedEnchantments.isEmpty()) {
+            return;
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "ADDING ENCHANTMENT SECTION: " + appliedEnchantments.size() + " enchantments");
+        }
+        
+        // Remove existing enchantment section first
+        removeEnchantmentSectionFromLore(lore);
+        
+        // Find insertion point (after stats section or at end)
+        int insertIndex = findEnchantmentInsertionPoint(lore);
+        
+        // Add enchantment header
+        lore.add(insertIndex, "");
+        lore.add(insertIndex + 1, ChatColor.DARK_PURPLE + "✦ Enchantments:");
+        insertIndex += 2;
+        
+        // Add each enchantment with description
+        for (EnchantmentRandomizer.AppliedEnchantment applied : appliedEnchantments) {
+            // Add enchantment name and level
+            lore.add(insertIndex, ChatColor.GRAY + "• " + applied.enchantment.getFormattedName(applied.level));
+            insertIndex++;
+            
+            // Add blank line for spacing
+            lore.add(insertIndex, "");
+            insertIndex++;
+            
+            // Add enchantment description
+            lore.add(insertIndex, ChatColor.DARK_GRAY + "» " + applied.enchantment.getDescription());
+            insertIndex++;
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "Added enchantment: " + applied.enchantment.getFormattedName(applied.level));
+            }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "ENCHANTMENT SECTION COMPLETE: Added at index " + (insertIndex - appliedEnchantments.size() * 3));
+        }
+    }
+
+    /**
+     * Find where to insert enchantment section in lore - NEW METHOD
+     */
+    private static int findEnchantmentInsertionPoint(List<String> lore) {
+        // Look for the end of stats section
+        boolean inStatsSection = false;
+        for (int i = 0; i < lore.size(); i++) {
+            String cleanLine = ChatColor.stripColor(lore.get(i)).trim();
+            
+            if (cleanLine.equals("Stats:")) {
+                inStatsSection = true;
+                continue;
+            }
+            
+            if (inStatsSection && (cleanLine.isEmpty() || cleanLine.contains("✦"))) {
+                // Found end of stats section
+                return i;
+            }
+        }
+        
+        // If no stats section found, insert before any existing enchantment section or at end
+        for (int i = 0; i < lore.size(); i++) {
+            String line = lore.get(i);
+            if (line.contains("✦ Enchantments:")) {
+                return i;
+            }
+        }
+        
+        // Insert at end
+        return lore.size();
+    }
+
+    /**
+     * Remove enchantment section from lore - UPDATED to work with List
+     */
+    private static void removeEnchantmentSectionFromLore(List<String> lore) {
+        if (lore == null || lore.isEmpty()) {
             return;
         }
         
@@ -699,7 +809,7 @@ public class EnchantmentApplicator {
             if (line.contains("✦ Enchantments:")) {
                 inEnchantSection = true;
                 foundEnchantSection = true;
-                skipNextBlankLine = true; // Skip the blank line that typically follows
+                skipNextBlankLine = true;
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                     Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
@@ -710,7 +820,7 @@ public class EnchantmentApplicator {
             
             // If we're in enchant section
             if (inEnchantSection) {
-                // ENHANCED: Check for enchantment lines (start with "•") OR description lines (start with "»")
+                // Check for enchantment lines (start with "•") OR description lines (start with "»")
                 if (line.contains("•") || line.contains("»")) {
                     // Skip enchantment names and descriptions
                     if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
@@ -752,49 +862,61 @@ public class EnchantmentApplicator {
             }
         }
         
-        // Remove the blank line that was before enchantments section if it exists
-        if (foundEnchantSection && !cleanedLore.isEmpty()) {
-            // Check if last line is blank and should be removed
-            int lastIndex = cleanedLore.size() - 1;
-            if (lastIndex >= 0 && cleanedLore.get(lastIndex).trim().isEmpty()) {
-                // Only remove if the line before it exists and isn't blank
-                if (lastIndex > 0 && !cleanedLore.get(lastIndex - 1).trim().isEmpty()) {
-                    cleanedLore.remove(lastIndex);
-                }
-            }
-        }
-        
         if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
             Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
                 "ENCHANTMENT SECTION REMOVAL: " + lore.size() + " -> " + cleanedLore.size() + " lines");
         }
         
-        meta.setLore(cleanedLore);
+        // Replace lore content
+        lore.clear();
+        lore.addAll(cleanedLore);
     }
 
     /**
-     * Update item lore with enchantments and enhanced stat values
+     * Update item lore with enchantments and enhanced stat values - ENHANCED: Better debugging
      */
     private static void updateItemLoreWithEnchantmentsAndStats(ItemMeta meta, List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments) {
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "UPDATING ITEM LORE WITH ENCHANTMENTS AND STATS");
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Applied enchantments count: " + appliedEnchantments.size());
+        }
+        
+        // Calculate stat bonuses from enchantments
+        StatBonuses bonuses = calculateTotalStatBonuses(appliedEnchantments);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "CALCULATED STAT BONUSES: " + bonuses.toString());
+        }
+        
+        // Get current lore
         List<String> lore = meta.getLore();
         if (lore == null) {
             lore = new ArrayList<>();
+            meta.setLore(lore);
         }
         
-        // Calculate total stat bonuses from all enchantments
-        StatBonuses totalBonuses = calculateTotalStatBonuses(appliedEnchantments);
+        // Update stats in lore with bonuses
+        if (bonuses.hasAnyBonuses()) {
+            updateStatsInLore(lore, bonuses);
+        }
         
-        // Update existing stat lines or add new ones
-        updateStatsInLore(lore, totalBonuses);
+        // Add enchantment section to lore
+        addEnchantmentSection(lore, appliedEnchantments);
         
-        // Add enchantment section
-        addEnchantmentSectionToLore(lore, appliedEnchantments);
-        
+        // Set the updated lore
         meta.setLore(lore);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "LORE UPDATE COMPLETE - Final lore has " + lore.size() + " lines");
+        }
     }
 
     /**
-     * Calculate total stat bonuses from all applied enchantments - FIXED: Correct value storage
+     * Calculate total stat bonuses from all applied enchantments - FIXED: Proper brutality handling
      */
     private static StatBonuses calculateTotalStatBonuses(List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments) {
         StatBonuses bonuses = new StatBonuses();
@@ -803,26 +925,36 @@ public class EnchantmentApplicator {
             String enchantmentId = applied.enchantment.getId();
             int level = applied.level;
             
-            // Apply stat bonuses based on enchantment type - FIXED: Store as raw values for lore display
+            // Apply stat bonuses based on enchantment type
             switch (enchantmentId) {
                 // Combat Enchantments
                 case "savagery":
-                    bonuses.physicalDamage += (3 * level); // Fixed damage
+                    bonuses.physicalDamage += (3 * level); // Flat damage bonus
+                    break;
+                case "brutality":
+                    // FIXED: Store percentage for later calculation during stat application
+                    bonuses.physicalDamagePercent += (10 * level); // 10% per level
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "BRUTALITY: Added " + (10 * level) + "% to physical damage percent (total: " + bonuses.physicalDamagePercent + "%)");
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "BRUTALITY: Current bonuses state - physicalDamage=" + bonuses.physicalDamage + " physicalDamagePercent=" + bonuses.physicalDamagePercent);
+                    }
                     break;
                 case "executioner":
-                    bonuses.criticalChance += (5 * level); // Store as percentage points (5, 10, 15...)
-                    bonuses.criticalDamage += (10 * level); // Store as percentage points (10, 20, 30...)
+                    bonuses.criticalChance += (5 * level);
+                    bonuses.criticalDamage += (10 * level);
                     break;
                 case "spell_power":
-                    bonuses.magicDamage += (2 * level); // Fixed damage
+                    bonuses.magicDamage += (2 * level);
                     break;
                     
-                // Tool Enchantments - FIXED: Store as decimal values (0.5, 0.2, etc.)
+                // Tool Enchantments
                 case "prospector":
-                    bonuses.miningFortune += (0.5 * level); // Store as 0.5, 1.0, 1.5... for display
+                    bonuses.miningFortune += (0.5 * level);
                     break;
                 case "swiftbreak":
-                    bonuses.miningSpeed += (0.2 * level); // Store as 0.2, 0.4, 0.6... for display
+                    bonuses.miningSpeed += (0.2 * level);
                     break;
                 case "cultivator":
                     bonuses.farmingFortune += (0.3 * level);
@@ -834,7 +966,7 @@ public class EnchantmentApplicator {
                     bonuses.fishingFortune += (0.3 * level);
                     break;
                 case "architect":
-                    bonuses.buildRange += (1.0 * level); // Store as 1.0, 2.0, 3.0...
+                    bonuses.buildRange += (1.0 * level);
                     break;
                     
                 // Protection Enchantments
@@ -845,12 +977,12 @@ public class EnchantmentApplicator {
                     bonuses.magicResist += (5 * level);
                     break;
                 case "regeneration":
-                    bonuses.healthRegen += (0.5 * level); // Store as 0.5, 1.0, 1.5...
+                    bonuses.healthRegen += (0.5 * level);
                     break;
                     
                 // Utility Enchantments
                 case "swift":
-                    bonuses.speed += (1 * level); // Store as percentage points (1, 2, 3...)
+                    bonuses.speed += (1 * level);
                     break;
                 case "lucky":
                     bonuses.luck += level;
@@ -877,7 +1009,15 @@ public class EnchantmentApplicator {
                 case "mana_burn":
                     bonuses.mana += (5 * level);
                     break;
+                    
+                default:
+                    break;
             }
+        }
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "TOTAL BONUSES CALCULATED: " + bonuses.toString());
         }
         
         return bonuses;
@@ -951,7 +1091,7 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Update a single stat line with enchantment bonuses - FIXED: Don't pass color parameter
+     * Update a single stat line with enchantment bonuses - FIXED: Always call percentage method for Physical Damage
      */
     private static String updateStatLine(String line, StatBonuses bonuses) {
         // First, clean any existing bonuses from the line
@@ -962,9 +1102,17 @@ public class EnchantmentApplicator {
             return null;
         }
         
-        // Now check if we need to add new bonuses - DON'T PASS COLOR PARAMETER
+        // Physical Damage stat - CRITICAL FIX: Always use combined bonuses method
+        if (line.contains("Physical Damage: ")) {
+            if (bonuses.physicalDamage != 0 || bonuses.physicalDamagePercent != 0) {
+                return updatePhysicalDamageWithCombinedBonuses(cleanedLine, bonuses);
+            } else {
+                // Return cleaned line if no bonuses to apply
+                return cleanedLine;
+            }
+        }
         // Health stat
-        if (line.contains("Health: ")) {
+        else if (line.contains("Health: ")) {
             if (bonuses.health != 0) {
                 return updateStatWithBonus(cleanedLine, "Health:", null, bonuses.health);
             }
@@ -981,12 +1129,6 @@ public class EnchantmentApplicator {
                 return updateStatWithBonus(cleanedLine, "Magic Resist:", null, bonuses.magicResist);
             }
         }
-        // Physical Damage stat
-        else if (line.contains("Physical Damage: ")) {
-            if (bonuses.physicalDamage != 0) {
-                return updateStatWithBonus(cleanedLine, "Physical Damage:", null, bonuses.physicalDamage);
-            }
-        }
         // Magic Damage stat
         else if (line.contains("Magic Damage: ")) {
             if (bonuses.magicDamage != 0) {
@@ -999,25 +1141,25 @@ public class EnchantmentApplicator {
                 return updateStatWithBonus(cleanedLine, "Mana:", null, bonuses.mana);
             }
         }
-        // Critical Chance stat - FIXED: Use integer method to preserve original format
+        // Critical Chance stat
         else if (line.contains("Critical Chance: ")) {
             if (bonuses.criticalChance != 0) {
                 return updateStatWithBonus(cleanedLine, "Critical Chance:", null, bonuses.criticalChance);
             }
         }
-        // Critical Damage stat - FIXED: Use integer method to preserve original format
+        // Critical Damage stat
         else if (line.contains("Critical Damage: ")) {
             if (bonuses.criticalDamage != 0) {
                 return updateStatWithBonus(cleanedLine, "Critical Damage:", null, bonuses.criticalDamage);
             }
         }
-        // For existing Mining Fortune - CRITICAL FIX: Preserve original format
+        // Mining Fortune stat
         else if (line.contains("Mining Fortune: ")) {
             if (bonuses.miningFortune != 0) {
                 return updateStatWithDoubleBonus(cleanedLine, "Mining Fortune:", null, bonuses.miningFortune);
             }
         }
-        // For existing Mining Speed - FIXED: Preserve original format
+        // Mining Speed stat
         else if (line.contains("Mining Speed: ")) {
             if (bonuses.miningSpeed != 0) {
                 return updateStatWithDoubleBonus(cleanedLine, "Mining Speed:", null, bonuses.miningSpeed);
@@ -1029,12 +1171,81 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Create new stat lines for stats that only come from enchantments - FIXED: Use correct original colors
+     * Update physical damage with combined flat and percentage bonuses - FIXED
+     */
+    private static String updatePhysicalDamageWithCombinedBonuses(String line, StatBonuses bonuses) {
+        String baseValueStr = extractBaseStatValue(line, "Physical Damage:");
+        
+        try {
+            int baseValue = Integer.parseInt(baseValueStr);
+            String originalColor = getStatColorCode(line);
+            
+            // Calculate flat bonus
+            int flatBonus = bonuses.physicalDamage;
+            
+            // Calculate percentage bonus (as a fixed value based on base damage)
+            int percentBonus = 0;
+            if (bonuses.physicalDamagePercent > 0) {
+                percentBonus = (int) Math.round(baseValue * (bonuses.physicalDamagePercent / 100.0));
+            }
+            
+            // Combine all bonuses
+            int totalBonus = flatBonus + percentBonus;
+            int totalValue = baseValue + totalBonus;
+            
+            // Create bonus string showing the combined effect
+            String bonusStr = (totalBonus > 0 ? "+" : "") + totalBonus;
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "PHYSICAL DAMAGE CALCULATION: base=" + baseValue + 
+                    " flat=" + flatBonus + " percent=" + bonuses.physicalDamagePercent + "% (" + percentBonus + " damage)" +
+                    " total=" + totalValue + " bonus=" + bonusStr);
+            }
+            
+            return originalColor + "Physical Damage: " + originalColor + "+" + totalValue + " §7(" + bonusStr + ")";
+            
+        } catch (NumberFormatException e) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "Failed to parse base value for Physical Damage from line: " + line);
+            }
+            return line;
+        }
+    }
+
+    /**
+     * Create new stat lines for stats that only come from enchantments - ENHANCED: Better percentage support
      */
     private static List<String> createNewStatLines(List<String> existingLore, StatBonuses bonuses, Set<String> processedStats) {
         List<String> newLines = new ArrayList<>();
         
-        // Mining Fortune - NEW STAT: Use original color (§6 for gold)
+        // Physical Damage - ENHANCED: Handle items with no base physical damage properly
+        if ((bonuses.physicalDamage != 0 || bonuses.physicalDamagePercent != 0) && !processedStats.contains("Physical Damage:")) {
+            // For items with no base physical damage (like armor), we can't apply percentage bonuses
+            // Only show flat bonuses
+            int flatBonus = bonuses.physicalDamage;
+            
+            if (flatBonus > 0) {
+                String bonusStr = "+" + flatBonus;
+                newLines.add("§cPhysical Damage: §c" + bonusStr + " §7(" + bonusStr + ")");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "Created new Physical Damage stat: " + bonusStr + " (flat bonus only, no base damage for percentage)");
+                }
+            } else if (bonuses.physicalDamagePercent > 0) {
+                // Show +0 (+0) if only percentage bonus exists but no base damage
+                newLines.add("§cPhysical Damage: §c+0 §7(+0)");
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "Created new Physical Damage stat: +0 (+0) - percentage bonus exists but no base damage to apply it to");
+                }
+            }
+        }
+        
+        // Mining Fortune - existing logic
         if (bonuses.miningFortune != 0 && !processedStats.contains("Mining Fortune:")) {
             String bonusStr = (bonuses.miningFortune > 0 ? "+" : "") + String.format("%.1f", bonuses.miningFortune);
             newLines.add("§6Mining Fortune: §6" + bonusStr + " §7(" + bonusStr + ")");
@@ -1044,7 +1255,7 @@ public class EnchantmentApplicator {
             }
         }
         
-        // Mining Speed - NEW STAT: Use original color (§9 for blue)
+        // Mining Speed
         if (bonuses.miningSpeed != 0 && !processedStats.contains("Mining Speed:")) {
             String bonusStr = (bonuses.miningSpeed > 0 ? "+" : "") + String.format("%.1f", bonuses.miningSpeed);
             newLines.add("§9Mining Speed: §9" + bonusStr + " §7(" + bonusStr + ")");
@@ -1054,7 +1265,7 @@ public class EnchantmentApplicator {
             }
         }
         
-        // Continue for other new stats with appropriate colors...
+        // Continue for other stats...
         if (bonuses.farmingFortune != 0 && !processedStats.contains("Farming Fortune:")) {
             String bonusStr = (bonuses.farmingFortune > 0 ? "+" : "") + String.format("%.1f", bonuses.farmingFortune);
             newLines.add("§aFarming Fortune: §a" + bonusStr + " §7(" + bonusStr + ")");
@@ -1129,45 +1340,6 @@ public class EnchantmentApplicator {
             lore.add(insertIndex, enchantmentLine);
             insertIndex++;
         }
-    }
-
-
-    /**
-     * Find where to insert enchantment section - ENHANCED
-     */
-    private static int findEnchantmentInsertionPoint(List<String> lore) {
-        // Look for the end of the stats section
-        boolean foundStats = false;
-        for (int i = 0; i < lore.size(); i++) {
-            String line = lore.get(i);
-            
-            if (line.contains("Stats:")) {
-                foundStats = true;
-                continue;
-            }
-            
-            // If we found stats section and hit an empty line or new section, insert here
-            if (foundStats && (line.trim().isEmpty() || line.contains("✦") || line.contains("Passive:") || line.contains("§8"))) {
-                return i;
-            }
-        }
-        
-        // If no stats section found, insert after rarity
-        for (int i = 0; i < lore.size(); i++) {
-            String line = lore.get(i);
-            if (line.contains("Rarity:")) {
-                // Insert after rarity and any description lines
-                int insertPoint = i + 1;
-                while (insertPoint < lore.size() && 
-                    (lore.get(insertPoint).startsWith("§7\"") || lore.get(insertPoint).trim().isEmpty())) {
-                    insertPoint++;
-                }
-                return insertPoint;
-            }
-        }
-        
-        // Fallback - insert at end
-        return lore.size();
     }
 
     /**

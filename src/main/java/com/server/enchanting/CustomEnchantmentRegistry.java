@@ -103,6 +103,14 @@ public class CustomEnchantmentRegistry {
             Arrays.asList(ItemCategory.SWORD),
             Arrays.asList(), 50, 250, 3.0
         ));
+
+        // Brutality - Percentage-based physical damage increase
+        registerEnchantment(new CustomEnchantment(
+            "brutality", "Brutality", "Increases physical damage by 10-30% per level based on weapon's base damage",
+            EnchantmentCategory.COMBAT, 3, EnchantmentRarity.EPIC,
+            Arrays.asList(ItemCategory.SWORD, ItemCategory.AXE), // FIXED: Include both SWORD and AXE
+            Arrays.asList("savagery"), 25, 120, 2.2
+        ));
     }
     
     /**

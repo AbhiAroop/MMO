@@ -7,6 +7,9 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import com.server.Main;
+import com.server.debug.DebugManager.DebugSystem;
+
 /**
  * Represents a custom enchantment with enhanced mechanics
  */
@@ -81,7 +84,7 @@ public class CustomEnchantment {
         public static ItemCategory fromItemStack(ItemStack item) {
             if (item == null || !item.hasItemMeta()) return null;
             
-            // Check custom model data for custom items
+            // CRITICAL FIX: Check custom model data for custom items FIRST
             if (item.getItemMeta().hasCustomModelData()) {
                 int modelData = item.getItemMeta().getCustomModelData();
                 String modelStr = String.valueOf(modelData);
@@ -90,29 +93,29 @@ public class CustomEnchantment {
                 if (modelStr.startsWith("2") && modelStr.length() >= 6) {
                     String typeCode = modelStr.substring(1, 3);
                     switch (typeCode) {
-                        case "10": return SWORD;
-                        case "11": return AXE;
-                        case "12": return BOW;
-                        case "13": return PICKAXE;
-                        case "14": return SHOVEL;
-                        case "15": return HOE;
+                        case "10": return SWORD;        // 210XXX = Swords (CARROT_ON_A_STICK)
+                        case "11": return AXE;          // 211XXX = Axes
+                        case "12": return BOW;          // 212XXX = Bows
+                        case "13": return PICKAXE;      // 213XXX = Pickaxes
+                        case "14": return SHOVEL;       // 214XXX = Shovels
+                        case "15": return HOE;          // 215XXX = Hoes
                         case "20": // Helmet
-                        case "30": return HELMET;
+                        case "30": return HELMET;       // 220XXX or 230XXX = Helmets
                         case "21": // Chestplate
-                        case "31": return CHESTPLATE;
+                        case "31": return CHESTPLATE;   // 221XXX or 231XXX = Chestplates
                         case "22": // Leggings
-                        case "32": return LEGGINGS;
+                        case "32": return LEGGINGS;     // 222XXX or 232XXX = Leggings
                         case "23": // Boots
-                        case "33": return BOOTS;
-                        case "40": return STAFF;
-                        case "41": return WAND;
-                        case "50": return RELIC;
+                        case "33": return BOOTS;        // 223XXX or 233XXX = Boots
+                        case "40": return STAFF;        // 240XXX = Staves
+                        case "41": return WAND;         // 241XXX = Wands
+                        case "50": return RELIC;        // 250XXX = Special weapons/relics
                         default: return TOOL;
                     }
                 }
             }
             
-            // Fallback to vanilla item type detection
+            // Fallback to vanilla item type detection ONLY if no custom model data
             Material type = item.getType();
             if (type.name().endsWith("_SWORD")) return SWORD;
             if (type.name().endsWith("_AXE")) return AXE;
@@ -157,12 +160,29 @@ public class CustomEnchantment {
     public List<String> getConflictingEnchantments() { return conflictingEnchantments; }
     
     /**
-     * Check if this enchantment can be applied to an item
+     * Check if this enchantment can be applied to an item - ENHANCED: Better debugging
      */
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         
         ItemCategory itemCategory = ItemCategory.fromItemStack(item);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            String itemName = item.hasItemMeta() && item.getItemMeta().hasDisplayName() ? 
+                            item.getItemMeta().getDisplayName() : item.getType().name();
+            String modelData = item.hasItemMeta() && item.getItemMeta().hasCustomModelData() ? 
+                            " (Model: " + item.getItemMeta().getCustomModelData() + ")" : "";
+            
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "ENCHANTMENT COMPATIBILITY: " + this.getId() + " checking item: " + itemName + modelData);
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Detected item category: " + (itemCategory != null ? itemCategory.name() : "NULL"));
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Required categories: " + applicableItems.stream().map(Enum::name).collect(java.util.stream.Collectors.joining(", ")));
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Can apply: " + (itemCategory != null && applicableItems.contains(itemCategory)));
+        }
+        
         return itemCategory != null && applicableItems.contains(itemCategory);
     }
     
