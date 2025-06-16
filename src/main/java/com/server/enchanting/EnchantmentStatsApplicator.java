@@ -51,7 +51,7 @@ public class EnchantmentStatsApplicator {
     }
     
     /**
-     * Apply bonuses from a specific enchantment - ENHANCED: Percentage-based calculations
+     * Apply bonuses from a specific enchantment - ENHANCED: Proper synergy calculation
      */
     private static void applyEnchantmentBonus(CustomEnchantment enchantment, int level, PlayerStats stats) {
         String enchantmentId = enchantment.getId();
@@ -59,10 +59,17 @@ public class EnchantmentStatsApplicator {
         switch (enchantmentId) {
             // Combat Enchantments
             case "savagery":
-                stats.setPhysicalDamage(stats.getPhysicalDamage() + (3 * level));
+                int savageryBonus = 3 * level;
+                stats.setPhysicalDamage(stats.getPhysicalDamage() + savageryBonus);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "SAVAGERY: Added " + savageryBonus + " flat physical damage (new total: " + stats.getPhysicalDamage() + ")");
+                }
                 break;
+                
             case "brutality":
-                // NEW: Percentage-based physical damage increase
+                // ENHANCED: Brutality calculates from current physical damage (which includes Savagery)
                 int currentPhysicalDamage = stats.getPhysicalDamage();
                 double percentIncrease = 10 * level; // 10% per level
                 int bonusDamage = (int) Math.round(currentPhysicalDamage * (percentIncrease / 100.0));
@@ -70,10 +77,11 @@ public class EnchantmentStatsApplicator {
                 
                 if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                     Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                        "BRUTALITY: Applied " + percentIncrease + "% bonus to " + currentPhysicalDamage + 
-                        " physical damage = +" + bonusDamage + " (new total: " + stats.getPhysicalDamage() + ")");
+                        "BRUTALITY SYNERGY: Applied " + percentIncrease + "% bonus to " + currentPhysicalDamage + 
+                        " physical damage (includes Savagery) = +" + bonusDamage + " (new total: " + stats.getPhysicalDamage() + ")");
                 }
                 break;
+                
             case "executioner":
                 stats.setCriticalChance(stats.getCriticalChance() + (5 * level / 100.0));
                 stats.setCriticalDamage(stats.getCriticalDamage() + (10 * level / 100.0));
@@ -136,6 +144,7 @@ public class EnchantmentStatsApplicator {
                 
             // Cursed Enchantments
             case "glass_cannon":
+                // Glass Cannon multiplies current damage
                 stats.setPhysicalDamage((int)(stats.getPhysicalDamage() * (1.0 + 0.1 * level)));
                 stats.setMagicDamage((int)(stats.getMagicDamage() * (1.0 + 0.1 * level)));
                 stats.setHealth((int)(stats.getHealth() * (1.0 - 0.05 * level)));

@@ -416,9 +416,10 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Add toString method to StatBonuses for debugging
+     * Enhanced StatBonuses class with synergy support
      */
     private static class StatBonuses {
+        // Existing flat bonuses
         int health = 0;
         int armor = 0;
         int magicResist = 0;
@@ -440,9 +441,13 @@ public class EnchantmentApplicator {
         int cooldownReduction = 0;
         int speed = 0;
         int luck = 0;
-
-        int physicalDamagePercent = 0; 
-        int magicDamagePercent = 0; 
+        
+        // Percentage-based bonuses
+        int physicalDamagePercent = 0; // Store percentage for physical damage
+        int magicDamagePercent = 0;    // For future use
+        
+        // NEW: Synergy tracking for Brutality + Savagery
+        int brutalityFlatBonusFromSavagery = 0; // Tracks flat damage that Brutality should calculate from
         
         boolean hasAnyBonuses() {
             return health != 0 || armor != 0 || magicResist != 0 || physicalDamage != 0 || 
@@ -461,6 +466,7 @@ public class EnchantmentApplicator {
             if (magicResist != 0) sb.append("MagicResist:").append(magicResist).append(" ");
             if (physicalDamage != 0) sb.append("PhysicalDamage:").append(physicalDamage).append(" ");
             if (physicalDamagePercent != 0) sb.append("PhysicalDamage%:").append(physicalDamagePercent).append("% ");
+            if (brutalityFlatBonusFromSavagery != 0) sb.append("BrutalityBase:").append(brutalityFlatBonusFromSavagery).append(" ");
             if (magicDamage != 0) sb.append("MagicDamage:").append(magicDamage).append(" ");
             if (mana != 0) sb.append("Mana:").append(mana).append(" ");
             if (criticalChance != 0) sb.append("CritChance:").append(criticalChance).append(" ");
@@ -916,29 +922,24 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Calculate total stat bonuses from all applied enchantments - FIXED: Proper brutality handling
+     * Calculate total stat bonuses from all applied enchantments - ENHANCED: Savagery + Brutality synergy
      */
     private static StatBonuses calculateTotalStatBonuses(List<EnchantmentRandomizer.AppliedEnchantment> appliedEnchantments) {
         StatBonuses bonuses = new StatBonuses();
         
+        // First pass: Calculate flat bonuses (like Savagery)
         for (EnchantmentRandomizer.AppliedEnchantment applied : appliedEnchantments) {
             String enchantmentId = applied.enchantment.getId();
             int level = applied.level;
             
-            // Apply stat bonuses based on enchantment type
+            // Apply flat stat bonuses first
             switch (enchantmentId) {
-                // Combat Enchantments
+                // Combat Enchantments - FLAT BONUSES FIRST
                 case "savagery":
                     bonuses.physicalDamage += (3 * level); // Flat damage bonus
-                    break;
-                case "brutality":
-                    // FIXED: Store percentage for later calculation during stat application
-                    bonuses.physicalDamagePercent += (10 * level); // 10% per level
                     if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                         Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                            "BRUTALITY: Added " + (10 * level) + "% to physical damage percent (total: " + bonuses.physicalDamagePercent + "%)");
-                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                            "BRUTALITY: Current bonuses state - physicalDamage=" + bonuses.physicalDamage + " physicalDamagePercent=" + bonuses.physicalDamagePercent);
+                            "SAVAGERY: Added flat " + (3 * level) + " physical damage (total flat: " + bonuses.physicalDamage + ")");
                     }
                     break;
                 case "executioner":
@@ -1010,7 +1011,39 @@ public class EnchantmentApplicator {
                     bonuses.mana += (5 * level);
                     break;
                     
+                // Skip percentage enchantments for now
+                case "brutality":
+                    // Will be handled in second pass
+                    break;
+                    
                 default:
+                    break;
+            }
+        }
+        
+        // Second pass: Calculate percentage bonuses (like Brutality) that should include flat bonuses
+        for (EnchantmentRandomizer.AppliedEnchantment applied : appliedEnchantments) {
+            String enchantmentId = applied.enchantment.getId();
+            int level = applied.level;
+            
+            switch (enchantmentId) {
+                case "brutality":
+                    // CRITICAL ENHANCEMENT: Store percentage for calculation, but track flat bonuses for synergy
+                    bonuses.physicalDamagePercent += (10 * level); // 10% per level
+                    bonuses.brutalityFlatBonusFromSavagery = bonuses.physicalDamage; // Track flat bonus for percentage calculation
+                    
+                    if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "BRUTALITY: Added " + (10 * level) + "% to physical damage percent (total: " + bonuses.physicalDamagePercent + "%)");
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "BRUTALITY: Will calculate percentage from flat bonus: " + bonuses.brutalityFlatBonusFromSavagery);
+                        Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                            "BRUTALITY: Current bonuses state - physicalDamage=" + bonuses.physicalDamage + " physicalDamagePercent=" + bonuses.physicalDamagePercent);
+                    }
+                    break;
+                    
+                default:
+                    // All other enchantments already processed in first pass
                     break;
             }
         }
@@ -1171,7 +1204,7 @@ public class EnchantmentApplicator {
     }
 
     /**
-     * Update physical damage with combined flat and percentage bonuses - FIXED
+     * Update physical damage with combined flat and percentage bonuses - ENHANCED: Savagery + Brutality synergy
      */
     private static String updatePhysicalDamageWithCombinedBonuses(String line, StatBonuses bonuses) {
         String baseValueStr = extractBaseStatValue(line, "Physical Damage:");
@@ -1180,13 +1213,22 @@ public class EnchantmentApplicator {
             int baseValue = Integer.parseInt(baseValueStr);
             String originalColor = getStatColorCode(line);
             
-            // Calculate flat bonus
+            // Calculate flat bonus (from Savagery)
             int flatBonus = bonuses.physicalDamage;
             
-            // Calculate percentage bonus (as a fixed value based on base damage)
+            // Calculate percentage bonus (from Brutality) - ENHANCED: Synergy calculation
             int percentBonus = 0;
             if (bonuses.physicalDamagePercent > 0) {
-                percentBonus = (int) Math.round(baseValue * (bonuses.physicalDamagePercent / 100.0));
+                // CRITICAL SYNERGY: Brutality calculates from (base + flat bonuses)
+                // This ensures Brutality benefits from Savagery damage
+                int totalBaseForPercentage = baseValue + bonuses.brutalityFlatBonusFromSavagery;
+                percentBonus = (int) Math.round(totalBaseForPercentage * (bonuses.physicalDamagePercent / 100.0));
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "SYNERGY CALCULATION: base=" + baseValue + " + savagery=" + bonuses.brutalityFlatBonusFromSavagery + 
+                        " = " + totalBaseForPercentage + " for percentage calculation");
+                }
             }
             
             // Combine all bonuses
@@ -1198,7 +1240,7 @@ public class EnchantmentApplicator {
             
             if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                 Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                    "PHYSICAL DAMAGE CALCULATION: base=" + baseValue + 
+                    "PHYSICAL DAMAGE SYNERGY: base=" + baseValue + 
                     " flat=" + flatBonus + " percent=" + bonuses.physicalDamagePercent + "% (" + percentBonus + " damage)" +
                     " total=" + totalValue + " bonus=" + bonusStr);
             }
