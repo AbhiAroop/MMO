@@ -427,9 +427,9 @@ public class EnchantmentApplicator {
         int magicDamage = 0;
         int mana = 0;
         
-        // FIXED: Add critical stats
-        int criticalChance = 0;      // Stored as percentage (5 = 5%)
-        int criticalDamage = 0;      // Stored as percentage (10 = 10%)
+        // FIXED: Store critical stats as integers representing percentages for display
+        int criticalChance = 0;      // Stored as 15 for 15%
+        int criticalDamage = 0;      // Stored as 30 for 30%
         
         double miningFortune = 0.0;
         double miningSpeed = 0.0;
@@ -437,8 +437,6 @@ public class EnchantmentApplicator {
         double lootingFortune = 0.0;
         double fishingFortune = 0.0;
         double buildRange = 0.0;
-        
-        // FIXED: Add health regen
         double healthRegen = 0.0;    // Health regeneration per second
         
         int cooldownReduction = 0;
@@ -458,7 +456,7 @@ public class EnchantmentApplicator {
                 miningFortune != 0.0 || miningSpeed != 0.0 || farmingFortune != 0.0 ||
                 lootingFortune != 0.0 || fishingFortune != 0.0 || buildRange != 0.0 ||
                 healthRegen != 0.0 || cooldownReduction != 0 || speed != 0 || luck != 0 ||
-                physicalDamagePercent != 0 || magicDamagePercent != 0; // Added critical and health regen checks
+                physicalDamagePercent != 0 || magicDamagePercent != 0;
         }
         
         @Override
@@ -472,8 +470,11 @@ public class EnchantmentApplicator {
             if (brutalityFlatBonusFromSavagery != 0) sb.append("BrutalityBase:").append(brutalityFlatBonusFromSavagery).append(" ");
             if (magicDamage != 0) sb.append("MagicDamage:").append(magicDamage).append(" ");
             if (mana != 0) sb.append("Mana:").append(mana).append(" ");
+            
+            // FIXED: Show critical stats as integers (representing percentages)
             if (criticalChance != 0) sb.append("CritChance:").append(criticalChance).append("% ");
             if (criticalDamage != 0) sb.append("CritDamage:").append(criticalDamage).append("% ");
+            
             if (healthRegen != 0.0) sb.append("HealthRegen:").append(healthRegen).append(" ");
             if (miningFortune != 0.0) sb.append("MiningFortune:").append(miningFortune).append(" ");
             if (miningSpeed != 0.0) sb.append("MiningSpeed:").append(miningSpeed).append(" ");
@@ -947,12 +948,13 @@ public class EnchantmentApplicator {
                     }
                     break;
                 case "executioner":
-                    // FIXED: Add critical stats to bonuses
-                    bonuses.criticalChance += (5 * level / 100); // 5% per level
-                    bonuses.criticalDamage += (10 * level / 100); // 10% per level (stored as integer percentage)
+                    // FIXED: Store critical stats as integers representing percentages
+                    bonuses.criticalChance += (5 * level); // 5, 10, 15... (representing 5%, 10%, 15%)
+                    bonuses.criticalDamage += (10 * level); // 10, 20, 30... (representing 10%, 20%, 30%)
+                    
                     if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
                         Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
-                            "EXECUTIONER: Added " + (5 * level) + "% crit chance and " + (10 * level) + "% crit damage");
+                            "EXECUTIONER: Added " + (5 * level) + "% crit chance and " + (10 * level) + "% crit damage (stored as integers)");
                     }
                     break;
                 case "spell_power":
@@ -1196,15 +1198,17 @@ public class EnchantmentApplicator {
                 return updateStatWithBonus(cleanedLine, "Mana:", null, bonuses.mana);
             }
         }
-        // FIXED: Critical Chance stat
+        // FIXED: Critical Chance stat (no conversion needed - already correct format)
         else if (line.contains("Critical Chance: ")) {
             if (bonuses.criticalChance != 0) {
+                // bonuses.criticalChance is already an integer representing the percentage
                 return updateStatWithBonus(cleanedLine, "Critical Chance:", null, bonuses.criticalChance);
             }
         }
-        // FIXED: Critical Damage stat
+        // FIXED: Critical Damage stat (no conversion needed - already correct format)
         else if (line.contains("Critical Damage: ")) {
             if (bonuses.criticalDamage != 0) {
+                // bonuses.criticalDamage is already an integer representing the percentage
                 return updateStatWithBonus(cleanedLine, "Critical Damage:", null, bonuses.criticalDamage);
             }
         }
@@ -1315,8 +1319,9 @@ public class EnchantmentApplicator {
             }
         }
         
-        // FIXED: Critical Chance - NEW STAT (NO % SUFFIX)
+        // FIXED: Critical Chance - NEW STAT (already in correct format)
         if (bonuses.criticalChance != 0 && !processedStats.contains("Critical Chance:")) {
+            // bonuses.criticalChance is already an integer representing the percentage
             String bonusStr = (bonuses.criticalChance > 0 ? "+" : "") + bonuses.criticalChance;
             newLines.add("§eCritical Chance: §e" + bonusStr + " §7(" + bonusStr + ")");
             
@@ -1324,9 +1329,10 @@ public class EnchantmentApplicator {
                 Main.getInstance().debugLog(DebugSystem.ENCHANTING, "Created new Critical Chance stat: " + bonusStr);
             }
         }
-        
-        // FIXED: Critical Damage - NEW STAT (NO % SUFFIX)
+
+        // FIXED: Critical Damage - NEW STAT (already in correct format)
         if (bonuses.criticalDamage != 0 && !processedStats.contains("Critical Damage:")) {
+            // bonuses.criticalDamage is already an integer representing the percentage
             String bonusStr = (bonuses.criticalDamage > 0 ? "+" : "") + bonuses.criticalDamage;
             newLines.add("§6Critical Damage: §6" + bonusStr + " §7(" + bonusStr + ")");
             

@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.stats.PlayerStats;
@@ -83,8 +84,18 @@ public class EnchantmentStatsApplicator {
                 break;
                 
             case "executioner":
-                stats.setCriticalChance(stats.getCriticalChance() + (5 * level / 100.0));
-                stats.setCriticalDamage(stats.getCriticalDamage() + (10 * level / 100.0));
+                // FIXED: Convert percentages to decimals for PlayerStats
+                double critChanceBonus = (5 * level) / 100.0; // Convert 5% to 0.05
+                double critDamageBonus = (10 * level) / 100.0; // Convert 10% to 0.10
+                
+                stats.setCriticalChance(stats.getCriticalChance() + critChanceBonus);
+                stats.setCriticalDamage(stats.getCriticalDamage() + critDamageBonus);
+                
+                if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                        "EXECUTIONER: Added " + (5 * level) + "% crit chance (" + critChanceBonus + " decimal) and " + 
+                        (10 * level) + "% crit damage (" + critDamageBonus + " decimal) to player stats");
+                }
                 break;
             case "spell_power":
                 stats.setMagicDamage(stats.getMagicDamage() + (2 * level));

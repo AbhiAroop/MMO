@@ -645,7 +645,7 @@ public class StatScanManager {
     }
 
     /**
-     * Enhanced extractStatsFromItem method - FIXED: Force Health Regen processing
+     * Enhanced extractStatsFromItem method - FIXED: Process critical stats properly
      */
     private void extractStatsFromItem(ItemStack item, ItemStatBonuses bonuses) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
@@ -681,6 +681,33 @@ public class StatScanManager {
                     }
                 }
                 continue; // Skip the normal enchantment-only check for Health Regen
+            }
+            
+            // CRITICAL FIX: Process critical stats from items (store as decimals for PlayerStats)
+            if (cleanLine.contains("Critical Chance:")) {
+                double critChanceBonus = extractBaseDoubleStat(cleanLine, "Critical Chance:");
+                if (critChanceBonus > 0) {
+                    // StatScanManager stores as decimals for PlayerStats (15 becomes 0.15)
+                    bonuses.critChance += (critChanceBonus / 100.0);
+                    if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        plugin.debugLog(DebugSystem.ENCHANTING, 
+                            "STAT SCAN: Added critical chance: " + critChanceBonus + "% (" + (critChanceBonus / 100.0) + " decimal) (total: " + bonuses.critChance + ")");
+                    }
+                }
+                continue;
+            }
+
+            if (cleanLine.contains("Critical Damage:")) {
+                double critDamageBonus = extractBaseDoubleStat(cleanLine, "Critical Damage:");
+                if (critDamageBonus > 0) {
+                    // StatScanManager stores as decimals for PlayerStats (30 becomes 0.30)
+                    bonuses.critDamage += (critDamageBonus / 100.0);
+                    if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                        plugin.debugLog(DebugSystem.ENCHANTING, 
+                            "STAT SCAN: Added critical damage: " + critDamageBonus + "% (" + (critDamageBonus / 100.0) + " decimal) (total: " + bonuses.critDamage + ")");
+                    }
+                }
+                continue;
             }
             
             // Skip lines that are clearly enchantment-only stats (where base value would be 0)
@@ -770,14 +797,10 @@ public class StatScanManager {
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
             
-            // Note: Health Regen is handled at the top of the loop now
-            
             bonuses.attackSpeed += extractBaseDoubleStat(cleanLine, "Attack Speed:");
             bonuses.attackRange += extractBaseDoubleStat(cleanLine, "Attack Range:");
             bonuses.size += extractBaseDoubleStat(cleanLine, "Size:");
             bonuses.lifeSteal += extractBaseDoubleStat(cleanLine, "Life Steal:");
-            bonuses.critChance += extractBaseDoubleStat(cleanLine, "Critical Chance:");
-            bonuses.critDamage += extractBaseDoubleStat(cleanLine, "Critical Damage:");
             bonuses.omnivamp += extractBaseDoubleStat(cleanLine, "Omnivamp:");
             bonuses.buildRange += extractBaseDoubleStat(cleanLine, "Build Range:");
         }
@@ -788,7 +811,8 @@ public class StatScanManager {
                 " Armor:" + bonuses.armor + " PhysDmg:" + bonuses.physicalDamage + 
                 " MagicDmg:" + bonuses.magicDamage + " Mana:" + bonuses.mana + 
                 " MiningSpeed:" + bonuses.miningSpeed + " MiningFortune:" + bonuses.miningFortune +
-                " HealthRegen:" + bonuses.healthRegen); // Added health regen to debug output
+                " HealthRegen:" + bonuses.healthRegen +
+                " CritChance:" + bonuses.critChance + " CritDamage:" + bonuses.critDamage); // Added critical stats to debug output
         }
     }
 
