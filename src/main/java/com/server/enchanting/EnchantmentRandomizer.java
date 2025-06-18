@@ -167,7 +167,7 @@ public class EnchantmentRandomizer {
     }
     
     /**
-     * Calculate enchantment weight for selection
+     * Calculate enchantment weight for selection - ENHANCED: Level-based weighting
      */
     private static double calculateEnchantmentWeight(CustomEnchantment enchantment, EnchantingLevel enchantingLevel, boolean isPrimary) {
         double baseWeight = 1.0;
@@ -198,8 +198,17 @@ public class EnchantmentRandomizer {
         int totalLevel = enchantingLevel.getTotalLevel();
         double levelMultiplier = 1.0 + (totalLevel / 100.0); // Up to 2x at level 100
         
+        // Calculate what level this enchantment would be at current table level
+        int enchantmentLevel = calculateEnchantmentLevel(enchantment, new org.bukkit.inventory.ItemStack[0], enchantingLevel);
+        
+        // Boost weight for enchantments that can reach higher levels
+        if (enchantmentLevel > 1) {
+            double levelBoost = 1.0 + (enchantmentLevel - 1) * 0.3; // 30% boost per level above 1
+            levelMultiplier *= levelBoost;
+        }
+        
         // Mythic and Legendary enchantments get extra boost at high levels
-        if (enchantment.getRarity().ordinal() >= EnchantmentRarity.LEGENDARY.ordinal() && totalLevel >= 50) {
+        if (enchantment.getRarity().ordinal() >= EnchantmentRarity.LEGENDARY.ordinal() && totalLevel >= 200) {
             levelMultiplier *= 2.0;
         }
         
@@ -361,35 +370,118 @@ public class EnchantmentRandomizer {
         }
     }
     
-    // Helper methods for integration with existing code
+    /**
+     * Calculate enchantment level based on enchanting table level and materials - ENHANCED: Proper scaling
+     */
     private static int calculateEnchantmentLevel(CustomEnchantment enchantment, org.bukkit.inventory.ItemStack[] enhancementMaterials, 
-                                               EnchantingLevel enchantingLevel) {
-        int baseLevel = 1;
+                                            EnchantingLevel enchantingLevel) {
+        int totalLevel = enchantingLevel.getTotalLevel();
+        EnchantmentRarity rarity = enchantment.getRarity();
+        int maxLevel = enchantment.getMaxLevel();
         
+        // Calculate base level from enchanting table level and rarity
+        int baseLevel = calculateBaseLevelFromTable(totalLevel, rarity, maxLevel);
+        
+        // Add bonus from enhancement materials
+        int materialBonus = 0;
         for (org.bukkit.inventory.ItemStack material : enhancementMaterials) {
             if (material != null && material.getType() != org.bukkit.Material.AIR) {
                 EnchantmentMaterial enhancementMaterial = EnchantmentMaterial.Registry.fromItem(material);
                 if (enhancementMaterial != null) {
-                    baseLevel += enhancementMaterial.getLevelBonus();
+                    materialBonus += enhancementMaterial.getLevelBonus();
                 }
             }
         }
         
-        return Math.min(baseLevel, enchantment.getMaxLevel());
+        // Apply material bonus but cap at max level
+        int finalLevel = Math.min(baseLevel + materialBonus, maxLevel);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+            Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                "Enchantment Level Calculation: " + enchantment.getId() + 
+                " | Table Level: " + totalLevel + 
+                " | Rarity: " + rarity.name() + 
+                " | Base Level: " + baseLevel + 
+                " | Material Bonus: " + materialBonus + 
+                " | Final Level: " + finalLevel + "/" + maxLevel);
+        }
+        
+        return Math.max(1, finalLevel); // Minimum level 1
+    }
+
+    /**
+     * Calculate base enchantment level from table level and rarity - NEW METHOD
+     */
+    private static int calculateBaseLevelFromTable(int tableLevel, EnchantmentRarity rarity, int maxLevel) {
+        // Define level requirements for each rarity to reach max level
+        int levelRequiredForMaxLevel;
+        
+        switch (rarity) {
+            case COMMON:
+                levelRequiredForMaxLevel = 60;    // Max out at level 30
+                break;
+            case UNCOMMON:
+                levelRequiredForMaxLevel = 100;    // Max out at level 50
+                break;
+            case RARE:
+                levelRequiredForMaxLevel = 250;   // Max out at level 100
+                break;
+            case EPIC:
+                levelRequiredForMaxLevel = 500;   // Max out at level 200
+                break;
+            case LEGENDARY:
+                levelRequiredForMaxLevel = 750;   // Max out at level 400
+                break;
+            case MYTHIC:
+                levelRequiredForMaxLevel = 900;   // Max out at level 800
+                break;
+            default:
+                levelRequiredForMaxLevel = 30;
+                break;
+        }
+        
+        // Calculate what level the enchantment should be based on table level
+        if (tableLevel >= levelRequiredForMaxLevel) {
+            return maxLevel; // Full max level
+        }
+        
+        // Progressive scaling - enchantment level increases as table level approaches requirement
+        double progressRatio = (double) tableLevel / levelRequiredForMaxLevel;
+        
+        // Use a curved progression for better feel
+        // Early levels come easier, later levels require more investment
+        double curvedProgress = Math.pow(progressRatio, 0.7); // Slight curve favoring early levels
+        
+        int calculatedLevel = (int) Math.ceil(curvedProgress * maxLevel);
+        
+        // Ensure minimum level 1 and respect max level
+        return Math.max(1, Math.min(calculatedLevel, maxLevel));
     }
     
+    /**
+     * Calculate base success rate - ENHANCED: Account for level scaling impact
+     */
     private static double calculateBaseSuccessRate(CustomEnchantment enchantment, EnchantingLevel enchantingLevel) {
-        double baseRate = 0.8 - (enchantment.getRarity().ordinal() * 0.1);
+        double baseRate = 0.8 - (enchantment.getRarity().ordinal() * 0.1); // 80% for common, down to 30% for mythic
         
         int requiredLevel = getRequiredEnchantingLevel(enchantment);
         int playerLevel = enchantingLevel.getTotalLevel();
         
+        // Bonus from having higher level than required
         if (playerLevel > requiredLevel) {
-            double levelBonus = Math.min((playerLevel - requiredLevel) * 0.01, 0.2);
+            double levelBonus = Math.min((playerLevel - requiredLevel) * 0.01, 0.3); // Up to 30% bonus
             baseRate += levelBonus;
         }
         
-        return Math.max(0.1, Math.min(baseRate, 0.95));
+        // Penalty for being below optimal level for higher enchantment levels
+        int enchantmentLevel = calculateEnchantmentLevel(enchantment, new org.bukkit.inventory.ItemStack[0], enchantingLevel);
+        if (enchantmentLevel > 1) {
+            // Higher level enchantments are slightly harder to get
+            double levelPenalty = (enchantmentLevel - 1) * 0.05; // 5% penalty per level above 1
+            baseRate -= levelPenalty;
+        }
+        
+        return Math.max(0.1, Math.min(baseRate, 0.95)); // Between 10% and 95%
     }
     
     private static double calculateMaterialBonus(CustomEnchantment enchantment, org.bukkit.inventory.ItemStack[] enhancementMaterials) {

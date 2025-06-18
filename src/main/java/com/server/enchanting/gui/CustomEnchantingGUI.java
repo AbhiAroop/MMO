@@ -100,86 +100,78 @@ public class CustomEnchantingGUI {
     }
 
     /**
-     * Update enchantment preview display with multiple enchantments and probabilities
+     * Update enchantment preview display with level scaling information
      */
     private static void updateEnchantmentPreview(Inventory gui, Player player, ItemStack itemToEnchant, 
                                             ItemStack[] enhancementMaterials, EnchantingLevel enchantingLevel) {
-        ItemStack previewDisplay = new ItemStack(Material.ENCHANTED_BOOK);
-        ItemMeta meta = previewDisplay.getItemMeta();
-        
         if (itemToEnchant == null || itemToEnchant.getType() == Material.AIR) {
-            meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
-            meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Place an item to see available enchantments"
-            ));
-        } else {
-            // Generate enchantment selections
-            List<EnchantmentRandomizer.EnchantmentSelection> selections = 
-                EnchantmentRandomizer.generateEnchantmentSelections(
-                    itemToEnchant, enchantingLevel, enhancementMaterials, player);
-            
-            if (!selections.isEmpty()) {
-                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Enchantment Preview ✦");
-                
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.GOLD + "Possible Enchantments:");
-                lore.add("");
-                
-                // Show each possible enchantment with probability
-                for (int i = 0; i < selections.size(); i++) {
-                    EnchantmentRandomizer.EnchantmentSelection selection = selections.get(i);
-                    
-                    // Color code by probability
-                    ChatColor probabilityColor;
-                    if (selection.probability >= 0.8) {
-                        probabilityColor = ChatColor.GREEN;
-                    } else if (selection.probability >= 0.5) {
-                        probabilityColor = ChatColor.YELLOW;
-                    } else if (selection.probability >= 0.3) {
-                        probabilityColor = ChatColor.GOLD;
-                    } else {
-                        probabilityColor = ChatColor.RED;
-                    }
-                    
-                    String priorityLabel = "";
-                    if (selection.isGuaranteed) {
-                        priorityLabel = ChatColor.AQUA + " [GUARANTEED]";
-                    } else if (i == 1) {
-                        priorityLabel = ChatColor.YELLOW + " [SECONDARY]";
-                    } else if (i > 1) {
-                        priorityLabel = ChatColor.GRAY + " [BONUS]";
-                    }
-                    
-                    lore.add(ChatColor.GRAY + "• " + selection.enchantment.getFormattedName(selection.level) + priorityLabel);
-                    lore.add(ChatColor.GRAY + "  Chance: " + probabilityColor + 
-                            String.format("%.1f%%", selection.probability * 100));
-                    lore.add(ChatColor.GRAY + "  " + selection.enchantment.getDescription());
-                    
-                    if (i < selections.size() - 1) {
-                        lore.add("");
-                    }
-                }
-                
-                lore.add("");
-                lore.add(ChatColor.DARK_GRAY + "Note: Multiple enchantments may be applied!");
-                lore.add(ChatColor.DARK_GRAY + "Higher enchanting levels increase bonus chances.");
-                
-                meta.setLore(lore);
-            } else {
-                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Enchantment Preview");
-                
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.RED + "No compatible enchantments");
-                lore.add("");
-                lore.add(ChatColor.GRAY + "This item cannot be enchanted, or");
-                lore.add(ChatColor.GRAY + "your enchanting level is too low");
-                
-                meta.setLore(lore);
-            }
+            gui.setItem(ENCHANTMENT_PREVIEW_SLOT, createNoItemDisplay());
+            return;
         }
         
-        previewDisplay.setItemMeta(meta);
-        gui.setItem(ENCHANTMENT_PREVIEW_SLOT, previewDisplay);
+        List<EnchantmentRandomizer.EnchantmentSelection> selections = 
+            EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials, player);
+        
+        ItemStack previewItem = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemMeta meta = previewItem.getItemMeta();
+        
+        if (selections.isEmpty()) {
+            meta.setDisplayName(ChatColor.RED + "No Enchantments Available");
+            meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "No compatible enchantments found",
+                ChatColor.GRAY + "or enchanting level too low"
+            ));
+        } else {
+            meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Enchantment Preview ✦");
+            
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Possible enchantments:");
+            lore.add("");
+            
+            // Show up to 5 enchantments in preview
+            for (int i = 0; i < Math.min(selections.size(), 5); i++) {
+                EnchantmentRandomizer.EnchantmentSelection selection = selections.get(i);
+                
+                String enchantmentLine = selection.enchantment.getRarity().getColor() + 
+                                    selection.enchantment.getDisplayName() + " " + 
+                                    getRomanNumeral(selection.level);
+                
+                if (selection.isGuaranteed) {
+                    enchantmentLine += ChatColor.GREEN + " (Guaranteed)";
+                } else {
+                    enchantmentLine += ChatColor.YELLOW + " (" + Math.round(selection.probability * 100) + "%)";
+                }
+                
+                lore.add(enchantmentLine);
+            }
+            
+            if (selections.size() > 5) {
+                lore.add(ChatColor.GRAY + "... and " + (selections.size() - 5) + " more");
+            }
+            
+            lore.add("");
+            lore.add(ChatColor.AQUA + "Table Level: " + ChatColor.YELLOW + enchantingLevel.getTotalLevel());
+            
+            // Show level scaling information
+            if (enchantingLevel.getTotalLevel() < 100) {
+                lore.add(ChatColor.GRAY + "Higher table levels unlock stronger enchantments!");
+            }
+            
+            meta.setLore(lore);
+        }
+        previewItem.setItemMeta(meta);
+        gui.setItem(ENCHANTMENT_PREVIEW_SLOT, previewItem);
+    }
+
+    /**
+     * Convert integer to roman numeral for display
+     */
+    private static String getRomanNumeral(int number) {
+        if (number <= 0) return "";
+        if (number > 10) return String.valueOf(number); // Use Arabic numerals for high numbers
+        
+        String[] romanNumerals = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        return romanNumerals[Math.min(number, 10)];
     }
 
     /**
@@ -705,18 +697,24 @@ public class CustomEnchantingGUI {
     }
     
     /**
-     * Get required enchanting level for an enchantment
+     * Get minimum required enchanting level to access an enchantment - ENHANCED: Clearer progression
      */
     private static int getRequiredEnchantingLevel(CustomEnchantment enchantment) {
-        // Base requirement by rarity
         switch (enchantment.getRarity()) {
-            case COMMON: return 1;
-            case UNCOMMON: return 5;
-            case RARE: return 15;
-            case EPIC: return 25;
-            case LEGENDARY: return 40;
-            case MYTHIC: return 60;
-            default: return 1;
+            case COMMON:
+                return 1;      // Available immediately
+            case UNCOMMON:
+                return 10;     // Level 10+
+            case RARE:
+                return 25;     // Level 25+
+            case EPIC:
+                return 50;     // Level 50+
+            case LEGENDARY:
+                return 100;    // Level 100+
+            case MYTHIC:
+                return 200;    // Level 200+
+            default:
+                return 1;
         }
     }
     
@@ -750,6 +748,18 @@ public class CustomEnchantingGUI {
         ));
         barrier.setItemMeta(meta);
         return barrier;
+    }
+    
+    private static ItemStack createNoItemDisplay() {
+        ItemStack noItem = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta meta = noItem.getItemMeta();
+        meta.setDisplayName(ChatColor.GRAY + "No Preview Available");
+        meta.setLore(Arrays.asList(
+            ChatColor.GRAY + "Place an item to see",
+            ChatColor.GRAY + "available enchantments"
+        ));
+        noItem.setItemMeta(meta);
+        return noItem;
     }
     
     private static boolean isFunctionalSlot(int slot) {
