@@ -215,7 +215,17 @@ public class MiningSkill extends AbstractSkill {
                         "[Mining] Unlocked forged copper crafting for " + player.getName());
                 }
                 break;
+            case "unlock_swiftbreak_enchantment":
+                // Unlock swiftbreak enchantment access
+                player.sendMessage(ChatColor.GREEN + "You can now enchant tools with " + 
+                                ChatColor.AQUA + "Swiftbreak" + ChatColor.GREEN + "!");
+                player.sendMessage(ChatColor.YELLOW + "Swiftbreak enchantment is now available at enchanting tables.");
                 
+                if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                    Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                        "[Mining] Unlocked swiftbreak enchantment for " + player.getName());
+                }
+                break;
             default:
                 if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
                     Main.getInstance().debugLog(DebugSystem.SKILLS, 
@@ -334,6 +344,34 @@ public class MiningSkill extends AbstractSkill {
                     "[Mining] Locked forged copper crafting for " + player.getName());
             }
         }
+        if (oldNodeLevels.containsKey("unlock_swiftbreak_enchantment")) {
+            player.sendMessage(ChatColor.GRAY + "Swiftbreak enchantment access has been " + 
+                            ChatColor.RED + "LOCKED" + ChatColor.GRAY + 
+                            ". You can no longer enchant tools with Swiftbreak.");
+            
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                Main.getInstance().debugLog(DebugSystem.SKILLS, 
+                    "[Mining] Locked swiftbreak enchantment for " + player.getName());
+            }
+        }
+    }
+
+    /**
+     * Check if a player has unlocked swiftbreak enchantment
+     * @param player The player to check
+     * @return true if swiftbreak enchantment is unlocked, false otherwise
+     */
+    public boolean isSwiftbreakEnchantmentUnlocked(Player player) {
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot == null) return false;
+        
+        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+        if (profile == null) return false;
+        
+        PlayerSkillTreeData treeData = profile.getSkillTreeData();
+        Map<String, Integer> nodeLevels = treeData.getNodeLevels(this.getId());
+        
+        return nodeLevels.getOrDefault("unlock_swiftbreak_enchantment", 0) > 0;
     }
 
     /**

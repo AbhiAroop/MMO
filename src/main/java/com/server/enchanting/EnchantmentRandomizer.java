@@ -39,18 +39,34 @@ public class EnchantmentRandomizer {
      * Generate multiple enchantment selections for an item
      */
     public static List<EnchantmentSelection> generateEnchantmentSelections(org.bukkit.inventory.ItemStack item, 
-                                                                          EnchantingLevel enchantingLevel,
-                                                                          org.bukkit.inventory.ItemStack[] enhancementMaterials) {
+                                                                        EnchantingLevel enchantingLevel,
+                                                                        org.bukkit.inventory.ItemStack[] enhancementMaterials,
+                                                                        org.bukkit.entity.Player player) {
         List<EnchantmentSelection> selections = new ArrayList<>();
         
         // Get all applicable enchantments
-        List<CustomEnchantment> applicableEnchantments = CustomEnchantmentRegistry.getInstance()
+        List<CustomEnchantment> availableEnchantments = CustomEnchantmentRegistry.getInstance()
             .getApplicableEnchantments(item);
         
-        // Filter by enchanting level
-        List<CustomEnchantment> availableEnchantments = filterByEnchantingLevel(applicableEnchantments, enchantingLevel);
+        // CRITICAL: Filter by player unlock status
+        availableEnchantments = filterByPlayerUnlocks(availableEnchantments, player);
         
         if (availableEnchantments.isEmpty()) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "No enchantments available for item after unlock filtering");
+            }
+            return selections;
+        }
+        
+        // Rest of the method continues as before...
+        availableEnchantments = filterByEnchantingLevel(availableEnchantments, enchantingLevel);
+        
+        if (availableEnchantments.isEmpty()) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.ENCHANTING)) {
+                Main.getInstance().debugLog(DebugSystem.ENCHANTING, 
+                    "No enchantments available after level filtering");
+            }
             return selections;
         }
         
@@ -285,6 +301,51 @@ public class EnchantmentRandomizer {
         }
         
         return appliedEnchantments;
+    }
+
+    /**
+     * Filter enchantments by player unlock status
+     */
+    private static List<CustomEnchantment> filterByPlayerUnlocks(List<CustomEnchantment> enchantments, 
+                                                            org.bukkit.entity.Player player) {
+        if (player == null) return enchantments;
+        
+        List<CustomEnchantment> filtered = new ArrayList<>();
+        
+        for (CustomEnchantment enchantment : enchantments) {
+            if (isEnchantmentUnlockedForPlayer(enchantment, player)) {
+                filtered.add(enchantment);
+            }
+        }
+        
+        return filtered;
+    }
+
+    /**
+     * Check if a specific enchantment is unlocked for a player
+     */
+    private static boolean isEnchantmentUnlockedForPlayer(CustomEnchantment enchantment, 
+                                                        org.bukkit.entity.Player player) {
+        String enchantmentId = enchantment.getId();
+        
+        // Check for mining-related enchantments that require skill tree unlocks
+        if ("swiftbreak".equals(enchantmentId)) {
+            // Get the mining skill and check if swiftbreak is unlocked
+            com.server.profiles.skills.core.Skill miningSkill = 
+                com.server.profiles.skills.core.SkillRegistry.getInstance().getSkill(
+                    com.server.profiles.skills.core.SkillType.MINING);
+            
+            if (miningSkill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
+                com.server.profiles.skills.skills.mining.MiningSkill mining = 
+                    (com.server.profiles.skills.skills.mining.MiningSkill) miningSkill;
+                return mining.isSwiftbreakEnchantmentUnlocked(player);
+            }
+            return false;
+        }
+        
+        // Add checks for other enchantments that require unlocks here
+        // For now, all other enchantments are available by default
+        return true;
     }
     
     /**

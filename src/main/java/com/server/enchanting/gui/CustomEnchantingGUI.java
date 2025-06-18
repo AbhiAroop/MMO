@@ -115,7 +115,8 @@ public class CustomEnchantingGUI {
         } else {
             // Generate enchantment selections
             List<EnchantmentRandomizer.EnchantmentSelection> selections = 
-                EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+                EnchantmentRandomizer.generateEnchantmentSelections(
+                    itemToEnchant, enchantingLevel, enhancementMaterials, player);
             
             if (!selections.isEmpty()) {
                 meta.setDisplayName(ChatColor.LIGHT_PURPLE + "✦ Enchantment Preview ✦");
@@ -196,7 +197,8 @@ public class CustomEnchantingGUI {
             ));
         } else {
             List<EnchantmentRandomizer.EnchantmentSelection> selections = 
-                EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+                EnchantmentRandomizer.generateEnchantmentSelections(
+                    itemToEnchant, enchantingLevel, enhancementMaterials, player);
             
             if (!selections.isEmpty()) {
                 // Calculate overall success metrics
@@ -269,7 +271,7 @@ public class CustomEnchantingGUI {
             return new ArrayList<>();
         }
         
-        return EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+        return EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials, player);
     }
     
     /**

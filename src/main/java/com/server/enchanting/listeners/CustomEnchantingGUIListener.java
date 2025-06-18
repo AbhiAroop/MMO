@@ -222,7 +222,7 @@ public class CustomEnchantingGUIListener implements Listener {
         
         // Generate enchantment selections
         List<EnchantmentRandomizer.EnchantmentSelection> selections = 
-            EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials);
+            EnchantmentRandomizer.generateEnchantmentSelections(itemToEnchant, enchantingLevel, enhancementMaterials, player);
         
         if (selections.isEmpty()) {
             player.sendMessage(ChatColor.RED + "No compatible enchantments available!");

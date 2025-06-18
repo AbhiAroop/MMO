@@ -172,5 +172,25 @@ public class MiningTreeBuilder implements SkillTreeBuilder {
         forgedCopperCraftingNode.setCustomModelData(213005); // Same as createForgedCopperPickaxe()
         tree.addNode(forgedCopperCraftingNode);
         tree.addConnection("unlock_copperhead_crafting", "unlock_forged_copper_crafting");
+
+        // =====================================================================
+        // SWIFTBREAK ENCHANTMENT UNLOCK NODE (RIGHT OF COPPER MINING)
+        // =====================================================================
+
+        SkillTreeNode swiftbreakUnlockNode = new SkillTreeNode(
+            "unlock_swiftbreak_enchantment",
+            "Swiftbreak Mastery",
+            "Unlocks access to the Swiftbreak enchantment\n" +
+            "Allows enchanting tools with mining speed enhancement\n" +
+            "Prerequisite for advanced mining enchantments",
+            Material.DIAMOND_PICKAXE,
+            ChatColor.AQUA,
+            6, -2, // 2 slots to the right of copper mining node (4, -2)
+            2, // Costs 2 basic tokens
+            SkillToken.TokenTier.BASIC
+        );
+        tree.addNode(swiftbreakUnlockNode);
+        tree.addConnection("unlock_copper_mining", "unlock_swiftbreak_enchantment");
     }    
+    
 }
