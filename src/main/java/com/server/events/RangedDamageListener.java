@@ -1,12 +1,14 @@
 package com.server.events;
 
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Trident;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -14,7 +16,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.util.Vector;
 
 import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
@@ -74,22 +76,12 @@ public class RangedDamageListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onProjectileHit(EntityDamageByEntityEvent event) {
-        Entity damager = event.getDamager();
+        if (!(event.getDamager() instanceof Projectile)) return;
         
-        // Only handle projectile damage
-        if (!(damager instanceof Projectile)) {
-            return;
-        }
+        Projectile projectile = (Projectile) event.getDamager();
+        if (!(projectile.getShooter() instanceof Player)) return;
         
-        Projectile projectile = (Projectile) damager;
-        ProjectileSource source = projectile.getShooter();
-        
-        // Only handle player-shot projectiles
-        if (!(source instanceof Player)) {
-            return;
-        }
-        
-        Player shooter = (Player) source;
+        Player shooter = (Player) projectile.getShooter();
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(shooter.getUniqueId());
@@ -98,34 +90,11 @@ public class RangedDamageListener implements Listener {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(shooter.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Get ranged damage stat
-        int rangedDamage = profile.getStats().getRangedDamage();
+        // Use ranged damage instead of physical damage for projectiles
+        double baseDamage = profile.getStats().getRangedDamage();
         
-        // Get projectile force/charge level
-        float force = 1.0f;  // Default to full charge if metadata not present
-        if (projectile.hasMetadata("bow_force")) {
-            force = projectile.getMetadata("bow_force").get(0).asFloat();
-        }
-        
-        // UPDATED DAMAGE CALCULATION:
-        // At 0% charge: Damage is 0.5
-        // At 1% charge: Damage is max(0.5, 1% of full damage)
-        // At X% charge: Damage is max(0.5, X% of full damage)
-        // At 100% charge: Full damage
-        double baseDamage;
-        if (force <= 0.01) {
-            // At 0-1% charge, minimum damage is 0.5
-            baseDamage = 0.5;
-        } else {
-            // For charges above 1%, scale linearly but ensure minimum 0.5 damage
-            baseDamage = Math.max(0.5, rangedDamage * (force/3));
-        }
-        
-        // Apply custom damage calculations
+        // CRITICAL HIT SYSTEM for ranged attacks
         boolean isCritical = false;
-        
-        // Check for critical hit based on critical chance stat
-        // MODIFIED: Critical hits can happen at any charge level
         double critChance = profile.getStats().getCriticalChance();
         if (Math.random() < critChance) {
             double critDamage = profile.getStats().getCriticalDamage();
@@ -138,6 +107,9 @@ public class RangedDamageListener implements Listener {
                 Sound.ENTITY_PLAYER_ATTACK_CRIT,
                 1.0f, 1.0f
             );
+            
+            // Critical hit effects for ranged
+            applyRangedCriticalEffects(shooter, event.getEntity(), baseDamage);
         }
         
         // Check for special effects
@@ -148,72 +120,82 @@ public class RangedDamageListener implements Listener {
             
             // Handle special arrow effects (e.g., fire, knockback)
             if (arrow.getFireTicks() > 0) {
-                // Apply additional fire damage or effects
-                finalDamage *= 1.25; // 25% more damage for fire arrows
+                event.getEntity().setFireTicks(100); // 5 seconds of fire
             }
-        }
-        else if (projectile instanceof Trident) {
-            // Apply trident-specific damage modifiers
-            finalDamage *= 1.5; // 50% more damage for tridents (they're more powerful)
-        }
-        
-        // Handle burst chance (after critical calculation)
-        if (Math.random() < profile.getStats().getBurstChance()) {
-            finalDamage *= profile.getStats().getBurstDamage();
             
-            // Display burst effect
-            event.getEntity().getWorld().playSound(
-                event.getEntity().getLocation(),
-                Sound.ENTITY_GENERIC_EXPLODE, 
-                0.5f, 1.5f
-            );
-        }
-        
-        // Set the actual damage
-        event.setDamage(finalDamage);
-        
-        // Apply lifesteal
-        if (event.getEntity() instanceof LivingEntity && finalDamage > 0) {
-            double lifeStealPercent = profile.getStats().getLifeSteal();
-            if (lifeStealPercent > 0) {
-                double healAmount = finalDamage * (lifeStealPercent / 100.0);
-                double maxHealth = shooter.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
-                
-                if (shooter.getHealth() < maxHealth && healAmount > 0) {
-                    double newHealth = Math.min(shooter.getHealth() + healAmount, maxHealth);
-                    shooter.setHealth(newHealth);
-                    
-                    // Visual effect for significant lifesteal
-                    if (healAmount >= 1.0) {
-                        // Play a subtle healing sound
-                        shooter.playSound(shooter.getLocation(), Sound.ITEM_HONEY_BOTTLE_DRINK, 0.5f, 1.2f);
-                        
-                        // Display healing message if significant
-                        if (healAmount >= 3.0) {
-                            shooter.sendMessage("§a⚕ §7Lifesteal healed you for §a" + String.format("%.1f", healAmount) + " §7health");
-                        }
-                    }
+            // Apply knockback based on arrow's knockback strength
+            if (arrow.getKnockbackStrength() > 0) {
+                Vector knockback = arrow.getVelocity().normalize().multiply(arrow.getKnockbackStrength() * 0.5);
+                if (event.getEntity() instanceof LivingEntity) {
+                    event.getEntity().setVelocity(event.getEntity().getVelocity().add(knockback));
                 }
             }
         }
         
-        // Debug information
+        // Set the final damage
+        event.setDamage(finalDamage);
+        
+        // Debug logging
         if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
-            plugin.debugLog(DebugSystem.COMBAT, shooter.getName() + "'s ranged attack: " +
-                        "Force=" + String.format("%.2f", force) + 
-                        ", Ranged Damage=" + rangedDamage + 
-                        ", Base Damage=" + String.format("%.2f", baseDamage) +
-                        ", Final Damage=" + String.format("%.2f", finalDamage) +
-                        ", Critical=" + isCritical);
+            plugin.debugLog(DebugSystem.COMBAT, "Ranged attack from " + shooter.getName() + 
+                ": " + finalDamage + " damage" + (isCritical ? " (CRITICAL)" : ""));
         }
         
-        // Add visual effects for critical hits
-        if (isCritical && event.getEntity() instanceof LivingEntity) {
-            event.getEntity().getWorld().spawnParticle(
-                org.bukkit.Particle.CRIT,
-                event.getEntity().getLocation().add(0, 1, 0),
-                10, 0.5, 0.5, 0.5, 0.1
-            );
+        // Apply lifesteal for ranged attacks
+        applyRangedLifesteal(shooter, profile, finalDamage);
+    }
+
+    /**
+     * Apply critical hit effects for ranged attacks
+     */
+    private void applyRangedCriticalEffects(Player shooter, Entity target, double damage) {
+        Location targetLoc = target.getLocation().add(0, target.getHeight() / 2, 0);
+        
+        // Different particles for ranged crits (more arrow-like)
+        target.getWorld().spawnParticle(
+            Particle.CRIT, 
+            targetLoc, 
+            6, 
+            0.4, 0.4, 0.4, 
+            0.2
+        );
+        
+        // Arrow-specific crit particles
+        target.getWorld().spawnParticle(
+            Particle.ENCHANTED_HIT, 
+            targetLoc, 
+            4, 
+            0.3, 0.3, 0.3, 
+            0.1
+        );
+        
+        // Send message to shooter
+        shooter.sendMessage("§a§l🏹 CRITICAL SHOT! §r§a" + String.format("%.1f", damage) + " damage!");
+    }
+
+    /**
+     * Apply lifesteal for ranged attacks
+     */
+    private void applyRangedLifesteal(Player shooter, PlayerProfile profile, double damage) {
+        double lifeStealPercent = profile.getStats().getLifeSteal();
+        if (lifeStealPercent <= 0) return;
+        
+        double healAmount = damage * (lifeStealPercent / 100.0);
+        double currentHealth = shooter.getHealth();
+        double maxHealth = shooter.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+        
+        if (currentHealth < maxHealth && healAmount > 0) {
+            double newHealth = Math.min(currentHealth + healAmount, maxHealth);
+            shooter.setHealth(newHealth);
+            profile.getStats().setCurrentHealth(newHealth);
+            
+            if (healAmount >= 1.0) {
+                shooter.playSound(shooter.getLocation(), Sound.ITEM_HONEY_BOTTLE_DRINK, 0.4f, 1.3f);
+                
+                if (healAmount >= 2.0) {
+                    shooter.sendMessage("§a⚕ §7Ranged lifesteal: §a+" + String.format("%.1f", healAmount) + " §7health");
+                }
+            }
         }
     }
 }

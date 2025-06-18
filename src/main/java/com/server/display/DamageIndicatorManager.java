@@ -1,6 +1,7 @@
 package com.server.display;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -422,5 +423,27 @@ public class DamageIndicatorManager implements Listener {
                     player
                 );
             });
+    }
+
+    /**
+     * Spawn a special damage indicator for critical hits
+     * @param location The location to spawn the indicator
+     * @param damage The damage amount
+     */
+    public void spawnCriticalDamageIndicator(Location location, int damage) {
+        // Create a more prominent display for critical hits
+        if (location.getWorld() != null) {
+            // Spawn the regular damage indicator but with critical styling
+            spawnDamageIndicator(location.add(0, 0.2, 0), damage, false);
+            
+            // Add extra visual flair for crits
+            location.getWorld().spawnParticle(
+                Particle.EXPLOSION,
+                location,
+                3,
+                0.1, 0.1, 0.1,
+                0.05
+            );
+        }
     }
 }

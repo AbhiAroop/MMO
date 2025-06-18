@@ -388,26 +388,78 @@ public class PlayerStats {
         return defaultBuildRange;
     }
 
-    public double calculatePhysicalDamage() {
+    /**
+     * Calculate physical damage with manual critical hit control
+     * @param forceCritical Whether to force a critical hit
+     * @return The calculated damage
+     */
+    public double calculatePhysicalDamage(boolean forceCritical) {
         double damage = physicalDamage;
-        if (Math.random() < criticalChance) {
+        
+        // Apply critical damage if forced or random chance
+        if (forceCritical || Math.random() < criticalChance) {
             damage *= criticalDamage;
         }
+        
+        // Apply burst damage
         if (Math.random() < burstChance) {
             damage *= burstDamage;
         }
+        
         return damage;
     }
 
-    public double calculateMagicDamage() {
+    /**
+     * Calculate physical damage with automatic critical hit chance
+     * @return The calculated damage
+     */
+    public double calculatePhysicalDamage() {
+        return calculatePhysicalDamage(false);
+    }
+
+    /**
+     * Calculate magic damage with critical hit potential
+     * @param forceCritical Whether to force a critical hit
+     * @return The calculated damage
+     */
+    public double calculateMagicDamage(boolean forceCritical) {
         double damage = magicDamage;
-        if (Math.random() < criticalChance) {
+        
+        // Apply critical damage if forced or random chance
+        if (forceCritical || Math.random() < criticalChance) {
             damage *= criticalDamage;
         }
+        
+        // Apply burst damage
         if (Math.random() < burstChance) {
             damage *= burstDamage;
         }
+        
         return damage;
+    }
+
+    /**
+     * Calculate magic damage with automatic critical hit chance
+     * @return The calculated damage
+     */
+    public double calculateMagicDamage() {
+        return calculateMagicDamage(false);
+    }
+
+    /**
+     * Check if an attack should be critical based on critical chance
+     * @return True if the attack should be critical
+     */
+    public boolean rollCriticalHit() {
+        return Math.random() < criticalChance;
+    }
+
+    /**
+     * Get the actual critical damage multiplier that will be applied
+     * @return The critical damage multiplier
+     */
+    public double getCriticalMultiplier() {
+        return criticalDamage;
     }
 
         // Apply stats to player's minecraft attributes
@@ -561,28 +613,6 @@ public class PlayerStats {
         this.expLevel = player.getLevel();
         this.expProgress = player.getExp();
     }
-
-    // Modify existing calculatePhysicalDamage method to handle critical hits
-    public double calculatePhysicalDamage(boolean isCritical) {
-        double damage = physicalDamage;
-        
-        // Random critical hit based on critical chance
-        if (!isCritical && Math.random() < criticalChance) {
-            isCritical = true;
-        }
-        
-        // Apply critical damage
-        if (isCritical) {
-            damage *= criticalDamage;
-        }
-        
-        // Apply burst damage
-        if (Math.random() < burstChance) {
-            damage *= burstDamage;
-        }
-        
-        return damage;
-    }    
 
     // Add stat validation helper
     private double clampValue(double value, double min, double max) {

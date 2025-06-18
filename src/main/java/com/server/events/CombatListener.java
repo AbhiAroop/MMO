@@ -84,7 +84,6 @@ public class CombatListener implements Listener {
                     heldItem.setItemMeta(meta);
                 }
             }
-            
         }
         
         // Get the attack charge progression
@@ -93,8 +92,20 @@ public class CombatListener implements Listener {
         // Determine if attack is fully charged (chargePercent is very close to 1.0)
         boolean isFullyCharged = chargePercent >= 0.9f;
         
-        // Check for critical hit - only apply if attack is fully charged
-        boolean isCritical = isFullyCharged && !player.isOnGround() && player.getFallDistance() > 0.0f;
+        // CRITICAL HIT SYSTEM: Check for critical hit based on player stats
+        boolean isCritical = false;
+        double criticalChance = profile.getStats().getCriticalChance();
+        double criticalDamage = profile.getStats().getCriticalDamage();
+        
+        // Critical hits can only occur on fully charged attacks
+        if (isFullyCharged && Math.random() < criticalChance) {
+            isCritical = true;
+            
+            if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
+                plugin.debugLog(DebugSystem.COMBAT, "CRITICAL HIT! Player: " + player.getName() + 
+                    ", Crit Chance: " + (criticalChance * 100) + "%, Crit Damage: " + criticalDamage + "x");
+            }
+        }
         
         // UPDATED DAMAGE CALCULATION:
         // At 0% charge: Damage is 0.5
@@ -112,7 +123,10 @@ public class CombatListener implements Listener {
         
         // Apply critical hit multiplier if applicable
         if (isCritical) {
-            scaledDamage *= profile.getStats().getCriticalDamage();
+            scaledDamage *= criticalDamage;
+            
+            // Critical hit visual and sound effects
+            applyCriticalHitEffects(player, event.getEntity(), scaledDamage);
         }
         
         // Set the final damage
@@ -120,10 +134,11 @@ public class CombatListener implements Listener {
         
         // Debug information
         if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
-            plugin.debugLog(DebugSystem.COMBAT,player.getName() + "'s attack: Charge=" + String.format("%.2f", chargePercent) + 
+            plugin.debugLog(DebugSystem.COMBAT, player.getName() + "'s attack: Charge=" + String.format("%.2f", chargePercent) + 
                                 ", Base Damage=" + String.format("%.2f", damage) + 
                                 ", Scaled Damage=" + String.format("%.2f", scaledDamage) +
-                                ", Critical=" + isCritical);
+                                ", Critical=" + isCritical +
+                                (isCritical ? " (x" + criticalDamage + ")" : ""));
         }
         
         // Apply lifesteal based on final damage dealt
@@ -159,7 +174,7 @@ public class CombatListener implements Listener {
                     
                     // Debug info
                     if (plugin.isDebugEnabled(DebugSystem.COMBAT)) {
-                        plugin.debugLog(DebugSystem.COMBAT,player.getName() + " healed for " + healAmount + 
+                        plugin.debugLog(DebugSystem.COMBAT, player.getName() + " healed for " + healAmount + 
                                             " from lifesteal (" + lifeStealPercent + "%)");
                     }
                 }
@@ -172,8 +187,11 @@ public class CombatListener implements Listener {
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 1.5f);
         }
         
-        // Visual and sound effects based on charge level
-        if (isFullyCharged) {
+        // Visual and sound effects based on charge level and critical hits
+        if (isCritical) {
+            // Critical hit takes priority over charge level effects
+            // Effects are handled in applyCriticalHitEffects method
+        } else if (isFullyCharged) {
             // Full charge attack sound and effect
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_STRONG, 1.0f, 1.0f);
         } else if (chargePercent >= 0.5f) {
@@ -182,6 +200,59 @@ public class CombatListener implements Listener {
         } else {
             // Low charge attack sound
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_NODAMAGE, 0.5f, 1.0f);
+        }
+    }
+
+    /**
+     * Apply visual and sound effects for critical hits
+     */
+    private void applyCriticalHitEffects(Player player, Entity target, double finalDamage) {
+        Location targetLoc = target.getLocation().add(0, target.getHeight() / 2, 0);
+        
+        // Critical hit sound (higher pitch for distinction)
+        player.getWorld().playSound(targetLoc, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
+        
+        // Additional impact sound
+        player.getWorld().playSound(targetLoc, Sound.ENTITY_GENERIC_EXPLODE, 0.3f, 2.0f);
+        
+        // Particle effects around the target
+        if (target.getWorld() != null) {
+            // Golden particles for critical hit
+            target.getWorld().spawnParticle(
+                Particle.CRIT, 
+                targetLoc, 
+                8, // particle count
+                0.3, 0.3, 0.3, // spread
+                0.1 // extra speed
+            );
+            
+            // Additional magic crit particles for extra effect
+            target.getWorld().spawnParticle(
+                Particle.ENCHANTED_HIT, 
+                targetLoc, 
+                6, // particle count
+                0.2, 0.2, 0.2, // spread
+                0.1 // extra speed
+            );
+            
+            // Damage numbers effect (if damage indicator system exists)
+            if (plugin.getDamageIndicatorManager() != null) {
+                plugin.getDamageIndicatorManager().spawnCriticalDamageIndicator(
+                    targetLoc,
+                    (int) Math.round(finalDamage)
+                );
+            }
+        }
+        
+        // Send critical hit message to player
+        player.sendMessage("§6§l⚡ CRITICAL HIT! §r§6" + String.format("%.1f", finalDamage) + " damage!");
+        
+        // Apply screen shake effect (if target is a player)
+        if (target instanceof Player) {
+            Player targetPlayer = (Player) target;
+            // Create a subtle screen shake by applying a small knockback
+            Vector knockback = targetPlayer.getLocation().subtract(player.getLocation()).toVector().normalize().multiply(0.2).setY(0.1);
+            targetPlayer.setVelocity(targetPlayer.getVelocity().add(knockback));
         }
     }
 
