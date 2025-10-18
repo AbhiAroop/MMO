@@ -250,7 +250,17 @@ public class StatsGUI {
                 "",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Sustain Per Second:",
                 ChatColor.GRAY + "From Life Steal: " + ChatColor.WHITE + String.format("%.1f", calculateLifeStealPerSecond(stats)),
-                ChatColor.GRAY + "From Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen())
+                ChatColor.GRAY + "From Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()),
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Elemental Affinity:",
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.AIR),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW),
+                getAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT)
             },
             false
         );
@@ -738,6 +748,22 @@ public class StatsGUI {
     private static String calculateLurePower(Player player, PlayerStats stats) {
         // Mock calculation
         return String.format("%.1f", 100.0 + stats.getFishingFortune() * 8);
+    }
+    
+    /**
+     * Get formatted affinity line for an element
+     */
+    private static String getAffinityLine(PlayerStats stats, com.server.enchantments.elements.ElementType element) {
+        com.server.profiles.stats.ElementalAffinity affinity = stats.getElementalAffinity();
+        double affinityValue = affinity.getAffinity(element);
+        String tier = affinity.getAffinityTier(element);
+        
+        // Format: Icon Element: Value [Tier]
+        return ChatColor.DARK_GRAY + "• " + 
+               element.getColoredIcon() + " " + 
+               element.getColor() + element.name() + ": " + 
+               ChatColor.WHITE + String.format("%.0f", affinityValue) + " " +
+               tier;
     }
     
     /**

@@ -1,12 +1,16 @@
-name: mmo
+﻿name: mmo
 main: com.server.Main
 version: 0.0.1
 api-version: 1.20
 description: MMO plugin for Minecraft servers
 depend: [ModelEngine]
 softdepend: [Geyser]
-
 commands:
+  enchant:
+    description: Admin command for custom enchantment system
+    usage: /enchant <add|give|test|info|inspect|list|debug|clear|reload|spawn> [args]
+    permission: mmo.admin.enchant
+    aliases: [ench, mmoe, adminenchant, aench, addenchant]
   menu:
     description: Opens the MMO menu
     usage: /menu
@@ -111,11 +115,6 @@ commands:
     usage: /adminfurnace <create|remove|list|info|give|settemp|addfuel|debug>
     permission: mmo.admin.furnace
     aliases: [afurnace, adminf]
-  adminenchanting:
-    description: Administrative commands for custom enchanting system
-    usage: /adminenchanting <giverune|testlevel|listbooks|debug> [args]
-    permission: mmo.admin.enchanting
-    aliases: [aenchant, adminench]
 
 permissions:
   mmo.admin:
@@ -160,7 +159,6 @@ permissions:
   mmo.admin.furnace:
     description: Administrative commands for custom furnaces
     default: op
-  mmo.admin.enchanting:
+  mmo.admin.enchant:
     description: Administrative commands for custom enchanting system
     default: op
-  

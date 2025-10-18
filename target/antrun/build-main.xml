@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <copy file="c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\target/mmo-0.0.1.jar" tofile="C:/Users/Abhi/Desktop/AI Paper Server/plugins/mmo-0.0.1.jar" overwrite="true" />
+  </target>
+</project>

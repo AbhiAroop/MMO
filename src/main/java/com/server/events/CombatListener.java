@@ -404,8 +404,44 @@ public class CombatListener implements Listener {
     
     /**
      * Determines if the damage is magical based on the damage cause
+     * Also checks for enchantment element metadata to determine damage type
      */
     private boolean isMagicalDamage(EntityDamageEvent event) {
+        // Check if this damage is from an enchantment with element metadata
+        if (event instanceof EntityDamageByEntityEvent) {
+            EntityDamageByEntityEvent entityEvent = (EntityDamageByEntityEvent) event;
+            
+            // Check if the damager has enchantment element metadata
+            if (entityEvent.getDamager() instanceof Player) {
+                Player damager = (Player) entityEvent.getDamager();
+                
+                // Check for temporary enchantment element marker
+                if (damager.hasMetadata("enchantment_element")) {
+                    String elementName = damager.getMetadata("enchantment_element").get(0).asString();
+                    
+                    // Remove the metadata immediately after checking
+                    damager.removeMetadata("enchantment_element", plugin);
+                    
+                    // Determine if this element is magical
+                    // Physical: FIRE, WATER, EARTH, AIR, NATURE
+                    // Magical: LIGHTNING, SHADOW, LIGHT
+                    switch (elementName.toUpperCase()) {
+                        case "LIGHTNING":
+                        case "SHADOW":
+                        case "LIGHT":
+                            return true;
+                        case "FIRE":
+                        case "WATER":
+                        case "EARTH":
+                        case "AIR":
+                        case "NATURE":
+                            return false;
+                    }
+                }
+            }
+        }
+        
+        // Default vanilla damage type detection
         switch (event.getCause()) {
             case MAGIC:
             case DRAGON_BREATH:

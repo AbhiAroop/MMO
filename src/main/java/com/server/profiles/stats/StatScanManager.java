@@ -2,6 +2,7 @@ package com.server.profiles.stats;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -368,6 +369,9 @@ public class StatScanManager {
             // Apply bonuses to player stats
             applyBonusesToStats(stats, bonuses);
             
+            // Scan and update elemental affinity from equipped items
+            scanAndUpdateAffinity(player, stats);
+            
             // Apply attributes to player based on the updated stats
             applyAttributesToPlayer(player, stats);
             
@@ -473,6 +477,17 @@ public class StatScanManager {
             
             extractStatsFromItem(boots, bonuses);
         }
+        
+        // ENCHANTMENT INTEGRATION: Scan enchantments on all equipment
+        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+            plugin.debugLog(DebugSystem.ENCHANTING, "Scanning enchantments on equipment...");
+        }
+        
+        scanEnchantmentsOnItem(mainHandItem, bonuses);
+        scanEnchantmentsOnItem(helmet, bonuses);
+        scanEnchantmentsOnItem(chestplate, bonuses);
+        scanEnchantmentsOnItem(leggings, bonuses);
+        scanEnchantmentsOnItem(boots, bonuses);
         
         return bonuses;
     }
@@ -1496,6 +1511,182 @@ public class StatScanManager {
         return input.replaceAll("§[0-9a-fk-or]", "");
     }
 
+    /**
+     * Scan all equipped items and calculate elemental affinity from enchantments
+     */
+    private void scanAndUpdateAffinity(Player player, PlayerStats stats) {
+        // Reset affinity to zero (will be recalculated from equipment)
+        ElementalAffinity affinity = stats.getElementalAffinity();
+        affinity.resetAllAffinity();
+        
+        // Get all equipment
+        PlayerInventory inv = player.getInventory();
+        ItemStack mainHand = inv.getItemInMainHand();
+        ItemStack offHand = inv.getItemInOffHand();
+        ItemStack helmet = inv.getHelmet();
+        ItemStack chestplate = inv.getChestplate();
+        ItemStack leggings = inv.getLeggings();
+        ItemStack boots = inv.getBoots();
+        
+        // Scan each item for enchantments
+        scanAffinityFromItem(mainHand, affinity);
+        scanAffinityFromItem(offHand, affinity);
+        scanAffinityFromItem(helmet, affinity);
+        scanAffinityFromItem(chestplate, affinity);
+        scanAffinityFromItem(leggings, affinity);
+        scanAffinityFromItem(boots, affinity);
+        
+        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+            plugin.debugLog(DebugSystem.ENCHANTING, 
+                "Scanned affinity for " + player.getName() + " - Total: " + affinity.getTotalAffinity());
+        }
+    }
+    
+    /**
+     * Scan a single item for enchantments and add their affinity values
+     */
+    private void scanAffinityFromItem(ItemStack item, ElementalAffinity affinity) {
+        if (item == null || item.getType() == org.bukkit.Material.AIR) {
+            return;
+        }
+        
+        // Get enchantments from item
+        List<com.server.enchantments.data.EnchantmentData> enchantments = 
+            com.server.enchantments.data.EnchantmentData.getEnchantmentsFromItem(item);
+        
+        // Add affinity value from each enchantment
+        for (com.server.enchantments.data.EnchantmentData enchantData : enchantments) {
+            int affinityValue = enchantData.getAffinityValue();
+            
+            if (enchantData.isHybrid()) {
+                // For hybrid enchantments, split affinity between both elements
+                com.server.enchantments.elements.HybridElement hybrid = enchantData.getHybridElement();
+                com.server.enchantments.elements.ElementType element1 = hybrid.getElement1();
+                com.server.enchantments.elements.ElementType element2 = hybrid.getElement2();
+                
+                // Split 60/40 between element1 and element2
+                double element1Affinity = affinityValue * 0.6;
+                double element2Affinity = affinityValue * 0.4;
+                
+                affinity.addAffinity(element1, element1Affinity);
+                affinity.addAffinity(element2, element2Affinity);
+                
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING,
+                        "Added hybrid affinity: " + hybrid.name() + " -> " + 
+                        element1.name() + ": " + element1Affinity + ", " + 
+                        element2.name() + ": " + element2Affinity);
+                }
+            } else {
+                // Regular single-element enchantment
+                com.server.enchantments.elements.ElementType element = enchantData.getElement();
+                affinity.addAffinity(element, affinityValue);
+                
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING,
+                        "Added affinity: " + element.name() + ": " + affinityValue);
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan enchantments on an item and add bonuses
+     */
+    private void scanEnchantmentsOnItem(ItemStack item, ItemStatBonuses bonuses) {
+        // ENCHANTMENT SYSTEM REMOVED - This method is now disabled
+        // TODO: Implement new enchantment system here
+        return;
+        
+        /*
+        if (item == null || item.getType() == Material.AIR) {
+            return;
+        }
+        
+        // Get enchantment bonuses
+        EnchantmentStatBonuses enchantBonuses = EnchantmentStatsScanner.getEnchantmentStats(item);
+        
+        // Apply percentage-based bonuses to existing stats
+        if (enchantBonuses.physicalDamagePercent != 0) {
+            int additionalDamage = (int) (bonuses.physicalDamage * enchantBonuses.physicalDamagePercent);
+            bonuses.physicalDamage += additionalDamage;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Physical Damage: " + bonuses.physicalDamage + " (+" + additionalDamage + " from enchants)");
+            }
+        }
+        
+        if (enchantBonuses.magicDamagePercent != 0) {
+            int additionalDamage = (int) (bonuses.magicDamage * enchantBonuses.magicDamagePercent);
+            bonuses.magicDamage += additionalDamage;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Magic Damage: " + bonuses.magicDamage + " (+" + additionalDamage + " from enchants)");
+            }
+        }
+        
+        // Apply flat bonuses
+        bonuses.armor += enchantBonuses.armor;
+        bonuses.magicResist += enchantBonuses.magicResist;
+        bonuses.mana += enchantBonuses.maxMana;
+        bonuses.healthRegen += enchantBonuses.healthRegen;
+        bonuses.lifeSteal += enchantBonuses.lifeSteal * 100; // Convert to percentage
+        bonuses.omnivamp += enchantBonuses.omnivamp * 100;
+        
+        // Mining bonuses
+        if (enchantBonuses.miningSpeedPercent != 0) {
+            double additionalSpeed = bonuses.miningSpeed * enchantBonuses.miningSpeedPercent;
+            bonuses.miningSpeed += additionalSpeed;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Mining Speed: " + bonuses.miningSpeed + " (+" + additionalSpeed + " from enchants)");
+            }
+        }
+        
+        bonuses.miningFortune += enchantBonuses.miningFortune;
+        
+        // Movement speed bonus
+        if (enchantBonuses.movementSpeedPercent != 0) {
+            double additionalSpeed = 0.1 * enchantBonuses.movementSpeedPercent; // Base 0.1 speed
+            // Note: Movement speed is handled differently, this is stored for later
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Movement Speed Bonus: +" + (enchantBonuses.movementSpeedPercent * 100) + "%");
+            }
+        }
+        
+        // Attack speed bonus
+        if (enchantBonuses.attackSpeedPercent != 0) {
+            double additionalSpeed = bonuses.attackSpeed * enchantBonuses.attackSpeedPercent;
+            bonuses.attackSpeed += additionalSpeed;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Attack Speed: " + bonuses.attackSpeed + " (+" + additionalSpeed + " from enchants)");
+            }
+        }
+        
+        // Health modifier (from cursed enchantments)
+        if (enchantBonuses.maxHealthPercent != 0) {
+            int healthModifier = (int) (bonuses.health * enchantBonuses.maxHealthPercent);
+            bonuses.health += healthModifier;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING,
+                    "[Enchantment Integration] Health: " + bonuses.health + " (" + (healthModifier > 0 ? "+" : "") + healthModifier + " from enchants)");
+            }
+        }
+        
+        if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+            plugin.debugLog(DebugSystem.ENCHANTING,
+                "[Enchantment Integration] Total bonuses from enchantments: " + enchantBonuses.toString());
+        }
+        */
+    }
     
     /**
      * Helper class to store all equipment bonuses

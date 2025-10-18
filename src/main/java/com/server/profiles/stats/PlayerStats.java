@@ -39,6 +39,9 @@ public class PlayerStats {
     // Resource Stats
     private int manaRegen;
     private int luck;
+    
+    // Elemental Affinity System
+    private ElementalAffinity elementalAffinity;
 
     // Minecraft Base Stats
     private double currentHealth;
@@ -90,6 +93,7 @@ public class PlayerStats {
     private float defaultExpProgress = 0.0f;
 
     public PlayerStats() {
+        this.elementalAffinity = new ElementalAffinity();
         resetToDefaults();
     }
 
@@ -197,6 +201,10 @@ public class PlayerStats {
     
     public int getLuck() { return luck; }
     public void setLuck(int luck) { this.luck = luck; }
+    
+    // Elemental Affinity
+    public ElementalAffinity getElementalAffinity() { return elementalAffinity; }
+    public void setElementalAffinity(ElementalAffinity affinity) { this.elementalAffinity = affinity; }
     
     public int getTotalMana() { return totalMana; }
     public void setTotalMana(int totalMana) { 

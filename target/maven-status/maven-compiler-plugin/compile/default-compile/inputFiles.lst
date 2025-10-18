@@ -1,156 +1,206 @@
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\behaviors\NPCBehavior.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SubskillDetailsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\NPCDamageListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AnimationDebugCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\PlayerSkillTreeData.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\health\HealthRegenerationListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\display\MobDisplayManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\ItemType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\DialogueNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\StatReward.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\FlyCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\CombatNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\NellMossgleam.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CurrencyCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\MiningSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\SkillAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SkillRegistry.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminProfileCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\StatsCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\CustomMobStats.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\display\ScoreboardManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\gui\StatsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SkillType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\ItemManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\tokens\SkillToken.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\CurrencyReward.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\KaelenEchobound.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillActionBarListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\GemCarvingListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillDetailsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\dialogue\DialogueAction.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\VerdigranColossus.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\dialogue\DialogueResponse.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SubskillsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\RangedDamageListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\ProfileManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CraftingCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\display\DamageIndicatorManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SubskillType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\GiveHatCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\ProfileCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillTreeGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\behaviors\FleeingBehavior.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\dialogue\StoryDialogues.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\PlayerProfile.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\builders\GenericTreeBuilder.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\gui\ProfileGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\gui\AbilityGUIListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\RewardsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\ItemRarity.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\PassiveNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\Main.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\dialogue\DialogueNode.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\ItemListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\dialogue\DialogueManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\combat\CombatSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SkillLevelupListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillExpGainEvent.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\GiveItemCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\SkillTreeRegistry.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\RangedCombatManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\passive\PassiveAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillsGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\behaviors\EquipmentBehavior.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\SkillTreeNode.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\SkillTree.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\BaseNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\CrystarchNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\AbstractSkillAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\SpawnCustomMobCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminSkillsCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\manager\CustomCraftingManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\listeners\VanillaCraftingReplacer.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\DebugCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\CustomMob.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCInteractionListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\DuneetchedColossus.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\SkillProgressionManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCDamageEffects.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\active\ActiveAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\health\HealthRegenerationManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\debug\DebugManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\RewardManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminStatsCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\colossus\RunemarkColossus.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\SkillRewardType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CrystalCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\MobRegistry.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\CosmeticCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\CombatListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillLevelUpEvent.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\NPCCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\CustomEntityManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\GUIListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\ConfirmationGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\gui\AbilitiesGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\AbilityListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillTreeGUIListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\cosmetics\CosmeticGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\AutoRespawnListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCInteractionHandler.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\types\HostileNPC.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\behaviors\CombatBehavior.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\GemCarvingToolCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\StatScanManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\abilities\AbilityManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\data\SkillReward.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\MobType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\display\ActionBarManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\fishing\FishingSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\farming\FarmingSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\items\CustomItems.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\AdminTokensCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\Skill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\listeners\CustomCraftingListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\data\PlayerSkillData.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\CombatHandler.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\crafting\gui\CustomCraftingGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\SkillEventListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\active\AbstractActiveAbility.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\display\SkillActionBarManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\ItemReward.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\PlayerListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\builders\SkillTreeBuilder.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCFactory.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\MenuCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\cosmetics\CosmeticManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\core\AbstractSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCStats.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\minigames\GemCarvingManager.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\commands\SkillCommand.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\NPCType.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\rewards\rewards\UnlockReward.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\gui\SkillGUIListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\net\citizensnpcs\api\trait\trait\Attackable.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\stats\PlayerStats.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\events\MiningListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\npc\story\StoryNPCRegistry.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\trees\TreeGridPosition.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\data\SkillLevel.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\entities\mobs\duskhollow\DuskhollowFang.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\excavating\ExcavatingSkill.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\utils\NamespacedKeyUtils.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\events\CustomMobListener.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\profiles\skills\abilities\gui\AbilityListGUI.java
-c:\Users\Abhi\Desktop\Projects\Minecraft Plugin Build\mmo\src\main\java\com\server\utils\CurrencyFormatter.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTreeRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AnimationDebugCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\CustomMobListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\data\SkillReward.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminStatsCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\cosmetics\CosmeticGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\EquipmentBehavior.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\CustomFurnaceListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillLevelupListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillActionBarListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AdvancedCraftingGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\gui\ProfileGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\InfernoStrike.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\gui\StatsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\ItemReward.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\EmberVeil.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\KaelenEchobound.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\MenuCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\DialogueNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\CustomMob.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilityListGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminSkillsCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\data\EnchantmentLevel.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\defensive\Mistveil.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\builders\SkillTreeBuilder.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\temperature\TemperatureSystem.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\UnlockReward.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\CustomFurnaceGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\TreeGridPosition.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\builders\GenericTreeBuilder.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ProfileManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\cosmetics\CosmeticManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GiveHatCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\VanillaCraftingReplacer.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\VerdigranColossus.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\NPCCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\furnace\FurnaceData.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\data\CustomEnchantment.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\data\EnchantmentData.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\listeners\EnchantmentTableListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\data\EnchantmentRarity.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\data\EnchantmentQuality.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\GUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\dialogue\DialogueNode.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\manager\CustomFurnaceManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\data\SkillLevel.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\AdvancedCraftingListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\fishing\FishingSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCDamageEffects.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\active\AbstractActiveAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillTreeGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\health\HealthRegenerationListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\fuel\FuelRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CrystalCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\dialogue\DialogueAction.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\active\ActiveAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\HostileNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\CombatBehavior.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\ItemListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SubskillsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\StatScanManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillDetailsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\utils\NamespacedKeyUtils.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\CustomCraftingListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillEventListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\PlayerStats.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminFurnaceCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\EnchantmentTableGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\RunemarkColossus.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\duskhollow\DuskhollowFang.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\combat\CombatSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\health\HealthRegenerationManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\EnchantmentRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Deepcurrent.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\ElementType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillTreeGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\CustomEntityManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\StatReward.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\ScoreboardManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\CustomMobStats.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\NPCBehavior.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\MiningListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\recipes\FurnaceRecipeRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\debug\DebugManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\AutoCraftingListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\CombatHandler.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilityGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\FleeingBehavior.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTree.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\fuel\FuelData.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\StoryNPCRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\listeners\EnchantmentGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\Main.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\AutoItemEnhancementListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\NPCDamageListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\abilities\AbilityManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\MobRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillLevelUpEvent.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\StatsCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\AbstractSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\RangedDamageListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Cinderwake.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\CustomFurnaceGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\SkillCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCStats.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\MobType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\PlayerListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\AbilityListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\items\ElementalFragment.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\listeners\EnchantmentTriggerListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\farming\FarmingSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillExpGainEvent.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\AbstractSkillAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\utils\CurrencyFormatter.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilitiesGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\furnace\FurnaceType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\CurrencyReward.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillProgressionManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\CombatNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminTokensCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CurrencyCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCInteractionListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\data\PlayerSkillData.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\CustomItems.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\dialogue\StoryDialogues.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCFactory.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\defensive\Whispers.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\structure\EnchantmentTableStructure.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\PlayerSkillTreeData.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\EnchantCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\ConfirmationGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\DamageIndicatorManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\recipes\FurnaceRecipe.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\defensive\Terraheart.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\PassiveNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\RangedCombatManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\ProfileCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\DuneetchedColossus.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\utils\AffinityModifier.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\CustomCraftingGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminEnchantCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemRarity.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\FragmentTier.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\PlayerProfile.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\EnchantmentApplicator.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GiveItemCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\utils\EnchantmentDamageUtil.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AutoCraftingGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\tokens\SkillToken.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTreeNode.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CosmeticCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\dialogue\DialogueResponse.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\MobDisplayManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GemCarvingToolCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\BurdenedStone.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\CrystarchNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\minigames\GemCarvingManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\FragmentRegistry.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\dialogue\DialogueManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\RewardManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SubskillDetailsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\SkillRewardType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCInteractionHandler.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CraftingCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\MiningSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\SpawnCustomMobCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\manager\CustomCraftingManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\BaseNPC.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminProfileCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\SkillAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\GaleStep.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\HybridElement.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\RewardsGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\Frostflow.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\GemCarvingListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\ElementalAffinity.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\PassiveAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\DebugCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\Skill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\display\SkillActionBarManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\ActionBarManager.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SubskillType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\FlyCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\net\citizensnpcs\api\trait\trait\Attackable.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\AshenVeil.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\NellMossgleam.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\excavating\ExcavatingSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\CombatListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\AutoRespawnListener.java

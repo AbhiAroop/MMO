@@ -10,7 +10,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.server.abilities.AbilityManager;
-import com.server.commands.AdminEnchantingCommand;
 import com.server.commands.AdminFurnaceCommand;
 import com.server.commands.AdminProfileCommand;
 import com.server.commands.AdminSkillsCommand;
@@ -22,6 +21,7 @@ import com.server.commands.CraftingCommand;
 import com.server.commands.CrystalCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
+import com.server.commands.EnchantCommand;
 import com.server.commands.FlyCommand;
 import com.server.commands.GemCarvingToolCommand;
 import com.server.commands.GiveHatCommand;
@@ -47,8 +47,10 @@ import com.server.display.ActionBarManager;
 import com.server.display.DamageIndicatorManager;
 import com.server.display.MobDisplayManager;
 import com.server.display.ScoreboardManager;
-import com.server.enchanting.listeners.CustomEnchantingGUIListener;
-import com.server.enchanting.listeners.VanillaEnchantingReplacer;
+import com.server.enchantments.listeners.EnchantmentGUIListener;
+import com.server.enchantments.listeners.EnchantmentTableListener;
+import com.server.enchantments.listeners.EnchantmentTriggerListener;
+import com.server.enchantments.structure.EnchantmentTableStructure;
 import com.server.entities.CustomEntityManager;
 import com.server.entities.npc.NPCManager;
 import com.server.entities.npc.dialogue.DialogueManager;
@@ -97,6 +99,8 @@ public class Main extends JavaPlugin {
     private AbilityRegistry abilityRegistry;
     private GemCarvingManager gemCarvingManager;
     private ScheduledExecutorService playtimeUpdateService;
+    private EnchantmentTableStructure enchantmentTableStructure;
+    private EnchantmentGUIListener enchantmentGUIListener;
 
     // Update the onEnable method
     @Override
@@ -156,8 +160,9 @@ public class Main extends JavaPlugin {
         CustomCraftingManager.getInstance();
 
         initializeFurnaceSystem();
-
-        initializeEnchantingSystem();
+        
+        // Initialize enchantment system
+        initializeEnchantmentSystem();
 
         // Register commands and event listeners
         registerCommands();
@@ -267,9 +272,12 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new CustomFurnaceListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CustomFurnaceGUIListener(this), this);
         this.getServer().getPluginManager().registerEvents(new GUIListener(this), this);
+        
+        // Register enchantment system listeners
+        this.getServer().getPluginManager().registerEvents(new EnchantmentTableListener(this, enchantmentTableStructure, enchantmentGUIListener), this);
+        this.getServer().getPluginManager().registerEvents(enchantmentGUIListener, this);
+        this.getServer().getPluginManager().registerEvents(new EnchantmentTriggerListener(), this);
 
-        this.getServer().getPluginManager().registerEvents(new CustomEnchantingGUIListener(this), this);
-        this.getServer().getPluginManager().registerEvents(new VanillaEnchantingReplacer(), this);
 
     }
 
@@ -493,16 +501,16 @@ public class Main extends JavaPlugin {
         if (adminFurnaceCommand != null) {
             adminFurnaceCommand.setExecutor(new AdminFurnaceCommand());
         } else {
-            LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
+            LOGGER.warning("Command 'adminfurnace' not registered in plugin.yml file!");
         }
 
-        org.bukkit.command.PluginCommand adminEnchantingCommand = this.getCommand("adminenchanting");
-        if (adminEnchantingCommand != null) {
-            AdminEnchantingCommand adminEnchantingHandler = new AdminEnchantingCommand();
-            adminEnchantingCommand.setExecutor(adminEnchantingHandler);
-            adminEnchantingCommand.setTabCompleter(adminEnchantingHandler);
+        org.bukkit.command.PluginCommand enchantCommand = this.getCommand("enchant");
+        if (enchantCommand != null) {
+            EnchantCommand enchantHandler = new EnchantCommand(enchantmentTableStructure);
+            enchantCommand.setExecutor(enchantHandler);
+            enchantCommand.setTabCompleter(enchantHandler);
         } else {
-            LOGGER.warning("Command 'adminenchanting' not registered in plugin.yml file!");
+            LOGGER.warning("Command 'enchant' not registered in plugin.yml file!");
         }
         
     }
@@ -638,22 +646,26 @@ public class Main extends JavaPlugin {
             e.printStackTrace();
         }
     }
-
-    /**
-     * Initialize the custom enchanting system
-     */
-    private void initializeEnchantingSystem() {
+    
+    private void initializeEnchantmentSystem() {
         try {
-            // Initialize enchantment registries
-            com.server.enchanting.CustomEnchantmentRegistry.getInstance();
-            com.server.enchanting.RuneBookRegistry.getInstance();
+            // Initialize enchantment structure manager
+            enchantmentTableStructure = new EnchantmentTableStructure(this);
             
-            if (isDebugEnabled(DebugSystem.GUI)) {
-                debugLog(DebugSystem.GUI, "[Main] Initialized custom enchanting system");
+            // Initialize GUI listener (needs to be created first so table listener can use it)
+            enchantmentGUIListener = new EnchantmentGUIListener();
+            
+            // Validate existing structures on startup
+            int removed = enchantmentTableStructure.validateAllStructures();
+            if (removed > 0) {
+                getLogger().info("Removed " + removed + " invalid enchantment table structures");
             }
             
+            getLogger().info("Initialized enchantment system with " + 
+                enchantmentTableStructure.getRegisteredStructures().size() + " registered structures");
+            
         } catch (Exception e) {
-            getLogger().severe("Failed to initialize enchanting system: " + e.getMessage());
+            getLogger().severe("Failed to initialize enchantment system: " + e.getMessage());
             e.printStackTrace();
         }
     }
