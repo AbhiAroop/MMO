@@ -16,14 +16,20 @@ import com.server.enchantments.abilities.defensive.Mistveil;
 import com.server.enchantments.abilities.defensive.Terraheart;
 import com.server.enchantments.abilities.defensive.Whispers;
 import com.server.enchantments.abilities.offensive.BurdenedStone;
+import com.server.enchantments.abilities.offensive.CelestialSurge;
 import com.server.enchantments.abilities.offensive.Cinderwake;
 import com.server.enchantments.abilities.offensive.Dawnstrike;
+import com.server.enchantments.abilities.offensive.Decayroot;
 import com.server.enchantments.abilities.offensive.Deepcurrent;
+import com.server.enchantments.abilities.offensive.Embershade;
 import com.server.enchantments.abilities.offensive.HollowEdge;
+import com.server.enchantments.abilities.offensive.Stormfire;
 import com.server.enchantments.abilities.offensive.Voltbrand;
 import com.server.enchantments.abilities.utility.ArcNexus;
 import com.server.enchantments.abilities.utility.AshenVeil;
 import com.server.enchantments.abilities.utility.GaleStep;
+import com.server.enchantments.abilities.utility.MistborneTempest;
+import com.server.enchantments.abilities.utility.PureReflection;
 import com.server.enchantments.abilities.utility.RadiantGrace;
 import com.server.enchantments.abilities.utility.Veilborn;
 import com.server.enchantments.data.CustomEnchantment;
@@ -89,6 +95,14 @@ public class EnchantmentRegistry {
         // Light enchantments
         register(new Dawnstrike());
         register(new RadiantGrace());
+        
+        // Hybrid enchantments
+        register(new Stormfire());          // Fire/Lightning
+        register(new MistborneTempest());   // Water/Air
+        register(new Decayroot());          // Earth/Shadow
+        register(new CelestialSurge());     // Light/Lightning
+        register(new Embershade());         // Fire/Shadow
+        register(new PureReflection());     // Water/Light
         
         // TODO: Add more enchantments as they're implemented
         // register(new ThunderClap());  // Lightning

@@ -7,13 +7,19 @@ import org.bukkit.ChatColor;
  */
 public enum HybridElement {
     ICE("Ice", ChatColor.DARK_AQUA, "❄", ElementType.AIR, ElementType.WATER, 
-        "Provides freezing and immobilization effects");
-    
-    // Future hybrids:
-    // STORM("Storm", ChatColor.BLUE, "⛈", ElementType.LIGHTNING, ElementType.AIR),
-    // MAGMA("Magma", ChatColor.DARK_RED, "🌋", ElementType.FIRE, ElementType.EARTH),
-    // POISON("Poison", ChatColor.DARK_GREEN, "☠", ElementType.NATURE, ElementType.SHADOW),
-    // CRYSTAL("Crystal", ChatColor.LIGHT_PURPLE, "💎", ElementType.EARTH, ElementType.LIGHT),
+        "Provides freezing and immobilization effects"),
+    STORM("Storm", ChatColor.YELLOW, "⚡", ElementType.FIRE, ElementType.LIGHTNING,
+        "Combines fire and lightning into devastating attacks"),
+    MIST("Mist", ChatColor.AQUA, "🌫", ElementType.WATER, ElementType.AIR,
+        "Provides evasion and mobility through watery vapors"),
+    DECAY("Decay", ChatColor.DARK_GRAY, "☠", ElementType.EARTH, ElementType.SHADOW,
+        "Corrupts and weakens through shadow-infused earth"),
+    RADIANCE("Radiance", ChatColor.GOLD, "✦", ElementType.LIGHT, ElementType.LIGHTNING,
+        "Channels divine energy with shocking speed"),
+    ASH("Ash", ChatColor.GRAY, "💀", ElementType.FIRE, ElementType.SHADOW,
+        "Burns with dark flames that consume and weaken"),
+    PURITY("Purity", ChatColor.WHITE, "✧", ElementType.WATER, ElementType.LIGHT,
+        "Cleanses and protects with sacred waters");
     
     private final String displayName;
     private final ChatColor color;
@@ -53,6 +59,20 @@ public enum HybridElement {
     }
     
     public ElementType getElement2() {
+        return element2;
+    }
+    
+    /**
+     * Get the primary element (60% affinity contribution)
+     */
+    public ElementType getPrimary() {
+        return element1;
+    }
+    
+    /**
+     * Get the secondary element (40% affinity contribution)
+     */
+    public ElementType getSecondary() {
         return element2;
     }
     

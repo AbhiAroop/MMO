@@ -1,6 +1,7 @@
 com\server\abilities\AbilityManager.class
 com\server\crafting\listeners\AutoCraftingListener.class
 com\server\crafting\gui\AutoCraftingGUI$CraftableItem.class
+com\server\enchantments\abilities\offensive\Stormfire$1.class
 com\server\profiles\skills\gui\SkillTreeGUIListener.class
 com\server\profiles\skills\abilities\gui\AbilityGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
@@ -11,6 +12,7 @@ com\server\profiles\skills\gui\SkillTreeGUI$1.class
 com\server\crafting\gui\CustomFurnaceGUI$1.class
 com\server\entities\npc\CombatHandler$1.class
 com\server\enchantments\elements\FragmentTier.class
+com\server\enchantments\abilities\offensive\Embershade.class
 com\server\crafting\gui\CustomCraftingGUI.class
 com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
@@ -41,6 +43,7 @@ com\server\profiles\skills\abilities\SkillAbility.class
 com\server\enchantments\utils\EnchantmentDamageUtil$1.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
+com\server\enchantments\abilities\utility\PureReflection.class
 com\server\enchantments\abilities\offensive\Cinderwake$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
 com\server\entities\npc\story\KaelenEchobound.class
@@ -190,6 +193,7 @@ com\server\entities\npc\CombatHandler.class
 com\server\profiles\skills\abilities\AbilityRegistry.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
+com\server\enchantments\abilities\utility\MistborneTempest$1.class
 com\server\profiles\skills\gui\SubskillDetailsGUI.class
 com\server\enchantments\abilities\utility\RadiantGrace.class
 com\server\profiles\skills\events\SkillEventListener$1.class
@@ -203,6 +207,7 @@ com\server\crafting\fuel\FuelData.class
 com\server\crafting\gui\CustomFurnaceGUI.class
 com\server\profiles\skills\rewards\RewardManager.class
 com\server\commands\GiveItemCommand.class
+com\server\enchantments\abilities\utility\PureReflection$2.class
 com\server\events\PlayerListener.class
 com\server\entities\CustomEntityManager.class
 com\server\profiles\skills\skills\excavating\ExcavatingSkill.class
@@ -216,12 +221,15 @@ com\server\events\CustomMobListener$1.class
 com\server\crafting\recipes\FurnaceRecipe.class
 com\server\enchantments\abilities\offensive\Voltbrand.class
 com\server\enchantments\listeners\EnchantmentTriggerListener.class
+com\server\enchantments\abilities\utility\PureReflection$1.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
+com\server\enchantments\abilities\offensive\Embershade$1.class
 com\server\enchantments\abilities\defensive\Mistveil.class
 com\server\entities\npc\types\HostileNPC.class
 com\server\cosmetics\CosmeticManager$1.class
 com\server\entities\npc\NPCStats.class
+com\server\enchantments\abilities\utility\MistborneTempest.class
 com\server\entities\CustomEntityManager$1.class
 com\server\entities\npc\dialogue\DialogueNode.class
 com\server\commands\AdminStatsCommand.class
@@ -237,12 +245,14 @@ com\server\commands\MenuCommand.class
 com\server\entities\mobs\CustomMob.class
 com\server\enchantments\abilities\offensive\BurdenedStone.class
 com\server\enchantments\EnchantmentRegistry.class
+com\server\enchantments\abilities\offensive\CelestialSurge.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
 com\server\events\PlayerListener$3.class
 com\server\entities\npc\NPCDamageEffects.class
 com\server\profiles\skills\abilities\passive\PassiveAbility.class
 com\server\profiles\skills\abilities\AbstractSkillAbility.class
+com\server\enchantments\abilities\offensive\Decayroot$1.class
 com\server\entities\npc\types\BaseNPC.class
 com\server\commands\DebugCommand.class
 com\server\entities\npc\behaviors\FleeingBehavior.class
@@ -255,8 +265,10 @@ com\server\profiles\skills\gui\SkillGUIListener.class
 com\server\events\CombatListener$1.class
 com\server\enchantments\utils\AffinityModifier.class
 com\server\profiles\skills\trees\TreeGridPosition.class
+com\server\enchantments\abilities\utility\MistborneTempest$DashData.class
 com\server\entities\mobs\duskhollow\DuskhollowFang$1.class
 com\server\profiles\skills\gui\SkillTreeGUI.class
+com\server\enchantments\abilities\offensive\Decayroot.class
 com\server\events\CustomMobListener$2.class
 com\server\events\RangedCombatManager.class
 com\server\profiles\skills\skills\farming\FarmingSkill.class
@@ -287,6 +299,7 @@ com\server\enchantments\abilities\offensive\Cinderwake.class
 com\server\entities\npc\CombatHandler$3.class
 com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class
+com\server\enchantments\abilities\offensive\CelestialSurge$1.class
 com\server\enchantments\abilities\utility\Veilborn$1.class
 com\server\crafting\manager\CustomFurnaceManager$OfflineProgressResult.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility$1.class
@@ -312,5 +325,6 @@ com\server\entities\npc\types\PassiveNPC.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.class
 net\citizensnpcs\api\trait\trait\Attackable.class
 com\server\profiles\ProfileManager.class
+com\server\enchantments\abilities\offensive\Stormfire.class
 com\server\profiles\skills\rewards\rewards\UnlockReward.class
 com\server\events\RangedDamageListener.class

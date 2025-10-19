@@ -92,6 +92,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\lis
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\CombatHandler.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\RadiantGrace.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilityGUIListener.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Decayroot.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\FleeingBehavior.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCType.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTree.java
@@ -145,6 +146,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ski
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\DamageIndicatorManager.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\recipes\FurnaceRecipe.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\defensive\Terraheart.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Embershade.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\PassiveNPC.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\RangedCombatManager.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java
@@ -154,6 +156,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\CustomCraftingGUI.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\Veilborn.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminEnchantCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\PureReflection.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemRarity.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\FragmentTier.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\PlayerProfile.java
@@ -161,6 +164,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GiveItemCommand.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\utils\EnchantmentDamageUtil.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\MistborneTempest.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Dawnstrike.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AutoCraftingGUI.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\tokens\SkillToken.java
@@ -181,6 +185,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CraftingCommand.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\MiningSkill.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\CelestialSurge.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\SpawnCustomMobCommand.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\manager\CustomCraftingManager.java
@@ -207,6 +212,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\Fly
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\net\citizensnpcs\api\trait\trait\Attackable.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\AshenVeil.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\NellMossgleam.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Stormfire.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\excavating\ExcavatingSkill.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\CombatListener.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\AutoRespawnListener.java
