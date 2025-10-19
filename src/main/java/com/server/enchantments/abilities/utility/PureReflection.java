@@ -54,6 +54,11 @@ public class PureReflection extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 8; // Epic hybrid - support/defense
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

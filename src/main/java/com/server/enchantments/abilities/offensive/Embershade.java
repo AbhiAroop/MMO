@@ -53,6 +53,11 @@ public class Embershade extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 7; // Epic hybrid - debuff focused
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

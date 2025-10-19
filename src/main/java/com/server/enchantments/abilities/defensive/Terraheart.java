@@ -56,6 +56,11 @@ public class Terraheart extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 6; // Strong defensive mechanic
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

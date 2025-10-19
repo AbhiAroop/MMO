@@ -27,17 +27,27 @@ import com.server.enchantments.items.ElementalFragment;
  * Handles the actual enchantment application process.
  * Validates fragments, calculates hybrid formation, selects enchantments,
  * rolls quality, and applies the enchantment to items.
+ * 
+ * NOW SUPPORTS MULTIPLE ENCHANTMENTS:
+ * - More fragments = more enchantments possible
+ * - Can grant both hybrid and single-element enchantments
+ * - Fragment distribution determines enchantment pool
  */
 public class EnchantmentApplicator {
     
     private static final Random RANDOM = new Random();
     
+    // Thresholds for multiple enchantments
+    private static final int FRAGMENTS_PER_ENCHANTMENT = 64; // Base: 64 fragments = 1 enchantment
+    private static final int MAX_ENCHANTMENTS = 4; // Maximum enchantments per application
+    
     /**
      * Attempts to enchant an item with the provided fragments.
+     * Can apply multiple enchantments based on fragment count.
      * 
      * @param player The player enchanting the item
      * @param item The item to enchant
-     * @param fragments The fragments to consume (1-3)
+     * @param fragments The fragments to consume (1-3 stacks)
      * @return The enchanted item if successful, null if failed
      */
     public static EnchantmentResult enchantItem(Player player, ItemStack item, List<ItemStack> fragments) {
@@ -62,30 +72,75 @@ public class EnchantmentApplicator {
             .map(FragmentData::new)
             .collect(Collectors.toList());
         
-        // Determine element (hybrid or single)
-        ElementResult elementResult = determineElement(fragmentData);
-        ElementType targetElement = elementResult.element;
-        boolean isHybrid = elementResult.isHybrid;
-        HybridElement hybridType = elementResult.hybridType;
-        
-        // Select enchantment
-        CustomEnchantment enchantment = selectEnchantment(targetElement, isHybrid, hybridType);
-        if (enchantment == null) {
-            return new EnchantmentResult(false, "No valid enchantment found for elements", null);
-        }
-        
-        // Roll quality based on fragment tier
-        EnchantmentQuality quality = rollQuality(fragmentData);
-        
-        // Calculate level based on total fragment count
+        // Calculate total fragment count
         int totalFragmentCount = fragmentData.stream()
             .mapToInt(fd -> fd.amount)
             .sum();
-        com.server.enchantments.data.EnchantmentLevel level = 
-            com.server.enchantments.data.EnchantmentLevel.calculateLevel(totalFragmentCount);
         
-        // Calculate XP cost
-        int xpCost = calculateXPCost(enchantment.getRarity(), fragmentData.size());
+        // Determine how many enchantments to grant
+        int enchantmentCount = Math.min(
+            Math.max(1, totalFragmentCount / FRAGMENTS_PER_ENCHANTMENT),
+            MAX_ENCHANTMENTS
+        );
+        
+        // Generate multiple enchantment results
+        List<EnchantmentApplication> enchantmentsToApply = new ArrayList<>();
+        List<String> usedEnchantmentIds = new ArrayList<>(); // Track used enchantments
+        int remainingFragments = totalFragmentCount;
+        int maxAttempts = enchantmentCount * 3; // Allow multiple attempts to find unique enchantments
+        int attempts = 0;
+        
+        for (int i = 0; i < enchantmentCount && remainingFragments > 0 && attempts < maxAttempts; attempts++) {
+            // Distribute fragments for this enchantment
+            int fragmentsForThis = remainingFragments / (enchantmentCount - i);
+            
+            // Determine element pool (hybrid or single)
+            ElementResult elementResult = determineElement(fragmentData);
+            ElementType targetElement = elementResult.element;
+            boolean isHybrid = elementResult.isHybrid;
+            HybridElement hybridType = elementResult.hybridType;
+            
+            // Select enchantment (can be hybrid or single-element)
+            CustomEnchantment enchantment = selectEnchantment(targetElement, isHybrid, hybridType, usedEnchantmentIds);
+            if (enchantment == null) continue; // Skip if no valid enchantment or all used
+            
+            // Check if this enchantment was already selected
+            if (usedEnchantmentIds.contains(enchantment.getId())) {
+                continue; // Try again with different selection
+            }
+            
+            // Roll quality based on fragment tier
+            EnchantmentQuality quality = rollQuality(fragmentData);
+            
+            // Calculate level based on fragments for this enchantment
+            com.server.enchantments.data.EnchantmentLevel level = 
+                com.server.enchantments.data.EnchantmentLevel.calculateLevel(fragmentsForThis);
+            
+            // Cap level at enchantment's maximum
+            int maxLevel = enchantment.getMaxLevel();
+            if (level.getNumericLevel() > maxLevel) {
+                level = com.server.enchantments.data.EnchantmentLevel.fromNumeric(maxLevel);
+            }
+            
+            // Store this enchantment application
+            enchantmentsToApply.add(new EnchantmentApplication(
+                enchantment, quality, level, isHybrid, hybridType
+            ));
+            
+            // Mark this enchantment as used
+            usedEnchantmentIds.add(enchantment.getId());
+            
+            remainingFragments -= fragmentsForThis;
+            i++; // Only increment when we successfully add an enchantment
+        }
+        
+        // Check if we got any valid enchantments
+        if (enchantmentsToApply.isEmpty()) {
+            return new EnchantmentResult(false, "No valid enchantments found for elements", null);
+        }
+        
+        // Calculate XP cost (based on number of enchantments and their rarities)
+        int xpCost = calculateMultiEnchantmentXPCost(enchantmentsToApply, fragmentData.size());
         
         // Check if player has enough XP
         if (player.getLevel() < xpCost) {
@@ -93,13 +148,13 @@ public class EnchantmentApplicator {
                 ChatColor.RED + "Not enough XP! Need " + xpCost + " levels", null);
         }
         
-        // Apply enchantment
+        // Apply all enchantments
         ItemStack enchantedItem = item.clone();
         
         // Preserve custom model data if present
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
             int customModelData = item.getItemMeta().getCustomModelData();
-            // Store it before adding enchantment
+            // Store it before adding enchantments
             org.bukkit.inventory.meta.ItemMeta meta = enchantedItem.getItemMeta();
             if (meta != null) {
                 meta.setCustomModelData(customModelData);
@@ -107,10 +162,29 @@ public class EnchantmentApplicator {
             }
         }
         
-        // Add enchantment with player parameter for conflict messages
-        EnchantmentData.addEnchantmentToItem(enchantedItem, enchantment, quality, level, player);
+        // Apply all enchantments
+        StringBuilder messageBuilder = new StringBuilder();
+        messageBuilder.append(ChatColor.GREEN).append("Successfully enchanted with:\n");
         
-        // Re-apply custom model data after enchantment (ensure it's preserved)
+        int hybridCount = 0;
+        for (EnchantmentApplication app : enchantmentsToApply) {
+            // Add enchantment with player parameter for conflict messages
+            EnchantmentData.addEnchantmentToItem(enchantedItem, app.enchantment, app.quality, app.level, player);
+            
+            // Build message line for this enchantment
+            messageBuilder.append(ChatColor.GRAY).append("  • ")
+                         .append(app.enchantment.getDisplayName()).append(" ")
+                         .append(app.level.getDisplayName()).append(" ")
+                         .append(app.quality.getColor()).append("[").append(app.quality.getDisplayName()).append("]");
+            
+            if (app.isHybrid) {
+                messageBuilder.append(ChatColor.LIGHT_PURPLE).append(" ⚡HYBRID");
+                hybridCount++;
+            }
+            messageBuilder.append("\n");
+        }
+        
+        // Re-apply custom model data after enchantments (ensure it's preserved)
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
             int customModelData = item.getItemMeta().getCustomModelData();
             org.bukkit.inventory.meta.ItemMeta meta = enchantedItem.getItemMeta();
@@ -130,16 +204,23 @@ public class EnchantmentApplicator {
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1.0f, 1.0f);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
         
-        String message = ChatColor.GREEN + "Successfully enchanted with " + 
-                        enchantment.getDisplayName() + " " +
-                        level.getDisplayName() + " " +
-                        quality.getColor() + "[" + quality.getDisplayName() + "]";
-        
-        if (isHybrid) {
-            message += ChatColor.LIGHT_PURPLE + " ⚡ HYBRID!";
+        // Add special effect for multiple enchantments
+        if (enchantmentsToApply.size() > 1) {
+            player.playSound(player.getLocation(), Sound.ENTITY_EVOKER_CAST_SPELL, 1.0f, 1.2f);
+            messageBuilder.append(ChatColor.GOLD).append("⭐ MULTI-ENCHANTMENT! (")
+                         .append(enchantmentsToApply.size()).append(" enchantments)");
         }
         
-        return new EnchantmentResult(true, message, enchantedItem);
+        // Add hybrid count if any
+        if (hybridCount > 0) {
+            if (enchantmentsToApply.size() > 1) {
+                messageBuilder.append(" ");
+            }
+            messageBuilder.append(ChatColor.LIGHT_PURPLE).append("⚡ ")
+                         .append(hybridCount).append(" Hybrid").append(hybridCount > 1 ? "s" : "");
+        }
+        
+        return new EnchantmentResult(true, messageBuilder.toString(), enchantedItem);
     }
     
     /**
@@ -239,15 +320,30 @@ public class EnchantmentApplicator {
     
     /**
      * Selects an appropriate enchantment based on element and hybrid status.
+     * (Backwards compatible version without exclusions)
      */
     private static CustomEnchantment selectEnchantment(ElementType element, boolean isHybrid, HybridElement hybridType) {
+        return selectEnchantment(element, isHybrid, hybridType, new ArrayList<>());
+    }
+    
+    /**
+     * Selects an appropriate enchantment based on element and hybrid status.
+     * Excludes enchantments that have already been selected.
+     */
+    private static CustomEnchantment selectEnchantment(ElementType element, boolean isHybrid, 
+                                                       HybridElement hybridType, List<String> excludeIds) {
         if (isHybrid && hybridType != null) {
             // Try to get hybrid enchantment for this specific hybrid type
             List<CustomEnchantment> hybridEnchantments = 
                 EnchantmentRegistry.getInstance().getEnchantmentsByHybrid(hybridType);
             
-            if (!hybridEnchantments.isEmpty()) {
-                return hybridEnchantments.get(RANDOM.nextInt(hybridEnchantments.size()));
+            // Filter out already used enchantments
+            List<CustomEnchantment> availableHybrids = hybridEnchantments.stream()
+                .filter(e -> !excludeIds.contains(e.getId()))
+                .collect(Collectors.toList());
+            
+            if (!availableHybrids.isEmpty()) {
+                return weightedRandomSelect(availableHybrids);
             }
         }
         
@@ -255,12 +351,17 @@ public class EnchantmentApplicator {
         List<CustomEnchantment> elementEnchantments = 
             EnchantmentRegistry.getInstance().getEnchantmentsByElement(element);
         
-        if (elementEnchantments.isEmpty()) {
+        // Filter out already used enchantments
+        List<CustomEnchantment> availableEnchants = elementEnchantments.stream()
+            .filter(e -> !excludeIds.contains(e.getId()))
+            .collect(Collectors.toList());
+        
+        if (availableEnchants.isEmpty()) {
             return null;
         }
         
         // Weighted random selection based on rarity
-        return weightedRandomSelect(elementEnchantments);
+        return weightedRandomSelect(availableEnchants);
     }
     
     /**
@@ -330,8 +431,32 @@ public class EnchantmentApplicator {
     }
     
     /**
-     * Calculates XP cost based on rarity and number of fragments.
+     * Calculates XP cost for multiple enchantments.
      */
+    private static int calculateMultiEnchantmentXPCost(List<EnchantmentApplication> enchantments, int fragmentCount) {
+        int totalCost = 0;
+        
+        for (EnchantmentApplication app : enchantments) {
+            int baseCost = app.enchantment.getRarity().getMinXPCost();
+            totalCost += baseCost;
+        }
+        
+        // Add fragment multiplier
+        int fragmentMultiplier = fragmentCount * 2; // 2 XP per fragment
+        totalCost += fragmentMultiplier;
+        
+        // Discount for multiple enchantments (encourage using more fragments)
+        if (enchantments.size() > 1) {
+            totalCost = (int) (totalCost * 0.8); // 20% discount
+        }
+        
+        return Math.max(1, totalCost);
+    }
+    
+    /**
+     * DEPRECATED: Single enchantment XP cost - replaced by multi-enchantment version
+     */
+    @Deprecated
     private static int calculateXPCost(EnchantmentRarity rarity, int fragmentCount) {
         int baseCost = rarity.getMinXPCost();
         int fragmentMultiplier = fragmentCount * 2; // 2 XP per fragment
@@ -379,6 +504,27 @@ public class EnchantmentApplicator {
         
         ElementResult(ElementType element, boolean isHybrid, HybridElement hybridType) {
             this.element = element;
+            this.isHybrid = isHybrid;
+            this.hybridType = hybridType;
+        }
+    }
+    
+    /**
+     * Helper class to store a single enchantment application.
+     */
+    private static class EnchantmentApplication {
+        final CustomEnchantment enchantment;
+        final EnchantmentQuality quality;
+        final com.server.enchantments.data.EnchantmentLevel level;
+        final boolean isHybrid;
+        final HybridElement hybridType;
+        
+        EnchantmentApplication(CustomEnchantment enchantment, EnchantmentQuality quality,
+                              com.server.enchantments.data.EnchantmentLevel level,
+                              boolean isHybrid, HybridElement hybridType) {
+            this.enchantment = enchantment;
+            this.quality = quality;
+            this.level = level;
             this.isHybrid = isHybrid;
             this.hybridType = hybridType;
         }

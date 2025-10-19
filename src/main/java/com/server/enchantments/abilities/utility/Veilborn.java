@@ -69,6 +69,11 @@ public class Veilborn extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 6; // Strong utility - invisibility
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

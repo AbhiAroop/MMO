@@ -48,6 +48,11 @@ public class HollowEdge extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 4; // Simple sustain mechanic
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

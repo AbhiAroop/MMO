@@ -49,6 +49,11 @@ public class InfernoStrike extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 4; // Simple proc damage - moderate
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

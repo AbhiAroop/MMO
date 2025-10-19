@@ -53,6 +53,11 @@ public class CelestialSurge extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 8; // Epic hybrid - divine power
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

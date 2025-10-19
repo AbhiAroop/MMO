@@ -28,7 +28,7 @@ Each enchantment has a **base affinity contribution** of **10 points** in its pr
 | **Legendary** | 1.7x | Gold | 17 affinity |
 | **Godly** | 2.0x | Light Purple | 20 affinity |
 
-### Level Multipliers (1.0x to 2.5x)
+### Level Multipliers (1.0x to 4.0x)
 
 | Level | Multiplier | Color | Example Contribution |
 |-------|-----------|-------|---------------------|
@@ -37,6 +37,9 @@ Each enchantment has a **base affinity contribution** of **10 points** in its pr
 | **III** | 1.6x | White | 16 affinity |
 | **IV** | 2.0x | Yellow | 20 affinity |
 | **V** | 2.5x | Gold | 25 affinity |
+| **VI** | 3.0x | Gold | 30 affinity |
+| **VII** | 3.5x | Red | 35 affinity |
+| **VIII** | 4.0x | Dark Red | 40 affinity |
 
 ## 🧮 Combined Scaling Formula
 
@@ -53,6 +56,8 @@ Final Affinity = Base (10) × Quality Multiplier × Level Multiplier
 | Arc Nexus | Legendary | V | 10 × 1.7 × 2.5 | **42.5 → 43** |
 | Cinderwake | Common | I | 10 × 0.7 × 1.0 | **7.0 → 7** |
 | Dawnstrike | Godly | V | 10 × 2.0 × 2.5 | **50.0 → 50** |
+| Voltbrand | Legendary | VIII | 10 × 1.7 × 4.0 | **68.0 → 68** |
+| Any | Godly | VIII | 10 × 2.0 × 4.0 | **80.0 → 80** |
 
 ## 📈 Affinity Ranges
 
@@ -68,7 +73,12 @@ Final Affinity = Base (10) × Quality Multiplier × Level Multiplier
 
 ### Maximum (Godly V):
 ```
-10 × 2.0 × 2.5 = 50 affinity per enchantment
+10 × 2.0 × 2.5 = 50 affinity per enchantment (OLD MAX)
+```
+
+### NEW Maximum (Godly VIII):
+```
+10 × 2.0 × 4.0 = 80 affinity per enchantment
 ```
 
 ## 🎮 Practical Examples

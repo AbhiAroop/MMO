@@ -311,10 +311,18 @@ public class EnchantmentData {
         // Store element info
         if (enchant.isHybrid()) {
             nbtItem.setString(prefix + "Type", "HYBRID");
-            nbtItem.setString(prefix + "Hybrid", enchant.getHybridElement().name());
+            HybridElement hybridElement = enchant.getHybridElement();
+            if (hybridElement != null) {
+                nbtItem.setString(prefix + "Hybrid", hybridElement.name());
+                // Also store primary element for backwards compatibility
+                nbtItem.setString(prefix + "Element", hybridElement.getPrimary().name());
+            }
         } else {
             nbtItem.setString(prefix + "Type", "ELEMENT");
-            nbtItem.setString(prefix + "Element", enchant.getElement().name());
+            ElementType elementType = enchant.getElement();
+            if (elementType != null) {
+                nbtItem.setString(prefix + "Element", elementType.name());
+            }
         }
         
         // Apply NBT back to item
@@ -489,10 +497,26 @@ public class EnchantmentData {
             boolean isHybrid = false;
             
             if ("HYBRID".equals(type)) {
-                hybrid = HybridElement.valueOf(nbtItem.getString(prefix + "Hybrid"));
-                isHybrid = true;
+                String hybridName = nbtItem.getString(prefix + "Hybrid");
+                if (hybridName != null && !hybridName.isEmpty()) {
+                    try {
+                        hybrid = HybridElement.valueOf(hybridName);
+                        isHybrid = true;
+                    } catch (IllegalArgumentException e) {
+                        // Invalid hybrid name, skip this enchantment
+                        continue;
+                    }
+                }
             } else {
-                element = ElementType.valueOf(nbtItem.getString(prefix + "Element"));
+                String elementName = nbtItem.getString(prefix + "Element");
+                if (elementName != null && !elementName.isEmpty()) {
+                    try {
+                        element = ElementType.valueOf(elementName);
+                    } catch (IllegalArgumentException e) {
+                        // Invalid element name, skip this enchantment
+                        continue;
+                    }
+                }
             }
             
             enchantments.add(new EnchantmentData(id, quality, level, stats, affinity, 

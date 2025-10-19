@@ -49,6 +49,11 @@ public class Mistveil extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 4; // Defensive utility - moderate cap
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

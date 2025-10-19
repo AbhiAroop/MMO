@@ -49,6 +49,11 @@ public class RadiantGrace extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 6; // Strong support utility
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

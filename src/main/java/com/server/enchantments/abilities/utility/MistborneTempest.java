@@ -62,6 +62,11 @@ public class MistborneTempest extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 7; // Epic hybrid utility
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

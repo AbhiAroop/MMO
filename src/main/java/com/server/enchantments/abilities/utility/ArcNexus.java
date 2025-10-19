@@ -70,6 +70,11 @@ public class ArcNexus extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 5; // Attack speed stacking - balanced
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

@@ -46,6 +46,11 @@ public class Whispers extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 5; // Evasion mechanic - balanced
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

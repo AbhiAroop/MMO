@@ -22,6 +22,7 @@ import com.server.enchantments.EnchantmentRegistry;
 import com.server.enchantments.FragmentRegistry;
 import com.server.enchantments.data.CustomEnchantment;
 import com.server.enchantments.data.EnchantmentData;
+import com.server.enchantments.data.EnchantmentLevel;
 import com.server.enchantments.data.EnchantmentQuality;
 import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
@@ -106,7 +107,7 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(ChatColor.RED + "Usage: /enchant add <enchantmentId> [quality] [level]");
             player.sendMessage(ChatColor.GRAY + "Available qualities: POOR, COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, GODLY");
-            player.sendMessage(ChatColor.GRAY + "Available levels: 1-5 (I-V)");
+            player.sendMessage(ChatColor.GRAY + "Available levels: 1-8 (I-VIII)");
             player.sendMessage(ChatColor.GRAY + "Example: /enchant add emberveil LEGENDARY 5");
             return true;
         }
@@ -131,15 +132,15 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 4) {
             try {
                 int levelNum = Integer.parseInt(args[3]);
-                if (levelNum < 1 || levelNum > 5) {
+                if (levelNum < 1 || levelNum > 8) {
                     player.sendMessage(ChatColor.RED + "Invalid level: " + args[3]);
-                    player.sendMessage(ChatColor.GRAY + "Level must be 1-5 (I-V)");
+                    player.sendMessage(ChatColor.GRAY + "Level must be 1-8 (I-VIII)");
                     return true;
                 }
                 level = com.server.enchantments.data.EnchantmentLevel.fromNumeric(levelNum);
             } catch (NumberFormatException e) {
                 player.sendMessage(ChatColor.RED + "Invalid level: " + args[3]);
-                player.sendMessage(ChatColor.GRAY + "Level must be a number 1-5");
+                player.sendMessage(ChatColor.GRAY + "Level must be a number 1-8");
                 return true;
             }
         }
@@ -160,6 +161,15 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         if (!EquipmentTypeValidator.canEnchantmentApply(item, enchantment)) {
             player.sendMessage(EquipmentTypeValidator.getIncompatibilityMessage(item, enchantment));
             return true;
+        }
+        
+        // Warn if level exceeds enchantment's max (admin bypass)
+        if (level.getNumericLevel() > enchantment.getMaxLevel()) {
+            player.sendMessage(ChatColor.YELLOW + "⚠ Warning: " + enchantment.getDisplayName() + 
+                              " has a max level of " + enchantment.getMaxLevel() + 
+                              " (I-" + EnchantmentLevel.fromNumeric(enchantment.getMaxLevel()).getRoman() + ")");
+            player.sendMessage(ChatColor.YELLOW + "⚠ Applying level " + level.getDisplayName() + 
+                              " as admin override.");
         }
         
         // Apply enchantment with level
@@ -305,6 +315,9 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                           enchant.getElement().getDisplayName()));
         sender.sendMessage(ChatColor.YELLOW + "Rarity: " + enchant.getRarity().getColor() + 
                          enchant.getRarity().getDisplayName());
+        sender.sendMessage(ChatColor.YELLOW + "Max Level: " + ChatColor.WHITE + 
+                         enchant.getMaxLevel() + " " + ChatColor.GRAY + 
+                         "(I-" + EnchantmentLevel.fromNumeric(enchant.getMaxLevel()).getRoman() + ")");
         sender.sendMessage(ChatColor.YELLOW + "Trigger: " + ChatColor.WHITE + 
                          enchant.getTriggerType().name());
         sender.sendMessage(ChatColor.YELLOW + "Equipment: " + ChatColor.WHITE + 
@@ -618,8 +631,8 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
             String subCmd = args[0].toLowerCase();
             
             if (subCmd.equals("add")) {
-                // Fourth argument for /enchant add - level (1-5)
-                completions.addAll(Arrays.asList("1", "2", "3", "4", "5"));
+                // Fourth argument for /enchant add - level (1-8)
+                completions.addAll(Arrays.asList("1", "2", "3", "4", "5", "6", "7", "8"));
             } else if (subCmd.equals("give")) {
                 // Fourth argument for give - tier
                 for (FragmentTier t : FragmentTier.values()) completions.add(t.name().toLowerCase());

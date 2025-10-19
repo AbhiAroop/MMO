@@ -59,6 +59,11 @@ public class Frostflow extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 5; // Stacking CC - balanced
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

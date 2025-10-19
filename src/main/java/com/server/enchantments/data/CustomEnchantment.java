@@ -190,6 +190,22 @@ public abstract class CustomEnchantment {
     }
     
     /**
+     * Get the maximum level this enchantment can reach.
+     * Different enchantments have different max levels for variety:
+     * - Simple/common enchantments: 1-3
+     * - Standard enchantments: 4-6
+     * - Powerful enchantments: 7-8
+     * 
+     * Override this method to set a custom max level.
+     * Default is 8 (maximum possible).
+     * 
+     * @return Maximum level (1-8)
+     */
+    public int getMaxLevel() {
+        return 8; // Default maximum
+    }
+    
+    /**
      * Get the affinity category this enchantment primarily contributes to.
      * Most enchantments will boost one category, but some may boost multiple.
      * 

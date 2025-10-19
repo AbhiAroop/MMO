@@ -54,6 +54,11 @@ public class BurdenedStone extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 4; // Stacking debuff - moderate
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

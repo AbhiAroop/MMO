@@ -51,6 +51,11 @@ public class Stormfire extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 8; // Epic hybrid - maximum power
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

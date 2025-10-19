@@ -51,6 +51,11 @@ public class Deepcurrent extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 6; // Strong AoE knockback effect
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();

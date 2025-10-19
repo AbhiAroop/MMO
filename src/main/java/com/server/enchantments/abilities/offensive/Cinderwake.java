@@ -45,6 +45,11 @@ public class Cinderwake extends CustomEnchantment {
     }
     
     @Override
+    public int getMaxLevel() {
+        return 5; // Standard AoE offensive
+    }
+    
+    @Override
     public boolean canApplyTo(ItemStack item) {
         if (item == null) return false;
         Material type = item.getType();
