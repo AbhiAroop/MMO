@@ -1,7 +1,9 @@
 # Equipment Type Validation System
 
 ## Overview
-The equipment type validation system ensures that enchantments can only be applied to appropriate equipment types based on custom model data patterns. This prevents issues like sword enchantments being added to armor pieces.
+The equipment type validation system ensures that enchantments can only be applied to appropriate equipment types based **exclusively on custom model data patterns**. This system ONLY works with custom items that have custom model data and will reject vanilla items without it.
+
+**Important**: This validation system requires items to have custom model data in the correct ranges. Vanilla items (without custom model data) will be rejected by the enchant commands.
 
 ## Custom Model Data Ranges
 
@@ -20,9 +22,12 @@ The system uses the following custom model data ranges to identify equipment typ
 
 ### 1. Automatic Validation
 When using `/enchant add` or `/adminenchant` commands, the system automatically:
-- Checks if the held item has custom model data
-- Validates that the enchantment is compatible with the equipment type
+- Checks if the held item has custom model data (REQUIRED)
+- Rejects items without custom model data
+- Validates that the custom model data range matches the enchantment type
 - Shows a clear error message if incompatible
+
+**Note**: Vanilla items (Diamond Sword, Iron Helmet, etc.) without custom model data will be rejected. Only custom items with model data in the correct ranges can be enchanted.
 
 ### 2. Equipment Info Display
 The `/enchant info <enchantment_id>` command now displays:
@@ -86,16 +91,16 @@ Located in `com.server.enchantments.utils.EquipmentTypeValidator`
 
 **Key Methods:**
 ```java
-// Get equipment type from item
+// Get equipment type from item's custom model data
 EquipmentType getEquipmentType(ItemStack item)
 
-// Check if item is a weapon
+// Check if item is a weapon (returns false if no custom model data)
 boolean isWeapon(ItemStack item)
 
-// Check if item is armor
+// Check if item is armor (returns false if no custom model data)
 boolean isArmor(ItemStack item)
 
-// Validate enchantment compatibility
+// Validate enchantment compatibility (ONLY uses custom model data)
 boolean canEnchantmentApply(ItemStack item, CustomEnchantment enchantment)
 
 // Get human-readable equipment description
@@ -104,6 +109,9 @@ String getEquipmentDescription(CustomEnchantment enchantment)
 // Get formatted error message
 String getIncompatibilityMessage(ItemStack item, CustomEnchantment enchantment)
 ```
+
+**Important Implementation Detail:**
+The `canEnchantmentApply()` method determines compatibility PURELY from custom model data ranges. It does NOT call the enchantment's `canApplyTo()` method or check vanilla Material types. Items without custom model data will always return `false`.
 
 ### Equipment Type Enum
 ```java
@@ -120,18 +128,29 @@ public enum EquipmentType {
 
 ## Usage Examples
 
-### Valid Application
+### Valid Application (Custom Item with Correct Model Data)
 ```
+// Custom sword with model data 210001
 /enchant add stormfire LEGENDARY
 ✓ Added enchantment: Stormfire V [LEGENDARY]
 ```
 
-### Invalid Application (Sword enchantment on armor)
+### Invalid Application (Wrong Equipment Type)
 ```
+// Custom armor with model data 230001
 /enchant add stormfire LEGENDARY
 ✗ Stormfire cannot be applied to this item!
 Required: Swords, Axes (Maces)
 Current item type: Armor
+```
+
+### Invalid Application (No Custom Model Data)
+```
+// Vanilla Diamond Sword (no custom model data)
+/enchant add stormfire LEGENDARY
+✗ Stormfire cannot be applied to this item!
+Required: Swords, Axes (Maces)
+Current item type: Unknown (no custom model data)
 ```
 
 ### Checking Enchantment Info
@@ -177,22 +196,26 @@ Both command files updated:
 ### 1. Prevents Invalid Enchantments
 - No more sword enchantments on armor
 - No more armor enchantments on weapons
-- Clear validation based on custom model data
+- Validation based purely on custom model data ranges
+- Rejects vanilla items without custom model data
 
 ### 2. Better User Experience
 - Clear error messages explaining why enchantment can't be applied
 - Equipment info shown in `/enchant info` command
 - Consistent validation across all commands
+- Encourages use of custom items
 
 ### 3. Maintainable System
 - Centralized validation logic in `EquipmentTypeValidator`
-- Easy to add new equipment types
+- Easy to add new equipment types by extending model data ranges
+- No dependency on vanilla Material types
 - Documented custom model data ranges
 
-### 4. Flexible Design
-- Works with custom model data patterns
-- Falls back to enchantment's `canApplyTo()` for vanilla items
-- Supports future equipment type additions
+### 4. Custom Items Only
+- **Works exclusively with custom model data**
+- Ensures players use custom gear from your server
+- No confusion with vanilla item types
+- Clear separation between custom and vanilla items
 
 ## Custom Model Data Assignment Guide
 

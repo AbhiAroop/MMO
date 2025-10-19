@@ -94,38 +94,81 @@ public class EquipmentTypeValidator {
     }
     
     /**
-     * Check if an enchantment can be applied to the item
-     * This is a helper method that uses the enchantment's own canApplyTo method
-     * but provides additional validation based on equipment type expectations
+     * Check if an enchantment can be applied to the item based ONLY on custom model data.
+     * This method determines equipment compatibility purely from model data ranges,
+     * ignoring vanilla Material types entirely.
      */
     public static boolean canEnchantmentApply(ItemStack item, com.server.enchantments.data.CustomEnchantment enchantment) {
-        // First check the enchantment's own validation
-        if (!enchantment.canApplyTo(item)) {
+        // Get item's equipment type from custom model data
+        EquipmentType itemType = getEquipmentType(item);
+        
+        // If no custom model data, reject (custom items only)
+        if (itemType == EquipmentType.UNKNOWN) {
             return false;
         }
         
-        // If item has custom model data, validate it matches expected equipment types
-        EquipmentType itemType = getEquipmentType(item);
-        if (itemType == EquipmentType.UNKNOWN) {
-            // No custom model data, rely on enchantment's canApplyTo
-            return true;
+        // Get expected equipment types for this enchantment
+        String className = enchantment.getClass().getSimpleName();
+        
+        // Check specific enchantment compatibility based on class name
+        switch (className) {
+            // OFFENSIVE ENCHANTMENTS (Weapon-based)
+            case "Cinderwake":
+            case "Deepcurrent":
+            case "Voltbrand":
+            case "Dawnstrike":
+            case "Stormfire":
+            case "CelestialSurge":
+                // Swords, Axes, Tridents = WEAPON type
+                return itemType == EquipmentType.WEAPON || itemType == EquipmentType.RANGED;
+                
+            case "BurdenedStone":
+                // Axes, Shields = WEAPON or SHIELD
+                return itemType == EquipmentType.WEAPON || itemType == EquipmentType.SHIELD;
+                
+            case "HollowEdge":
+            case "Embershade":
+                // Daggers/Scythes/Bows = WEAPON or RANGED
+                return itemType == EquipmentType.WEAPON || itemType == EquipmentType.RANGED;
+                
+            case "Decayroot":
+                // Maces/Staves = WEAPON or STAFF
+                return itemType == EquipmentType.WEAPON || itemType == EquipmentType.STAFF;
+                
+            case "InfernoStrike":
+            case "Frostflow":
+                // All weapons
+                return isWeapon(item);
+                
+            // DEFENSIVE ENCHANTMENTS (Armor-based)
+            case "Mistveil":
+            case "Whispers":
+                // All armor pieces
+                return itemType == EquipmentType.ARMOR || itemType == EquipmentType.ACCESSORY;
+                
+            case "Terraheart":
+                // Chestplates and Shields = ARMOR or SHIELD
+                return itemType == EquipmentType.ARMOR || itemType == EquipmentType.SHIELD;
+                
+            // UTILITY ENCHANTMENTS (Varied)
+            case "AshenVeil":
+            case "ArcNexus":
+            case "Veilborn":
+            case "RadiantGrace":
+            case "MistborneTempest":
+            case "PureReflection":
+            case "EmberVeil":
+                // All armor pieces
+                return itemType == EquipmentType.ARMOR || itemType == EquipmentType.ACCESSORY;
+                
+            case "GaleStep":
+                // Boots (armor) or light weapons
+                return itemType == EquipmentType.ARMOR || itemType == EquipmentType.WEAPON;
+                
+            default:
+                // Unknown enchantment - be permissive but still require custom model data
+                return itemType != EquipmentType.UNKNOWN;
         }
-        
-        // Get expected equipment types from enchantment class name and trigger type
-        // Offensive enchantments usually go on weapons
-        // Defensive/Utility usually go on armor
-        String packageName = enchantment.getClass().getPackage().getName();
-        
-        if (packageName.contains("offensive")) {
-            // Offensive enchantments should be on weapons, ranged, or staves
-            return isWeapon(item) || isShield(item);
-        } else if (packageName.contains("defensive") || packageName.contains("utility")) {
-            // Defensive/Utility enchantments can be on armor, accessories, or some weapons
-            return isArmor(item) || isWeapon(item) || isShield(item);
-        }
-        
-        // Default: trust the enchantment's canApplyTo
-        return true;
     }
     
     /**
