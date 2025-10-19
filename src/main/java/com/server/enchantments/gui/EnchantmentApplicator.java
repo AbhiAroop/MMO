@@ -31,16 +31,34 @@ import com.server.enchantments.items.EnchantmentTome;
  * 
  * NOW SUPPORTS MULTIPLE ENCHANTMENTS:
  * - More fragments = more enchantments possible
+ * - Higher quality fragments = bonus enchantments (even if lower quality each)
  * - Can grant both hybrid and single-element enchantments
  * - Fragment distribution determines enchantment pool
+ * 
+ * ENCHANTMENT COUNT CALCULATION (PROBABILITY-BASED):
+ * - Always get 1 enchantment minimum (guaranteed)
+ * - Additional enchantments are PROBABILITY-BASED (never guaranteed)
+ * - More fragments + better quality = higher chance for additional enchantments
+ * - Probability formula:
+ *   - Base chance = fragmentCount / 192
+ *   - Quality bonus = (qualityMultiplier - 1.0) * 0.5 (max +25% from Pristine)
+ *   - 3rd enchantment is harder (60% of chance)
+ *   - Maximum probability capped at 85% (never 100% guaranteed)
+ * - Examples:
+ *   - 48 Basic fragments = 25% chance for 2nd enchantment
+ *   - 96 Basic fragments = 50% chance for 2nd, then 30% for 3rd
+ *   - 192 Basic fragments = 85% chance for 2nd, then 51% for 3rd
+ *   - 96 Pristine fragments = 75% chance for 2nd, then 45% for 3rd
+ *   - 192 Pristine fragments = 85% chance for 2nd, then 51% for 3rd (capped)
  */
 public class EnchantmentApplicator {
     
     private static final Random RANDOM = new Random();
     
     // Thresholds for multiple enchantments
-    private static final int FRAGMENTS_PER_ENCHANTMENT = 64; // Base: 64 fragments = 1 enchantment
-    private static final int MAX_ENCHANTMENTS = 4; // Maximum enchantments per application
+    // NOTE: GUI has 3 slots, max 64 per slot = 192 fragments maximum
+    private static final int FRAGMENTS_PER_ENCHANTMENT = 48; // Base: 48 fragments = 1 enchantment
+    private static final int MAX_ENCHANTMENTS = 3; // Maximum enchantments per application (3 slots limit)
     
     /**
      * Attempts to enchant an item with the provided fragments.
@@ -78,11 +96,25 @@ public class EnchantmentApplicator {
             .mapToInt(fd -> fd.amount)
             .sum();
         
-        // Determine how many enchantments to grant
-        int enchantmentCount = Math.min(
-            Math.max(1, totalFragmentCount / FRAGMENTS_PER_ENCHANTMENT),
-            MAX_ENCHANTMENTS
-        );
+        // Calculate quality multiplier for probability calculations
+        // Higher quality fragments = better chance for additional enchantments
+        double qualityMultiplier = calculateQualityMultiplier(fragmentData);
+        
+        // PROBABILITY-BASED ENCHANTMENT COUNT (never guaranteed, always random)
+        // Base: Always get 1 enchantment minimum
+        int enchantmentCount = 1;
+        
+        // Roll for 2nd enchantment (based on fragment count and quality)
+        double chance2nd = calculateAdditionalEnchantmentChance(totalFragmentCount, qualityMultiplier, 1);
+        if (RANDOM.nextDouble() < chance2nd) {
+            enchantmentCount = 2;
+            
+            // Roll for 3rd enchantment (harder to get)
+            double chance3rd = calculateAdditionalEnchantmentChance(totalFragmentCount, qualityMultiplier, 2);
+            if (RANDOM.nextDouble() < chance3rd) {
+                enchantmentCount = 3;
+            }
+        }
         
         // Generate multiple enchantment results
         List<EnchantmentApplication> enchantmentsToApply = new ArrayList<>();
@@ -404,6 +436,58 @@ public class EnchantmentApplicator {
         
         // Fallback
         return enchantments.get(0);
+    }
+    
+    /**
+     * Calculates a quality multiplier based on fragment tiers.
+     * Higher quality fragments = higher multiplier for enchantment count bonuses.
+     * 
+     * @param fragmentData List of fragment data
+     * @return Quality multiplier (1.0 = Basic, 1.5 = Pristine)
+     */
+    private static double calculateQualityMultiplier(List<FragmentData> fragmentData) {
+        // Calculate average tier level
+        double avgTierLevel = fragmentData.stream()
+            .mapToInt(data -> data.tier.ordinal())
+            .average()
+            .orElse(0.0);
+        
+        // Convert tier level to multiplier
+        // Basic (0) = 1.0x
+        // Refined (1) = 1.2x
+        // Superior (2) = 1.35x
+        // Pristine (3) = 1.5x
+        return 1.0 + (avgTierLevel * 0.15);
+    }
+    
+    /**
+     * Calculates the probability of getting an additional enchantment.
+     * NEVER GUARANTEED - always involves randomness!
+     * 
+     * @param fragmentCount Total number of fragments
+     * @param qualityMultiplier Quality multiplier from fragment tiers
+     * @param currentEnchantCount Current enchantment count (1 for 2nd, 2 for 3rd)
+     * @return Probability (0.0 to 1.0) of getting the next enchantment
+     */
+    private static double calculateAdditionalEnchantmentChance(int fragmentCount, double qualityMultiplier, int currentEnchantCount) {
+        // Base chance from fragment count
+        // 48 fragments = 25% base chance for 2nd enchantment
+        // 96 fragments = 50% base chance
+        // 144 fragments = 75% base chance
+        // 192 fragments = 100% base chance (but quality reduces it)
+        double baseChance = Math.min(1.0, (fragmentCount / 192.0));
+        
+        // Apply quality multiplier (better quality = better chance)
+        double qualityBonus = (qualityMultiplier - 1.0) * 0.5; // Max +25% from Pristine
+        double adjustedChance = baseChance + qualityBonus;
+        
+        // Each additional enchantment is harder to get
+        // 2nd enchantment: Full chance
+        // 3rd enchantment: 60% of the chance
+        double difficultyMultiplier = (currentEnchantCount == 1) ? 1.0 : 0.6;
+        
+        // Final probability (capped at 85% to never guarantee)
+        return Math.min(0.85, adjustedChance * difficultyMultiplier);
     }
     
     /**

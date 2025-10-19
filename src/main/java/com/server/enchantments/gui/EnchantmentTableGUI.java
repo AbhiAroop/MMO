@@ -212,22 +212,14 @@ public class EnchantmentTableGUI {
             return false;
         }
         
-        // DEBUG: Log item info
-        System.out.println("[DEBUG] canEnchant check for: " + item.getType());
-        if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
-            System.out.println("[DEBUG] Custom Model Data: " + item.getItemMeta().getCustomModelData());
-        }
-        
         // SPECIAL CHECK: Enchanted Tomes cannot be re-enchanted
         if (EnchantmentTome.isEnchantedTome(item)) {
-            System.out.println("[DEBUG] REJECTED: Item is an Enchanted Tome");
             return false; // Already enchanted tome - reject
         }
         
-        // SPECIAL CHECK: Unenchanted Tomes CAN be enchanted
+        // SPECIAL CHECK: Unenchanted Tomes CAN be enchanted (universal enchanting medium)
         if (EnchantmentTome.isUnenchantedTome(item)) {
-            System.out.println("[DEBUG] ACCEPTED: Item is an Unenchanted Tome");
-            return true; // Blank tome - accept
+            return true; // Blank tome - accept any enchantment type
         }
         
         // Check if it's a custom item with model data
