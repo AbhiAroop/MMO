@@ -16,6 +16,7 @@ import org.bukkit.inventory.meta.ItemMeta;
  * - Staves/Magic: 260000-269999
  * - Tools: 270000-279999
  * - Special: 280000-289999
+ * - Tomes: 400000-409999 (Enchantment Tomes - Universal)
  */
 public class EquipmentTypeValidator {
     
@@ -37,6 +38,9 @@ public class EquipmentTypeValidator {
     
     private static final int STAFF_MIN = 260000;
     private static final int STAFF_MAX = 269999;
+    
+    private static final int TOME_MIN = 400000;
+    private static final int TOME_MAX = 409999;
     
     /**
      * Get the equipment type from custom model data
@@ -65,9 +69,18 @@ public class EquipmentTypeValidator {
             return EquipmentType.RANGED;
         } else if (modelData >= STAFF_MIN && modelData <= STAFF_MAX) {
             return EquipmentType.STAFF;
+        } else if (modelData >= TOME_MIN && modelData <= TOME_MAX) {
+            return EquipmentType.TOME;
         }
         
         return EquipmentType.UNKNOWN;
+    }
+    
+    /**
+     * Check if an item is a tome (enchantment book)
+     */
+    public static boolean isTome(ItemStack item) {
+        return getEquipmentType(item) == EquipmentType.TOME;
     }
     
     /**
@@ -97,6 +110,8 @@ public class EquipmentTypeValidator {
      * Check if an enchantment can be applied to the item based ONLY on custom model data.
      * This method determines equipment compatibility purely from model data ranges,
      * ignoring vanilla Material types entirely.
+     * 
+     * SPECIAL CASE: Enchantment Tomes can accept ALL enchantments (universal)
      */
     public static boolean canEnchantmentApply(ItemStack item, com.server.enchantments.data.CustomEnchantment enchantment) {
         // Get item's equipment type from custom model data
@@ -105,6 +120,11 @@ public class EquipmentTypeValidator {
         // If no custom model data, reject (custom items only)
         if (itemType == EquipmentType.UNKNOWN) {
             return false;
+        }
+        
+        // SPECIAL CASE: Tomes can accept ANY enchantment (universal)
+        if (itemType == EquipmentType.TOME) {
+            return true;
         }
         
         // Get expected equipment types for this enchantment
@@ -271,6 +291,7 @@ public class EquipmentTypeValidator {
         ACCESSORY("Accessory", ChatColor.LIGHT_PURPLE),
         RANGED("Ranged Weapon", ChatColor.GOLD),
         STAFF("Staff/Wand", ChatColor.DARK_PURPLE),
+        TOME("Enchantment Tome", ChatColor.LIGHT_PURPLE),
         UNKNOWN("Unknown", ChatColor.GRAY);
         
         private final String displayName;

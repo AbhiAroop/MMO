@@ -22,6 +22,7 @@ import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.FragmentTier;
 import com.server.enchantments.elements.HybridElement;
 import com.server.enchantments.items.ElementalFragment;
+import com.server.enchantments.items.EnchantmentTome;
 
 /**
  * Handles the actual enchantment application process.
@@ -218,6 +219,16 @@ public class EnchantmentApplicator {
             }
             messageBuilder.append(ChatColor.LIGHT_PURPLE).append("⚡ ")
                          .append(hybridCount).append(" Hybrid").append(hybridCount > 1 ? "s" : "");
+        }
+        
+        // SPECIAL CASE: If enchanting an unenchanted tome, convert it to an enchanted tome
+        if (EnchantmentTome.isUnenchantedTome(item)) {
+            ItemStack enchantedTomeResult = EnchantmentTome.createEnchantedTome(enchantedItem);
+            if (enchantedTomeResult != null) {
+                messageBuilder.append("\n").append(ChatColor.GOLD)
+                             .append("⚡ Tome successfully enchanted!");
+                return new EnchantmentResult(true, messageBuilder.toString(), enchantedTomeResult);
+            }
         }
         
         return new EnchantmentResult(true, messageBuilder.toString(), enchantedItem);

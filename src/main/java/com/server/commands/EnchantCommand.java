@@ -27,6 +27,7 @@ import com.server.enchantments.data.EnchantmentQuality;
 import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.FragmentTier;
+import com.server.enchantments.items.EnchantmentTome;
 import com.server.enchantments.structure.EnchantmentTableStructure;
 import com.server.enchantments.utils.EquipmentTypeValidator;
 
@@ -189,13 +190,33 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleGive(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage(ChatColor.RED + "Usage: /enchant give <player> <element> <tier> [amount]");
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant give <player> <element/tome> <tier> [amount]");
+            sender.sendMessage(ChatColor.YELLOW + "Special: /enchant give <player> tome");
             return true;
         }
         
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
             sender.sendMessage(ChatColor.RED + "Player not found: " + args[1]);
+            return true;
+        }
+        
+        // Special case: "tome" gives an enchantment tome
+        if (args[2].equalsIgnoreCase("tome")) {
+            int amount = 1;
+            if (args.length >= 4) {
+                try {
+                    amount = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    amount = 1;
+                }
+            }
+            
+            for (int i = 0; i < amount; i++) {
+                ItemStack tome = EnchantmentTome.createUnenchantedTome();
+                target.getInventory().addItem(tome);
+            }
+            sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x Enchantment Tome to " + target.getName());
             return true;
         }
         
@@ -619,8 +640,9 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                     completions.add(q.name().toLowerCase());
                 }
             } else if (subCmd.equals("give")) {
-                // Third argument for give - element type
+                // Third argument for give - element type or "tome"
                 completions.add("all");
+                completions.add("tome");
                 for (ElementType e : ElementType.values()) completions.add(e.name().toLowerCase());
             } else if (subCmd.equals("test")) {
                 // Third argument for test - enchantment ID

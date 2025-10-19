@@ -168,6 +168,13 @@ public class EnchantmentGUIListener implements Listener {
         // Handle enchant button
         if (slot == EnchantmentTableGUI.ENCHANT_BUTTON_SLOT) {
             if (gui.isReadyToEnchant()) {
+                // IMPORTANT: Re-validate the item before enchanting
+                ItemStack itemToEnchant = gui.getItemToEnchant();
+                if (itemToEnchant != null && !gui.canEnchant(itemToEnchant)) {
+                    player.sendMessage(ChatColor.RED + "This item cannot be enchanted!");
+                    return; // Stay cancelled
+                }
+                
                 handleEnchantment(player, gui);
             } else {
                 player.sendMessage(ChatColor.RED + "Cannot enchant! Place an item and 1-3 fragments.");

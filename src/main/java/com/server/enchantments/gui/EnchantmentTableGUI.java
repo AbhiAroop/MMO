@@ -20,6 +20,7 @@ import com.server.enchantments.data.EnchantmentData;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.HybridElement;
 import com.server.enchantments.items.ElementalFragment;
+import com.server.enchantments.items.EnchantmentTome;
 
 /**
  * Custom GUI for the enchantment table interaction.
@@ -211,6 +212,24 @@ public class EnchantmentTableGUI {
             return false;
         }
         
+        // DEBUG: Log item info
+        System.out.println("[DEBUG] canEnchant check for: " + item.getType());
+        if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
+            System.out.println("[DEBUG] Custom Model Data: " + item.getItemMeta().getCustomModelData());
+        }
+        
+        // SPECIAL CHECK: Enchanted Tomes cannot be re-enchanted
+        if (EnchantmentTome.isEnchantedTome(item)) {
+            System.out.println("[DEBUG] REJECTED: Item is an Enchanted Tome");
+            return false; // Already enchanted tome - reject
+        }
+        
+        // SPECIAL CHECK: Unenchanted Tomes CAN be enchanted
+        if (EnchantmentTome.isUnenchantedTome(item)) {
+            System.out.println("[DEBUG] ACCEPTED: Item is an Unenchanted Tome");
+            return true; // Blank tome - accept
+        }
+        
         // Check if it's a custom item with model data
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {
             int modelData = item.getItemMeta().getCustomModelData();
@@ -348,7 +367,11 @@ public class EnchantmentTableGUI {
      */
     public boolean isReadyToEnchant() {
         int fragmentCount = placedFragments.size();
-        return itemToEnchant != null && fragmentCount >= 1 && fragmentCount <= 3;
+        // Must have item, correct fragment count, AND item must be enchantable
+        return itemToEnchant != null 
+            && fragmentCount >= 1 
+            && fragmentCount <= 3 
+            && canEnchant(itemToEnchant);
     }
     
     /**
