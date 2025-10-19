@@ -2,20 +2,31 @@ package com.server.enchantments.utils;
 
 import org.bukkit.entity.Player;
 
+import com.server.enchantments.elements.CategorizedAffinity;
 import com.server.enchantments.elements.ElementType;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
-import com.server.profiles.stats.ElementalAffinity;
 
 /**
  * Calculates damage and effect modifiers based on elemental affinity differences
  * between attacker and defender in PVP combat.
  * 
- * System Overview:
- * 1. Each player has affinity points per element from equipped enchanted items
- * 2. Relative Affinity = Attacker Affinity - Defender Affinity (for same element)
- * 3. Modifier scales using tanh function to soft-cap extreme values
- * 4. Applies to damage, burn duration, poison ticks, stun duration, proc chance, etc.
+ * System Overview (NEW - Categorized Affinity):
+ * 1. Each player has THREE affinity values per element:
+ *    - Offensive: Affects outgoing damage and offensive effects
+ *    - Defensive: Affects damage taken and defensive effects
+ *    - Utility: Affects non-combat benefits (NOT used in combat)
+ * 2. Relative Affinity = Attacker Offense - Defender Defense (for same element)
+ * 3. Counter-Mechanic: If attacker's offensive element matches defender's defensive element,
+ *    attacks are LESS EFFECTIVE (-20% penalty). Example: Fire offense vs Fire defense.
+ * 4. Modifier scales using tanh function to soft-cap extreme values
+ * 5. Applies to damage, burn duration, poison ticks, stun duration, proc chance, etc.
+ * 
+ * Counter-Mechanic Explanation:
+ * - Fighting fire with fire is less effective
+ * - If you specialize in Fire offense and your opponent specializes in Fire defense,
+ *   your Fire attacks deal -20% damage against them
+ * - This encourages build diversity and counter-play strategies
  */
 public class AffinityModifier {
     
@@ -41,17 +52,80 @@ public class AffinityModifier {
     private static final double MAX_EFFECT_MODIFIER = 0.30;
     
     /**
-     * Calculate damage modifier based on elemental affinity difference.
+     * Counter-mechanic penalty when offensive element matches defensive element.
+     * Example: -0.20 = 20% damage reduction when Fire offense attacks Fire defense
+     */
+    private static final double COUNTER_PENALTY = -0.20;
+    
+    /**
+     * Calculate damage modifier based on elemental affinity difference with counter-mechanic.
      * 
-     * Formula: Modifier = MAX_DAMAGE_MODIFIER × tanh(RelativeAffinity / K)
-     * Where:
-     * - RelativeAffinity = Attacker Affinity - Defender Affinity
-     * - K = SCALING_CONSTANT (soft-cap tuning)
-     * - tanh ensures value between -1 and +1
+     * NEW SYSTEM:
+     * 1. Calculate relative affinity: Attacker Offense - Defender Defense
+     * 2. Check for counter-mechanic: If elements match, apply penalty
+     * 3. Apply tanh soft-cap to relative affinity
+     * 4. Combine affinity modifier with counter penalty
+     * 
+     * Formula: 
+     * - Base Modifier = MAX_DAMAGE_MODIFIER × tanh(RelativeAffinity / K)
+     * - Counter Check = If attacker offense element == defender defense element
+     * - Final Modifier = Base Modifier + Counter Penalty (if applicable)
+     * 
+     * @param attacker The attacking player
+     * @param defender The defending entity (Player, NPC, or Mob)
+     * @param element The element type of the attack (attacker's offensive element)
+     * @return Damage multiplier (1.0 = no change, >1.0 = bonus, <1.0 = reduction)
+     */
+    public static double calculateDamageModifier(Player attacker, org.bukkit.entity.Entity defender, ElementType element) {
+        if (attacker == null || defender == null || element == null) {
+            return 1.0; // No modifier
+        }
+        
+        // If defender is a player, use full affinity system
+        if (defender instanceof Player) {
+            return calculateDamageModifier(attacker, (Player) defender, element);
+        }
+        
+        // For NPCs/Mobs: Use only attacker's affinity (no counter-mechanic)
+        CategorizedAffinity attackerAffinity = getPlayerCategorizedAffinity(attacker);
+        
+        if (attackerAffinity == null) {
+            return 1.0; // No modifier if can't get affinity
+        }
+        
+        // Get offensive affinity value for this element
+        double attackerOffense = attackerAffinity.getOffensive(element);
+        
+        // NPCs/Mobs have 0 defensive affinity
+        double defenderDefense = 0.0;
+        
+        // Log affinity values for debugging
+        com.server.Main.getInstance().getLogger().info(
+            String.format("[AFFINITY] %s Offense(%s): %.1f | %s Defense(%s): %.1f (NPC/Mob)",
+                attacker.getName(), element.name(), attackerOffense,
+                defender.getName(), element.name(), defenderDefense));
+        
+        // Calculate relative affinity (offense vs 0 defense)
+        double relativeAffinity = attackerOffense;
+        
+        // Apply tanh soft-cap function
+        double normalizedModifier = Math.tanh(relativeAffinity / SCALING_CONSTANT);
+        
+        // Scale to max damage modifier
+        double affinityModifier = normalizedModifier * MAX_DAMAGE_MODIFIER;
+        
+        // No counter-mechanic for NPCs/Mobs (they have no defensive affinity)
+        // Return as multiplier (1.0 + affinity bonus)
+        return 1.0 + affinityModifier;
+    }
+    
+    /**
+     * Calculate damage modifier for PVP combat (Player vs Player).
+     * This version includes counter-mechanic checks.
      * 
      * @param attacker The attacking player
      * @param defender The defending player
-     * @param element The element type of the attack
+     * @param element The element type of the attack (attacker's offensive element)
      * @return Damage multiplier (1.0 = no change, >1.0 = bonus, <1.0 = reduction)
      */
     public static double calculateDamageModifier(Player attacker, Player defender, ElementType element) {
@@ -59,32 +133,53 @@ public class AffinityModifier {
             return 1.0; // No modifier
         }
         
-        // Get player profiles
-        ElementalAffinity attackerAffinity = getPlayerAffinity(attacker);
-        ElementalAffinity defenderAffinity = getPlayerAffinity(defender);
+        // Get player affinities
+        CategorizedAffinity attackerAffinity = getPlayerCategorizedAffinity(attacker);
+        CategorizedAffinity defenderAffinity = getPlayerCategorizedAffinity(defender);
         
         if (attackerAffinity == null || defenderAffinity == null) {
             return 1.0; // No modifier if can't get affinity
         }
         
-        // Calculate relative affinity
-        double attackerValue = attackerAffinity.getAffinity(element);
-        double defenderValue = defenderAffinity.getAffinity(element);
-        double relativeAffinity = attackerValue - defenderValue;
+        // Get offensive and defensive affinity values for this element
+        double attackerOffense = attackerAffinity.getOffensive(element);
+        double defenderDefense = defenderAffinity.getDefensive(element);
+        
+        // Log affinity values for debugging
+        com.server.Main.getInstance().getLogger().info(
+            String.format("[AFFINITY] %s Offense(%s): %.1f | %s Defense(%s): %.1f",
+                attacker.getName(), element.name(), attackerOffense,
+                defender.getName(), element.name(), defenderDefense));
+        
+        // Calculate relative affinity (offense vs defense)
+        double relativeAffinity = attackerOffense - defenderDefense;
         
         // Apply tanh soft-cap function
         double normalizedModifier = Math.tanh(relativeAffinity / SCALING_CONSTANT);
         
-        // Scale to max damage modifier and convert to multiplier
-        double damageChange = normalizedModifier * MAX_DAMAGE_MODIFIER;
+        // Scale to max damage modifier
+        double affinityModifier = normalizedModifier * MAX_DAMAGE_MODIFIER;
         
-        // Return as multiplier (1.0 + change)
-        // Example: +25% bonus = 1.25x, -25% reduction = 0.75x
-        return 1.0 + damageChange;
+        // Check for counter-mechanic: Does defender have high defense in this element?
+        // If attacker uses element X offense and defender has element X defense,
+        // the attack is less effective (counter-mechanic)
+        double counterModifier = 0.0;
+        if (defenderDefense >= 20) { // Threshold: defender must have meaningful defense
+            // Counter-mechanic applies: fighting fire with fire is less effective
+            counterModifier = COUNTER_PENALTY;
+        }
+        
+        // Combine affinity advantage/disadvantage with counter-mechanic
+        double totalModifier = affinityModifier + counterModifier;
+        
+        // Return as multiplier (1.0 + total change)
+        // Example: +25% affinity but -20% counter = 1.05x final
+        // Example: -10% affinity and -20% counter = 0.70x final
+        return 1.0 + totalModifier;
     }
     
     /**
-     * Calculate effect duration modifier based on elemental affinity difference.
+     * Calculate effect duration modifier based on elemental affinity difference with counter-mechanic.
      * Used for burn duration, poison ticks, stun duration, etc.
      * 
      * @param attacker The attacking player
@@ -97,28 +192,37 @@ public class AffinityModifier {
             return 1.0;
         }
         
-        ElementalAffinity attackerAffinity = getPlayerAffinity(attacker);
-        ElementalAffinity defenderAffinity = getPlayerAffinity(defender);
+        CategorizedAffinity attackerAffinity = getPlayerCategorizedAffinity(attacker);
+        CategorizedAffinity defenderAffinity = getPlayerCategorizedAffinity(defender);
         
         if (attackerAffinity == null || defenderAffinity == null) {
             return 1.0;
         }
         
-        // Calculate relative affinity
-        double relativeAffinity = attackerAffinity.getAffinity(element) - 
-                                  defenderAffinity.getAffinity(element);
+        // Use offensive vs defensive affinity
+        double attackerOffense = attackerAffinity.getOffensive(element);
+        double defenderDefense = defenderAffinity.getDefensive(element);
+        double relativeAffinity = attackerOffense - defenderDefense;
         
         // Apply tanh soft-cap
         double normalizedModifier = Math.tanh(relativeAffinity / SCALING_CONSTANT);
         
         // Scale to max effect modifier
-        double effectChange = normalizedModifier * MAX_EFFECT_MODIFIER;
+        double affinityModifier = normalizedModifier * MAX_EFFECT_MODIFIER;
         
-        return 1.0 + effectChange;
+        // Apply counter-mechanic for effects too
+        double counterModifier = 0.0;
+        if (defenderDefense >= 20) {
+            counterModifier = COUNTER_PENALTY; // Effects also less effective against matching defense
+        }
+        
+        double totalModifier = affinityModifier + counterModifier;
+        
+        return 1.0 + totalModifier;
     }
     
     /**
-     * Calculate proc chance modifier based on elemental affinity difference.
+     * Calculate proc chance modifier based on elemental affinity difference with counter-mechanic.
      * Used for enchantment trigger chances, critical hit bonuses, etc.
      * 
      * @param attacker The attacking player
@@ -145,23 +249,24 @@ public class AffinityModifier {
             return 0.0;
         }
         
-        ElementalAffinity attackerAffinity = getPlayerAffinity(attacker);
-        ElementalAffinity defenderAffinity = getPlayerAffinity(defender);
+        CategorizedAffinity attackerAffinity = getPlayerCategorizedAffinity(attacker);
+        CategorizedAffinity defenderAffinity = getPlayerCategorizedAffinity(defender);
         
         if (attackerAffinity == null || defenderAffinity == null) {
             return 0.0;
         }
         
-        return attackerAffinity.getAffinity(element) - defenderAffinity.getAffinity(element);
+        // Return offense vs defense comparison
+        return attackerAffinity.getOffensive(element) - defenderAffinity.getDefensive(element);
     }
     
     /**
-     * Get a player's elemental affinity tracker.
+     * Get a player's categorized elemental affinity tracker.
      * 
      * @param player The player
-     * @return ElementalAffinity instance or null if not available
+     * @return CategorizedAffinity instance or null if not available
      */
-    private static ElementalAffinity getPlayerAffinity(Player player) {
+    private static CategorizedAffinity getPlayerCategorizedAffinity(Player player) {
         if (player == null) return null;
         
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -171,7 +276,9 @@ public class AffinityModifier {
             .getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return null;
         
-        return profile.getStats().getElementalAffinity();
+        // Get the new categorized affinity from profile
+        // This will be stored in the profile's stats
+        return profile.getStats().getCategorizedAffinity();
     }
     
     /**

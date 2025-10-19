@@ -22,7 +22,6 @@ import com.server.enchantments.data.EnchantmentLevel;
 import com.server.enchantments.data.EnchantmentQuality;
 import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
-import com.server.enchantments.utils.AffinityModifier;
 
 /**
  * Fragment of Cinderwake
@@ -158,36 +157,35 @@ public class Cinderwake extends CustomEnchantment {
                         if (entity instanceof LivingEntity && entity != player) {
                             LivingEntity livingEntity = (LivingEntity) entity;
                             
-                            // Apply burn damage with affinity modifier
-                            if (entity instanceof Player) {
-                                Player target = (Player) entity;
-                                double modifier = AffinityModifier.calculateDamageModifier(
-                                    player, target, ElementType.FIRE);
-                                double modifiedDamage = damagePerTick * modifier;
-                                
-                                // Apply damage
-                                double newHealth = Math.max(0, target.getHealth() - modifiedDamage);
-                                target.setHealth(newHealth);
-                                
-                                // Visual feedback
-                                Location targetLoc = target.getLocation();
-                                if (targetLoc != null && targetLoc.getWorld() != null) {
-                                    targetLoc.getWorld().spawnParticle(
-                                        Particle.FLAME,
-                                        targetLoc.add(0, 1, 0),
-                                        10,
-                                        0.3, 0.5, 0.3,
-                                        0.05
-                                    );
-                                }
-                            } else {
-                                // PVE - no affinity modifier
-                                double newHealth = Math.max(0, livingEntity.getHealth() - damagePerTick);
-                                livingEntity.setHealth(newHealth);
-                            }
+                            // Apply burn damage through damage event system
+                            // This ensures proper affinity modifiers and effectiveness messages
+                            EntityDamageByEntityEvent burnEvent = new EntityDamageByEntityEvent(
+                                player, entity, org.bukkit.event.entity.EntityDamageEvent.DamageCause.FIRE,
+                                0.0); // Base damage handled by utility
+                            
+                            // Use EnchantmentDamageUtil for proper affinity integration
+                            com.server.enchantments.utils.EnchantmentDamageUtil.addBonusDamageToEvent(
+                                burnEvent, damagePerTick, ElementType.FIRE);
+                            
+                            // Apply the calculated damage
+                            double finalDamage = burnEvent.getFinalDamage();
+                            double newHealth = Math.max(0, livingEntity.getHealth() - finalDamage);
+                            livingEntity.setHealth(newHealth);
                             
                             // Set entity on fire briefly
                             livingEntity.setFireTicks(20); // 1 second
+                            
+                            // Visual feedback
+                            Location targetLoc = livingEntity.getLocation();
+                            if (targetLoc != null && targetLoc.getWorld() != null) {
+                                targetLoc.getWorld().spawnParticle(
+                                    Particle.FLAME,
+                                    targetLoc.add(0, 1, 0),
+                                    10,
+                                    0.3, 0.5, 0.3,
+                                    0.05
+                                );
+                            }
                         }
                     }
                 }

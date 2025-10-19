@@ -69,20 +69,38 @@ public class EnchantmentTriggerListener implements Listener {
         // Scan held item and armor
         ItemStack[] equipment = getPlayerEquipment(player);
         
+        com.server.Main.getInstance().getLogger().info(
+            String.format("[TRIGGER] ON_HIT: Scanning %d equipment pieces for %s", 
+                equipment.length, player.getName()));
+        
         for (ItemStack item : equipment) {
             // Skip null or air items
             if (item == null || item.getType() == Material.AIR) continue;
             
             List<EnchantmentData> enchantments = EnchantmentData.getEnchantmentsFromItem(item);
             
+            com.server.Main.getInstance().getLogger().info(
+                String.format("[TRIGGER] Item: %s | Enchants found: %d", 
+                    item.getType(), enchantments.size()));
+            
             for (EnchantmentData data : enchantments) {
                 CustomEnchantment enchantment = EnchantmentRegistry.getInstance().getEnchantment(data.getEnchantmentId());
+                
+                com.server.Main.getInstance().getLogger().info(
+                    String.format("[TRIGGER] Enchant ID: %s | Registry: %s | Trigger: %s", 
+                        data.getEnchantmentId(), 
+                        (enchantment != null ? enchantment.getDisplayName() : "NOT FOUND"),
+                        (enchantment != null ? enchantment.getTriggerType() : "N/A")));
+                
                 if (enchantment == null) continue;
                 
                 EnchantmentQuality quality = data.getQuality();
                 EnchantmentLevel level = data.getLevel();
                 
                 if (enchantment.getTriggerType() == CustomEnchantment.TriggerType.ON_HIT) {
+                    com.server.Main.getInstance().getLogger().info(
+                        String.format("[TRIGGER] ✓ Triggering %s (Quality: %s, Level: %s)", 
+                            enchantment.getDisplayName(), quality, level));
                     enchantment.trigger(player, quality, level, event);
                 }
             }

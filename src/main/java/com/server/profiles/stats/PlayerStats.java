@@ -41,7 +41,8 @@ public class PlayerStats {
     private int luck;
     
     // Elemental Affinity System
-    private ElementalAffinity elementalAffinity;
+    private ElementalAffinity elementalAffinity; // Legacy - kept for backwards compatibility
+    private com.server.enchantments.elements.CategorizedAffinity categorizedAffinity; // New categorized affinity system
 
     // Minecraft Base Stats
     private double currentHealth;
@@ -93,7 +94,8 @@ public class PlayerStats {
     private float defaultExpProgress = 0.0f;
 
     public PlayerStats() {
-        this.elementalAffinity = new ElementalAffinity();
+        this.elementalAffinity = new ElementalAffinity(); // Legacy
+        this.categorizedAffinity = new com.server.enchantments.elements.CategorizedAffinity(); // New system
         resetToDefaults();
     }
 
@@ -205,6 +207,10 @@ public class PlayerStats {
     // Elemental Affinity
     public ElementalAffinity getElementalAffinity() { return elementalAffinity; }
     public void setElementalAffinity(ElementalAffinity affinity) { this.elementalAffinity = affinity; }
+    
+    // Categorized Elemental Affinity (New System)
+    public com.server.enchantments.elements.CategorizedAffinity getCategorizedAffinity() { return categorizedAffinity; }
+    public void setCategorizedAffinity(com.server.enchantments.elements.CategorizedAffinity affinity) { this.categorizedAffinity = affinity; }
     
     public int getTotalMana() { return totalMana; }
     public void setTotalMana(int totalMana) { 

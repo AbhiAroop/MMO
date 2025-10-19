@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 
+import com.server.enchantments.elements.AffinityCategory;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.HybridElement;
 
@@ -186,6 +187,87 @@ public abstract class CustomEnchantment {
      */
     public String[] getConflictingEnchantments() {
         return new String[0]; // Default: no conflicts
+    }
+    
+    /**
+     * Get the affinity category this enchantment primarily contributes to.
+     * Most enchantments will boost one category, but some may boost multiple.
+     * 
+     * OFFENSE: Damage-dealing, debuffs, offensive procs
+     * DEFENSE: Damage mitigation, shields, defensive procs
+     * UTILITY: Movement, regeneration, resource management
+     * 
+     * @return Primary affinity category for this enchantment
+     */
+    public AffinityCategory getPrimaryAffinityCategory() {
+        // Default based on trigger type
+        switch (getTriggerType()) {
+            case ON_HIT:
+            case ON_ATTACK:
+            case ON_KILL:
+                return AffinityCategory.OFFENSE;
+            case ON_DAMAGED:
+            case ON_DEFEND:
+                return AffinityCategory.DEFENSE;
+            case PASSIVE:
+            case PERIODIC:
+            case ON_MOVE:
+            case ON_JUMP:
+                return AffinityCategory.UTILITY;
+            default:
+                return AffinityCategory.OFFENSE;
+        }
+    }
+    
+    /**
+     * Get the offensive affinity contribution for this enchantment's element(s).
+     * Override this to customize how much offensive affinity this enchantment provides.
+     * 
+     * Default: Returns 10 affinity if category is OFFENSE, 0 otherwise.
+     * Most enchantments boost only one category, but some can boost multiple.
+     * 
+     * @return Offensive affinity value to add
+     */
+    public int getOffensiveAffinityContribution() {
+        if (getPrimaryAffinityCategory() == AffinityCategory.OFFENSE) {
+            // Default affinity contribution for offensive enchantments
+            return 10;
+        }
+        return 0;
+    }
+    
+    /**
+     * Get the defensive affinity contribution for this enchantment's element(s).
+     * Override this to customize how much defensive affinity this enchantment provides.
+     * 
+     * Default: Returns 10 affinity if category is DEFENSE, 0 otherwise.
+     * Most enchantments boost only one category, but some can boost multiple.
+     * 
+     * @return Defensive affinity value to add
+     */
+    public int getDefensiveAffinityContribution() {
+        if (getPrimaryAffinityCategory() == AffinityCategory.DEFENSE) {
+            // Default affinity contribution for defensive enchantments
+            return 10;
+        }
+        return 0;
+    }
+    
+    /**
+     * Get the utility affinity contribution for this enchantment's element(s).
+     * Override this to customize how much utility affinity this enchantment provides.
+     * 
+     * Default: Returns 10 affinity if category is UTILITY, 0 otherwise.
+     * Most enchantments boost only one category, but some can boost multiple.
+     * 
+     * @return Utility affinity value to add
+     */
+    public int getUtilityAffinityContribution() {
+        if (getPrimaryAffinityCategory() == AffinityCategory.UTILITY) {
+            // Default affinity contribution for utility enchantments
+            return 10;
+        }
+        return 0;
     }
     
     /**

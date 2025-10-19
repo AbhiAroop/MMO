@@ -17,12 +17,14 @@ com\server\crafting\gui\CustomCraftingGUI.class
 com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
 com\server\commands\AnimationDebugCommand.class
+com\server\enchantments\elements\CategorizedAffinity$1.class
 com\server\entities\npc\types\HostileNPC$1.class
 com\server\profiles\stats\ElementalAffinity.class
 com\server\enchantments\abilities\utility\GaleStep.class
 com\server\crafting\gui\AdvancedCraftingGUI.class
 com\server\crafting\listeners\CustomFurnaceGUIListener.class
 com\server\commands\CurrencyCommand.class
+com\server\enchantments\elements\CategorizedAffinity.class
 com\server\crafting\fuel\FuelRegistry.class
 com\server\events\PlayerListener$5.class
 com\server\events\PlayerListener$5$1.class
@@ -203,6 +205,7 @@ com\server\commands\ProfileCommand.class
 com\server\profiles\skills\abilities\passive\mining\OreConduitAbility.class
 com\server\profiles\skills\core\SkillLevelupListener.class
 com\server\profiles\skills\display\SkillActionBarManager.class
+com\server\enchantments\elements\AffinityCategory.class
 com\server\crafting\fuel\FuelData.class
 com\server\crafting\gui\CustomFurnaceGUI.class
 com\server\profiles\skills\rewards\RewardManager.class

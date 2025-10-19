@@ -1516,8 +1516,12 @@ public class StatScanManager {
      */
     private void scanAndUpdateAffinity(Player player, PlayerStats stats) {
         // Reset affinity to zero (will be recalculated from equipment)
-        ElementalAffinity affinity = stats.getElementalAffinity();
+        ElementalAffinity affinity = stats.getElementalAffinity(); // Legacy
         affinity.resetAllAffinity();
+        
+        // Reset categorized affinity
+        com.server.enchantments.elements.CategorizedAffinity categorizedAffinity = stats.getCategorizedAffinity();
+        categorizedAffinity.reset();
         
         // Get all equipment
         PlayerInventory inv = player.getInventory();
@@ -1528,24 +1532,36 @@ public class StatScanManager {
         ItemStack leggings = inv.getLeggings();
         ItemStack boots = inv.getBoots();
         
-        // Scan each item for enchantments
-        scanAffinityFromItem(mainHand, affinity);
-        scanAffinityFromItem(offHand, affinity);
-        scanAffinityFromItem(helmet, affinity);
-        scanAffinityFromItem(chestplate, affinity);
-        scanAffinityFromItem(leggings, affinity);
-        scanAffinityFromItem(boots, affinity);
+        // Scan each item for enchantments (both legacy and new system)
+        scanAffinityFromItem(mainHand, affinity, categorizedAffinity);
+        scanAffinityFromItem(offHand, affinity, categorizedAffinity);
+        scanAffinityFromItem(helmet, affinity, categorizedAffinity);
+        scanAffinityFromItem(chestplate, affinity, categorizedAffinity);
+        scanAffinityFromItem(leggings, affinity, categorizedAffinity);
+        scanAffinityFromItem(boots, affinity, categorizedAffinity);
         
         if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
             plugin.debugLog(DebugSystem.ENCHANTING, 
                 "Scanned affinity for " + player.getName() + " - Total: " + affinity.getTotalAffinity());
+            
+            // Debug categorized affinity
+            for (com.server.enchantments.elements.ElementType element : com.server.enchantments.elements.ElementType.values()) {
+                int offensive = categorizedAffinity.getOffensive(element);
+                int defensive = categorizedAffinity.getDefensive(element);
+                int utility = categorizedAffinity.getUtility(element);
+                if (offensive > 0 || defensive > 0 || utility > 0) {
+                    plugin.debugLog(DebugSystem.ENCHANTING,
+                        element.name() + " - OFF: " + offensive + ", DEF: " + defensive + ", UTIL: " + utility);
+                }
+            }
         }
     }
     
     /**
      * Scan a single item for enchantments and add their affinity values
      */
-    private void scanAffinityFromItem(ItemStack item, ElementalAffinity affinity) {
+    private void scanAffinityFromItem(ItemStack item, ElementalAffinity affinity, 
+                                     com.server.enchantments.elements.CategorizedAffinity categorizedAffinity) {
         if (item == null || item.getType() == org.bukkit.Material.AIR) {
             return;
         }
@@ -1558,33 +1574,88 @@ public class StatScanManager {
         for (com.server.enchantments.data.EnchantmentData enchantData : enchantments) {
             int affinityValue = enchantData.getAffinityValue();
             
+            // Get the enchantment class from registry
+            com.server.enchantments.data.CustomEnchantment enchant = 
+                com.server.enchantments.EnchantmentRegistry.getInstance().getEnchantment(enchantData.getEnchantmentId());
+            
+            if (enchant == null) continue; // Skip if enchantment class not found
+            
+            // NEW SYSTEM: Get categorized affinity contributions with quality and level scaling
+            int baseOffensive = enchant.getOffensiveAffinityContribution();
+            int baseDefensive = enchant.getDefensiveAffinityContribution();
+            int baseUtility = enchant.getUtilityAffinityContribution();
+            
+            // Apply quality and level multipliers to affinity contributions
+            double qualityMultiplier = enchantData.getQuality().getEffectivenessMultiplier();
+            double levelMultiplier = enchantData.getLevel().getPowerMultiplier();
+            double combinedMultiplier = qualityMultiplier * levelMultiplier;
+            
+            int offensiveContribution = (int) Math.round(baseOffensive * combinedMultiplier);
+            int defensiveContribution = (int) Math.round(baseDefensive * combinedMultiplier);
+            int utilityContribution = (int) Math.round(baseUtility * combinedMultiplier);
+            
             if (enchantData.isHybrid()) {
                 // For hybrid enchantments, split affinity between both elements
                 com.server.enchantments.elements.HybridElement hybrid = enchantData.getHybridElement();
                 com.server.enchantments.elements.ElementType element1 = hybrid.getElement1();
                 com.server.enchantments.elements.ElementType element2 = hybrid.getElement2();
                 
-                // Split 60/40 between element1 and element2
+                // Legacy system: Split 60/40 between element1 and element2
                 double element1Affinity = affinityValue * 0.6;
                 double element2Affinity = affinityValue * 0.4;
                 
                 affinity.addAffinity(element1, element1Affinity);
                 affinity.addAffinity(element2, element2Affinity);
                 
+                // NEW SYSTEM: Add categorized affinity (split 60/40 for hybrids)
+                if (offensiveContribution > 0) {
+                    categorizedAffinity.addOffensive(element1, (int)(offensiveContribution * 0.6));
+                    categorizedAffinity.addOffensive(element2, (int)(offensiveContribution * 0.4));
+                }
+                if (defensiveContribution > 0) {
+                    categorizedAffinity.addDefensive(element1, (int)(defensiveContribution * 0.6));
+                    categorizedAffinity.addDefensive(element2, (int)(defensiveContribution * 0.4));
+                }
+                if (utilityContribution > 0) {
+                    categorizedAffinity.addUtility(element1, (int)(utilityContribution * 0.6));
+                    categorizedAffinity.addUtility(element2, (int)(utilityContribution * 0.4));
+                }
+                
                 if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
                     plugin.debugLog(DebugSystem.ENCHANTING,
                         "Added hybrid affinity: " + hybrid.name() + " -> " + 
                         element1.name() + ": " + element1Affinity + ", " + 
-                        element2.name() + ": " + element2Affinity);
+                        element2.name() + ": " + element2Affinity + " | " +
+                        enchantData.getQuality().getDisplayName() + " §7x" + 
+                        enchantData.getLevel().getDisplayName() + " §7= " + 
+                        String.format("%.2fx", combinedMultiplier));
                 }
             } else {
                 // Regular single-element enchantment
                 com.server.enchantments.elements.ElementType element = enchantData.getElement();
+                
+                // Legacy system
                 affinity.addAffinity(element, affinityValue);
+                
+                // NEW SYSTEM: Add categorized affinity
+                if (offensiveContribution > 0) {
+                    categorizedAffinity.addOffensive(element, offensiveContribution);
+                }
+                if (defensiveContribution > 0) {
+                    categorizedAffinity.addDefensive(element, defensiveContribution);
+                }
+                if (utilityContribution > 0) {
+                    categorizedAffinity.addUtility(element, utilityContribution);
+                }
                 
                 if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
                     plugin.debugLog(DebugSystem.ENCHANTING,
-                        "Added affinity: " + element.name() + ": " + affinityValue);
+                        "Added affinity: " + element.name() + ": " + affinityValue + 
+                        " (OFF: " + offensiveContribution + ", DEF: " + defensiveContribution + 
+                        ", UTIL: " + utilityContribution + ") | " +
+                        enchantData.getQuality().getDisplayName() + " §7x" + 
+                        enchantData.getLevel().getDisplayName() + " §7= " + 
+                        String.format("%.2fx", combinedMultiplier));
                 }
             }
         }

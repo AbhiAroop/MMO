@@ -18,11 +18,38 @@ import de.tr7zw.changeme.nbtapi.NBTItem;
 /**
  * Elemental Fragment items used for enchanting
  * 8 elements × 3 tiers = 24 types
+ * 
+ * Custom Model Data Pattern: 3X0YZZ
+ * - 3: Fragment prefix
+ * - X: Element ID (0-7)
+ * - 0: Separator
+ * - Y: Tier (0=Raw, 1=Refined, 2=Pristine)
+ * - ZZ: Reserved (00)
+ * 
+ * Examples:
+ * - Fire Raw: 300000
+ * - Fire Refined: 300100
+ * - Fire Pristine: 300200
+ * - Water Raw: 310000
+ * - Lightning Pristine: 340200
  */
 public class ElementalFragment {
     
     private static final String NBT_KEY_ELEMENT = "MMO_Fragment_Element";
     private static final String NBT_KEY_TIER = "MMO_Fragment_Tier";
+    
+    // Custom Model Data base: 300000 (Fragment prefix)
+    private static final int FRAGMENT_MODEL_BASE = 300000;
+    
+    /**
+     * Calculate custom model data for a fragment
+     * Pattern: 3X0YZZ where X=element, Y=tier
+     */
+    private static int getFragmentModelData(ElementType element, FragmentTier tier) {
+        int elementId = element.ordinal(); // 0-7
+        int tierId = tier.ordinal(); // 0-2
+        return FRAGMENT_MODEL_BASE + (elementId * 10000) + (tierId * 100);
+    }
     
     /**
      * Create an elemental fragment item
@@ -38,6 +65,10 @@ public class ElementalFragment {
         String displayName = tier.getColor() + tier.getDisplayName() + " " + 
                             element.getDisplayName() + " Fragment";
         meta.setDisplayName(displayName);
+        
+        // Set custom model data for future custom textures
+        int modelData = getFragmentModelData(element, tier);
+        meta.setCustomModelData(modelData);
         
         // Create lore
         List<String> lore = new ArrayList<>();

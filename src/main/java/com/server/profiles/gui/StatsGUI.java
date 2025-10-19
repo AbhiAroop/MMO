@@ -270,15 +270,35 @@ public class StatsGUI {
                 ChatColor.GRAY + "From Life Steal: " + ChatColor.WHITE + String.format("%.1f", calculateLifeStealPerSecond(stats)),
                 ChatColor.GRAY + "From Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Elemental Affinity:",
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.AIR),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW),
-                getAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT)
+                ChatColor.RED + "⚔ " + ChatColor.YELLOW + "Offensive Affinity:",
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.AIR, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.OFFENSE),
+                "",
+                ChatColor.BLUE + "🛡 " + ChatColor.YELLOW + "Defensive Affinity:",
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.AIR, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.DEFENSE),
+                "",
+                ChatColor.GREEN + "✦ " + ChatColor.YELLOW + "Utility Affinity:",
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.AIR, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW, com.server.enchantments.elements.AffinityCategory.UTILITY),
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.UTILITY)
             },
             false
         );
@@ -782,6 +802,39 @@ public class StatsGUI {
                element.getColor() + element.name() + ": " + 
                ChatColor.WHITE + String.format("%.0f", affinityValue) + " " +
                tier;
+    }
+    
+    /**
+     * Get formatted categorized affinity line for an element and category.
+     * Only shows elements with non-zero affinity in that category.
+     */
+    private static String getCategorizedAffinityLine(PlayerStats stats, 
+                                                     com.server.enchantments.elements.ElementType element,
+                                                     com.server.enchantments.elements.AffinityCategory category) {
+        com.server.enchantments.elements.CategorizedAffinity affinity = stats.getCategorizedAffinity();
+        int affinityValue = affinity.get(element, category);
+        
+        // Color based on value
+        ChatColor valueColor;
+        if (affinityValue == 0) {
+            valueColor = ChatColor.DARK_GRAY;
+        } else if (affinityValue < 20) {
+            valueColor = ChatColor.GRAY;
+        } else if (affinityValue < 40) {
+            valueColor = ChatColor.WHITE;
+        } else if (affinityValue < 60) {
+            valueColor = ChatColor.YELLOW;
+        } else if (affinityValue < 80) {
+            valueColor = ChatColor.GOLD;
+        } else {
+            valueColor = ChatColor.RED;
+        }
+        
+        // Format: Icon Element: Value
+        return ChatColor.DARK_GRAY + " • " + 
+               element.getColoredIcon() + " " + 
+               element.getColor() + element.name() + ": " + 
+               valueColor + affinityValue;
     }
     
     /**

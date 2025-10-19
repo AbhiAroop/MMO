@@ -24,6 +24,7 @@ import com.server.enchantments.data.EnchantmentLevel;
 import com.server.enchantments.data.EnchantmentQuality;
 import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
+import com.server.enchantments.utils.EnchantmentDamageUtil;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
@@ -149,8 +150,15 @@ public class Voltbrand extends CustomEnchantment {
                     return;
                 }
                 
-                // Apply damage
-                nextTarget.damage(currentDamage, caster);
+                // Apply damage through unified system for proper affinity integration
+                EntityDamageByEntityEvent chainEvent = new EntityDamageByEntityEvent(
+                    caster, nextTarget, org.bukkit.event.entity.EntityDamageEvent.DamageCause.MAGIC, 0.0);
+                EnchantmentDamageUtil.addBonusDamageToEvent(chainEvent, currentDamage, ElementType.LIGHTNING);
+                
+                // Apply the damage
+                double finalDamage = chainEvent.getFinalDamage();
+                double newHealth = Math.max(0, nextTarget.getHealth() - finalDamage);
+                nextTarget.setHealth(newHealth);
                 
                 // Visual and sound effects
                 createLightningArc(currentTarget.getLocation().add(0, 1, 0), 
