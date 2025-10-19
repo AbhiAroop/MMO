@@ -326,4 +326,14 @@ public class Veilborn extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.PASSIVE;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{4}; // Invisibility Effects
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"AshenVeil"};
+    }
 }

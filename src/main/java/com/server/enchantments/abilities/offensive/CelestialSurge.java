@@ -224,4 +224,14 @@ public class CelestialSurge extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{2}; // AOE/Chain Damage
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Voltbrand", "Deepcurrent", "Cinderwake", "Stormfire"};
+    }
 }

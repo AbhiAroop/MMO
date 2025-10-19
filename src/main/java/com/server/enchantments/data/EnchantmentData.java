@@ -78,7 +78,7 @@ public class EnchantmentData {
      */
     public static void addEnchantmentToItem(ItemStack item, CustomEnchantment enchant, 
                                            EnchantmentQuality quality) {
-        addEnchantmentToItem(item, enchant, quality, EnchantmentLevel.I);
+        addEnchantmentToItem(item, enchant, quality, EnchantmentLevel.I, null);
     }
     
     /**
@@ -86,6 +86,15 @@ public class EnchantmentData {
      */
     public static void addEnchantmentToItem(ItemStack item, CustomEnchantment enchant, 
                                            EnchantmentQuality quality, EnchantmentLevel level) {
+        addEnchantmentToItem(item, enchant, quality, level, null);
+    }
+    
+    /**
+     * Save enchantment data to item NBT (with specified level and player for messages)
+     */
+    public static void addEnchantmentToItem(ItemStack item, CustomEnchantment enchant, 
+                                           EnchantmentQuality quality, EnchantmentLevel level,
+                                           org.bukkit.entity.Player player) {
         if (item == null) return;
         
         // PRESERVE ORIGINAL ITEM META BEFORE NBT OPERATIONS
@@ -110,6 +119,117 @@ public class EnchantmentData {
         
         // Get current enchantment count
         int count = nbtItem.hasKey(NBT_COUNT) ? nbtItem.getInteger(NBT_COUNT) : 0;
+        
+        // CHECK ANTI-SYNERGY: Remove conflicting enchantments
+        int[] newEnchantGroups = enchant.getAntiSynergyGroups();
+        List<String> removedEnchantNames = new ArrayList<>();
+        
+        if (newEnchantGroups.length > 0) {
+            // Check existing enchantments for conflicts
+            List<Integer> conflictingIndices = new ArrayList<>();
+            
+            for (int i = 0; i < count; i++) {
+                String checkPrefix = NBT_PREFIX + i + "_";
+                if (nbtItem.hasKey(checkPrefix + "ID")) {
+                    String existingId = nbtItem.getString(checkPrefix + "ID");
+                    
+                    // Get the enchantment from registry to check its groups
+                    CustomEnchantment existingEnchant = 
+                        com.server.enchantments.EnchantmentRegistry.getInstance().getEnchantment(existingId);
+                    
+                    if (existingEnchant != null) {
+                        int[] existingGroups = existingEnchant.getAntiSynergyGroups();
+                        
+                        // Check if any groups overlap
+                        boolean hasConflict = false;
+                        for (int newGroup : newEnchantGroups) {
+                            for (int existingGroup : existingGroups) {
+                                if (newGroup == existingGroup) {
+                                    hasConflict = true;
+                                    break;
+                                }
+                            }
+                            if (hasConflict) break;
+                        }
+                        
+                        if (hasConflict) {
+                            conflictingIndices.add(i);
+                            removedEnchantNames.add(existingEnchant.getDisplayName());
+                        }
+                    }
+                }
+            }
+            
+            // Remove conflicting enchantments (in reverse order to maintain indices)
+            for (int i = conflictingIndices.size() - 1; i >= 0; i--) {
+                int conflictIndex = conflictingIndices.get(i);
+                String removePrefix = NBT_PREFIX + conflictIndex + "_";
+                
+                // Remove all keys for this enchantment
+                nbtItem.removeKey(removePrefix + "ID");
+                nbtItem.removeKey(removePrefix + "Quality");
+                nbtItem.removeKey(removePrefix + "Level");
+                nbtItem.removeKey(removePrefix + "Stats");
+                nbtItem.removeKey(removePrefix + "Affinity");
+                nbtItem.removeKey(removePrefix + "Element");
+                nbtItem.removeKey(removePrefix + "HybridElement");
+                nbtItem.removeKey(removePrefix + "IsHybrid");
+                
+                // Shift all higher-index enchantments down
+                for (int j = conflictIndex; j < count - 1; j++) {
+                    String oldPrefix = NBT_PREFIX + (j + 1) + "_";
+                    String newPrefix = NBT_PREFIX + j + "_";
+                    
+                    // Copy each field if it exists
+                    if (nbtItem.hasKey(oldPrefix + "ID")) {
+                        nbtItem.setString(newPrefix + "ID", nbtItem.getString(oldPrefix + "ID"));
+                        nbtItem.removeKey(oldPrefix + "ID");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "Quality")) {
+                        nbtItem.setString(newPrefix + "Quality", nbtItem.getString(oldPrefix + "Quality"));
+                        nbtItem.removeKey(oldPrefix + "Quality");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "Level")) {
+                        nbtItem.setInteger(newPrefix + "Level", nbtItem.getInteger(oldPrefix + "Level"));
+                        nbtItem.removeKey(oldPrefix + "Level");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "Stats")) {
+                        nbtItem.setString(newPrefix + "Stats", nbtItem.getString(oldPrefix + "Stats"));
+                        nbtItem.removeKey(oldPrefix + "Stats");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "Affinity")) {
+                        nbtItem.setInteger(newPrefix + "Affinity", nbtItem.getInteger(oldPrefix + "Affinity"));
+                        nbtItem.removeKey(oldPrefix + "Affinity");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "Element")) {
+                        nbtItem.setString(newPrefix + "Element", nbtItem.getString(oldPrefix + "Element"));
+                        nbtItem.removeKey(oldPrefix + "Element");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "HybridElement")) {
+                        nbtItem.setString(newPrefix + "HybridElement", nbtItem.getString(oldPrefix + "HybridElement"));
+                        nbtItem.removeKey(oldPrefix + "HybridElement");
+                    }
+                    if (nbtItem.hasKey(oldPrefix + "IsHybrid")) {
+                        nbtItem.setBoolean(newPrefix + "IsHybrid", nbtItem.getBoolean(oldPrefix + "IsHybrid"));
+                        nbtItem.removeKey(oldPrefix + "IsHybrid");
+                    }
+                }
+                
+                // Decrement count
+                count--;
+            }
+            
+            // Update count after removals
+            nbtItem.setInteger(NBT_COUNT, count);
+            
+            // Notify player of replacements
+            if (player != null && !removedEnchantNames.isEmpty()) {
+                player.sendMessage(org.bukkit.ChatColor.YELLOW + "⚠ " + 
+                    org.bukkit.ChatColor.GOLD + enchant.getDisplayName() + 
+                    org.bukkit.ChatColor.YELLOW + " replaced: " + 
+                    org.bukkit.ChatColor.RED + String.join(", ", removedEnchantNames));
+            }
+        }
         
         // Check if this enchantment already exists on the item
         int existingIndex = -1;

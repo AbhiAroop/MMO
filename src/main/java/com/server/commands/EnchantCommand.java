@@ -323,6 +323,14 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                              ChatColor.GRAY + ": " + Arrays.toString(scaled));
         }
         
+        // Display anti-synergy information
+        String[] conflicts = enchant.getConflictingEnchantments();
+        if (conflicts.length > 0) {
+            sender.sendMessage(ChatColor.RED + "⚠ Conflicts With: " + ChatColor.GRAY + 
+                             String.join(", ", conflicts));
+            sender.sendMessage(ChatColor.DARK_RED + "  (Cannot be on the same item)");
+        }
+        
         return true;
     }
     

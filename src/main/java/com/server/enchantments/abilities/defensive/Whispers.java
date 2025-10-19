@@ -174,4 +174,14 @@ public class Whispers extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_DAMAGED;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{5}; // Defensive Response
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Mistveil", "RadiantGrace"};
+    }
 }

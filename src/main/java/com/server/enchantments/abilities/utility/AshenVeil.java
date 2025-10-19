@@ -168,4 +168,14 @@ public class AshenVeil extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_KILL;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{4, 9}; // Invisibility, On-Kill Effects
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Veilborn", "HollowEdge"};
+    }
 }

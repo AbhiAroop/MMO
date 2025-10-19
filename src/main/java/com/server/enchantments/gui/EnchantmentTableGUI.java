@@ -14,7 +14,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.server.enchantments.EnchantmentRegistry;
+import com.server.enchantments.data.CustomEnchantment;
+import com.server.enchantments.data.EnchantmentData;
 import com.server.enchantments.elements.ElementType;
+import com.server.enchantments.elements.HybridElement;
 import com.server.enchantments.items.ElementalFragment;
 
 /**
@@ -548,7 +552,117 @@ public class EnchantmentTableGUI {
                 hybridInfo.setItemMeta(meta);
                 inventory.setItem(INFO_SLOTS[INFO_SLOTS.length - 1], hybridInfo); // Last slot
             }
+            
+            // Check for anti-synergy conflicts and warn player
+            if (itemToEnchant != null && slotIndex < INFO_SLOTS.length) {
+                List<String> potentialConflicts = checkPotentialConflicts();
+                if (!potentialConflicts.isEmpty()) {
+                    ItemStack warningItem = new ItemStack(Material.BARRIER);
+                    ItemMeta warningMeta = warningItem.getItemMeta();
+                    warningMeta.setDisplayName(ChatColor.RED + "⚠ WARNING: Conflicts Detected!");
+                    List<String> warningLore = new ArrayList<>();
+                    warningLore.add(ChatColor.GRAY + "Enchanting may remove:");
+                    for (String conflict : potentialConflicts) {
+                        warningLore.add(ChatColor.RED + "  • " + conflict);
+                    }
+                    warningLore.add("");
+                    warningLore.add(ChatColor.YELLOW + "These enchantments will be");
+                    warningLore.add(ChatColor.YELLOW + "replaced by the new one!");
+                    warningMeta.setLore(warningLore);
+                    warningItem.setItemMeta(warningMeta);
+                    
+                    // Place warning in first available slot or override last slot if needed
+                    if (slotIndex < INFO_SLOTS.length) {
+                        inventory.setItem(INFO_SLOTS[slotIndex], warningItem);
+                    } else {
+                        inventory.setItem(INFO_SLOTS[INFO_SLOTS.length - 1], warningItem);
+                    }
+                }
+            }
         }
+    }
+    
+    /**
+     * Checks for potential anti-synergy conflicts between fragments and existing enchantments.
+     * Returns a list of enchantment names that might be removed.
+     */
+    private List<String> checkPotentialConflicts() {
+        List<String> conflicts = new ArrayList<>();
+        
+        if (itemToEnchant == null || placedFragments.isEmpty()) {
+            return conflicts;
+        }
+        
+        // Get existing enchantments on the item
+        List<EnchantmentData> existingEnchants = 
+            EnchantmentData.getEnchantmentsFromItem(itemToEnchant);
+        
+        if (existingEnchants.isEmpty()) {
+            return conflicts; // No existing enchantments to conflict with
+        }
+        
+        // Get all possible enchantments from fragments
+        Map<ElementType, Integer> elementCounts = new HashMap<>();
+        for (ItemStack fragment : placedFragments.values()) {
+            ElementType element = ElementalFragment.getElement(fragment);
+            if (element != null) {
+                elementCounts.put(element, elementCounts.getOrDefault(element, 0) + 1);
+            }
+        }
+        
+        // Get applicable enchantments for these elements
+        EnchantmentRegistry registry = EnchantmentRegistry.getInstance();
+        List<CustomEnchantment> possibleEnchants = new ArrayList<>();
+        
+        // Check single element enchantments
+        for (ElementType element : elementCounts.keySet()) {
+            possibleEnchants.addAll(registry.getEnchantmentsByElement(element));
+        }
+        
+        // Check hybrid enchantments if multiple elements
+        if (elementCounts.size() >= 2) {
+            for (HybridElement hybridType : HybridElement.values()) {
+                ElementType primary = hybridType.getPrimary();
+                ElementType secondary = hybridType.getSecondary();
+                
+                if (elementCounts.containsKey(primary) && elementCounts.containsKey(secondary)) {
+                    possibleEnchants.addAll(registry.getEnchantmentsByHybrid(hybridType));
+                }
+            }
+        }
+        
+        // Check each possible enchantment against existing ones
+        for (CustomEnchantment possibleEnchant : possibleEnchants) {
+            int[] possibleGroups = possibleEnchant.getAntiSynergyGroups();
+            
+            if (possibleGroups.length > 0) {
+                for (EnchantmentData existingData : existingEnchants) {
+                    CustomEnchantment existingEnchant = registry.getEnchantment(existingData.getEnchantmentId());
+                    
+                    if (existingEnchant != null) {
+                        int[] existingGroups = existingEnchant.getAntiSynergyGroups();
+                        
+                        // Check for group overlap
+                        boolean hasConflict = false;
+                        for (int possibleGroup : possibleGroups) {
+                            for (int existingGroup : existingGroups) {
+                                if (possibleGroup == existingGroup) {
+                                    hasConflict = true;
+                                    break;
+                                }
+                            }
+                            if (hasConflict) break;
+                        }
+                        
+                        if (hasConflict && !conflicts.contains(existingEnchant.getDisplayName())) {
+                            conflicts.add(existingEnchant.getDisplayName());
+                        }
+                    }
+                }
+            }
+        }
+        
+        return conflicts;
     }
     
     /**

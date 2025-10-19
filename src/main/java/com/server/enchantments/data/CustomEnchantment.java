@@ -156,6 +156,39 @@ public abstract class CustomEnchantment {
     public abstract TriggerType getTriggerType();
     
     /**
+     * Get the anti-synergy group IDs this enchantment belongs to.
+     * Enchantments in the same group cannot coexist on the same item.
+     * When a new enchantment is added, any existing enchantment in the same group will be replaced.
+     * 
+     * Anti-Synergy Groups:
+     * 1 = Fire Damage (Cinderwake, Stormfire, Embershade)
+     * 2 = AOE/Chain Effects (Voltbrand, Deepcurrent, Stormfire, CelestialSurge)
+     * 3 = Crowd Control (Burdened Stone, Decayroot, Dawnstrike)
+     * 4 = Invisibility (Ashen Veil, Veilborn)
+     * 5 = Defensive Response (Mistveil, Whispers, Radiant Grace)
+     * 6 = Attack Speed (Arc Nexus)
+     * 7 = Movement (GaleStep, MistborneTempest)
+     * 8 = Sustain/Barriers (PureReflection, Terraheart)
+     * 9 = On-Kill Effects (Hollow Edge, Ashen Veil)
+     * 
+     * @return Array of group IDs (empty array if no conflicts)
+     */
+    public int[] getAntiSynergyGroups() {
+        return new int[0]; // Default: no conflicts
+    }
+    
+    /**
+     * Get human-readable names of enchantments this conflicts with.
+     * This is used for display in the /enchant info command.
+     * Override this method to provide specific conflict information.
+     * 
+     * @return Array of conflicting enchantment display names
+     */
+    public String[] getConflictingEnchantments() {
+        return new String[0]; // Default: no conflicts
+    }
+    
+    /**
      * Trigger types for different enchantment activations
      */
     public enum TriggerType {

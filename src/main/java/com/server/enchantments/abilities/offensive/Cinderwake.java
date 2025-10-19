@@ -207,4 +207,14 @@ public class Cinderwake extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{1, 2}; // Fire Damage, AOE/Chain
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Stormfire", "Embershade", "Voltbrand", "Deepcurrent", "CelestialSurge"};
+    }
 }

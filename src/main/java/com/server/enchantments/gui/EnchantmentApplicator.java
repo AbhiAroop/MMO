@@ -107,7 +107,8 @@ public class EnchantmentApplicator {
             }
         }
         
-        EnchantmentData.addEnchantmentToItem(enchantedItem, enchantment, quality, level);
+        // Add enchantment with player parameter for conflict messages
+        EnchantmentData.addEnchantmentToItem(enchantedItem, enchantment, quality, level, player);
         
         // Re-apply custom model data after enchantment (ensure it's preserved)
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData()) {

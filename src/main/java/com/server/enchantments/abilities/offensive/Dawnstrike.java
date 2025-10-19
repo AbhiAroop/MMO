@@ -211,4 +211,14 @@ public class Dawnstrike extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{3}; // Crowd Control
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"BurdenedStone", "Decayroot"};
+    }
 }

@@ -201,4 +201,14 @@ public class GaleStep extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.PASSIVE; // Uses custom sneak listener
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{7}; // Movement Abilities
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"MistborneTempest"};
+    }
 }

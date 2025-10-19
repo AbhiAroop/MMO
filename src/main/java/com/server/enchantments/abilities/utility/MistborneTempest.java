@@ -237,4 +237,14 @@ public class MistborneTempest extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.PASSIVE;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{7}; // Movement Abilities
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"GaleStep"};
+    }
 }

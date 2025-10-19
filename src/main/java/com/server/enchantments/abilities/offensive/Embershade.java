@@ -217,4 +217,14 @@ public class Embershade extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{1}; // Fire Damage
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Cinderwake", "Stormfire"};
+    }
 }

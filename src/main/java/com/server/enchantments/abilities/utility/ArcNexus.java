@@ -292,4 +292,14 @@ public class ArcNexus extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{6}; // Attack Speed Modifiers
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{}; // Sole member of group 6
+    }
 }

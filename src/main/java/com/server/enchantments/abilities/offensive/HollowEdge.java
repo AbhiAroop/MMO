@@ -187,4 +187,14 @@ public class HollowEdge extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_KILL;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{9}; // On-Kill Effects
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"AshenVeil"};
+    }
 }

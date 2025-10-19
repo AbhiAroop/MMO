@@ -222,4 +222,14 @@ public class Stormfire extends CustomEnchantment {
     public CustomEnchantment.TriggerType getTriggerType() {
         return CustomEnchantment.TriggerType.ON_HIT;
     }
+    
+    @Override
+    public int[] getAntiSynergyGroups() {
+        return new int[]{1, 2}; // Fire Damage, AOE/Chain Damage
+    }
+    
+    @Override
+    public String[] getConflictingEnchantments() {
+        return new String[]{"Cinderwake", "Embershade", "Voltbrand", "Deepcurrent", "CelestialSurge"};
+    }
 }
