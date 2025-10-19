@@ -122,7 +122,7 @@ public class EnchantmentData {
         
         // CHECK ANTI-SYNERGY: Remove conflicting enchantments
         int[] newEnchantGroups = enchant.getAntiSynergyGroups();
-        List<String> removedEnchantNames = new ArrayList<>();
+        List<String> removedEnchantDetails = new ArrayList<>();
         
         if (newEnchantGroups.length > 0) {
             // Check existing enchantments for conflicts
@@ -154,7 +154,32 @@ public class EnchantmentData {
                         
                         if (hasConflict) {
                             conflictingIndices.add(i);
-                            removedEnchantNames.add(existingEnchant.getDisplayName());
+                            
+                            // Get quality and level for detailed message
+                            String qualityStr = nbtItem.hasKey(checkPrefix + "Quality") ? 
+                                nbtItem.getString(checkPrefix + "Quality") : "Common";
+                            int levelNum = nbtItem.hasKey(checkPrefix + "Level") ? 
+                                nbtItem.getInteger(checkPrefix + "Level") : 1;
+                            
+                            EnchantmentQuality enchQuality;
+                            try {
+                                enchQuality = EnchantmentQuality.valueOf(qualityStr);
+                            } catch (IllegalArgumentException e) {
+                                enchQuality = EnchantmentQuality.COMMON;
+                            }
+                            
+                            EnchantmentLevel enchLevel;
+                            try {
+                                enchLevel = EnchantmentLevel.values()[levelNum - 1];
+                            } catch (Exception e) {
+                                enchLevel = EnchantmentLevel.I;
+                            }
+                            
+                            // Format: "Name (Quality Level)"
+                            String detail = existingEnchant.getDisplayName() + " " + 
+                                          enchQuality.getColor() + "(" + enchQuality.getDisplayName() + " " + 
+                                          enchLevel.getDisplayName() + org.bukkit.ChatColor.RESET + ")";
+                            removedEnchantDetails.add(detail);
                         }
                     }
                 }
@@ -222,12 +247,15 @@ public class EnchantmentData {
             // Update count after removals
             nbtItem.setInteger(NBT_COUNT, count);
             
-            // Notify player of replacements
-            if (player != null && !removedEnchantNames.isEmpty()) {
+            // Notify player of replacements with quality and level details
+            if (player != null && !removedEnchantDetails.isEmpty()) {
                 player.sendMessage(org.bukkit.ChatColor.YELLOW + "⚠ " + 
-                    org.bukkit.ChatColor.GOLD + enchant.getDisplayName() + 
-                    org.bukkit.ChatColor.YELLOW + " replaced: " + 
-                    org.bukkit.ChatColor.RED + String.join(", ", removedEnchantNames));
+                    quality.getColor() + enchant.getDisplayName() + " (" + 
+                    quality.getDisplayName() + " " + level.getDisplayName() + ")" +
+                    org.bukkit.ChatColor.YELLOW + " replaced: ");
+                for (String detail : removedEnchantDetails) {
+                    player.sendMessage(org.bukkit.ChatColor.RED + "  • " + detail);
+                }
             }
         }
         
