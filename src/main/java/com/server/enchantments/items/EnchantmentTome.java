@@ -21,6 +21,9 @@ import de.tr7zw.changeme.nbtapi.NBTItem;
  * 1. Enchantment Tome (Unenchanted) - Can be enchanted with ANY enchantment
  * 2. Enchanted Tome - Holds enchantments to be applied via anvil
  * 
+ * IMPORTANT: Each tome has a unique UUID to prevent stacking.
+ * This ensures that only ONE tome is consumed when enchanting, not the entire stack.
+ * 
  * Custom Model Data Pattern: 4X0YZZ
  * - 4: Tome prefix
  * - X: Type (0=Unenchanted, 1=Enchanted)
@@ -84,6 +87,10 @@ public class EnchantmentTome {
         // Store tome type in NBT
         NBTItem nbtItem = new NBTItem(tome);
         nbtItem.setString(NBT_KEY_TOME_TYPE, NBT_VALUE_UNENCHANTED);
+        
+        // IMPORTANT: Add unique UUID to make tome unstackable
+        // This prevents entire stacks from being consumed when enchanting
+        nbtItem.setString("MMO_Tome_UUID", java.util.UUID.randomUUID().toString());
         
         return nbtItem.getItem();
     }
