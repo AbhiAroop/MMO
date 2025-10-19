@@ -66,9 +66,10 @@ public class EnchantmentApplicator {
         ElementResult elementResult = determineElement(fragmentData);
         ElementType targetElement = elementResult.element;
         boolean isHybrid = elementResult.isHybrid;
+        HybridElement hybridType = elementResult.hybridType;
         
         // Select enchantment
-        CustomEnchantment enchantment = selectEnchantment(targetElement, isHybrid);
+        CustomEnchantment enchantment = selectEnchantment(targetElement, isHybrid, hybridType);
         if (enchantment == null) {
             return new EnchantmentResult(false, "No valid enchantment found for elements", null);
         }
@@ -142,31 +143,33 @@ public class EnchantmentApplicator {
     
     /**
      * Determines the target element from fragments (hybrid or single element).
+     * Now counts TOTAL fragment amounts (not just stacks) for proper hybrid detection.
      */
     private static ElementResult determineElement(List<FragmentData> fragmentData) {
-        // Count elements
+        // Count elements by TOTAL AMOUNT (not just stacks)
         Map<ElementType, Integer> elementCounts = new HashMap<>();
         for (FragmentData data : fragmentData) {
-            elementCounts.put(data.element, elementCounts.getOrDefault(data.element, 0) + 1);
+            elementCounts.put(data.element, 
+                elementCounts.getOrDefault(data.element, 0) + data.amount);
         }
         
         // Single element - all same
         if (elementCounts.size() == 1) {
-            return new ElementResult(elementCounts.keySet().iterator().next(), false);
+            return new ElementResult(elementCounts.keySet().iterator().next(), false, null);
         }
         
         // Multiple elements - attempt hybrid formation
         List<ElementType> elements = new ArrayList<>(elementCounts.keySet());
         
-        // Check for Ice hybrid (Air + Water)
-        if (elements.contains(ElementType.AIR) && elements.contains(ElementType.WATER)) {
-            // Calculate hybrid chance based on tiers
-            double hybridChance = calculateHybridChance(fragmentData);
-            
-            if (RANDOM.nextDouble() < hybridChance) {
-                // Hybrid formed! Return as Water element but flagged as hybrid
-                return new ElementResult(ElementType.WATER, true);
-            }
+        // Calculate hybrid chance based on tiers
+        double hybridChance = calculateHybridChance(fragmentData);
+        
+        // Check for all possible hybrid combinations
+        HybridElement hybrid = detectHybrid(elements, elementCounts);
+        
+        if (hybrid != null && RANDOM.nextDouble() < hybridChance) {
+            // Hybrid formed! Return primary element with hybrid info
+            return new ElementResult(hybrid.getPrimary(), true, hybrid);
         }
         
         // Hybrid failed or not applicable - use dominant element
@@ -175,7 +178,47 @@ public class EnchantmentApplicator {
             .get()
             .getKey();
         
-        return new ElementResult(dominant, false);
+        return new ElementResult(dominant, false, null);
+    }
+    
+    /**
+     * Detects which hybrid element can form from the given elements.
+     */
+    private static HybridElement detectHybrid(List<ElementType> elements, Map<ElementType, Integer> elementCounts) {
+        // Check all hybrid combinations (order matters for priority)
+        
+        // STORM (Fire + Lightning)
+        if (elements.contains(ElementType.FIRE) && elements.contains(ElementType.LIGHTNING)) {
+            return HybridElement.STORM;
+        }
+        
+        // MIST/ICE (Water + Air) - Using MIST as the hybrid
+        if (elements.contains(ElementType.WATER) && elements.contains(ElementType.AIR)) {
+            return HybridElement.MIST;
+        }
+        
+        // DECAY (Earth + Shadow)
+        if (elements.contains(ElementType.EARTH) && elements.contains(ElementType.SHADOW)) {
+            return HybridElement.DECAY;
+        }
+        
+        // RADIANCE (Light + Lightning)
+        if (elements.contains(ElementType.LIGHT) && elements.contains(ElementType.LIGHTNING)) {
+            return HybridElement.RADIANCE;
+        }
+        
+        // ASH (Fire + Shadow)
+        if (elements.contains(ElementType.FIRE) && elements.contains(ElementType.SHADOW)) {
+            return HybridElement.ASH;
+        }
+        
+        // PURITY (Water + Light)
+        if (elements.contains(ElementType.WATER) && elements.contains(ElementType.LIGHT)) {
+            return HybridElement.PURITY;
+        }
+        
+        // Note: elementCounts parameter kept for future weighted hybrid logic
+        return null;
     }
     
     /**
@@ -196,11 +239,11 @@ public class EnchantmentApplicator {
     /**
      * Selects an appropriate enchantment based on element and hybrid status.
      */
-    private static CustomEnchantment selectEnchantment(ElementType element, boolean isHybrid) {
-        if (isHybrid) {
-            // Try to get hybrid enchantment
+    private static CustomEnchantment selectEnchantment(ElementType element, boolean isHybrid, HybridElement hybridType) {
+        if (isHybrid && hybridType != null) {
+            // Try to get hybrid enchantment for this specific hybrid type
             List<CustomEnchantment> hybridEnchantments = 
-                EnchantmentRegistry.getInstance().getEnchantmentsByHybrid(HybridElement.ICE);
+                EnchantmentRegistry.getInstance().getEnchantmentsByHybrid(hybridType);
             
             if (!hybridEnchantments.isEmpty()) {
                 return hybridEnchantments.get(RANDOM.nextInt(hybridEnchantments.size()));
@@ -254,12 +297,6 @@ public class EnchantmentApplicator {
      * Rolls quality based on fragment tiers.
      */
     private static EnchantmentQuality rollQuality(List<FragmentData> fragmentData) {
-        // Calculate average tier
-        double avgTierValue = fragmentData.stream()
-            .mapToInt(data -> data.tier.ordinal())
-            .average()
-            .orElse(0.0);
-        
         // Use highest tier for quality weights
         FragmentTier highestTier = fragmentData.stream()
             .map(data -> data.tier)
@@ -337,10 +374,12 @@ public class EnchantmentApplicator {
     private static class ElementResult {
         final ElementType element;
         final boolean isHybrid;
+        final HybridElement hybridType;
         
-        ElementResult(ElementType element, boolean isHybrid) {
+        ElementResult(ElementType element, boolean isHybrid, HybridElement hybridType) {
             this.element = element;
             this.isHybrid = isHybrid;
+            this.hybridType = hybridType;
         }
     }
     
