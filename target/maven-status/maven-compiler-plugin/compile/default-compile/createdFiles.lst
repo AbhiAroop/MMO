@@ -45,8 +45,10 @@ com\server\enchantments\abilities\offensive\Cinderwake$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
 com\server\entities\npc\story\KaelenEchobound.class
 com\server\profiles\skills\abilities\active\ActiveAbility.class
+com\server\enchantments\abilities\offensive\Voltbrand$1.class
 com\server\commands\AnimationDebugCommand$2.class
 com\server\display\MobDisplayManager$1.class
+com\server\enchantments\abilities\utility\ArcNexus$1.class
 com\server\display\DamageIndicatorManager$3.class
 com\server\profiles\gui\StatsGUI.class
 com\server\cosmetics\CosmeticManager$2.class
@@ -77,6 +79,7 @@ com\server\commands\NPCCommand.class
 com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
 com\server\profiles\skills\data\PlayerSkillData.class
+com\server\enchantments\abilities\utility\ArcNexus$StackData.class
 com\server\profiles\skills\tokens\SkillToken$TokenTier.class
 com\server\profiles\skills\trees\SkillTreeRegistry.class
 com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.class
@@ -86,6 +89,7 @@ com\server\profiles\skills\skills\combat\CombatSkill.class
 com\server\events\PlayerListener$6.class
 com\server\profiles\skills\gui\SkillTreeGUI$ConnectionState.class
 com\server\entities\npc\story\NellMossgleam$1.class
+com\server\enchantments\abilities\offensive\HollowEdge.class
 com\server\entities\npc\types\DialogueNPC.class
 com\server\enchantments\abilities\offensive\BurdenedStone$1.class
 com\server\abilities\AbilityManager$1.class
@@ -127,6 +131,7 @@ com\server\utils\CurrencyFormatter.class
 com\server\entities\mobs\MobRegistry.class
 com\server\enchantments\FragmentRegistry.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
+com\server\enchantments\abilities\utility\Veilborn.class
 com\server\profiles\skills\trees\builders\SkillTreeBuilder.class
 com\server\enchantments\listeners\EnchantmentGUIListener.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
@@ -186,6 +191,7 @@ com\server\profiles\skills\abilities\AbilityRegistry.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
 com\server\profiles\skills\gui\SubskillDetailsGUI.class
+com\server\enchantments\abilities\utility\RadiantGrace.class
 com\server\profiles\skills\events\SkillEventListener$1.class
 com\server\enchantments\data\EnchantmentData.class
 com\server\events\AutoItemEnhancementListener.class
@@ -208,6 +214,7 @@ com\server\entities\npc\behaviors\CombatBehavior.class
 com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
 com\server\crafting\recipes\FurnaceRecipe.class
+com\server\enchantments\abilities\offensive\Voltbrand.class
 com\server\enchantments\listeners\EnchantmentTriggerListener.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
@@ -255,12 +262,15 @@ com\server\events\RangedCombatManager.class
 com\server\profiles\skills\skills\farming\FarmingSkill.class
 com\server\commands\FlyCommand.class
 com\server\enchantments\gui\EnchantmentApplicator$ElementResult.class
+com\server\enchantments\abilities\utility\Veilborn$2.class
+com\server\enchantments\abilities\utility\Veilborn$SneakData.class
 com\server\commands\CurrencyCommand$TransferRequest.class
 com\server\profiles\skills\gui\SubskillDetailsGUI$CrystalTier.class
 com\server\display\ActionBarManager$1.class
 com\server\entities\npc\behaviors\EquipmentBehavior.class
 com\server\enchantments\abilities\InfernoStrike.class
 com\server\crafting\manager\CustomCraftingManager.class
+com\server\enchantments\abilities\offensive\Dawnstrike.class
 com\server\enchantments\listeners\EnchantmentTableListener.class
 com\server\enchantments\abilities\utility\AshenVeil.class
 com\server\profiles\skills\core\SubskillType.class
@@ -277,11 +287,13 @@ com\server\enchantments\abilities\offensive\Cinderwake.class
 com\server\entities\npc\CombatHandler$3.class
 com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class
+com\server\enchantments\abilities\utility\Veilborn$1.class
 com\server\crafting\manager\CustomFurnaceManager$OfflineProgressResult.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility$1.class
 com\server\events\PlayerListener$1.class
 com\server\display\MobDisplayManager.class
 com\server\entities\npc\dialogue\DialogueAction.class
+com\server\enchantments\abilities\utility\ArcNexus.class
 com\server\entities\npc\CombatHandler$2.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession.class
 com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.class

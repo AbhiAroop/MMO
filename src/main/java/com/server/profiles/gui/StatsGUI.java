@@ -8,6 +8,8 @@ import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -104,6 +106,20 @@ public class StatsGUI {
         ItemStack playerHead = createPlayerHeadItem(player, profile);
         gui.setItem(4, playerHead);
         
+        // Get current attack speed from attribute (includes enchantment modifiers like Arc Nexus)
+        double currentAttackSpeed = stats.getAttackSpeed();
+        AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
+        if (attackSpeedAttr != null) {
+            currentAttackSpeed = attackSpeedAttr.getValue();
+        }
+        
+        // Get current movement speed from attribute (includes enchantment modifiers like Veilborn)
+        double currentMovementSpeed = stats.getSpeed();
+        AttributeInstance movementSpeedAttr = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (movementSpeedAttr != null) {
+            currentMovementSpeed = movementSpeedAttr.getValue();
+        }
+        
         // Combat Stats (Diamond Sword) - Top row
         ItemStack combatItem = createStatsItem(Material.DIAMOND_SWORD, 
             ChatColor.RED + "Combat Stats",
@@ -125,7 +141,8 @@ public class StatsGUI {
                 ChatColor.GRAY + "Burst Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getBurstChance() * 100),
                 ChatColor.GRAY + "Burst Damage: " + ChatColor.WHITE + stats.getBurstDamage() + "x",
                 "",
-                ChatColor.GRAY + "Attack Speed: " + ChatColor.WHITE + stats.getAttackSpeed() + " hits/sec"
+                ChatColor.GRAY + "Attack Speed: " + ChatColor.WHITE + String.format("%.2f", currentAttackSpeed) + " hits/sec" +
+                    (currentAttackSpeed != stats.getAttackSpeed() ? ChatColor.GREEN + " (+" + String.format("%.2f", currentAttackSpeed - stats.getAttackSpeed()) + ")" : "")
             },
             true
         );
@@ -170,7 +187,8 @@ public class StatsGUI {
                 "",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Utility:",
                 ChatColor.GRAY + "Cooldown Reduction: " + ChatColor.WHITE + stats.getCooldownReduction() + "%",
-                ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", stats.getSpeed()) + "x",
+                ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed) + "x" +
+                    (currentMovementSpeed != stats.getSpeed() ? ChatColor.GREEN + " (+" + String.format("%.2f", currentMovementSpeed - stats.getSpeed()) + ")" : ""),
                 "",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Experience:",
                 ChatColor.GRAY + "Level: " + ChatColor.YELLOW + player.getLevel(),

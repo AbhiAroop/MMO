@@ -67,6 +67,8 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\lis
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillEventListener.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\PlayerStats.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminFurnaceCommand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Voltbrand.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\ArcNexus.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\EnchantmentTableGUI.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\RunemarkColossus.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\duskhollow\DuskhollowFang.java
@@ -88,6 +90,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\debug\DebugM
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillsGUI.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\AutoCraftingListener.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\CombatHandler.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\RadiantGrace.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilityGUIListener.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\behaviors\FleeingBehavior.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCType.java
@@ -149,6 +152,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\Pro
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\DuneetchedColossus.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\utils\AffinityModifier.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\CustomCraftingGUI.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\Veilborn.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminEnchantCommand.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemRarity.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\FragmentTier.java
@@ -157,6 +161,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GiveItemCommand.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\utils\EnchantmentDamageUtil.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemType.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Dawnstrike.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AutoCraftingGUI.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\tokens\SkillToken.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTreeNode.java
@@ -184,6 +189,7 @@ c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\Adm
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\SkillAbility.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.java
+c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\HollowEdge.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\GaleStep.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\elements\HybridElement.java
 c:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.java

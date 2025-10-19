@@ -17,9 +17,15 @@ import com.server.enchantments.abilities.defensive.Terraheart;
 import com.server.enchantments.abilities.defensive.Whispers;
 import com.server.enchantments.abilities.offensive.BurdenedStone;
 import com.server.enchantments.abilities.offensive.Cinderwake;
+import com.server.enchantments.abilities.offensive.Dawnstrike;
 import com.server.enchantments.abilities.offensive.Deepcurrent;
+import com.server.enchantments.abilities.offensive.HollowEdge;
+import com.server.enchantments.abilities.offensive.Voltbrand;
+import com.server.enchantments.abilities.utility.ArcNexus;
 import com.server.enchantments.abilities.utility.AshenVeil;
 import com.server.enchantments.abilities.utility.GaleStep;
+import com.server.enchantments.abilities.utility.RadiantGrace;
+import com.server.enchantments.abilities.utility.Veilborn;
 import com.server.enchantments.data.CustomEnchantment;
 import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
@@ -72,10 +78,20 @@ public class EnchantmentRegistry {
         register(new GaleStep());
         register(new Whispers());
         
+        // Lightning enchantments
+        register(new Voltbrand());
+        register(new ArcNexus());
+        
+        // Shadow enchantments
+        register(new HollowEdge());
+        register(new Veilborn());
+        
+        // Light enchantments
+        register(new Dawnstrike());
+        register(new RadiantGrace());
+        
         // TODO: Add more enchantments as they're implemented
         // register(new ThunderClap());  // Lightning
-        // register(new ShadowStrike()); // Shadow
-        // register(new RadiantAura());  // Light
         // register(new VineGrasp());    // Nature
         // register(new Frostbite());    // Ice (Hybrid)
     }
