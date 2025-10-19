@@ -27,6 +27,7 @@ import com.server.enchantments.data.EnchantmentRarity;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.FragmentTier;
 import com.server.enchantments.structure.EnchantmentTableStructure;
+import com.server.enchantments.utils.EquipmentTypeValidator;
 
 /**
  * Admin command for enchantment system
@@ -152,6 +153,12 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
             for (CustomEnchantment e : registry.getAllEnchantments()) {
                 player.sendMessage(ChatColor.GRAY + "  - " + e.getId() + " (" + e.getDisplayName() + ")");
             }
+            return true;
+        }
+        
+        // Validate equipment compatibility using custom model data
+        if (!EquipmentTypeValidator.canEnchantmentApply(item, enchantment)) {
+            player.sendMessage(EquipmentTypeValidator.getIncompatibilityMessage(item, enchantment));
             return true;
         }
         
@@ -300,6 +307,8 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                          enchant.getRarity().getDisplayName());
         sender.sendMessage(ChatColor.YELLOW + "Trigger: " + ChatColor.WHITE + 
                          enchant.getTriggerType().name());
+        sender.sendMessage(ChatColor.YELLOW + "Equipment: " + ChatColor.WHITE + 
+                         EquipmentTypeValidator.getEquipmentDescription(enchant));
         sender.sendMessage(ChatColor.YELLOW + "Description: " + ChatColor.GRAY + 
                          enchant.getDescription());
         

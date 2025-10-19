@@ -11,6 +11,7 @@ import com.server.enchantments.EnchantmentRegistry;
 import com.server.enchantments.data.CustomEnchantment;
 import com.server.enchantments.data.EnchantmentData;
 import com.server.enchantments.data.EnchantmentQuality;
+import com.server.enchantments.utils.EquipmentTypeValidator;
 
 /**
  * Admin command to directly add enchantments to held items.
@@ -76,6 +77,12 @@ public class AdminEnchantCommand implements CommandExecutor {
             for (CustomEnchantment e : registry.getAllEnchantments()) {
                 player.sendMessage(ChatColor.GRAY + "  - " + e.getId() + " (" + e.getDisplayName() + ")");
             }
+            return true;
+        }
+        
+        // Validate equipment compatibility using custom model data
+        if (!EquipmentTypeValidator.canEnchantmentApply(item, enchantment)) {
+            player.sendMessage(EquipmentTypeValidator.getIncompatibilityMessage(item, enchantment));
             return true;
         }
         

@@ -267,6 +267,7 @@ com\server\enchantments\utils\AffinityModifier.class
 com\server\profiles\skills\trees\TreeGridPosition.class
 com\server\enchantments\abilities\utility\MistborneTempest$DashData.class
 com\server\entities\mobs\duskhollow\DuskhollowFang$1.class
+com\server\enchantments\utils\EquipmentTypeValidator$EquipmentType.class
 com\server\profiles\skills\gui\SkillTreeGUI.class
 com\server\enchantments\abilities\offensive\Decayroot.class
 com\server\events\CustomMobListener$2.class
@@ -284,6 +285,7 @@ com\server\enchantments\abilities\InfernoStrike.class
 com\server\crafting\manager\CustomCraftingManager.class
 com\server\enchantments\abilities\offensive\Dawnstrike.class
 com\server\enchantments\listeners\EnchantmentTableListener.class
+com\server\enchantments\utils\EquipmentTypeValidator.class
 com\server\enchantments\abilities\utility\AshenVeil.class
 com\server\profiles\skills\core\SubskillType.class
 com\server\profiles\gui\ProfileGUI.class
