@@ -2,6 +2,7 @@ package com.server.enchantments.items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -36,6 +37,8 @@ import de.tr7zw.changeme.nbtapi.NBTItem;
  * - Enchanted Tome: 410000
  */
 public class EnchantmentTome {
+    
+    private static final Random RANDOM = new Random();
     
     private static final String NBT_KEY_TOME_TYPE = "MMO_Tome_Type";
     private static final String NBT_VALUE_UNENCHANTED = "UNENCHANTED";
@@ -126,65 +129,6 @@ public class EnchantmentTome {
         meta.addEnchant(Enchantment.UNBREAKING, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         
-        // Create lore with enchantment info
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
-        lore.add(ChatColor.YELLOW + "✦ Enchanted Tome ✦");
-        lore.add("");
-        
-        // List enchantments
-        if (enchantments.size() == 1) {
-            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + "1 Enchantment" + ChatColor.GOLD + ":");
-        } else {
-            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + enchantments.size() + " Enchantments" + ChatColor.GOLD + ":");
-        }
-        lore.add("");
-        
-        for (EnchantmentData enchantment : enchantments) {
-            // Get enchantment display text from EnchantmentData
-            // Get the actual enchantment object to get the display name and description
-            com.server.enchantments.EnchantmentRegistry registry = 
-                com.server.enchantments.EnchantmentRegistry.getInstance();
-            com.server.enchantments.data.CustomEnchantment enchantObj = 
-                registry.getEnchantment(enchantment.getEnchantmentId());
-            
-            String enchantName = enchantObj != null ? enchantObj.getDisplayName() : enchantment.getEnchantmentId();
-            String qualityColor = enchantment.getQuality().getColor().toString();
-            String levelRoman = enchantment.getLevel().getRoman();
-            String qualityName = enchantment.getQuality().getDisplayName();
-            
-            // Add enchantment line
-            lore.add(qualityColor + "▸ " + enchantName + " " + levelRoman + " [" + qualityName + "]");
-            
-            // Add description if available
-            if (enchantObj != null) {
-                String description = enchantObj.getDescription();
-                if (description != null && !description.isEmpty()) {
-                    // Word wrap the description at ~40 characters
-                    String[] words = description.split(" ");
-                    StringBuilder line = new StringBuilder(ChatColor.GRAY + "  ");
-                    for (String word : words) {
-                        if (line.length() + word.length() > 42) {
-                            lore.add(line.toString().trim());
-                            line = new StringBuilder(ChatColor.GRAY + "  ");
-                        }
-                        line.append(word).append(" ");
-                    }
-                    if (line.length() > 3) {
-                        lore.add(line.toString().trim());
-                    }
-                }
-            }
-        }
-        
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Use in an anvil to apply");
-        lore.add(ChatColor.GRAY + "enchantments to equipment.");
-        lore.add("");
-        lore.add(ChatColor.DARK_PURPLE + "✦ Universal - Works on any gear ✦");
-        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
-        meta.setLore(lore);
-        
         // Hide flags
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
@@ -192,13 +136,16 @@ public class EnchantmentTome {
         // IMPORTANT: Apply meta BEFORE NBT operations
         enchantedTome.setItemMeta(meta);
         
-        // Copy enchantment data from unenchanted tome
+        // Copy enchantment data from unenchanted tome and generate apply chances
         NBTItem sourceNBT = new NBTItem(unenchantedTome);
         NBTItem targetNBT = new NBTItem(enchantedTome);
         
         // Copy all enchantment NBT data
         int enchantCount = sourceNBT.getInteger("MMO_EnchantmentCount");
         targetNBT.setInteger("MMO_EnchantmentCount", enchantCount);
+        
+        // Store apply chances for use in lore
+        int[] applyChances = new int[enchantCount];
         
         for (int i = 0; i < enchantCount; i++) {
             String prefix = "MMO_Enchantment_" + i + "_";
@@ -228,22 +175,105 @@ public class EnchantmentTome {
             if (sourceNBT.hasKey(prefix + "Affinity_Utility")) {
                 targetNBT.setInteger(prefix + "Affinity_Utility", sourceNBT.getInteger(prefix + "Affinity_Utility"));
             }
+            
+            // IMPORTANT: Generate and store random apply chance (0-100%)
+            // This will be used by the anvil system to determine if enchantment transfers
+            int applyChance = RANDOM.nextInt(101); // 0 to 100 inclusive
+            targetNBT.setInteger(prefix + "ApplyChance", applyChance);
+            applyChances[i] = applyChance; // Store for lore generation
         }
         
         // Mark as enchanted tome
         targetNBT.setString(NBT_KEY_TOME_TYPE, NBT_VALUE_ENCHANTED);
         
-        // Get the final item with NBT data
-        ItemStack finalTome = targetNBT.getItem();
+        // Get the item with NBT data
+        ItemStack tomeWithNBT = targetNBT.getItem();
         
-        // SAFEGUARD: Re-apply custom model data to ensure it's preserved
-        ItemMeta finalMeta = finalTome.getItemMeta();
-        if (finalMeta != null) {
-            finalMeta.setCustomModelData(ENCHANTED_TOME_MODEL);
-            finalTome.setItemMeta(finalMeta);
+        // Now create lore with the apply chances we generated
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
+        lore.add(ChatColor.YELLOW + "✦ Enchanted Tome ✦");
+        lore.add("");
+        
+        // List enchantments
+        if (enchantments.size() == 1) {
+            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + "1 Enchantment" + ChatColor.GOLD + ":");
+        } else {
+            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + enchantments.size() + " Enchantments" + ChatColor.GOLD + ":");
+        }
+        lore.add("");
+        
+        for (int i = 0; i < enchantments.size(); i++) {
+            EnchantmentData enchantment = enchantments.get(i);
+            
+            // Get enchantment display text from EnchantmentData
+            com.server.enchantments.EnchantmentRegistry registry = 
+                com.server.enchantments.EnchantmentRegistry.getInstance();
+            com.server.enchantments.data.CustomEnchantment enchantObj = 
+                registry.getEnchantment(enchantment.getEnchantmentId());
+            
+            String enchantName = enchantObj != null ? enchantObj.getDisplayName() : enchantment.getEnchantmentId();
+            String qualityColor = enchantment.getQuality().getColor().toString();
+            String levelRoman = enchantment.getLevel().getRoman();
+            String qualityName = enchantment.getQuality().getDisplayName();
+            
+            // Get the apply chance we generated earlier
+            int applyChance = applyChances[i];
+            
+            // Determine chance color based on value
+            ChatColor chanceColor;
+            if (applyChance >= 80) {
+                chanceColor = ChatColor.GREEN; // High chance (80-100%)
+            } else if (applyChance >= 50) {
+                chanceColor = ChatColor.YELLOW; // Medium chance (50-79%)
+            } else if (applyChance >= 25) {
+                chanceColor = ChatColor.GOLD; // Low-medium chance (25-49%)
+            } else {
+                chanceColor = ChatColor.RED; // Low chance (0-24%)
+            }
+            
+            // Add enchantment line with apply chance
+            lore.add(qualityColor + "▸ " + enchantName + " " + levelRoman + " [" + qualityName + "]");
+            lore.add(ChatColor.GRAY + "  Apply Chance: " + chanceColor + applyChance + "%");
+            
+            // Add description if available
+            if (enchantObj != null) {
+                String description = enchantObj.getDescription();
+                if (description != null && !description.isEmpty()) {
+                    // Word wrap the description at ~40 characters
+                    String[] words = description.split(" ");
+                    StringBuilder line = new StringBuilder(ChatColor.GRAY + "  ");
+                    for (String word : words) {
+                        if (line.length() + word.length() > 42) {
+                            lore.add(line.toString().trim());
+                            line = new StringBuilder(ChatColor.GRAY + "  ");
+                        }
+                        line.append(word).append(" ");
+                    }
+                    if (line.length() > 3) {
+                        lore.add(line.toString().trim());
+                    }
+                }
+            }
         }
         
-        return finalTome;
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Use in an anvil to apply");
+        lore.add(ChatColor.GRAY + "enchantments to equipment.");
+        lore.add("");
+        lore.add(ChatColor.DARK_PURPLE + "✦ Universal - Works on any gear ✦");
+        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
+        
+        // Apply the lore to the tome with NBT
+        ItemMeta finalMeta = tomeWithNBT.getItemMeta();
+        if (finalMeta != null) {
+            finalMeta.setLore(lore);
+            // SAFEGUARD: Re-apply custom model data to ensure it's preserved
+            finalMeta.setCustomModelData(ENCHANTED_TOME_MODEL);
+            tomeWithNBT.setItemMeta(finalMeta);
+        }
+        
+        return tomeWithNBT;
     }
     
     /**
