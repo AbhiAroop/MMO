@@ -18,6 +18,7 @@ import com.server.enchantments.data.CustomEnchantment;
 import com.server.enchantments.data.EnchantmentData;
 import com.server.enchantments.data.EnchantmentQuality;
 import com.server.enchantments.data.EnchantmentRarity;
+import com.server.enchantments.effects.ElementalParticles;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.elements.FragmentTier;
 import com.server.enchantments.elements.HybridElement;
@@ -237,11 +238,37 @@ public class EnchantmentApplicator {
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1.0f, 1.0f);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
         
+        // Spawn particle effects based on applied enchantments
+        for (EnchantmentApplication app : enchantmentsToApply) {
+            ElementType element = app.enchantment.getElement();
+            if (element != null) {
+                // Burst effect at player location
+                ElementalParticles.spawnElementalBurst(player.getLocation().add(0, 1, 0), element, 1.0);
+            }
+        }
+        
+        // Create helix effect around player with primary element
+        if (!enchantmentsToApply.isEmpty()) {
+            ElementType primaryElement = enchantmentsToApply.get(0).enchantment.getElement();
+            if (primaryElement != null) {
+                ElementalParticles.spawnPlayerHelix(player.getLocation(), primaryElement, 40);
+            }
+        }
+        
         // Add special effect for multiple enchantments
         if (enchantmentsToApply.size() > 1) {
             player.playSound(player.getLocation(), Sound.ENTITY_EVOKER_CAST_SPELL, 1.0f, 1.2f);
             messageBuilder.append(ChatColor.GOLD).append("⭐ MULTI-ENCHANTMENT! (")
                          .append(enchantmentsToApply.size()).append(" enchantments)");
+            
+            // Extra ring effect for multi-enchants
+            if (enchantmentsToApply.size() >= 2 && enchantmentsToApply.get(1).enchantment.getElement() != null) {
+                ElementalParticles.spawnElementalRing(
+                    player.getLocation().add(0, 0.1, 0), 
+                    enchantmentsToApply.get(1).enchantment.getElement(), 
+                    1.5
+                );
+            }
         }
         
         // Add hybrid count if any

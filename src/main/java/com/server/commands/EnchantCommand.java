@@ -17,7 +17,9 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
+import com.server.Main;
 import com.server.enchantments.EnchantmentRegistry;
 import com.server.enchantments.FragmentRegistry;
 import com.server.enchantments.data.CustomEnchantment;
@@ -30,6 +32,8 @@ import com.server.enchantments.elements.FragmentTier;
 import com.server.enchantments.items.EnchantmentTome;
 import com.server.enchantments.structure.EnchantmentTableStructure;
 import com.server.enchantments.utils.EquipmentTypeValidator;
+
+import de.tr7zw.changeme.nbtapi.NBTItem;
 
 /**
  * Admin command for enchantment system
@@ -61,8 +65,16 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         switch (subCommand) {
             case "add":
                 return handleAdd(sender, args);
+            case "addtomeenchant":
+                return handleAddTomeEnchant(sender, args);
             case "give":
                 return handleGive(sender, args);
+            case "tome":
+                return handleGiveTome(sender, args);
+            case "anvil":
+                return handleGiveAnvil(sender, args);
+            case "open":
+                return handleOpen(sender, args);
             case "test":
                 return handleTest(sender, args);
             case "info":
@@ -185,57 +197,327 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
+     * /enchant addtomeenchant <enchantmentId> [quality] [level] [applyChance]
+     * Add an enchantment to an enchantment tome with specified properties
+     */
+    private boolean handleAddTomeEnchant(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ChatColor.RED + "Only players can use this command!");
+            return true;
+        }
+        
+        Player player = (Player) sender;
+        
+        // Check if holding an enchantment tome
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            player.sendMessage(ChatColor.RED + "You must be holding an enchantment tome!");
+            return true;
+        }
+        
+        if (!EnchantmentTome.isEnchantedTome(item) && !EnchantmentTome.isUnenchantedTome(item)) {
+            player.sendMessage(ChatColor.RED + "You must be holding an enchantment tome!");
+            return true;
+        }
+        
+        // Parse arguments
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "Usage: /enchant addtomeenchant <enchantmentId> [quality] [level] [applyChance]");
+            player.sendMessage(ChatColor.GRAY + "Available qualities: POOR, COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, GODLY");
+            player.sendMessage(ChatColor.GRAY + "Available levels: 1-8 (I-VIII)");
+            player.sendMessage(ChatColor.GRAY + "Apply chance: 0-100 (percentage)");
+            player.sendMessage(ChatColor.GRAY + "Example: /enchant addtomeenchant emberveil LEGENDARY 5 75");
+            return true;
+        }
+        
+        String enchantId = args[1].toLowerCase();
+        EnchantmentQuality quality = EnchantmentQuality.COMMON; // Default
+        com.server.enchantments.data.EnchantmentLevel level = 
+            com.server.enchantments.data.EnchantmentLevel.I; // Default
+        int applyChance = 100; // Default 100%
+        
+        // Parse quality if provided
+        if (args.length >= 3) {
+            try {
+                quality = EnchantmentQuality.valueOf(args[2].toUpperCase());
+            } catch (IllegalArgumentException e) {
+                player.sendMessage(ChatColor.RED + "Invalid quality: " + args[2]);
+                player.sendMessage(ChatColor.GRAY + "Available qualities: POOR, COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, GODLY");
+                return true;
+            }
+        }
+        
+        // Parse level if provided
+        if (args.length >= 4) {
+            try {
+                int levelNum = Integer.parseInt(args[3]);
+                if (levelNum < 1 || levelNum > 8) {
+                    player.sendMessage(ChatColor.RED + "Level must be between 1 and 8");
+                    return true;
+                }
+                level = com.server.enchantments.data.EnchantmentLevel.fromNumeric(levelNum);
+            } catch (NumberFormatException e) {
+                player.sendMessage(ChatColor.RED + "Invalid level: " + args[3]);
+                player.sendMessage(ChatColor.GRAY + "Level must be a number 1-8");
+                return true;
+            }
+        }
+        
+        // Parse apply chance if provided
+        if (args.length >= 5) {
+            try {
+                applyChance = Integer.parseInt(args[4]);
+                if (applyChance < 0 || applyChance > 100) {
+                    player.sendMessage(ChatColor.RED + "Apply chance must be between 0 and 100");
+                    return true;
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage(ChatColor.RED + "Invalid apply chance: " + args[4]);
+                player.sendMessage(ChatColor.GRAY + "Apply chance must be a number 0-100");
+                return true;
+            }
+        }
+        
+        // Get enchantment from registry
+        EnchantmentRegistry registry = EnchantmentRegistry.getInstance();
+        CustomEnchantment enchantment = registry.getEnchantment(enchantId);
+        if (enchantment == null) {
+            player.sendMessage(ChatColor.RED + "Unknown enchantment: " + enchantId);
+            player.sendMessage(ChatColor.GRAY + "Available enchantments:");
+            for (CustomEnchantment e : registry.getAllEnchantments()) {
+                player.sendMessage(ChatColor.GRAY + "  - " + e.getId() + " (" + e.getDisplayName() + ")");
+            }
+            return true;
+        }
+        
+        // Warn if level exceeds enchantment's max (admin bypass)
+        if (level.getNumericLevel() > enchantment.getMaxLevel()) {
+            player.sendMessage(ChatColor.YELLOW + "⚠ Warning: " + enchantment.getDisplayName() + 
+                              " has a max level of " + enchantment.getMaxLevel() + 
+                              " (I-" + EnchantmentLevel.fromNumeric(enchantment.getMaxLevel()).getRoman() + ")");
+            player.sendMessage(ChatColor.YELLOW + "⚠ Applying level " + level.getDisplayName() + 
+                              " as admin override.");
+        }
+        
+        // Determine if we need to convert blank tome to enchanted tome
+        boolean isBlankTome = EnchantmentTome.isUnenchantedTome(item);
+        boolean isEnchantedTome = EnchantmentTome.isEnchantedTome(item);
+        
+        // Add enchantment to tome using NBT
+        NBTItem nbtItem = new NBTItem(item);
+        int currentCount = nbtItem.hasKey("MMO_EnchantCount") ? nbtItem.getInteger("MMO_EnchantCount") : 0;
+        
+        String prefix = "MMO_Enchant_" + currentCount + "_";
+        nbtItem.setString(prefix + "ID", enchantment.getId());
+        nbtItem.setString(prefix + "Quality", quality.name());
+        nbtItem.setInteger(prefix + "Level", level.getNumericLevel());
+        nbtItem.setInteger(prefix + "ApplyChance", applyChance);
+        
+        // Store element and affinity data if available
+        ElementType element = enchantment.getElement();
+        if (element != null) {
+            nbtItem.setString(prefix + "Element", element.name());
+        }
+        
+        // Update enchantment count
+        nbtItem.setInteger("MMO_EnchantCount", currentCount + 1);
+        
+        // Mark as enchanted tome
+        nbtItem.setString("MMO_Tome_Type", "ENCHANTED");
+        
+        // Get updated item with NBT
+        ItemStack updatedItem = nbtItem.getItem();
+        
+        // If it was a blank tome, convert to enchanted book with proper meta
+        if (isBlankTome) {
+            ItemStack enchantedTome = new ItemStack(Material.ENCHANTED_BOOK, 1);
+            ItemMeta meta = enchantedTome.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "Enchanted Tome");
+                meta.setCustomModelData(1002); // ENCHANTED_TOME_MODEL
+                meta.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_UNBREAKABLE);
+                enchantedTome.setItemMeta(meta);
+            }
+            
+            // Copy NBT data to enchanted tome
+            NBTItem enchantedNBT = new NBTItem(enchantedTome);
+            for (String key : nbtItem.getKeys()) {
+                if (key.startsWith("MMO_")) {
+                    if (nbtItem.getType(key) == de.tr7zw.changeme.nbtapi.NBTType.NBTTagString) {
+                        enchantedNBT.setString(key, nbtItem.getString(key));
+                    } else if (nbtItem.getType(key) == de.tr7zw.changeme.nbtapi.NBTType.NBTTagInt) {
+                        enchantedNBT.setInteger(key, nbtItem.getInteger(key));
+                    } else if (nbtItem.getType(key) == de.tr7zw.changeme.nbtapi.NBTType.NBTTagDouble) {
+                        enchantedNBT.setDouble(key, nbtItem.getDouble(key));
+                    }
+                }
+            }
+            updatedItem = enchantedNBT.getItem();
+        } else if (isEnchantedTome) {
+            // Already an enchanted tome, just ensure proper meta is set
+            ItemMeta meta = updatedItem.getItemMeta();
+            if (meta != null) {
+                // Ensure display name is correct
+                if (!meta.hasDisplayName() || !meta.getDisplayName().contains("Enchanted Tome")) {
+                    meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "Enchanted Tome");
+                }
+                // Ensure custom model data is correct
+                if (!meta.hasCustomModelData() || meta.getCustomModelData() != 1002) {
+                    meta.setCustomModelData(1002);
+                }
+                // Ensure enchantment glow is present
+                if (!meta.hasEnchants()) {
+                    meta.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true);
+                }
+                // Ensure flags are set
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_UNBREAKABLE);
+                updatedItem.setItemMeta(meta);
+            }
+        }
+        
+        // Generate and apply lore (this updates for both new and existing enchanted tomes)
+        updatedItem = updateTomeLore(updatedItem);
+        
+        // Update the item in player's hand
+        player.getInventory().setItemInMainHand(updatedItem);
+        
+        String tomeStatus = isBlankTome ? "Converted blank tome and added" : "Added";
+        player.sendMessage(ChatColor.GREEN + "✓ " + tomeStatus + " enchantment to tome: " + enchantment.getDisplayName() + 
+                          " " + level.getDisplayName() + " " +
+                          quality.getColor() + "[" + quality.getDisplayName() + "]");
+        player.sendMessage(ChatColor.GRAY + "Apply Chance: " + ChatColor.YELLOW + applyChance + "%");
+        player.sendMessage(ChatColor.GRAY + "Tome now has " + ChatColor.WHITE + (currentCount + 1) + 
+                          ChatColor.GRAY + (currentCount + 1 == 1 ? " enchantment" : " enchantments"));
+        
+        return true;
+    }
+    
+    /**
+     * Helper method to update tome lore based on NBT enchantment data
+     */
+    private ItemStack updateTomeLore(ItemStack tome) {
+        NBTItem nbtItem = new NBTItem(tome);
+        int enchantCount = nbtItem.getInteger("MMO_EnchantCount");
+        
+        if (enchantCount == 0) {
+            return tome;
+        }
+        
+        // Get enchantment data from NBT
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
+        lore.add(ChatColor.YELLOW + "✦ Enchanted Tome ✦");
+        lore.add("");
+        
+        if (enchantCount == 1) {
+            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + "1 Enchantment" + ChatColor.GOLD + ":");
+        } else {
+            lore.add(ChatColor.GOLD + "Contains " + ChatColor.WHITE + enchantCount + " Enchantments" + ChatColor.GOLD + ":");
+        }
+        lore.add("");
+        
+        // Read each enchantment from NBT
+        for (int i = 0; i < enchantCount; i++) {
+            String prefix = "MMO_Enchant_" + i + "_";
+            
+            String enchantId = nbtItem.getString(prefix + "ID");
+            String qualityName = nbtItem.getString(prefix + "Quality");
+            int levelNum = nbtItem.getInteger(prefix + "Level");
+            int applyChance = nbtItem.getInteger(prefix + "ApplyChance");
+            
+            // Get enchantment object
+            CustomEnchantment enchantObj = EnchantmentRegistry.getInstance().getEnchantment(enchantId);
+            String enchantName = enchantObj != null ? enchantObj.getDisplayName() : enchantId;
+            
+            // Get quality
+            EnchantmentQuality quality;
+            try {
+                quality = EnchantmentQuality.valueOf(qualityName);
+            } catch (IllegalArgumentException e) {
+                quality = EnchantmentQuality.COMMON;
+            }
+            
+            // Get level
+            EnchantmentLevel level = EnchantmentLevel.fromNumeric(levelNum);
+            
+            // Determine chance color
+            ChatColor chanceColor;
+            if (applyChance >= 80) {
+                chanceColor = ChatColor.GREEN;
+            } else if (applyChance >= 50) {
+                chanceColor = ChatColor.YELLOW;
+            } else if (applyChance >= 25) {
+                chanceColor = ChatColor.GOLD;
+            } else {
+                chanceColor = ChatColor.RED;
+            }
+            
+            // Add enchantment line
+            lore.add(quality.getColor() + "▸ " + enchantName + " " + level.getRoman() + " [" + quality.getDisplayName() + "]");
+            lore.add(ChatColor.GRAY + "  Apply Chance: " + chanceColor + applyChance + "%");
+            
+            // Add description if available
+            if (enchantObj != null) {
+                String description = enchantObj.getDescription();
+                if (description != null && !description.isEmpty()) {
+                    String[] words = description.split(" ");
+                    StringBuilder line = new StringBuilder(ChatColor.GRAY + "  ");
+                    for (String word : words) {
+                        if (line.length() + word.length() > 42) {
+                            lore.add(line.toString().trim());
+                            line = new StringBuilder(ChatColor.GRAY + "  ");
+                        }
+                        line.append(word).append(" ");
+                    }
+                    if (line.length() > 3) {
+                        lore.add(line.toString().trim());
+                    }
+                }
+            }
+        }
+        
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Use in an anvil to apply");
+        lore.add(ChatColor.GRAY + "enchantments to equipment.");
+        lore.add("");
+        lore.add(ChatColor.DARK_PURPLE + "✦ Universal - Works on any gear ✦");
+        lore.add(ChatColor.GRAY + "━━━━━━━━━━━━━━━━━━━━━━");
+        
+        // Apply lore to item
+        ItemMeta meta = tome.getItemMeta();
+        if (meta != null) {
+            meta.setLore(lore);
+            // Ensure custom model data is preserved
+            if (!meta.hasCustomModelData()) {
+                meta.setCustomModelData(1002); // ENCHANTED_TOME_MODEL
+            }
+            tome.setItemMeta(meta);
+        }
+        
+        return tome;
+    }
+    
+    /**
      * /enchant give <player> <element> <tier> [amount]
-     * Give fragments to a player
+     * Give fragments to a player (fragments only)
      */
     private boolean handleGive(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage(ChatColor.RED + "Usage: /enchant give <player> <element/tome> <tier> [amount]");
-            sender.sendMessage(ChatColor.YELLOW + "Special: /enchant give <player> tome");
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant give <player> <element> <tier> [amount]");
+            sender.sendMessage(ChatColor.YELLOW + "For tomes: /enchant tome <player> [amount]");
+            sender.sendMessage(ChatColor.YELLOW + "For anvils: /enchant anvil <player> [amount]");
+            sender.sendMessage(ChatColor.YELLOW + "All fragments: /enchant give <player> all");
             return true;
         }
         
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
             sender.sendMessage(ChatColor.RED + "Player not found: " + args[1]);
-            return true;
-        }
-        
-        // Special case: "tome" gives an enchantment tome
-        if (args[2].equalsIgnoreCase("tome")) {
-            int amount = 1;
-            if (args.length >= 4) {
-                try {
-                    amount = Integer.parseInt(args[3]);
-                } catch (NumberFormatException e) {
-                    amount = 1;
-                }
-            }
-            
-            for (int i = 0; i < amount; i++) {
-                ItemStack tome = EnchantmentTome.createUnenchantedTome();
-                target.getInventory().addItem(tome);
-            }
-            sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x Enchantment Tome to " + target.getName());
-            return true;
-        }
-        
-        // Special case: "anvil" gives a custom anvil
-        if (args[2].equalsIgnoreCase("anvil")) {
-            int amount = 1;
-            if (args.length >= 4) {
-                try {
-                    amount = Integer.parseInt(args[3]);
-                } catch (NumberFormatException e) {
-                    amount = 1;
-                }
-            }
-            
-            for (int i = 0; i < amount; i++) {
-                ItemStack anvil = com.server.enchantments.items.CustomAnvil.create();
-                target.getInventory().addItem(anvil);
-            }
-            sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x Custom Anvil to " + target.getName());
             return true;
         }
         
@@ -279,6 +561,154 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                          tier.getDisplayName() + " " + element.getDisplayName() + 
                          " Fragment to " + target.getName());
         return true;
+    }
+    
+    /**
+     * /enchant tome <player> [amount] [enchanted]
+     * Give enchantment tomes to a player
+     */
+    private boolean handleGiveTome(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant tome <player> [amount] [enchanted]");
+            sender.sendMessage(ChatColor.GRAY + "amount: Number of tomes (default: 1)");
+            sender.sendMessage(ChatColor.GRAY + "enchanted: true/false - Give enchanted or blank tomes (default: false)");
+            return true;
+        }
+        
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Player not found: " + args[1]);
+            return true;
+        }
+        
+        int amount = 1;
+        if (args.length >= 3) {
+            try {
+                amount = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[2]);
+                return true;
+            }
+        }
+        
+        boolean enchanted = false;
+        if (args.length >= 4) {
+            enchanted = args[3].equalsIgnoreCase("true") || args[3].equalsIgnoreCase("enchanted");
+        }
+        
+        for (int i = 0; i < amount; i++) {
+            ItemStack tome = EnchantmentTome.createUnenchantedTome();
+            // Note: Enchanted tomes can only be created through the enchanting process
+            // This command gives blank tomes for players to enchant themselves
+            target.getInventory().addItem(tome);
+        }
+        
+        sender.sendMessage(ChatColor.GREEN + "✓ Gave " + ChatColor.WHITE + amount + "x " + 
+                         ChatColor.YELLOW + (enchanted ? "Enchanted" : "Blank") + " Tome" + 
+                         ChatColor.GREEN + " to " + ChatColor.WHITE + target.getName());
+        target.sendMessage(ChatColor.GOLD + "✦ You received " + amount + " Enchantment Tome" + 
+                          (amount > 1 ? "s" : "") + "!");
+        return true;
+    }
+    
+    /**
+     * /enchant anvil <player> [amount]
+     * Give custom anvils to a player
+     */
+    private boolean handleGiveAnvil(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant anvil <player> [amount]");
+            sender.sendMessage(ChatColor.GRAY + "amount: Number of anvils (default: 1)");
+            return true;
+        }
+        
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            sender.sendMessage(ChatColor.RED + "Player not found: " + args[1]);
+            return true;
+        }
+        
+        int amount = 1;
+        if (args.length >= 3) {
+            try {
+                amount = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(ChatColor.RED + "Invalid amount: " + args[2]);
+                return true;
+            }
+        }
+        
+        for (int i = 0; i < amount; i++) {
+            ItemStack anvil = com.server.enchantments.items.CustomAnvil.create();
+            target.getInventory().addItem(anvil);
+        }
+        
+        sender.sendMessage(ChatColor.GREEN + "✓ Gave " + ChatColor.WHITE + amount + "x " + 
+                         ChatColor.DARK_GRAY + ChatColor.BOLD + "Custom Anvil" + 
+                         ChatColor.GREEN + " to " + ChatColor.WHITE + target.getName());
+        target.sendMessage(ChatColor.GOLD + "⚒ You received " + amount + " Custom Anvil" + 
+                          (amount > 1 ? "s" : "") + "!");
+        return true;
+    }
+    
+    /**
+     * /enchant open <altar|anvil>
+     * Open enchanter or anvil GUI
+     */
+    private boolean handleOpen(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ChatColor.RED + "Only players can open GUIs!");
+            return true;
+        }
+        
+        Player player = (Player) sender;
+        
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant open <altar|anvil>");
+            sender.sendMessage(ChatColor.GRAY + "altar - Open the Enchantment Altar GUI");
+            sender.sendMessage(ChatColor.GRAY + "anvil - Open the Custom Anvil GUI");
+            return true;
+        }
+        
+        String guiType = args[1].toLowerCase();
+        
+        switch (guiType) {
+            case "altar":
+            case "enchanter":
+            case "enchantment":
+                // Open enchantment GUI
+                com.server.enchantments.gui.EnchantmentTableGUI gui = 
+                    new com.server.enchantments.gui.EnchantmentTableGUI(player);
+                
+                // Register the GUI with the listener
+                Main.getInstance().getEnchantmentGUIListener().registerGUI(player, gui);
+                
+                player.openInventory(gui.getInventory());
+                player.sendMessage(ChatColor.GOLD + "✦ Opened Enchantment Altar");
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ENCHANTMENT_TABLE_USE, 
+                               1.0f, 1.0f);
+                return true;
+                
+            case "anvil":
+            case "combine":
+                // Open anvil GUI
+                com.server.enchantments.gui.AnvilGUI anvilGui = 
+                    new com.server.enchantments.gui.AnvilGUI(player);
+                
+                // Register the GUI with the listener
+                Main.getInstance().getAnvilGUIListener().registerGUI(player, anvilGui);
+                
+                player.openInventory(anvilGui.getInventory());
+                player.sendMessage(ChatColor.DARK_GRAY + "⚒ Opened Custom Anvil");
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_LAND, 
+                               0.5f, 1.0f);
+                return true;
+                
+            default:
+                sender.sendMessage(ChatColor.RED + "Invalid GUI type: " + args[1]);
+                sender.sendMessage(ChatColor.GRAY + "Valid types: altar, anvil");
+                return true;
+        }
     }
     
     /**
@@ -656,10 +1086,18 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
     
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "=== Enchantment Commands ===");
-        sender.sendMessage(ChatColor.YELLOW + "/enchant add <enchantmentId> [quality]" + 
+        sender.sendMessage(ChatColor.YELLOW + "/enchant add <enchantmentId> [quality] [level]" + 
                          ChatColor.GRAY + " - Add enchantment to held item");
+        sender.sendMessage(ChatColor.YELLOW + "/enchant addtomeenchant <enchantmentId> [quality] [level] [applyChance]" + 
+                         ChatColor.GRAY + " - Add enchantment to tome");
         sender.sendMessage(ChatColor.YELLOW + "/enchant give <player> <element> <tier> [amount]" + 
                          ChatColor.GRAY + " - Give fragments");
+        sender.sendMessage(ChatColor.YELLOW + "/enchant tome <player> [amount]" + 
+                         ChatColor.GRAY + " - Give enchantment tomes");
+        sender.sendMessage(ChatColor.YELLOW + "/enchant anvil <player> [amount]" + 
+                         ChatColor.GRAY + " - Give custom anvils");
+        sender.sendMessage(ChatColor.YELLOW + "/enchant open <altar|anvil>" + 
+                         ChatColor.GRAY + " - Open GUI directly");
         sender.sendMessage(ChatColor.YELLOW + "/enchant test <player> <enchantment> <quality>" + 
                          ChatColor.GRAY + " - Create test item");
         sender.sendMessage(ChatColor.YELLOW + "/enchant info <enchantment_id>" + 
@@ -672,8 +1110,8 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                          ChatColor.GRAY + " - Toggle debug mode");
         sender.sendMessage(ChatColor.YELLOW + "/enchant clear <player>" + 
                          ChatColor.GRAY + " - Clear item enchantments");
-        sender.sendMessage(ChatColor.YELLOW + "/enchant spawn" + 
-                         ChatColor.GRAY + " - Spawn enchantment altar");
+        sender.sendMessage(ChatColor.YELLOW + "/enchant spawn <altar|anvil>" + 
+                         ChatColor.GRAY + " - Spawn altar or anvil");
         sender.sendMessage(ChatColor.YELLOW + "/enchant reload" + 
                          ChatColor.GRAY + " - Reload system");
     }
@@ -684,20 +1122,23 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             // First argument - subcommands
-            completions.addAll(Arrays.asList("add", "give", "test", "info", "inspect", "list", 
-                                            "debug", "clear", "reload", "spawn"));
+            completions.addAll(Arrays.asList("add", "addtomeenchant", "give", "tome", "anvil", "open", "test", "info", 
+                                            "inspect", "list", "debug", "clear", "reload", "spawn"));
         } else if (args.length == 2) {
             String subCmd = args[0].toLowerCase();
             
             // Second argument depends on subcommand
-            if (subCmd.equals("add")) {
-                // Suggest enchantment IDs for /enchant add
+            if (subCmd.equals("add") || subCmd.equals("addtomeenchant")) {
+                // Suggest enchantment IDs for /enchant add or /enchant addtomeenchant
                 completions.addAll(EnchantmentRegistry.getInstance().getAllEnchantments()
                         .stream().map(CustomEnchantment::getId).collect(Collectors.toList()));
-            } else if (subCmd.equals("give") || subCmd.equals("test") || subCmd.equals("clear") || 
-                       subCmd.equals("inspect")) {
+            } else if (subCmd.equals("give") || subCmd.equals("tome") || subCmd.equals("anvil") || 
+                       subCmd.equals("test") || subCmd.equals("clear") || subCmd.equals("inspect")) {
                 // Suggest player names
                 return null; // Bukkit will provide player names
+            } else if (subCmd.equals("open")) {
+                // Suggest GUI types
+                completions.addAll(Arrays.asList("altar", "anvil", "enchanter"));
             } else if (subCmd.equals("info")) {
                 // Suggest enchantment IDs for info
                 completions.addAll(EnchantmentRegistry.getInstance().getAllEnchantments()
@@ -715,16 +1156,14 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 3) {
             String subCmd = args[0].toLowerCase();
             
-            if (subCmd.equals("add")) {
-                // Third argument for /enchant add - quality
+            if (subCmd.equals("add") || subCmd.equals("addtomeenchant")) {
+                // Third argument for /enchant add or addtomeenchant - quality
                 for (EnchantmentQuality q : EnchantmentQuality.values()) {
                     completions.add(q.name().toLowerCase());
                 }
             } else if (subCmd.equals("give")) {
-                // Third argument for give - element type or "tome" or "anvil"
+                // Third argument for give - element type or "all"
                 completions.add("all");
-                completions.add("tome");
-                completions.add("anvil");
                 for (ElementType e : ElementType.values()) completions.add(e.name().toLowerCase());
             } else if (subCmd.equals("test")) {
                 // Third argument for test - enchantment ID
@@ -734,8 +1173,8 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 4) {
             String subCmd = args[0].toLowerCase();
             
-            if (subCmd.equals("add")) {
-                // Fourth argument for /enchant add - level (1-8)
+            if (subCmd.equals("add") || subCmd.equals("addtomeenchant")) {
+                // Fourth argument for /enchant add or addtomeenchant - level (1-8)
                 completions.addAll(Arrays.asList("1", "2", "3", "4", "5", "6", "7", "8"));
             } else if (subCmd.equals("give")) {
                 // Fourth argument for give - tier
@@ -743,6 +1182,13 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
             } else if (subCmd.equals("test")) {
                 // Fourth argument for test - quality
                 for (EnchantmentQuality q : EnchantmentQuality.values()) completions.add(q.name().toLowerCase());
+            }
+        } else if (args.length == 5) {
+            String subCmd = args[0].toLowerCase();
+            
+            if (subCmd.equals("addtomeenchant")) {
+                // Fifth argument for addtomeenchant - apply chance (0-100)
+                completions.addAll(Arrays.asList("0", "25", "50", "75", "100"));
             }
         }
         

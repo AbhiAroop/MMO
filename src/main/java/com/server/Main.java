@@ -101,6 +101,7 @@ public class Main extends JavaPlugin {
     private ScheduledExecutorService playtimeUpdateService;
     private EnchantmentTableStructure enchantmentTableStructure;
     private EnchantmentGUIListener enchantmentGUIListener;
+    private com.server.enchantments.listeners.AnvilGUIListener anvilGUIListener;
 
     // Update the onEnable method
     @Override
@@ -277,7 +278,8 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new EnchantmentTableListener(this, enchantmentTableStructure, enchantmentGUIListener), this);
         this.getServer().getPluginManager().registerEvents(enchantmentGUIListener, this);
         this.getServer().getPluginManager().registerEvents(new EnchantmentTriggerListener(), this);
-        this.getServer().getPluginManager().registerEvents(new com.server.enchantments.listeners.AnvilGUIListener(this), this);
+        anvilGUIListener = new com.server.enchantments.listeners.AnvilGUIListener(this);
+        this.getServer().getPluginManager().registerEvents(anvilGUIListener, this);
 
 
     }
@@ -593,6 +595,24 @@ public class Main extends JavaPlugin {
     }
 
     /**
+     * Get the EnchantmentGUIListener instance
+     *
+     * @return The EnchantmentGUIListener instance
+     */
+    public EnchantmentGUIListener getEnchantmentGUIListener() {
+        return enchantmentGUIListener;
+    }
+
+    /**
+     * Get the AnvilGUIListener instance
+     *
+     * @return The AnvilGUIListener instance
+     */
+    public com.server.enchantments.listeners.AnvilGUIListener getAnvilGUIListener() {
+        return anvilGUIListener;
+    }
+
+    /**
      * Start the playtime update service for real-time GUI updates
      */
     private void startPlaytimeUpdateService() {
@@ -662,8 +682,14 @@ public class Main extends JavaPlugin {
                 getLogger().info("Removed " + removed + " invalid enchantment table structures");
             }
             
+            // Start ambient particle effects around altars and anvils (every 5 ticks = 4 times/second)
+            com.server.enchantments.effects.AmbientParticleTask particleTask = 
+                new com.server.enchantments.effects.AmbientParticleTask(this, enchantmentTableStructure);
+            particleTask.runTaskTimer(this, 20L, 5L); // Start after 1 second, repeat every 5 ticks
+            
             getLogger().info("Initialized enchantment system with " + 
                 enchantmentTableStructure.getRegisteredStructures().size() + " registered structures");
+            getLogger().info("Started ambient particle effects for altars and anvils");
             
         } catch (Exception e) {
             getLogger().severe("Failed to initialize enchantment system: " + e.getMessage());

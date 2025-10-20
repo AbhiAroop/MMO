@@ -22,11 +22,15 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import com.server.Main;
+import com.server.enchantments.effects.ElementalParticles;
+import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.gui.AnvilCombiner;
 import com.server.enchantments.gui.AnvilGUI;
 import com.server.enchantments.items.EnchantmentTome;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+
+import de.tr7zw.changeme.nbtapi.NBTItem;
 
 /**
  * Handles interactions with the custom anvil GUI.
@@ -164,6 +168,9 @@ public class AnvilGUIListener implements Listener {
         gui.open();
         
         player.sendMessage(ChatColor.GREEN + "✓ Opened Custom Anvil!");
+        // Play anvil opening sound
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_LAND, 0.5f, 1.0f);
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_IRON_DOOR_OPEN, 0.3f, 0.8f);
     }
     
     /**
@@ -265,8 +272,14 @@ public class AnvilGUIListener implements Listener {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 if (!gui.canPlaceInSlot1(cursor)) {
                     player.sendMessage(ChatColor.RED + "Cannot place that item here!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return;
                 }
+                // Valid item being placed - play placement sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.1f);
+            } else if (current != null && current.getType() != Material.AIR) {
+                // Item being removed - play pickup sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.9f);
             }
             
             // Allow placing/taking
@@ -286,8 +299,14 @@ public class AnvilGUIListener implements Listener {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 if (!gui.canPlaceInSlot2(cursor)) {
                     player.sendMessage(ChatColor.RED + "Cannot place that item here!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return;
                 }
+                // Valid item being placed - play placement sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.1f);
+            } else if (current != null && current.getType() != Material.AIR) {
+                // Item being removed - play pickup sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.9f);
             }
             
             // Allow placing/taking
@@ -346,6 +365,12 @@ public class AnvilGUIListener implements Listener {
         
         // Set preview with uncertainty flag
         gui.setPreviewOutput(preview.getResult(), preview.getXpCost(), preview.getEssenceCost(), preview.hasUncertainty());
+        
+        // Play subtle preview update sound
+        Player player = gui.getPlayer();
+        if (player != null) {
+            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.3f, 2.0f);
+        }
     }
     
     /**
@@ -365,6 +390,7 @@ public class AnvilGUIListener implements Listener {
         // Check if player has enough XP
         if (player.getLevel() < xpCost) {
             player.sendMessage(ChatColor.RED + "Not enough XP! Need " + xpCost + " levels.");
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
             return;
         }
         
@@ -387,8 +413,13 @@ public class AnvilGUIListener implements Listener {
         
         if (profile.getEssence() < essenceCost) {
             player.sendMessage(ChatColor.RED + "Not enough essence! Need " + essenceCost + " essence.");
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
             return;
         }
+        
+        // Play anvil working sounds
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1.0f, 1.0f);
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.7f, 1.2f);
         
         // Consume costs
         player.setLevel(player.getLevel() - xpCost);
@@ -429,21 +460,38 @@ public class AnvilGUIListener implements Listener {
                 updatePreview(gui);
             }, 1L);
             
-            player.sendMessage(ChatColor.RED + "✗ All enchantments failed to apply!");
-            player.sendMessage(ChatColor.GRAY + "Lost: " + ChatColor.YELLOW + xpCost + " XP" + 
-                              ChatColor.GRAY + ", " + ChatColor.YELLOW + essenceCost + " Essence" +
-                              ChatColor.GRAY + ", and the tome");
-            player.sendMessage(ChatColor.GREEN + "Returned: Your item (unchanged)");
+            // Send formatted failure message
+            player.sendMessage("");
+            player.sendMessage(ChatColor.DARK_GRAY + "╔══════════════════════════════════════════╗");
+            player.sendMessage(ChatColor.DARK_GRAY + "║ " + ChatColor.RED + "✗ ALL ENCHANTMENTS FAILED" + ChatColor.DARK_GRAY + "                 ║");
+            player.sendMessage(ChatColor.DARK_GRAY + "╠══════════════════════════════════════════╣");
+            player.sendMessage(ChatColor.DARK_GRAY + "║ " + ChatColor.GRAY + "Lost: " + ChatColor.YELLOW + xpCost + " XP, " + 
+                              essenceCost + " Essence, Tome" + ChatColor.DARK_GRAY + "   ║");
+            player.sendMessage(ChatColor.DARK_GRAY + "║ " + ChatColor.GREEN + "Returned: " + ChatColor.GRAY + "Your item (unchanged)" + ChatColor.DARK_GRAY + "       ║");
+            player.sendMessage(ChatColor.DARK_GRAY + "╚══════════════════════════════════════════╝");
+            player.sendMessage("");
+            
+            // Play failure sounds
+            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 0.5f, 0.8f);
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_BREAK, 0.7f, 0.5f);
             return;
         } else if (actualResult == null) {
             // Invalid combination for non-tome operations
-            player.sendMessage(ChatColor.RED + "Invalid combination!");
+            player.sendMessage(ChatColor.RED + "✗ Invalid combination!");
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
             return;
         }
         
         // Give result to player
         ItemStack cleanResult = actualResult.getResult();
         player.getInventory().addItem(cleanResult);
+        
+        // Give refund to player if any (e.g., excess fragments)
+        if (actualResult.hasRefund()) {
+            player.getInventory().addItem(actualResult.getRefund());
+            player.sendMessage(ChatColor.YELLOW + "⟳ Refunded " + actualResult.getRefund().getAmount() + 
+                             " excess fragments (enchants already at 100%)");
+        }
         
         // Consume input items
         ItemStack slot1Item = gui.getInventory().getItem(AnvilGUI.INPUT_SLOT_1);
@@ -472,9 +520,50 @@ public class AnvilGUIListener implements Listener {
             updatePreview(gui);
         }, 1L);
         
-        player.sendMessage(ChatColor.GREEN + "✓ Items combined successfully!");
-        player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + xpCost + " XP" + 
-                          ChatColor.GRAY + " & " + ChatColor.YELLOW + essenceCost + " Essence");
+        // Send formatted success message
+        player.sendMessage("");
+        player.sendMessage(ChatColor.DARK_GRAY + "╔══════════════════════════════════════════╗");
+        player.sendMessage(ChatColor.DARK_GRAY + "║ " + ChatColor.GREEN + "✓ ITEMS COMBINED SUCCESSFULLY" + ChatColor.DARK_GRAY + "             ║");
+        player.sendMessage(ChatColor.DARK_GRAY + "╠══════════════════════════════════════════╣");
+        player.sendMessage(ChatColor.DARK_GRAY + "║ " + ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + xpCost + " XP " + 
+                          ChatColor.GRAY + "& " + ChatColor.YELLOW + essenceCost + " Essence" + ChatColor.DARK_GRAY + "              ║");
+        player.sendMessage(ChatColor.DARK_GRAY + "╚══════════════════════════════════════════╝");
+        player.sendMessage("");
+        
+        // Play success sounds
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
+        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+        
+        // Spawn particle effects based on the result
+        // Extract enchantment elements from the result item
+        java.util.List<ElementType> resultElements = new java.util.ArrayList<>();
+        NBTItem nbtResult = new NBTItem(cleanResult);
+        if (nbtResult.hasTag("MMO_EnchantCount")) {
+            int enchantCount = nbtResult.getInteger("MMO_EnchantCount");
+            for (int i = 0; i < enchantCount; i++) {
+                String prefix = "MMO_Enchant_" + i + "_";
+                if (nbtResult.hasTag(prefix + "ID")) {
+                    String enchantID = nbtResult.getString(prefix + "ID");
+                    com.server.enchantments.data.CustomEnchantment enchant = 
+                        com.server.enchantments.EnchantmentRegistry.getInstance().getEnchantment(enchantID);
+                    if (enchant != null && enchant.getElement() != null) {
+                        resultElements.add(enchant.getElement());
+                    }
+                }
+            }
+        }
+        
+        // Spawn particles for each unique element
+        java.util.Set<ElementType> uniqueElements = new java.util.HashSet<>(resultElements);
+        for (ElementType element : uniqueElements) {
+            ElementalParticles.spawnElementalBurst(player.getLocation().add(0, 1, 0), element, 0.8);
+        }
+        
+        // Create ring effect if we have enchantments
+        if (!uniqueElements.isEmpty()) {
+            ElementType primaryElement = resultElements.get(0);
+            ElementalParticles.spawnElementalRing(player.getLocation().add(0, 0.1, 0), primaryElement, 1.2);
+        }
     }
     
     /**
@@ -504,6 +593,9 @@ public class AnvilGUIListener implements Listener {
         if (input2 != null && input2.getType() != Material.AIR) {
             player.getInventory().addItem(input2);
         }
+        
+        // Play closing sound
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_CHEST_CLOSE, 0.7f, 1.0f);
         
         // Unregister GUI
         activeGUIs.remove(player.getUniqueId());

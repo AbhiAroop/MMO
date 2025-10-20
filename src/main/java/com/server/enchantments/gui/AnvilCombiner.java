@@ -685,19 +685,20 @@ public class AnvilCombiner {
         }
         
         // Get fragment amount
-        int fragmentCount = fragments.getAmount();
-        int boostAmount = Math.min(fragmentCount * 5, 25); // 5% per fragment, max 25%
+        int availableFragments = fragments.getAmount();
         
         // Clone tome and update apply chances
         ItemStack result = tome.clone();
         NBTItem resultNBT = new NBTItem(result);
         
         int boostedCount = 0;
+        int maxFragmentsNeeded = 0; // Track the maximum fragments needed for any enchantment
         Map<String, Integer> newApplyChances = new HashMap<>();
         
+        // First pass: determine how many fragments are needed for each matching enchantment
         for (int i = 0; i < enchants.size(); i++) {
             EnchantmentData enchant = enchants.get(i);
-            String prefix = "MMO_Enchantment_" + i + "_";
+            String prefix = "MMO_Enchant_" + i + "_";
             int currentChance = resultNBT.getInteger(prefix + "ApplyChance");
             
             // Check if enchantment matches fragment element
@@ -713,10 +714,46 @@ public class AnvilCombiner {
             }
             
             if (matches) {
+                // Calculate how many fragments needed to reach 100% (5% per fragment)
+                int chanceNeeded = 100 - currentChance;
+                int fragmentsNeeded = (int) Math.ceil(chanceNeeded / 5.0);
+                maxFragmentsNeeded = Math.max(maxFragmentsNeeded, fragmentsNeeded);
+                boostedCount++;
+            }
+        }
+        
+        // If no enchantments boosted, return null
+        if (boostedCount == 0) {
+            return null;
+        }
+        
+        // Calculate actual fragments to consume (minimum of available and needed)
+        int fragmentsToConsume = Math.min(availableFragments, maxFragmentsNeeded);
+        int boostAmount = fragmentsToConsume * 5; // 5% per fragment
+        
+        // Second pass: apply the boost to all matching enchantments
+        for (int i = 0; i < enchants.size(); i++) {
+            EnchantmentData enchant = enchants.get(i);
+            String prefix = "MMO_Enchant_" + i + "_";
+            int currentChance = resultNBT.getInteger(prefix + "ApplyChance");
+            
+            // Check if enchantment matches fragment element
+            boolean matches = false;
+            if (enchant.getElement() == fragmentElement) {
+                matches = true;
+            } else if (enchant.getHybridElement() != null) {
+                // Check hybrid elements
+                if (enchant.getHybridElement().getPrimary() == fragmentElement ||
+                    enchant.getHybridElement().getSecondary() == fragmentElement) {
+                    matches = true;
+                }
+            }
+            
+            if (matches) {
+                // Apply boost, capped at 100%
                 int newChance = Math.min(currentChance + boostAmount, 100);
                 resultNBT.setInteger(prefix + "ApplyChance", newChance);
                 newApplyChances.put(enchant.getEnchantmentId(), newChance);
-                boostedCount++;
             } else {
                 newApplyChances.put(enchant.getEnchantmentId(), currentChance);
             }
@@ -724,19 +761,22 @@ public class AnvilCombiner {
         
         result = resultNBT.getItem();
         
-        // If no enchantments boosted, return null
-        if (boostedCount == 0) {
-            return null;
-        }
-        
         // Rebuild lore with updated apply chances
         result = rebuildTomeLore(result, enchants, newApplyChances);
         
         // Calculate cost
         int xpCost = BASE_XP_COST * boostedCount;
-        int essenceCost = BASE_ESSENCE_COST * fragmentCount;
+        int essenceCost = BASE_ESSENCE_COST * fragmentsToConsume;
         
-        return new CombineResult(result, xpCost, essenceCost);
+        // Calculate refund (excess fragments)
+        ItemStack refund = null;
+        int excessFragments = availableFragments - fragmentsToConsume;
+        if (excessFragments > 0) {
+            refund = fragments.clone();
+            refund.setAmount(excessFragments);
+        }
+        
+        return new CombineResult(result, xpCost, essenceCost, refund);
     }
     
     /**
@@ -914,11 +954,20 @@ public class AnvilCombiner {
         private final ItemStack result;
         private final int xpCost;
         private final int essenceCost;
+        private final ItemStack refund; // Optional refund item (e.g., excess fragments)
         
         public CombineResult(ItemStack result, int xpCost, int essenceCost) {
             this.result = result;
             this.xpCost = xpCost;
             this.essenceCost = essenceCost;
+            this.refund = null;
+        }
+        
+        public CombineResult(ItemStack result, int xpCost, int essenceCost, ItemStack refund) {
+            this.result = result;
+            this.xpCost = xpCost;
+            this.essenceCost = essenceCost;
+            this.refund = refund;
         }
         
         public ItemStack getResult() {
@@ -931,6 +980,14 @@ public class AnvilCombiner {
         
         public int getEssenceCost() {
             return essenceCost;
+        }
+        
+        public ItemStack getRefund() {
+            return refund;
+        }
+        
+        public boolean hasRefund() {
+            return refund != null && refund.getAmount() > 0;
         }
     }
 }

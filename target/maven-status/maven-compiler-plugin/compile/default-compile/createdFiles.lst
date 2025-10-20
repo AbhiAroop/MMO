@@ -82,7 +82,9 @@ com\server\display\ScoreboardManager$2.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\AdminProfileCommand.class
 com\server\enchantments\gui\EnchantmentApplicator$FragmentData.class
+com\server\enchantments\effects\AmbientParticleTask.class
 com\server\commands\NPCCommand.class
+com\server\enchantments\effects\ElementalParticles$1.class
 com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
 com\server\profiles\skills\data\PlayerSkillData.class
@@ -232,6 +234,7 @@ com\server\enchantments\gui\AnvilCombiner.class
 com\server\enchantments\listeners\EnchantmentTriggerListener.class
 com\server\enchantments\abilities\utility\PureReflection$1.class
 com\server\commands\StatsCommand.class
+com\server\enchantments\effects\ElementalParticles.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
 com\server\enchantments\abilities\offensive\Embershade$1.class
 com\server\enchantments\items\CustomAnvil.class

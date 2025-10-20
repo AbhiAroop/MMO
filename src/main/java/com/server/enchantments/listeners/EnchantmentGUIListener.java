@@ -122,13 +122,21 @@ public class EnchantmentGUIListener implements Listener {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 if (ElementalFragment.isFragment(cursor)) {
                     player.sendMessage(ChatColor.RED + "Cannot enchant a fragment!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return; // Stay cancelled
                 }
                 
                 if (!gui.canEnchant(cursor)) {
                     player.sendMessage(ChatColor.RED + "This item cannot be enchanted!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return; // Stay cancelled
                 }
+                
+                // Valid item being placed - play success sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.2f);
+            } else if (current != null && current.getType() != Material.AIR) {
+                // Item being removed - play pickup sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.9f);
             }
             // Validation passed - un-cancel to allow natural Minecraft behavior
             event.setCancelled(false);
@@ -149,8 +157,14 @@ public class EnchantmentGUIListener implements Listener {
             if (cursor != null && cursor.getType() != Material.AIR) {
                 if (!ElementalFragment.isFragment(cursor)) {
                     player.sendMessage(ChatColor.RED + "Only fragments can be placed here!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return; // Stay cancelled
                 }
+                // Valid fragment being placed - play mystic sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_AMETHYST_BLOCK_PLACE, 0.7f, 1.3f);
+            } else if (current != null && current.getType() != Material.AIR) {
+                // Fragment being removed - play pickup sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_AMETHYST_BLOCK_BREAK, 0.5f, 1.1f);
             }
             // Validation passed - un-cancel to allow natural Minecraft behavior
             event.setCancelled(false);
@@ -172,12 +186,16 @@ public class EnchantmentGUIListener implements Listener {
                 ItemStack itemToEnchant = gui.getItemToEnchant();
                 if (itemToEnchant != null && !gui.canEnchant(itemToEnchant)) {
                     player.sendMessage(ChatColor.RED + "This item cannot be enchanted!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
                     return; // Stay cancelled
                 }
                 
+                // Play enchanting initiation sound
+                player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1.0f, 1.0f);
                 handleEnchantment(player, gui);
             } else {
                 player.sendMessage(ChatColor.RED + "Cannot enchant! Place an item and 1-3 fragments.");
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
             }
             return; // Stay cancelled
         }
@@ -194,6 +212,8 @@ public class EnchantmentGUIListener implements Listener {
                 }
             }
             
+            // Play cancel/close sound
+            player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_CHEST_CLOSE, 0.7f, 1.0f);
             player.closeInventory();
             return; // Stay cancelled
         }
@@ -224,6 +244,10 @@ public class EnchantmentGUIListener implements Listener {
             player.getInventory().addItem(current);
             gui.getInventory().setItem(slot, createOutputPlaceholder());
             player.sendMessage(ChatColor.GREEN + "✓ Enchanted item received!");
+            
+            // Play success sound for taking enchanted item
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+            player.playSound(player.getLocation(), org.bukkit.Sound.ITEM_ARMOR_EQUIP_NETHERITE, 0.8f, 1.2f);
             
             // Update the enchant button state after taking item
             org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
