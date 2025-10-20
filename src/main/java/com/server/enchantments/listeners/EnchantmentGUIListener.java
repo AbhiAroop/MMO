@@ -224,6 +224,12 @@ public class EnchantmentGUIListener implements Listener {
             player.getInventory().addItem(current);
             gui.getInventory().setItem(slot, createOutputPlaceholder());
             player.sendMessage(ChatColor.GREEN + "✓ Enchanted item received!");
+            
+            // Update the enchant button state after taking item
+            org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                gui.syncWithInventory();
+            }, 1L);
+            
             if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
                 Main.getInstance().debugLog(DebugSystem.GUI, "[Enchant GUI] Output slot - gave enchanted item");
             }

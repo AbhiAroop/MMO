@@ -359,11 +359,19 @@ public class EnchantmentTableGUI {
      */
     public boolean isReadyToEnchant() {
         int fragmentCount = placedFragments.size();
-        // Must have item, correct fragment count, AND item must be enchantable
+        ItemStack outputItem = inventory.getItem(OUTPUT_SLOT);
+        
+        // Check if output slot is empty or contains placeholder
+        boolean outputSlotEmpty = outputItem == null 
+            || outputItem.getType() == Material.AIR 
+            || outputItem.getType() == Material.LIME_STAINED_GLASS_PANE;
+        
+        // Must have item, correct fragment count, item must be enchantable, AND output slot must be empty
         return itemToEnchant != null 
             && fragmentCount >= 1 
             && fragmentCount <= 3 
-            && canEnchant(itemToEnchant);
+            && canEnchant(itemToEnchant)
+            && outputSlotEmpty;
     }
     
     /**
@@ -403,6 +411,15 @@ public class EnchantmentTableGUI {
             }
             if (placedFragments.size() > 3) {
                 lore.add(ChatColor.GRAY + "Maximum 3 fragments allowed");
+            }
+            
+            // Check if output slot is blocked
+            ItemStack outputItem = inventory.getItem(OUTPUT_SLOT);
+            boolean outputBlocked = outputItem != null 
+                && outputItem.getType() != Material.AIR 
+                && outputItem.getType() != Material.LIME_STAINED_GLASS_PANE;
+            if (outputBlocked) {
+                lore.add(ChatColor.RED + "Remove item from output slot!");
             }
             
             meta.setLore(lore);

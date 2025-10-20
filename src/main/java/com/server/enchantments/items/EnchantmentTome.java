@@ -141,13 +141,15 @@ public class EnchantmentTome {
         NBTItem targetNBT = new NBTItem(enchantedTome);
         
         // Copy all enchantment NBT data
-        int enchantCount = sourceNBT.getInteger("MMO_EnchantmentCount");
+        // Use enchantments.size() as the source of truth for enchantment count
+        int enchantCount = enchantments.size();
         targetNBT.setInteger("MMO_EnchantmentCount", enchantCount);
         
-        // Store apply chances for use in lore
-        int[] applyChances = new int[enchantCount];
+        // Store apply chances for use in lore (use enchantments list size as source of truth)
+        int[] applyChances = new int[enchantments.size()];
         
-        for (int i = 0; i < enchantCount; i++) {
+        // Use enchantments.size() as source of truth for iteration
+        for (int i = 0; i < enchantments.size(); i++) {
             String prefix = "MMO_Enchantment_" + i + "_";
             
             // Copy all enchantment data
