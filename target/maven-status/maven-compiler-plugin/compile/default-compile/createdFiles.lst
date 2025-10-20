@@ -19,6 +19,7 @@ com\server\display\ScoreboardManager$1.class
 com\server\commands\AnimationDebugCommand.class
 com\server\enchantments\elements\CategorizedAffinity$1.class
 com\server\entities\npc\types\HostileNPC$1.class
+com\server\enchantments\listeners\AnvilGUIListener.class
 com\server\profiles\stats\ElementalAffinity.class
 com\server\enchantments\abilities\utility\GaleStep.class
 com\server\crafting\gui\AdvancedCraftingGUI.class
@@ -131,6 +132,7 @@ com\server\display\ScoreboardManager.class
 com\server\display\ActionBarManager.class
 com\server\profiles\skills\rewards\rewards\CurrencyReward.class
 com\server\debug\DebugManager$DebugSystem.class
+com\server\enchantments\gui\AnvilGUI.class
 com\server\events\ItemListener.class
 com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
@@ -158,6 +160,7 @@ com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\events\AutoRespawnListener$1.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
+com\server\enchantments\gui\AnvilCombiner$PreviewResult.class
 com\server\commands\AdminSkillsCommand$SkillState.class
 com\server\crafting\recipes\FurnaceRecipeRegistry.class
 com\server\entities\npc\dialogue\DialogueManager$1.class
@@ -225,11 +228,13 @@ com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
 com\server\crafting\recipes\FurnaceRecipe.class
 com\server\enchantments\abilities\offensive\Voltbrand.class
+com\server\enchantments\gui\AnvilCombiner.class
 com\server\enchantments\listeners\EnchantmentTriggerListener.class
 com\server\enchantments\abilities\utility\PureReflection$1.class
 com\server\commands\StatsCommand.class
 com\server\entities\mobs\colossus\DuneetchedColossus.class
 com\server\enchantments\abilities\offensive\Embershade$1.class
+com\server\enchantments\items\CustomAnvil.class
 com\server\enchantments\abilities\defensive\Mistveil.class
 com\server\entities\npc\types\HostileNPC.class
 com\server\cosmetics\CosmeticManager$1.class
@@ -318,6 +323,7 @@ com\server\entities\npc\CombatHandler$2.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession.class
 com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.class
 com\server\enchantments\data\EnchantmentRarity.class
+com\server\enchantments\gui\AnvilCombiner$CombineResult.class
 com\server\entities\CustomMobStats.class
 com\server\profiles\skills\skills\mining\subskills\GemCarvingSubskill.class
 com\server\enchantments\gui\EnchantmentTableGUI.class

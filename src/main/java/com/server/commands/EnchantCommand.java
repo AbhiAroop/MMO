@@ -220,6 +220,25 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
+        // Special case: "anvil" gives a custom anvil
+        if (args[2].equalsIgnoreCase("anvil")) {
+            int amount = 1;
+            if (args.length >= 4) {
+                try {
+                    amount = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    amount = 1;
+                }
+            }
+            
+            for (int i = 0; i < amount; i++) {
+                ItemStack anvil = com.server.enchantments.items.CustomAnvil.create();
+                target.getInventory().addItem(anvil);
+            }
+            sender.sendMessage(ChatColor.GREEN + "Gave " + amount + "x Custom Anvil to " + target.getName());
+            return true;
+        }
+        
         // Special case: "all" gives all fragments
         if (args[2].equalsIgnoreCase("all")) {
             FragmentRegistry.giveAllFragments(target);
@@ -524,7 +543,29 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
+        // Check if spawning altar or anvil
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "Usage: /enchant spawn <altar|anvil>");
+            return true;
+        }
+        
         Player player = (Player) sender;
+        String type = args[1].toLowerCase();
+        
+        if (type.equals("altar")) {
+            return spawnAltar(player);
+        } else if (type.equals("anvil")) {
+            return spawnAnvil(player);
+        } else {
+            sender.sendMessage(ChatColor.RED + "Invalid type! Use 'altar' or 'anvil'");
+            return true;
+        }
+    }
+    
+    /**
+     * Spawns an enchantment altar at player location
+     */
+    private boolean spawnAltar(Player player) {
         Location spawnLoc = player.getLocation();
         
         // Position armor stand lower so enchanting table helmet is at floor level
@@ -559,6 +600,43 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
         
         player.sendMessage(ChatColor.GREEN + "Spawned enchantment altar at your location!");
         player.sendMessage(ChatColor.GRAY + "Right-click the enchanting table to use it.");
+        return true;
+    }
+    
+    /**
+     * Spawns a custom anvil at player location
+     */
+    private boolean spawnAnvil(Player player) {
+        Location spawnLoc = player.getLocation();
+        
+        // Position armor stand lower so anvil helmet is at floor level
+        Location armorStandLoc = spawnLoc.clone().subtract(0, 1.5, 0);
+        
+        // Spawn armor stand
+        ArmorStand anvil = (ArmorStand) player.getWorld().spawnEntity(armorStandLoc, EntityType.ARMOR_STAND);
+        
+        // Configure armor stand
+        anvil.setGravity(false);
+        anvil.setVisible(false);  // Invisible armor stand
+        anvil.setArms(false);
+        anvil.setBasePlate(false);
+        anvil.setMarker(false);  // NOT marker mode - needs hitbox for interaction!
+        anvil.setInvulnerable(true);
+        anvil.setCustomName(ChatColor.DARK_GRAY + "" + ChatColor.BOLD + "⚒ Custom Anvil ⚒");
+        anvil.setCustomNameVisible(true);
+        anvil.setPersistent(true);
+        
+        // Set anvil as helmet (positioned at floor level)
+        ItemStack helmet = new ItemStack(Material.ANVIL);
+        anvil.getEquipment().setHelmet(helmet, true);
+        
+        // Lock equipment slots so helmet can't be removed
+        for (org.bukkit.inventory.EquipmentSlot slot : org.bukkit.inventory.EquipmentSlot.values()) {
+            anvil.addEquipmentLock(slot, org.bukkit.entity.ArmorStand.LockType.REMOVING_OR_CHANGING);
+        }
+        
+        player.sendMessage(ChatColor.GREEN + "Spawned custom anvil at your location!");
+        player.sendMessage(ChatColor.GRAY + "Right-click the anvil to use it.");
         return true;
     }
     
@@ -630,6 +708,9 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                 for (EnchantmentRarity r : EnchantmentRarity.values()) completions.add(r.name().toLowerCase());
             } else if (subCmd.equals("debug")) {
                 completions.addAll(Arrays.asList("on", "off"));
+            } else if (subCmd.equals("spawn")) {
+                // Suggest altar or anvil
+                completions.addAll(Arrays.asList("altar", "anvil"));
             }
         } else if (args.length == 3) {
             String subCmd = args[0].toLowerCase();
@@ -640,9 +721,10 @@ public class EnchantCommand implements CommandExecutor, TabCompleter {
                     completions.add(q.name().toLowerCase());
                 }
             } else if (subCmd.equals("give")) {
-                // Third argument for give - element type or "tome"
+                // Third argument for give - element type or "tome" or "anvil"
                 completions.add("all");
                 completions.add("tome");
+                completions.add("anvil");
                 for (ElementType e : ElementType.values()) completions.add(e.name().toLowerCase());
             } else if (subCmd.equals("test")) {
                 // Third argument for test - enchantment ID

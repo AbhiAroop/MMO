@@ -123,6 +123,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\Abili
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\items\ElementalFragment.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\listeners\EnchantmentTriggerListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\farming\FarmingSkill.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\items\CustomAnvil.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillExpGainEvent.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\AbstractSkillAbility.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.java
@@ -130,6 +131,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\utils\Curren
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilitiesGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\furnace\FurnaceType.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\CurrencyReward.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\AnvilGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillProgressionManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\CombatNPC.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminTokensCommand.java
@@ -170,6 +172,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\ItemTy
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\MistborneTempest.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Dawnstrike.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AutoCraftingGUI.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\AnvilCombiner.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\tokens\SkillToken.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTreeNode.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CosmeticCommand.java
@@ -186,6 +189,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ski
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\SkillRewardType.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\items\EnchantmentTome.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCInteractionHandler.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\listeners\AnvilGUIListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\CraftingCommand.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\minigames\GemCarvingMinigame.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\MiningSkill.java

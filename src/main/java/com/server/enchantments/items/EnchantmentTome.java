@@ -140,19 +140,24 @@ public class EnchantmentTome {
         NBTItem sourceNBT = new NBTItem(unenchantedTome);
         NBTItem targetNBT = new NBTItem(enchantedTome);
         
+        // Debug: Check what's in source
+        System.out.println("[Tome] [DEBUG] Source NBT keys: " + sourceNBT.getKeys());
+        System.out.println("[Tome] [DEBUG] Source EnchantmentCount: " + sourceNBT.getInteger("MMO_EnchantCount"));
+        
         // Copy all enchantment NBT data
         // Use enchantments.size() as the source of truth for enchantment count
         int enchantCount = enchantments.size();
-        targetNBT.setInteger("MMO_EnchantmentCount", enchantCount);
+        targetNBT.setInteger("MMO_EnchantCount", enchantCount);
         
         // Store apply chances for use in lore (use enchantments list size as source of truth)
         int[] applyChances = new int[enchantments.size()];
         
         // Use enchantments.size() as source of truth for iteration
         for (int i = 0; i < enchantments.size(); i++) {
-            String prefix = "MMO_Enchantment_" + i + "_";
+            // FIXED: Use correct prefix "MMO_Enchant_" not "MMO_Enchantment_"
+            String prefix = "MMO_Enchant_" + i + "_";
             
-            // Copy all enchantment data
+            // Copy all enchantment data (with correct types!)
             if (sourceNBT.hasKey(prefix + "ID")) {
                 targetNBT.setString(prefix + "ID", sourceNBT.getString(prefix + "ID"));
             }
@@ -160,7 +165,23 @@ public class EnchantmentTome {
                 targetNBT.setString(prefix + "Quality", sourceNBT.getString(prefix + "Quality"));
             }
             if (sourceNBT.hasKey(prefix + "Level")) {
-                targetNBT.setString(prefix + "Level", sourceNBT.getString(prefix + "Level"));
+                targetNBT.setInteger(prefix + "Level", sourceNBT.getInteger(prefix + "Level")); // INTEGER not STRING!
+            }
+            if (sourceNBT.hasKey(prefix + "StatCount")) {
+                int statCount = sourceNBT.getInteger(prefix + "StatCount");
+                targetNBT.setInteger(prefix + "StatCount", statCount);
+                // Copy all stat values
+                for (int j = 0; j < statCount; j++) {
+                    if (sourceNBT.hasKey(prefix + "Stat_" + j)) {
+                        targetNBT.setDouble(prefix + "Stat_" + j, sourceNBT.getDouble(prefix + "Stat_" + j));
+                    }
+                }
+            }
+            if (sourceNBT.hasKey(prefix + "Affinity")) {
+                targetNBT.setInteger(prefix + "Affinity", sourceNBT.getInteger(prefix + "Affinity"));
+            }
+            if (sourceNBT.hasKey(prefix + "Type")) {
+                targetNBT.setString(prefix + "Type", sourceNBT.getString(prefix + "Type"));
             }
             if (sourceNBT.hasKey(prefix + "Element")) {
                 targetNBT.setString(prefix + "Element", sourceNBT.getString(prefix + "Element"));

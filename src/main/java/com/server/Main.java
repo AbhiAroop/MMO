@@ -277,6 +277,7 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new EnchantmentTableListener(this, enchantmentTableStructure, enchantmentGUIListener), this);
         this.getServer().getPluginManager().registerEvents(enchantmentGUIListener, this);
         this.getServer().getPluginManager().registerEvents(new EnchantmentTriggerListener(), this);
+        this.getServer().getPluginManager().registerEvents(new com.server.enchantments.listeners.AnvilGUIListener(this), this);
 
 
     }
