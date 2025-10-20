@@ -108,6 +108,34 @@ public class Main extends JavaPlugin {
     public void onEnable() {
         instance = this;
         
+        // Check if ModelEngine is loaded
+        if (getServer().getPluginManager().getPlugin("ModelEngine") == null) {
+            getLogger().severe("========================================");
+            getLogger().severe("ModelEngine plugin not found!");
+            getLogger().severe("This plugin requires ModelEngine to work.");
+            getLogger().severe("Please install ModelEngine and restart the server.");
+            getLogger().severe("========================================");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+        
+        // Schedule a delayed check for ModelEngine API initialization
+        // ModelEngine loads models asynchronously, so we need to wait
+        getServer().getScheduler().runTaskLater(this, () -> {
+            if (com.ticxo.modelengine.api.ModelEngineAPI.getAPI() == null) {
+                getLogger().severe("========================================");
+                getLogger().severe("ModelEngine API failed to initialize!");
+                getLogger().severe("Custom mobs will NOT work properly.");
+                getLogger().severe("Please check ModelEngine configuration.");
+                getLogger().severe("========================================");
+            } else {
+                getLogger().info("========================================");
+                getLogger().info("ModelEngine API successfully initialized!");
+                getLogger().info("Custom mobs are ready to spawn.");
+                getLogger().info("========================================");
+            }
+        }, 100L); // Wait 5 seconds (100 ticks) for ModelEngine to fully load
+        
         // Initialize managers
         actionBarManager = new ActionBarManager(this);
         actionBarManager.startActionBarUpdates();

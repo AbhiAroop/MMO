@@ -88,6 +88,13 @@ public class CustomEntityManager {
             return null;
         }
         
+        // Check if ModelEngine API is initialized
+        if (ModelEngineAPI.getAPI() == null) {
+            plugin.getLogger().severe("ModelEngine API is not initialized! Make sure ModelEngine plugin is installed and loaded.");
+            plugin.getLogger().severe("Cannot spawn custom mob with model: " + modelId);
+            return null;
+        }
+        
         // Spawn the base entity
         Entity entity = location.getWorld().spawnEntity(location, type);
         if (!(entity instanceof LivingEntity)) {
