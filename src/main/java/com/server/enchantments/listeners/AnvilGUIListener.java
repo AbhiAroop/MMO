@@ -26,6 +26,7 @@ import com.server.enchantments.effects.ElementalParticles;
 import com.server.enchantments.elements.ElementType;
 import com.server.enchantments.gui.AnvilCombiner;
 import com.server.enchantments.gui.AnvilGUI;
+import com.server.enchantments.gui.GUIAnimationHandler;
 import com.server.enchantments.items.EnchantmentTome;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -322,21 +323,50 @@ public class AnvilGUIListener implements Listener {
         
         // Handle output slot
         if (gui.isOutputSlot(slot)) {
+            // Check if animation is active - clicking skips it
+            if (GUIAnimationHandler.hasActiveAnimation(player)) {
+                GUIAnimationHandler.skipAnimation(player);
+                player.sendMessage(ChatColor.YELLOW + "Animation skipped!");
+                return;
+            }
+            
             // Block placing items
             if (cursor != null && cursor.getType() != Material.AIR) {
                 player.sendMessage(ChatColor.RED + "Cannot place items in output slot!");
                 return;
             }
             
-            // Check if placeholder (can be red or green glass pane)
+            // Check if placeholder or animation frame (colored glass panes)
             if (current == null || current.getType() == Material.AIR || 
                 current.getType() == Material.LIME_STAINED_GLASS_PANE ||
-                current.getType() == Material.RED_STAINED_GLASS_PANE) {
-                return; // Can't take placeholder
+                current.getType() == Material.RED_STAINED_GLASS_PANE ||
+                current.getType().name().contains("STAINED_GLASS_PANE")) {
+                // If it's a preview (green/red pane), try to combine
+                if (current != null && (current.getType() == Material.LIME_STAINED_GLASS_PANE || 
+                                       current.getType() == Material.RED_STAINED_GLASS_PANE)) {
+                    handleCombine(player, gui);
+                }
+                return; // Can't take placeholder or animation frames
             }
             
-            // Try to perform combine
-            handleCombine(player, gui);
+            // It's an actual result - give to player
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(current);
+            if (!leftover.isEmpty()) {
+                // Inventory full - drop on ground
+                for (ItemStack item : leftover.values()) {
+                    player.getWorld().dropItem(player.getLocation(), item);
+                }
+                player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Combined item dropped on ground.");
+            }
+            gui.getInventory().setItem(slot, null);
+            player.sendMessage(ChatColor.GREEN + "✓ Combined item received!");
+            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+            
+            // Update preview
+            org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                gui.syncWithInventory();
+                updatePreview(gui);
+            }, 1L);
             return;
         }
         
@@ -482,18 +512,11 @@ public class AnvilGUIListener implements Listener {
             return;
         }
         
-        // Give result to player
-        ItemStack cleanResult = actualResult.getResult();
-        player.getInventory().addItem(cleanResult);
+        // Store result and refund for later
+        final ItemStack cleanResult = actualResult.getResult();
+        final ItemStack refund = actualResult.hasRefund() ? actualResult.getRefund() : null;
         
-        // Give refund to player if any (e.g., excess fragments)
-        if (actualResult.hasRefund()) {
-            player.getInventory().addItem(actualResult.getRefund());
-            player.sendMessage(ChatColor.YELLOW + "⟳ Refunded " + actualResult.getRefund().getAmount() + 
-                             " excess fragments (enchants already at 100%)");
-        }
-        
-        // Consume input items
+        // Consume input items IMMEDIATELY
         ItemStack slot1Item = gui.getInventory().getItem(AnvilGUI.INPUT_SLOT_1);
         ItemStack slot2Item = gui.getInventory().getItem(AnvilGUI.INPUT_SLOT_2);
         
@@ -514,12 +537,6 @@ public class AnvilGUIListener implements Listener {
         // Clear GUI state
         gui.clearInputs();
         
-        // Sync after changes
-        org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-            gui.syncWithInventory();
-            updatePreview(gui);
-        }, 1L);
-        
         // Send formatted success message
         player.sendMessage("");
         player.sendMessage(ChatColor.DARK_GRAY + "╔══════════════════════════════════════════╗");
@@ -530,13 +547,8 @@ public class AnvilGUIListener implements Listener {
         player.sendMessage(ChatColor.DARK_GRAY + "╚══════════════════════════════════════════╝");
         player.sendMessage("");
         
-        // Play success sounds
-        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
-        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
-        
-        // Spawn particle effects based on the result
-        // Extract enchantment elements from the result item
-        java.util.List<ElementType> resultElements = new java.util.ArrayList<>();
+        // Extract enchantment elements for particle effects
+        final java.util.List<ElementType> resultElements = new java.util.ArrayList<>();
         NBTItem nbtResult = new NBTItem(cleanResult);
         if (nbtResult.hasTag("MMO_EnchantCount")) {
             int enchantCount = nbtResult.getInteger("MMO_EnchantCount");
@@ -553,17 +565,35 @@ public class AnvilGUIListener implements Listener {
             }
         }
         
-        // Spawn particles for each unique element
-        java.util.Set<ElementType> uniqueElements = new java.util.HashSet<>(resultElements);
-        for (ElementType element : uniqueElements) {
-            ElementalParticles.spawnElementalBurst(player.getLocation().add(0, 1, 0), element, 0.8);
-        }
+        // Start animation - result will be shown after 2 seconds
+        GUIAnimationHandler.startAnimation(
+            player, 
+            gui.getInventory(), 
+            AnvilGUI.OUTPUT_SLOT,
+            cleanResult,
+            () -> {
+                // This callback runs after animation completes
+                // Spawn particle effects based on the result
+                java.util.Set<ElementType> uniqueElements = new java.util.HashSet<>(resultElements);
+                for (ElementType element : uniqueElements) {
+                    ElementalParticles.spawnElementalBurst(player.getLocation().add(0, 1, 0), element, 0.8);
+                }
+                
+                // Create ring effect if we have enchantments
+                if (!uniqueElements.isEmpty()) {
+                    ElementType primaryElement = resultElements.get(0);
+                    ElementalParticles.spawnElementalRing(player.getLocation().add(0, 0.1, 0), primaryElement, 1.2);
+                }
+                
+                // Sync GUI after animation
+                org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                    gui.syncWithInventory();
+                    updatePreview(gui);
+                }, 1L);
+            }
+        );
         
-        // Create ring effect if we have enchantments
-        if (!uniqueElements.isEmpty()) {
-            ElementType primaryElement = resultElements.get(0);
-            ElementalParticles.spawnElementalRing(player.getLocation().add(0, 0.1, 0), primaryElement, 1.2);
-        }
+        // Note: Refund will be given when player takes the result or closes GUI
     }
     
     /**
@@ -580,6 +610,22 @@ public class AnvilGUIListener implements Listener {
         
         if (gui == null) {
             return;
+        }
+        
+        // Check if animation is active - if so, cancel it and give result to player
+        ItemStack animationResult = GUIAnimationHandler.cancelAnimation(player);
+        if (animationResult != null) {
+            // Animation was active - give result item to player
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(animationResult);
+            if (!leftover.isEmpty()) {
+                // Inventory full - drop on ground
+                for (ItemStack item : leftover.values()) {
+                    player.getWorld().dropItem(player.getLocation(), item);
+                }
+                player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Combined item dropped on ground.");
+            } else {
+                player.sendMessage(ChatColor.GREEN + "✓ Combined item added to inventory (animation skipped).");
+            }
         }
         
         // Return items to player

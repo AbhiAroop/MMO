@@ -22,6 +22,7 @@ import com.server.Main;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.enchantments.gui.EnchantmentApplicator;
 import com.server.enchantments.gui.EnchantmentTableGUI;
+import com.server.enchantments.gui.GUIAnimationHandler;
 import com.server.enchantments.items.ElementalFragment;
 
 /**
@@ -220,6 +221,13 @@ public class EnchantmentGUIListener implements Listener {
         
         // Handle output slot - ONLY allow taking the enchanted result, NOT the placeholder
         if (gui.isOutputSlot(slot)) {
+            // Check if animation is active - clicking skips it
+            if (GUIAnimationHandler.hasActiveAnimation(player)) {
+                GUIAnimationHandler.skipAnimation(player);
+                player.sendMessage(ChatColor.YELLOW + "Animation skipped!");
+                return; // Stay cancelled
+            }
+            
             // Block placing items with cursor
             if (cursor != null && cursor.getType() != Material.AIR) {
                 player.sendMessage(ChatColor.RED + "You cannot place items in the output slot!");
@@ -241,7 +249,15 @@ public class EnchantmentGUIListener implements Listener {
             }
             
             // It's an actual enchanted item - manually give it to player
-            player.getInventory().addItem(current);
+            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(current);
+            if (!leftover.isEmpty()) {
+                // Inventory full - drop on ground
+                for (ItemStack item : leftover.values()) {
+                    player.getWorld().dropItem(player.getLocation(), item);
+                }
+                player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Enchanted item dropped on ground.");
+            }
+            
             gui.getInventory().setItem(slot, createOutputPlaceholder());
             player.sendMessage(ChatColor.GREEN + "✓ Enchanted item received!");
             
@@ -327,16 +343,22 @@ public class EnchantmentGUIListener implements Listener {
             EnchantmentApplicator.enchantItem(player, item, fragments);
         
         if (result.isSuccess()) {
-            // Success!
+            // Success! Start animation
             player.sendMessage(result.getMessage());
             
-            // Place enchanted item in output slot
-            gui.setEnchantedOutput(result.getEnchantedItem());
-            
-            // Clear input slots (item and fragments consumed)
+            // Clear input slots IMMEDIATELY (item and fragments consumed)
             gui.clearInputs();
             
-            // DO NOT close GUI - let player take output item
+            // Start 2-second animation before showing result
+            GUIAnimationHandler.startAnimation(
+                player, 
+                gui.getInventory(), 
+                EnchantmentTableGUI.OUTPUT_SLOT,
+                result.getEnchantedItem(),
+                null // No callback needed
+            );
+            
+            // DO NOT close GUI - let player take output item after animation
             
         } else {
             // Failed
@@ -397,6 +419,22 @@ public class EnchantmentGUIListener implements Listener {
         
         if (gui == null) {
             return;
+        }
+        
+        // Check if animation is active - if so, cancel it and give result to player
+        ItemStack animationResult = GUIAnimationHandler.cancelAnimation(player);
+        if (animationResult != null) {
+            // Animation was active - give result item to player
+            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(animationResult);
+            if (!leftover.isEmpty()) {
+                // Inventory full - drop on ground
+                for (ItemStack item : leftover.values()) {
+                    player.getWorld().dropItem(player.getLocation(), item);
+                }
+                player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Enchanted item dropped on ground.");
+            } else {
+                player.sendMessage(ChatColor.GREEN + "✓ Enchanted item added to inventory (animation skipped).");
+            }
         }
         
         // Return items to player
