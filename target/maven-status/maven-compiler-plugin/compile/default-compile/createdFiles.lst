@@ -9,6 +9,7 @@ com\server\enchantments\abilities\Frostflow.class
 com\server\events\CustomMobListener.class
 com\server\entities\mobs\CustomMob$1.class
 com\server\profiles\skills\gui\SkillTreeGUI$1.class
+com\server\enchantments\gui\GUIAnimationHandler$AnimationState.class
 com\server\crafting\gui\CustomFurnaceGUI$1.class
 com\server\entities\npc\CombatHandler$1.class
 com\server\enchantments\elements\FragmentTier.class
@@ -44,12 +45,14 @@ com\server\commands\SpawnCustomMobCommand.class
 com\server\entities\npc\NPCDamageEffects$1.class
 com\server\profiles\skills\abilities\SkillAbility.class
 com\server\enchantments\utils\EnchantmentDamageUtil$1.class
+com\server\islands\data\IslandType.class
 com\server\events\AutoRespawnListener$2.class
 com\server\commands\AdminTokensCommand.class
 com\server\enchantments\abilities\utility\PureReflection.class
 com\server\enchantments\abilities\offensive\Cinderwake$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
 com\server\entities\npc\story\KaelenEchobound.class
+com\server\islands\commands\IslandGUIListener.class
 com\server\profiles\skills\abilities\active\ActiveAbility.class
 com\server\enchantments\abilities\offensive\Voltbrand$1.class
 com\server\commands\AnimationDebugCommand$2.class
@@ -63,8 +66,10 @@ com\server\entities\npc\dialogue\DialogueManager.class
 com\server\commands\CurrencyCommand$1.class
 com\server\enchantments\elements\HybridElement.class
 com\server\profiles\skills\data\SkillLevel.class
+com\server\islands\managers\IslandWorldManager$2.class
 com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.class
 com\server\events\PlayerListener$4.class
+com\server\islands\commands\IslandCommand.class
 com\server\commands\AdminFurnaceCommand.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession$1.class
 com\server\commands\SkillCommand.class
@@ -81,6 +86,7 @@ com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\AdminProfileCommand.class
+com\server\islands\commands\IslandCreateGUI$1.class
 com\server\enchantments\gui\EnchantmentApplicator$FragmentData.class
 com\server\enchantments\effects\AmbientParticleTask.class
 com\server\commands\NPCCommand.class
@@ -117,6 +123,7 @@ com\server\entities\npc\types\PassiveNPC$2.class
 com\server\profiles\skills\events\SkillExpGainEvent.class
 com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.class
 com\server\abilities\AbilityManager$3$1.class
+com\server\islands\data\PlayerIsland.class
 com\server\entities\npc\NPCManager.class
 com\server\display\DamageIndicatorManager$2.class
 com\server\enchantments\abilities\EmberVeil.class
@@ -140,10 +147,12 @@ com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
 com\server\entities\mobs\MobRegistry.class
 com\server\enchantments\FragmentRegistry.class
+com\server\islands\data\PlayerIsland$1.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
 com\server\enchantments\abilities\utility\Veilborn.class
 com\server\profiles\skills\trees\builders\SkillTreeBuilder.class
 com\server\enchantments\listeners\EnchantmentGUIListener.class
+com\server\islands\managers\IslandWorldManager.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
 com\server\enchantments\abilities\defensive\Terraheart$1.class
 com\server\entities\npc\NPCType.class
@@ -160,6 +169,7 @@ com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\debug\DebugManager.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\events\AutoRespawnListener$1.class
+com\server\enchantments\gui\GUIAnimationHandler.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\enchantments\gui\AnvilCombiner$PreviewResult.class
@@ -189,6 +199,7 @@ com\server\entities\npc\CombatHandler$4.class
 com\server\profiles\skills\core\AbstractSkill.class
 com\server\enchantments\structure\EnchantmentTableStructure.class
 com\server\events\GUIListener.class
+com\server\islands\commands\IslandCreateGUI.class
 com\server\profiles\skills\skills\mining\MiningSkill.class
 com\server\profiles\stats\StatScanManager.class
 com\server\commands\GiveHatCommand.class
@@ -198,9 +209,11 @@ com\server\enchantments\gui\EnchantmentApplicator.class
 com\server\utils\NamespacedKeyUtils.class
 com\server\profiles\ProfileManager$1.class
 com\server\entities\npc\CombatHandler.class
+com\server\islands\data\IslandMember.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentApplication.class
 com\server\profiles\skills\abilities\AbilityRegistry.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
+com\server\islands\managers\IslandManager.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
 com\server\enchantments\abilities\utility\MistborneTempest$1.class
 com\server\profiles\skills\gui\SubskillDetailsGUI.class
@@ -226,8 +239,10 @@ com\server\profiles\ProfileManager$2.class
 com\server\entities\npc\types\PassiveNPC$1.class
 com\server\Main.class
 com\server\entities\npc\behaviors\CombatBehavior.class
+com\server\islands\commands\IslandInfoGUI$1.class
 com\server\items\ItemType.class
 com\server\events\CustomMobListener$1.class
+com\server\islands\managers\IslandUpgradeManager$UpgradeResult.class
 com\server\crafting\recipes\FurnaceRecipe.class
 com\server\enchantments\abilities\offensive\Voltbrand.class
 com\server\enchantments\gui\AnvilCombiner.class
@@ -250,15 +265,18 @@ com\server\items\ItemManager.class
 com\server\profiles\skills\gui\SkillsGUI.class
 com\server\commands\EnchantCommand.class
 com\server\entities\MobType.class
+com\server\islands\managers\IslandCache.class
 com\server\entities\npc\story\KaelenEchobound$1.class
 com\server\commands\GemCarvingToolCommand.class
 com\server\profiles\skills\abilities\gui\AbilitiesGUI.class
 com\server\enchantments\abilities\defensive\Whispers.class
+com\server\islands\managers\IslandWorldManager$1.class
 com\server\commands\MenuCommand.class
 com\server\entities\mobs\CustomMob.class
 com\server\enchantments\abilities\offensive\BurdenedStone.class
 com\server\enchantments\EnchantmentRegistry.class
 com\server\enchantments\abilities\offensive\CelestialSurge.class
+com\server\islands\data\IslandMember$IslandRole.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
 com\server\events\PlayerListener$3.class
@@ -273,6 +291,7 @@ com\server\profiles\skills\abilities\active\AbstractActiveAbility.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
 com\server\cosmetics\CosmeticManager.class
+com\server\islands\managers\IslandUpgradeManager.class
 com\server\commands\CosmeticCommand.class
 com\server\profiles\skills\gui\SkillGUIListener.class
 com\server\events\CombatListener$1.class
@@ -288,6 +307,7 @@ com\server\events\RangedCombatManager.class
 com\server\profiles\skills\skills\farming\FarmingSkill.class
 com\server\commands\FlyCommand.class
 com\server\enchantments\gui\EnchantmentApplicator$ElementResult.class
+com\server\islands\managers\IslandDataManager.class
 com\server\enchantments\abilities\utility\Veilborn$2.class
 com\server\enchantments\abilities\utility\Veilborn$SneakData.class
 com\server\commands\CurrencyCommand$TransferRequest.class
@@ -298,6 +318,7 @@ com\server\enchantments\abilities\InfernoStrike.class
 com\server\crafting\manager\CustomCraftingManager.class
 com\server\enchantments\abilities\offensive\Dawnstrike.class
 com\server\enchantments\listeners\EnchantmentTableListener.class
+com\server\islands\commands\IslandInfoGUI.class
 com\server\enchantments\utils\EquipmentTypeValidator.class
 com\server\enchantments\abilities\utility\AshenVeil.class
 com\server\profiles\skills\core\SubskillType.class
@@ -305,6 +326,7 @@ com\server\profiles\gui\ProfileGUI.class
 com\server\events\AutoRespawnListener.class
 com\server\events\PlayerListener$AttributeInitData.class
 com\server\profiles\skills\events\GemCarvingListener.class
+com\server\islands\data\IslandStatistics.class
 com\server\profiles\skills\core\SkillProgressionManager.class
 com\server\commands\AdminStatsCommand$StatDefinition.class
 com\server\profiles\skills\gui\SubskillsGUI.class
@@ -335,6 +357,7 @@ com\server\crafting\listeners\CustomCraftingListener.class
 com\server\enchantments\data\EnchantmentQuality.class
 com\server\enchantments\items\ElementalFragment.class
 com\server\events\RangedCombatManager$1.class
+com\server\islands\commands\IslandUpgradeGUI.class
 com\server\enchantments\abilities\defensive\Terraheart.class
 com\server\profiles\skills\core\SkillType.class
 com\server\entities\npc\types\PassiveNPC.class

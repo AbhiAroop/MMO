@@ -1,0 +1,428 @@
+package com.server.islands.data;
+
+import java.util.UUID;
+
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+
+/**
+ * Represents a player's island with all its data and upgrade levels.
+ */
+public class PlayerIsland {
+    
+    // Core identifiers
+    private final UUID islandId;
+    private final UUID ownerUuid;
+    private String worldName;
+    
+    // Island properties
+    private String islandName;
+    private IslandType islandType;
+    private long createdAt;
+    private long lastAccessed;
+    
+    // Progression
+    private int islandLevel;
+    private long islandValue;
+    
+    // Upgrade levels
+    private int sizeLevel;
+    private int playerLimitLevel;
+    private int redstoneLimitLevel;
+    private int cropGrowthLevel;
+    
+    // Features
+    private boolean weatherControl;
+    private String currentBiome;
+    
+    // Statistics
+    private IslandStatistics statistics;
+    
+    // Spawn location
+    private double spawnX;
+    private double spawnY;
+    private double spawnZ;
+    private float spawnYaw;
+    private float spawnPitch;
+    
+    /**
+     * Creates a new island for a player.
+     */
+    public PlayerIsland(UUID ownerUuid, IslandType islandType) {
+        this.islandId = UUID.randomUUID();
+        this.ownerUuid = ownerUuid;
+        this.islandType = islandType;
+        this.islandName = "My Island";
+        this.worldName = "island_" + islandId.toString();
+        this.createdAt = System.currentTimeMillis();
+        this.lastAccessed = System.currentTimeMillis();
+        
+        // Default values
+        this.islandLevel = 1;
+        this.islandValue = 0;
+        this.sizeLevel = 1;
+        this.playerLimitLevel = 1;
+        this.redstoneLimitLevel = 1;
+        this.cropGrowthLevel = 1;
+        this.weatherControl = false;
+        this.currentBiome = getDefaultBiome();
+        this.statistics = new IslandStatistics(islandId);
+        
+        // Default spawn (one block above platform at y=99)
+        this.spawnX = 0.5; // Center of block
+        this.spawnY = 101;
+        this.spawnZ = 0.5; // Center of block
+        this.spawnYaw = 0;
+        this.spawnPitch = 0;
+    }
+    
+    /**
+     * Loads an existing island from database.
+     */
+    public PlayerIsland(UUID islandId, UUID ownerUuid, String islandName, IslandType islandType,
+                       String worldName, long createdAt, long lastAccessed, int islandLevel,
+                       long islandValue, int sizeLevel, int playerLimitLevel, int redstoneLimitLevel,
+                       int cropGrowthLevel, boolean weatherControl, String currentBiome,
+                       double spawnX, double spawnY, double spawnZ, float spawnYaw, float spawnPitch) {
+        this.islandId = islandId;
+        this.ownerUuid = ownerUuid;
+        this.islandName = islandName;
+        this.islandType = islandType;
+        this.worldName = worldName;
+        this.createdAt = createdAt;
+        this.lastAccessed = lastAccessed;
+        this.islandLevel = islandLevel;
+        this.islandValue = islandValue;
+        this.sizeLevel = sizeLevel;
+        this.playerLimitLevel = playerLimitLevel;
+        this.redstoneLimitLevel = redstoneLimitLevel;
+        this.cropGrowthLevel = cropGrowthLevel;
+        this.weatherControl = weatherControl;
+        this.currentBiome = currentBiome;
+        this.spawnX = spawnX;
+        this.spawnY = spawnY;
+        this.spawnZ = spawnZ;
+        this.spawnYaw = spawnYaw;
+        this.spawnPitch = spawnPitch;
+        this.statistics = new IslandStatistics(islandId);
+    }
+    
+    // ==================== Size Methods ====================
+    
+    /**
+     * Gets the current world border size based on upgrade level.
+     */
+    public int getCurrentSize() {
+        switch (sizeLevel) {
+            case 1: return 25;
+            case 2: return 50;
+            case 3: return 100;
+            case 4: return 200;
+            case 5: return 300;
+            case 6: return 400;
+            case 7: return 500;
+            default: return 25;
+        }
+    }
+    
+    /**
+     * Gets the next size upgrade level size.
+     */
+    public int getNextSize() {
+        if (sizeLevel >= 7) return getCurrentSize();
+        
+        switch (sizeLevel + 1) {
+            case 2: return 50;
+            case 3: return 100;
+            case 4: return 200;
+            case 5: return 300;
+            case 6: return 400;
+            case 7: return 500;
+            default: return getCurrentSize();
+        }
+    }
+    
+    /**
+     * Gets the cost for the next size upgrade.
+     */
+    public int getSizeUpgradeCost() {
+        switch (sizeLevel + 1) {
+            case 2: return 5000;
+            case 3: return 15000;
+            case 4: return 50000;
+            case 5: return 150000;
+            case 6: return 300000;
+            case 7: return 500000;
+            default: return -1; // Max level
+        }
+    }
+    
+    // ==================== Player Limit Methods ====================
+    
+    /**
+     * Gets the current player limit based on upgrade level.
+     */
+    public int getCurrentPlayerLimit() {
+        switch (playerLimitLevel) {
+            case 1: return 2;
+            case 2: return 5;
+            case 3: return 10;
+            case 4: return 20;
+            case 5: return 50;
+            default: return 2;
+        }
+    }
+    
+    /**
+     * Gets the cost for the next player limit upgrade.
+     */
+    public int getPlayerLimitUpgradeCost() {
+        switch (playerLimitLevel + 1) {
+            case 2: return 2000;
+            case 3: return 10000;
+            case 4: return 30000;
+            case 5: return 100000;
+            default: return -1; // Max level
+        }
+    }
+    
+    // ==================== Redstone Limit Methods ====================
+    
+    /**
+     * Gets the current redstone limit based on upgrade level.
+     */
+    public int getCurrentRedstoneLimit() {
+        switch (redstoneLimitLevel) {
+            case 1: return 50;
+            case 2: return 100;
+            case 3: return 200;
+            case 4: return 500;
+            case 5: return -1; // Unlimited
+            default: return 50;
+        }
+    }
+    
+    /**
+     * Gets the cost for the next redstone limit upgrade.
+     */
+    public int getRedstoneLimitUpgradeCost() {
+        switch (redstoneLimitLevel + 1) {
+            case 2: return 5000;
+            case 3: return 15000;
+            case 4: return 50000;
+            case 5: return 150000;
+            default: return -1; // Max level
+        }
+    }
+    
+    // ==================== Crop Growth Methods ====================
+    
+    /**
+     * Gets the current crop growth multiplier based on upgrade level.
+     */
+    public double getCropGrowthMultiplier() {
+        switch (cropGrowthLevel) {
+            case 1: return 1.0;
+            case 2: return 1.5;
+            case 3: return 2.0;
+            case 4: return 3.0;
+            default: return 1.0;
+        }
+    }
+    
+    /**
+     * Gets the cost for the next crop growth upgrade.
+     */
+    public int getCropGrowthUpgradeCost() {
+        switch (cropGrowthLevel + 1) {
+            case 2: return 10000;
+            case 3: return 30000;
+            case 4: return 100000;
+            default: return -1; // Max level
+        }
+    }
+    
+    // ==================== Utility Methods ====================
+    
+    /**
+     * Gets the default biome for the island type.
+     */
+    private String getDefaultBiome() {
+        switch (islandType) {
+            case SKY: return "PLAINS";
+            case OCEAN: return "BEACH";
+            case FOREST: return "FOREST";
+            default: return "PLAINS";
+        }
+    }
+    
+    /**
+     * Gets the spawn location as a Bukkit Location.
+     */
+    public Location getSpawnLocation(World world) {
+        return new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
+    }
+    
+    /**
+     * Sets the spawn location from a Bukkit Location.
+     */
+    public void setSpawnLocation(Location location) {
+        this.spawnX = location.getX();
+        this.spawnY = location.getY();
+        this.spawnZ = location.getZ();
+        this.spawnYaw = location.getYaw();
+        this.spawnPitch = location.getPitch();
+    }
+    
+    /**
+     * Updates the last accessed timestamp.
+     */
+    public void updateLastAccessed() {
+        this.lastAccessed = System.currentTimeMillis();
+    }
+    
+    /**
+     * Checks if a player is the owner of this island.
+     */
+    public boolean isOwner(Player player) {
+        return player.getUniqueId().equals(ownerUuid);
+    }
+    
+    /**
+     * Checks if a player is the owner of this island by UUID.
+     */
+    public boolean isOwner(UUID playerUuid) {
+        return playerUuid.equals(ownerUuid);
+    }
+    
+    // ==================== Getters and Setters ====================
+    
+    public UUID getIslandId() {
+        return islandId;
+    }
+    
+    public UUID getOwnerUuid() {
+        return ownerUuid;
+    }
+    
+    public String getWorldName() {
+        return worldName;
+    }
+    
+    public void setWorldName(String worldName) {
+        this.worldName = worldName;
+    }
+    
+    public String getIslandName() {
+        return islandName;
+    }
+    
+    public void setIslandName(String islandName) {
+        this.islandName = islandName;
+    }
+    
+    public IslandType getIslandType() {
+        return islandType;
+    }
+    
+    public long getCreatedAt() {
+        return createdAt;
+    }
+    
+    public long getLastAccessed() {
+        return lastAccessed;
+    }
+    
+    public void setLastAccessed(long lastAccessed) {
+        this.lastAccessed = lastAccessed;
+    }
+    
+    public int getIslandLevel() {
+        return islandLevel;
+    }
+    
+    public void setIslandLevel(int islandLevel) {
+        this.islandLevel = islandLevel;
+    }
+    
+    public long getIslandValue() {
+        return islandValue;
+    }
+    
+    public void setIslandValue(long islandValue) {
+        this.islandValue = islandValue;
+    }
+    
+    public int getSizeLevel() {
+        return sizeLevel;
+    }
+    
+    public void setSizeLevel(int sizeLevel) {
+        this.sizeLevel = sizeLevel;
+    }
+    
+    public int getPlayerLimitLevel() {
+        return playerLimitLevel;
+    }
+    
+    public void setPlayerLimitLevel(int playerLimitLevel) {
+        this.playerLimitLevel = playerLimitLevel;
+    }
+    
+    public int getRedstoneLimitLevel() {
+        return redstoneLimitLevel;
+    }
+    
+    public void setRedstoneLimitLevel(int redstoneLimitLevel) {
+        this.redstoneLimitLevel = redstoneLimitLevel;
+    }
+    
+    public int getCropGrowthLevel() {
+        return cropGrowthLevel;
+    }
+    
+    public void setCropGrowthLevel(int cropGrowthLevel) {
+        this.cropGrowthLevel = cropGrowthLevel;
+    }
+    
+    public boolean hasWeatherControl() {
+        return weatherControl;
+    }
+    
+    public void setWeatherControl(boolean weatherControl) {
+        this.weatherControl = weatherControl;
+    }
+    
+    public String getCurrentBiome() {
+        return currentBiome;
+    }
+    
+    public void setCurrentBiome(String currentBiome) {
+        this.currentBiome = currentBiome;
+    }
+    
+    public double getSpawnX() {
+        return spawnX;
+    }
+    
+    public double getSpawnY() {
+        return spawnY;
+    }
+    
+    public double getSpawnZ() {
+        return spawnZ;
+    }
+    
+    public float getSpawnYaw() {
+        return spawnYaw;
+    }
+    
+    public float getSpawnPitch() {
+        return spawnPitch;
+    }
+    
+    public IslandStatistics getStatistics() {
+        return statistics;
+    }
+}

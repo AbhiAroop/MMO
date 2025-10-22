@@ -300,6 +300,18 @@ public class ProfileManager {
     public Integer getActiveProfile(UUID playerUUID) {
         return activeProfiles.get(playerUUID);
     }
+    
+    /**
+     * Gets the currently active PlayerProfile for a player, or null if none.
+     */
+    public PlayerProfile getActivePlayerProfile(UUID playerUUID) {
+        Integer slot = getActiveProfile(playerUUID);
+        if (slot == null) {
+            return null;
+        }
+        PlayerProfile[] profiles = getProfiles(playerUUID);
+        return profiles[slot];
+    }
 
     /**
      * Initialize all custom attributes for a player

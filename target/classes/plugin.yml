@@ -1,10 +1,10 @@
 ﻿name: mmo
 main: com.server.Main
 version: 0.0.1
-api-version: 1.20
+api-version: 1.21.1
 description: MMO plugin for Minecraft servers
 depend: [ModelEngine]
-softdepend: [Geyser]
+softdepend: [Geyser, SlimeWorldPlugin]
 commands:
   enchant:
     description: Admin command for custom enchantment system
@@ -115,6 +115,10 @@ commands:
     usage: /adminfurnace <create|remove|list|info|give|settemp|addfuel|debug>
     permission: mmo.admin.furnace
     aliases: [afurnace, adminf]
+  island:
+    description: Island management commands
+    usage: /island [create|delete|home|visit|upgrade|info|settings|members|invite|kick|help]
+    aliases: [is, isle]
 
 permissions:
   mmo.admin:

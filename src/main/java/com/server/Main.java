@@ -543,6 +543,38 @@ public class Main extends JavaPlugin {
         } else {
             LOGGER.warning("Command 'enchant' not registered in plugin.yml file!");
         }
+
+        // Initialize Island System
+        getLogger().info("========================================");
+        getLogger().info("Initializing Island System...");
+        try {
+            com.server.islands.managers.IslandManager islandManager = new com.server.islands.managers.IslandManager(this);
+            islandManager.initialize().thenRun(() -> {
+                getLogger().info("Island system initialized successfully!");
+                getLogger().info("========================================");
+            });
+
+            // Register island command
+            org.bukkit.command.PluginCommand islandCommand = this.getCommand("island");
+            if (islandCommand != null) {
+                com.server.islands.commands.IslandCommand islandHandler = new com.server.islands.commands.IslandCommand(islandManager);
+                islandCommand.setExecutor(islandHandler);
+                islandCommand.setTabCompleter(islandHandler);
+            } else {
+                LOGGER.warning("Command 'island' not registered in plugin.yml file!");
+            }
+
+            // Register island GUI listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandGUIListener(islandManager), this);
+        } catch (NoClassDefFoundError e) {
+            getLogger().warning("========================================");
+            getLogger().warning("Island System could not be initialized!");
+            getLogger().warning("AdvancedSlimePaper API not found or incompatible version.");
+            getLogger().warning("Please ensure you're running AdvancedSlimePaper server");
+            getLogger().warning("and that SlimeWorldPlugin is available.");
+            getLogger().warning("Island features will be disabled.");
+            getLogger().warning("========================================");
+        }
         
     }
 
