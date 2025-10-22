@@ -138,10 +138,9 @@ public class IslandInfoGUI {
         lore.add(Component.empty());
         
         int redstoneLimit = island.getCurrentRedstoneLimit();
-        String redstoneLimitText = (redstoneLimit == -1) ? "UNLIMITED" : (redstoneLimit + " devices");
         lore.add(Component.text("Redstone Limit: ", NamedTextColor.GRAY)
-            .append(Component.text(redstoneLimitText, NamedTextColor.WHITE))
-            .append(Component.text(" (Lv " + island.getRedstoneLimitLevel() + "/5)", NamedTextColor.DARK_GRAY)));
+            .append(Component.text(redstoneLimit + " items", NamedTextColor.WHITE))
+            .append(Component.text(" (Lv " + island.getRedstoneLimitLevel() + "/" + island.getMaxRedstoneLevel() + ")", NamedTextColor.DARK_GRAY)));
         
         lore.add(Component.text("Crop Growth: ", NamedTextColor.GRAY)
             .append(Component.text(island.getCropGrowthMultiplier() + "x", NamedTextColor.WHITE))

@@ -1,13 +1,14 @@
 package com.server.islands.managers;
 
-import com.server.islands.data.PlayerIsland;
-import com.server.profiles.PlayerProfile;
-import com.server.profiles.ProfileManager;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import com.server.islands.data.PlayerIsland;
+import com.server.profiles.PlayerProfile;
+import com.server.profiles.ProfileManager;
 
 /**
  * Manages island upgrades (size, player limit, redstone, crop growth).
@@ -23,7 +24,9 @@ public class IslandUpgradeManager {
     }
     
     /**
-     * Upgrades the island size.
+     * Upgrades the island size by 2 blocks (1 in each direction).
+     * Cost: 1000 units per upgrade
+     * Max size: 500x500
      */
     public CompletableFuture<UpgradeResult> upgradeSizeLevel(Player player) {
         return CompletableFuture.supplyAsync(() -> {
@@ -34,9 +37,9 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "You don't have an island!");
             }
             
-            // Check if already max level
-            if (island.getSizeLevel() >= 7) {
-                return new UpgradeResult(false, "Your island is already at maximum size!");
+            // Check if already max level (500x500)
+            if (island.getSizeLevel() >= island.getMaxSizeLevel()) {
+                return new UpgradeResult(false, "Your island is already at maximum size (500x500)!");
             }
             
             int cost = island.getSizeUpgradeCost();
@@ -62,8 +65,9 @@ public class IslandUpgradeManager {
             // Save island
             islandManager.getDataManager().saveIsland(island).join();
             
-            return new UpgradeResult(true, "§aIsland size upgraded from " + oldSize + "x" + oldSize + 
-                " to " + newSize + "x" + newSize + "!");
+            return new UpgradeResult(true, "Island size upgraded from " + oldSize + "x" + oldSize + 
+                " to " + newSize + "x" + newSize + "! (" + island.getSizeLevel() + "/" + 
+                island.getMaxSizeLevel() + ")");
         });
     }
     
@@ -111,6 +115,8 @@ public class IslandUpgradeManager {
     
     /**
      * Upgrades the redstone limit.
+     * Cost: 1000 units per upgrade
+     * Starts at 10, increases by 5 per level, max 100 at level 19
      */
     public CompletableFuture<UpgradeResult> upgradeRedstoneLimit(Player player) {
         return CompletableFuture.supplyAsync(() -> {
@@ -122,8 +128,8 @@ public class IslandUpgradeManager {
             }
             
             // Check if already max level
-            if (island.getRedstoneLimitLevel() >= 5) {
-                return new UpgradeResult(false, "Your redstone limit is already at maximum (unlimited)!");
+            if (island.getRedstoneLimitLevel() >= island.getMaxRedstoneLevel()) {
+                return new UpgradeResult(false, "Your redstone limit is already at maximum (100 items)!");
             }
             
             int cost = island.getRedstoneLimitUpgradeCost();
@@ -146,9 +152,9 @@ public class IslandUpgradeManager {
             // Save island
             islandManager.getDataManager().saveIsland(island).join();
             
-            String newLimitStr = newLimit == -1 ? "unlimited" : String.valueOf(newLimit);
-            return new UpgradeResult(true, "§aRedstone limit upgraded from " + oldLimit + 
-                " to " + newLimitStr + " devices!");
+            return new UpgradeResult(true, "Redstone limit upgraded from " + oldLimit + 
+                " to " + newLimit + " items! (" + island.getRedstoneLimitLevel() + "/" + 
+                island.getMaxRedstoneLevel() + ")");
         });
     }
     

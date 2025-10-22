@@ -181,8 +181,10 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
                 return;
             }
             
-            // Open upgrade GUI
-            IslandUpgradeGUI.open(player, island, islandManager);
+            // Open upgrade GUI on main thread
+            org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                IslandUpgradeGUI.open(player, island, islandManager);
+            });
         });
     }
     

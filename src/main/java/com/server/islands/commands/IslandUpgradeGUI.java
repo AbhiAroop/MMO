@@ -70,6 +70,7 @@ public class IslandUpgradeGUI {
         
         int currentLevel = island.getSizeLevel();
         int currentSize = island.getCurrentSize();
+        int maxLevel = island.getMaxSizeLevel();
         int nextCost = island.getSizeUpgradeCost();
         
         meta.displayName(Component.text("🗺 Island Size", NamedTextColor.GOLD, TextDecoration.BOLD));
@@ -79,15 +80,19 @@ public class IslandUpgradeGUI {
         lore.add(Component.text("Current Size: ", NamedTextColor.GRAY)
             .append(Component.text(currentSize + "x" + currentSize, NamedTextColor.WHITE, TextDecoration.BOLD)));
         lore.add(Component.text("Level: ", NamedTextColor.GRAY)
-            .append(Component.text(currentLevel + "/7", NamedTextColor.YELLOW)));
+            .append(Component.text(currentLevel + "/" + maxLevel, NamedTextColor.YELLOW)));
         lore.add(Component.empty());
         
-        if (currentLevel < 7) {
-            int nextSize = getNextSize(currentLevel);
+        if (currentLevel < maxLevel) {
+            int nextSize = island.getNextSize();
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
-                .append(Component.text(nextSize + "x" + nextSize, NamedTextColor.WHITE)));
+                .append(Component.text(nextSize + "x" + nextSize, NamedTextColor.WHITE))
+                .append(Component.text(" (+2 blocks)", NamedTextColor.GRAY)));
             lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
                 .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("Each upgrade adds 1 block", NamedTextColor.DARK_GRAY));
+            lore.add(Component.text("in each direction (2 total).", NamedTextColor.DARK_GRAY));
             lore.add(Component.empty());
             
             if (playerUnits >= nextCost) {
@@ -96,7 +101,7 @@ public class IslandUpgradeGUI {
                 lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
             }
         } else {
-            lore.add(Component.text("✓ MAX LEVEL", NamedTextColor.GREEN, TextDecoration.BOLD));
+            lore.add(Component.text("✓ MAX LEVEL (500x500)", NamedTextColor.GREEN, TextDecoration.BOLD));
         }
         
         meta.lore(lore);
@@ -150,32 +155,29 @@ public class IslandUpgradeGUI {
         
         int currentLevel = island.getRedstoneLimitLevel();
         int currentLimit = island.getCurrentRedstoneLimit();
+        int maxLevel = island.getMaxRedstoneLevel();
         int nextCost = island.getRedstoneLimitUpgradeCost();
         
-        meta.displayName(Component.text("⚡ Redstone Devices", NamedTextColor.RED, TextDecoration.BOLD));
+        meta.displayName(Component.text("⚡ Redstone Limit", NamedTextColor.RED, TextDecoration.BOLD));
         
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        
-        if (currentLimit == -1) {
-            lore.add(Component.text("Current Limit: ", NamedTextColor.GRAY)
-                .append(Component.text("UNLIMITED", NamedTextColor.GREEN, TextDecoration.BOLD)));
-        } else {
-            lore.add(Component.text("Current Limit: ", NamedTextColor.GRAY)
-                .append(Component.text(currentLimit + " devices", NamedTextColor.WHITE, TextDecoration.BOLD)));
-        }
-        
+        lore.add(Component.text("Current Limit: ", NamedTextColor.GRAY)
+            .append(Component.text(currentLimit + " items", NamedTextColor.WHITE, TextDecoration.BOLD)));
         lore.add(Component.text("Level: ", NamedTextColor.GRAY)
-            .append(Component.text(currentLevel + "/5", NamedTextColor.YELLOW)));
+            .append(Component.text(currentLevel + "/" + maxLevel, NamedTextColor.YELLOW)));
         lore.add(Component.empty());
         
-        if (currentLevel < 5) {
-            int nextLimit = getNextRedstoneLimit(currentLevel);
-            String nextLimitText = (nextLimit == -1) ? "UNLIMITED" : (nextLimit + " devices");
+        if (currentLevel < maxLevel) {
+            int nextLimit = island.getNextRedstoneLimit();
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
-                .append(Component.text(nextLimitText, NamedTextColor.WHITE)));
+                .append(Component.text(nextLimit + " items", NamedTextColor.WHITE))
+                .append(Component.text(" (+5)", NamedTextColor.GRAY)));
             lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
                 .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("Tracks redstone dust, torches,", NamedTextColor.DARK_GRAY));
+            lore.add(Component.text("repeaters, comparators, etc.", NamedTextColor.DARK_GRAY));
             lore.add(Component.empty());
             
             if (playerUnits >= nextCost) {
@@ -184,7 +186,7 @@ public class IslandUpgradeGUI {
                 lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
             }
         } else {
-            lore.add(Component.text("✓ MAX LEVEL", NamedTextColor.GREEN, TextDecoration.BOLD));
+            lore.add(Component.text("✓ MAX LEVEL (100 items)", NamedTextColor.GREEN, TextDecoration.BOLD));
         }
         
         meta.lore(lore);
@@ -349,8 +351,10 @@ public class IslandUpgradeGUI {
         if (result.isSuccess()) {
             player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
                 .append(Component.text(result.getMessage(), NamedTextColor.GREEN)));
-            // Reopen GUI with updated values
-            open(player, island, islandManager);
+            // Reopen GUI with updated values on main thread
+            Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                open(player, island, islandManager);
+            });
         } else {
             player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                 .append(Component.text(result.getMessage(), NamedTextColor.RED)));
@@ -358,18 +362,6 @@ public class IslandUpgradeGUI {
     }
     
     // Helper methods for calculating next values
-    private static int getNextSize(int currentLevel) {
-        switch (currentLevel) {
-            case 0: return 50;
-            case 1: return 100;
-            case 2: return 200;
-            case 3: return 300;
-            case 4: return 400;
-            case 5: return 500;
-            default: return 500;
-        }
-    }
-    
     private static int getNextPlayerLimit(int currentLevel) {
         switch (currentLevel) {
             case 0: return 5;
@@ -377,16 +369,6 @@ public class IslandUpgradeGUI {
             case 2: return 20;
             case 3: return 50;
             default: return 50;
-        }
-    }
-    
-    private static int getNextRedstoneLimit(int currentLevel) {
-        switch (currentLevel) {
-            case 0: return 100;
-            case 1: return 200;
-            case 2: return 500;
-            case 3: return -1; // Unlimited
-            default: return -1;
         }
     }
     

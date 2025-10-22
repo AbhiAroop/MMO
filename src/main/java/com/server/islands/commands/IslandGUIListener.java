@@ -81,8 +81,8 @@ public class IslandGUIListener implements Listener {
      * Handles clicks in the Upgrade GUI
      */
     private void handleUpgradeGUIClick(Player player, int slot) {
-        // Get the player's island
-        islandManager.loadIsland(player.getUniqueId()).thenAccept(island -> {
+        // Get the player's island by owner UUID
+        islandManager.getIslandByOwner(player.getUniqueId()).thenAccept(island -> {
             if (island == null) {
                 return;
             }

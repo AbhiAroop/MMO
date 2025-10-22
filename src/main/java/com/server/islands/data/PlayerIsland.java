@@ -111,51 +111,38 @@ public class PlayerIsland {
     // ==================== Size Methods ====================
     
     /**
-     * Gets the current world border size based on upgrade level.
+     * Gets the current island size (always calculated from level).
+     * Each level adds 2 blocks (1 in each direction).
+     * Starting size: 25x25 (level 1)
+     * Max size: 500x500 (level 238)
      */
     public int getCurrentSize() {
-        switch (sizeLevel) {
-            case 1: return 25;
-            case 2: return 50;
-            case 3: return 100;
-            case 4: return 200;
-            case 5: return 300;
-            case 6: return 400;
-            case 7: return 500;
-            default: return 25;
-        }
+        // Base size is 25, each level adds 2 blocks
+        return 25 + ((sizeLevel - 1) * 2);
+    }
+    
+    /**
+     * Gets the maximum size level allowed (500x500).
+     */
+    public int getMaxSizeLevel() {
+        // (500 - 25) / 2 + 1 = 238 levels to reach 500x500
+        return 238;
     }
     
     /**
      * Gets the next size upgrade level size.
      */
     public int getNextSize() {
-        if (sizeLevel >= 7) return getCurrentSize();
-        
-        switch (sizeLevel + 1) {
-            case 2: return 50;
-            case 3: return 100;
-            case 4: return 200;
-            case 5: return 300;
-            case 6: return 400;
-            case 7: return 500;
-            default: return getCurrentSize();
-        }
+        if (sizeLevel >= getMaxSizeLevel()) return getCurrentSize();
+        return getCurrentSize() + 2;
     }
     
     /**
-     * Gets the cost for the next size upgrade.
+     * Gets the cost for the next size upgrade (1000 units per upgrade).
      */
     public int getSizeUpgradeCost() {
-        switch (sizeLevel + 1) {
-            case 2: return 5000;
-            case 3: return 15000;
-            case 4: return 50000;
-            case 5: return 150000;
-            case 6: return 300000;
-            case 7: return 500000;
-            default: return -1; // Max level
-        }
+        if (sizeLevel >= getMaxSizeLevel()) return -1; // Max level
+        return 1000;
     }
     
     // ==================== Player Limit Methods ====================
@@ -191,29 +178,39 @@ public class PlayerIsland {
     
     /**
      * Gets the current redstone limit based on upgrade level.
+     * Starts at 10, increases by 5 per level, max 100 at level 19.
      */
     public int getCurrentRedstoneLimit() {
-        switch (redstoneLimitLevel) {
-            case 1: return 50;
-            case 2: return 100;
-            case 3: return 200;
-            case 4: return 500;
-            case 5: return -1; // Unlimited
-            default: return 50;
+        return 10 + ((redstoneLimitLevel - 1) * 5);
+    }
+    
+    /**
+     * Gets the maximum redstone limit level (level 19 = 100 redstone items).
+     */
+    public int getMaxRedstoneLevel() {
+        // (100 - 10) / 5 + 1 = 19 levels to reach 100
+        return 19;
+    }
+    
+    /**
+     * Gets the next redstone limit value.
+     */
+    public int getNextRedstoneLimit() {
+        if (redstoneLimitLevel >= getMaxRedstoneLevel()) {
+            return getCurrentRedstoneLimit();
         }
+        return getCurrentRedstoneLimit() + 5;
     }
     
     /**
      * Gets the cost for the next redstone limit upgrade.
+     * Fixed cost of 1000 units per upgrade.
      */
     public int getRedstoneLimitUpgradeCost() {
-        switch (redstoneLimitLevel + 1) {
-            case 2: return 5000;
-            case 3: return 15000;
-            case 4: return 50000;
-            case 5: return 150000;
-            default: return -1; // Max level
+        if (redstoneLimitLevel >= getMaxRedstoneLevel()) {
+            return -1; // Max level
         }
+        return 1000;
     }
     
     // ==================== Crop Growth Methods ====================
