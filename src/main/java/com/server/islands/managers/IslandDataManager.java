@@ -1,13 +1,25 @@
 package com.server.islands.managers;
 
-import com.server.islands.data.*;
-import com.server.islands.data.IslandMember.IslandRole;
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.sql.*;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import com.server.islands.data.IslandInvite;
+import com.server.islands.data.IslandMember;
+import com.server.islands.data.IslandMember.IslandRole;
+import com.server.islands.data.IslandStatistics;
+import com.server.islands.data.IslandType;
+import com.server.islands.data.PlayerIsland;
 
 /**
  * Manages database operations for islands.
@@ -114,14 +126,23 @@ public class IslandDataManager {
                 "total_playtime BIGINT NOT NULL" +
                 ")";
         
-        try (Statement stmt = connection.createStatement()) {
+        String createInvitesTable = "CREATE TABLE IF NOT EXISTS island_invites (" +
+                "island_id TEXT NOT NULL," +
+                "invited_player TEXT NOT NULL," +
+                "invited_by TEXT NOT NULL," +
+                "invited_at BIGINT NOT NULL," +
+                "expires_at BIGINT NOT NULL," +
+                "PRIMARY KEY (island_id, invited_player)" +
+                ")";        try (Statement stmt = connection.createStatement()) {
             stmt.execute(createIslandsTable);
             stmt.execute(createMembersTable);
             stmt.execute(createStatisticsTable);
+            stmt.execute(createInvitesTable);
             
             // Create indexes for faster queries
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_owner ON player_islands(owner_uuid)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_member_player ON island_members(player_uuid)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_invite_player ON island_invites(invited_player)");
         }
     }
     
@@ -271,10 +292,12 @@ public class IslandDataManager {
                 stmt.setLong(4, member.getAddedAt());
                 stmt.setLong(5, member.getLastVisit());
                 
-                stmt.executeUpdate();
+                int result = stmt.executeUpdate();
+                plugin.getLogger().info("[Island] Saved member " + member.getPlayerUuid() + " to island " + member.getIslandId() + " with role " + member.getRole().name() + " (rows affected: " + result + ")");
                 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Failed to save member: " + e.getMessage());
+                e.printStackTrace();
             }
         });
     }
@@ -419,4 +442,169 @@ public class IslandDataManager {
             }
         });
     }
+    
+    // ==================== Invitation Operations ====================
+    
+    /**
+     * Saves an invitation to the database.
+     */
+    public CompletableFuture<Void> saveInvite(IslandInvite invite) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "INSERT OR REPLACE INTO island_invites VALUES (?,?,?,?,?)";
+            
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, invite.getIslandId().toString());
+                stmt.setString(2, invite.getInvitedPlayer().toString());
+                stmt.setString(3, invite.getInvitedBy().toString());
+                stmt.setLong(4, invite.getInvitedAt());
+                stmt.setLong(5, invite.getExpiresAt());
+                
+                stmt.executeUpdate();
+                
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to save invite: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Loads pending invites for a player.
+     */
+    public CompletableFuture<List<IslandInvite>> loadInvitesForPlayer(UUID playerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<IslandInvite> invites = new ArrayList<>();
+            String sql = "SELECT * FROM island_invites WHERE invited_player = ?";
+            
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, playerUuid.toString());
+                
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    IslandInvite invite = new IslandInvite(
+                        UUID.fromString(rs.getString("island_id")),
+                        UUID.fromString(rs.getString("invited_player")),
+                        UUID.fromString(rs.getString("invited_by")),
+                        rs.getLong("invited_at"),
+                        rs.getLong("expires_at")
+                    );
+                    
+                    // Only return non-expired invites
+                    if (!invite.isExpired()) {
+                        invites.add(invite);
+                    }
+                }
+                
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to load invites: " + e.getMessage());
+            }
+            
+            return invites;
+        });
+    }
+    
+    /**
+     * Deletes an invitation from the database.
+     */
+    public CompletableFuture<Void> deleteInvite(UUID islandId, UUID playerUuid) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM island_invites WHERE island_id = ? AND invited_player = ?";
+            
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, islandId.toString());
+                stmt.setString(2, playerUuid.toString());
+                stmt.executeUpdate();
+                
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to delete invite: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Deletes all expired invitations.
+     */
+    public CompletableFuture<Void> cleanupExpiredInvites() {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM island_invites WHERE expires_at < ?";
+            
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setLong(1, System.currentTimeMillis());
+                int deleted = stmt.executeUpdate();
+                
+                if (deleted > 0) {
+                    plugin.getLogger().info("Cleaned up " + deleted + " expired island invites.");
+                }
+                
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to cleanup expired invites: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Checks if a player has any island membership (as owner or member).
+     */
+    public CompletableFuture<Boolean> hasIslandMembership(UUID playerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Check if player owns an island
+            String sqlOwner = "SELECT COUNT(*) FROM player_islands WHERE owner_uuid = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlOwner)) {
+                stmt.setString(1, playerUuid.toString());
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to check island ownership: " + e.getMessage());
+            }
+            
+            // Check if player is a member of any island
+            String sqlMember = "SELECT COUNT(*) FROM island_members WHERE player_uuid = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlMember)) {
+                stmt.setString(1, playerUuid.toString());
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to check island membership: " + e.getMessage());
+            }
+            
+            return false;
+        });
+    }
+    
+    /**
+     * Gets the island ID that a player is a member of (owner or member).
+     */
+    public CompletableFuture<UUID> getPlayerIslandId(UUID playerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Check if player owns an island
+            String sqlOwner = "SELECT island_id FROM player_islands WHERE owner_uuid = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlOwner)) {
+                stmt.setString(1, playerUuid.toString());
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    return UUID.fromString(rs.getString("island_id"));
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to get player island: " + e.getMessage());
+            }
+            
+            // Check if player is a member of any island
+            String sqlMember = "SELECT island_id FROM island_members WHERE player_uuid = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlMember)) {
+                stmt.setString(1, playerUuid.toString());
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    return UUID.fromString(rs.getString("island_id"));
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to get player island membership: " + e.getMessage());
+            }
+            
+            return null;
+        });
+    }
 }
+

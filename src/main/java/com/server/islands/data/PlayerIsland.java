@@ -13,7 +13,7 @@ public class PlayerIsland {
     
     // Core identifiers
     private final UUID islandId;
-    private final UUID ownerUuid;
+    private UUID ownerUuid;  // Mutable to allow ownership transfer
     private String worldName;
     
     // Island properties
@@ -301,6 +301,10 @@ public class PlayerIsland {
     
     public UUID getOwnerUuid() {
         return ownerUuid;
+    }
+    
+    public void setOwnerUuid(UUID ownerUuid) {
+        this.ownerUuid = ownerUuid;
     }
     
     public String getWorldName() {

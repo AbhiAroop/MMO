@@ -14,6 +14,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.server.islands.data.IslandInvite;
 import com.server.islands.data.IslandMember;
 import com.server.islands.data.IslandStatistics;
 import com.server.islands.data.IslandType;
@@ -472,6 +473,155 @@ public class IslandManager {
      */
     public CompletableFuture<Void> removeMember(UUID islandId, UUID playerUuid) {
         return dataManager.deleteMember(islandId, playerUuid);
+    }
+    
+    /**
+     * Gets a member's role on an island.
+     */
+    public CompletableFuture<IslandMember.IslandRole> getMemberRole(UUID islandId, UUID playerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Check if they're the owner
+            PlayerIsland island = cache.getIsland(islandId);
+            if (island != null && island.getOwnerUuid().equals(playerUuid)) {
+                return IslandMember.IslandRole.OWNER;
+            }
+            
+            // Check members list
+            List<IslandMember> members = getMembers(islandId).join();
+            for (IslandMember member : members) {
+                if (member.getPlayerUuid().equals(playerUuid)) {
+                    return member.getRole();
+                }
+            }
+            
+            return null;
+        });
+    }
+    
+    /**
+     * Promotes or demotes a member to a new role.
+     */
+    public CompletableFuture<Boolean> setMemberRole(UUID islandId, UUID playerUuid, IslandMember.IslandRole newRole) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<IslandMember> members = getMembers(islandId).join();
+            
+            for (IslandMember member : members) {
+                if (member.getPlayerUuid().equals(playerUuid)) {
+                    member.setRole(newRole);
+                    dataManager.saveMember(member).join();
+                    return true;
+                }
+            }
+            
+            return false;
+        });
+    }
+    
+    /**
+     * Transfers ownership of an island to another player.
+     */
+    public CompletableFuture<Boolean> transferOwnership(UUID islandId, UUID newOwnerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            PlayerIsland island = cache.getIsland(islandId);
+            if (island == null) {
+                island = loadIsland(islandId).join();
+                if (island == null) return false;
+            }
+            
+            UUID oldOwnerUuid = island.getOwnerUuid();
+            
+            // Update island ownership
+            island.setOwnerUuid(newOwnerUuid);
+            dataManager.saveIsland(island).join();
+            
+            // Make old owner a co-owner
+            IslandMember oldOwnerMember = new IslandMember(islandId, oldOwnerUuid, IslandMember.IslandRole.CO_OWNER);
+            dataManager.saveMember(oldOwnerMember).join();
+            
+            // Remove new owner from members list (they're now the owner)
+            dataManager.deleteMember(islandId, newOwnerUuid).join();
+            
+            // Update cache
+            cache.cacheIsland(island);
+            
+            return true;
+        });
+    }
+    
+    // ==================== Invitations ====================
+    
+    /**
+     * Sends an invitation to a player to join an island.
+     */
+    public CompletableFuture<Boolean> invitePlayer(UUID islandId, UUID invitedPlayer, UUID invitedBy) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Check if player already has an island
+            Boolean hasMembership = dataManager.hasIslandMembership(invitedPlayer).join();
+            if (hasMembership) {
+                return false;
+            }
+            
+            // Create and save invite
+            IslandInvite invite = new IslandInvite(islandId, invitedPlayer, invitedBy);
+            dataManager.saveInvite(invite).join();
+            
+            return true;
+        });
+    }
+    
+    /**
+     * Gets all pending invites for a player.
+     */
+    public CompletableFuture<List<IslandInvite>> getPlayerInvites(UUID playerUuid) {
+        return dataManager.loadInvitesForPlayer(playerUuid);
+    }
+    
+    /**
+     * Accepts an island invitation.
+     */
+    public CompletableFuture<Boolean> acceptInvite(UUID islandId, UUID playerUuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            plugin.getLogger().info("[Island] Player " + playerUuid + " accepting invite to island " + islandId);
+            
+            // Check if player already has an island
+            Boolean hasMembership = dataManager.hasIslandMembership(playerUuid).join();
+            plugin.getLogger().info("[Island] Player has membership: " + hasMembership);
+            
+            if (hasMembership) {
+                return false;
+            }
+            
+            // Add player as member
+            plugin.getLogger().info("[Island] Adding player as MEMBER...");
+            addMember(islandId, playerUuid, IslandMember.IslandRole.MEMBER).join();
+            plugin.getLogger().info("[Island] Player added successfully");
+            
+            // Delete the invite
+            dataManager.deleteInvite(islandId, playerUuid).join();
+            
+            return true;
+        });
+    }
+    
+    /**
+     * Declines an island invitation.
+     */
+    public CompletableFuture<Boolean> declineInvite(UUID islandId, UUID playerUuid) {
+        return dataManager.deleteInvite(islandId, playerUuid).thenApply(v -> true);
+    }
+    
+    /**
+     * Checks if a player has any island membership.
+     */
+    public CompletableFuture<Boolean> hasIslandMembership(UUID playerUuid) {
+        return dataManager.hasIslandMembership(playerUuid);
+    }
+    
+    /**
+     * Gets the island ID that a player belongs to.
+     */
+    public CompletableFuture<UUID> getPlayerIslandId(UUID playerUuid) {
+        return dataManager.getPlayerIslandId(playerUuid);
     }
     
     // ==================== Auto-Unload System ====================

@@ -20,6 +20,7 @@ com\server\display\ScoreboardManager$1.class
 com\server\commands\AnimationDebugCommand.class
 com\server\enchantments\elements\CategorizedAffinity$1.class
 com\server\entities\npc\types\HostileNPC$1.class
+com\server\islands\data\IslandInvite.class
 com\server\enchantments\listeners\AnvilGUIListener.class
 com\server\profiles\stats\ElementalAffinity.class
 com\server\enchantments\abilities\utility\GaleStep.class
@@ -119,6 +120,7 @@ com\server\enchantments\elements\ElementType.class
 com\server\commands\CrystalCommand.class
 com\server\entities\mobs\duskhollow\DuskhollowFang.class
 com\server\entities\npc\types\CombatNPC.class
+com\server\islands\listeners\IslandRedstoneListener.class
 com\server\entities\npc\types\PassiveNPC$2.class
 com\server\profiles\skills\events\SkillExpGainEvent.class
 com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.class
@@ -149,6 +151,7 @@ com\server\entities\mobs\MobRegistry.class
 com\server\enchantments\FragmentRegistry.class
 com\server\islands\data\PlayerIsland$1.class
 com\server\profiles\stats\health\HealthRegenerationManager$1.class
+com\server\islands\listeners\IslandProtectionListener.class
 com\server\enchantments\abilities\utility\Veilborn.class
 com\server\profiles\skills\trees\builders\SkillTreeBuilder.class
 com\server\enchantments\listeners\EnchantmentGUIListener.class
@@ -280,6 +283,7 @@ com\server\islands\data\IslandMember$IslandRole.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
 com\server\events\PlayerListener$3.class
+com\server\islands\listeners\IslandProtectionListener$1.class
 com\server\entities\npc\NPCDamageEffects.class
 com\server\profiles\skills\abilities\passive\PassiveAbility.class
 com\server\profiles\skills\abilities\AbstractSkillAbility.class

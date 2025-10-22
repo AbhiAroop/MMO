@@ -569,6 +569,9 @@ public class Main extends JavaPlugin {
             
             // Register island redstone listener
             getServer().getPluginManager().registerEvents(new com.server.islands.listeners.IslandRedstoneListener(islandManager), this);
+            
+            // Register island protection listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.listeners.IslandProtectionListener(islandManager), this);
         } catch (NoClassDefFoundError e) {
             getLogger().warning("========================================");
             getLogger().warning("Island System could not be initialized!");
