@@ -224,8 +224,8 @@ public class EnchantmentGUIListener implements Listener {
             // Check if animation is active - clicking skips it
             if (GUIAnimationHandler.hasActiveAnimation(player)) {
                 GUIAnimationHandler.skipAnimation(player);
-                player.sendMessage(ChatColor.YELLOW + "Animation skipped!");
-                return; // Stay cancelled
+                player.sendMessage(ChatColor.YELLOW + "✦ Animation skipped!");
+                return;
             }
             
             // Block placing items with cursor
@@ -248,16 +248,17 @@ public class EnchantmentGUIListener implements Listener {
                 return;
             }
             
-            // It's an actual enchanted item - manually give it to player
-            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(current);
-            if (!leftover.isEmpty()) {
-                // Inventory full - drop on ground
-                for (ItemStack item : leftover.values()) {
-                    player.getWorld().dropItem(player.getLocation(), item);
+            // Check if it's an animation frame (colored glass panes)
+            if (current.getType().name().contains("STAINED_GLASS_PANE")) {
+                // Animation frame - don't allow taking it
+                if (Main.getInstance().isDebugEnabled(DebugSystem.GUI)) {
+                    Main.getInstance().debugLog(DebugSystem.GUI, "[Enchant GUI] Output slot - blocked animation frame");
                 }
-                player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Enchanted item dropped on ground.");
+                return;
             }
             
+            // It's an actual enchanted item - manually give it to player
+            player.getInventory().addItem(current);
             gui.getInventory().setItem(slot, createOutputPlaceholder());
             player.sendMessage(ChatColor.GREEN + "✓ Enchanted item received!");
             
@@ -343,22 +344,32 @@ public class EnchantmentGUIListener implements Listener {
             EnchantmentApplicator.enchantItem(player, item, fragments);
         
         if (result.isSuccess()) {
-            // Success! Start animation
-            player.sendMessage(result.getMessage());
-            
-            // Clear input slots IMMEDIATELY (item and fragments consumed)
+            // Clear input slots (item and fragments consumed)
             gui.clearInputs();
             
-            // Start 2-second animation before showing result
+            // Store the success message to show after animation
+            final String successMessage = result.getMessage();
+            
+            // Start animation with success message - enchanted item will appear after 2 seconds
             GUIAnimationHandler.startAnimation(
                 player, 
                 gui.getInventory(), 
                 EnchantmentTableGUI.OUTPUT_SLOT,
                 result.getEnchantedItem(),
-                null // No callback needed
+                successMessage, // Store message for later retrieval if skipped
+                () -> {
+                    // Animation complete callback
+                    // Show success message AFTER animation
+                    player.sendMessage(successMessage);
+                    
+                    // Sync GUI state after animation
+                    org.bukkit.Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                        gui.syncWithInventory();
+                    }, 1L);
+                }
             );
             
-            // DO NOT close GUI - let player take output item after animation
+            // DO NOT close GUI - let player take output item or close to skip animation
             
         } else {
             // Failed
@@ -422,10 +433,14 @@ public class EnchantmentGUIListener implements Listener {
         }
         
         // Check if animation is active - if so, cancel it and give result to player
+        String successMessage = GUIAnimationHandler.getSuccessMessage(player);
         ItemStack animationResult = GUIAnimationHandler.cancelAnimation(player);
         if (animationResult != null) {
-            // Animation was active - give result item to player
-            HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(animationResult);
+            // Animation was active - clear the output slot first to prevent returning the glass pane
+            gui.getInventory().setItem(EnchantmentTableGUI.OUTPUT_SLOT, null);
+            
+            // Give result item to player
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(animationResult);
             if (!leftover.isEmpty()) {
                 // Inventory full - drop on ground
                 for (ItemStack item : leftover.values()) {
@@ -434,6 +449,11 @@ public class EnchantmentGUIListener implements Listener {
                 player.sendMessage(ChatColor.YELLOW + "⚠ Inventory full! Enchanted item dropped on ground.");
             } else {
                 player.sendMessage(ChatColor.GREEN + "✓ Enchanted item added to inventory (animation skipped).");
+            }
+            
+            // Show the original success message if available
+            if (successMessage != null) {
+                player.sendMessage(successMessage);
             }
         }
         
