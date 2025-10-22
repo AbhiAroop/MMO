@@ -99,6 +99,9 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             case "transfer":
                 handleIslandTransfer(player, args);
                 break;
+            case "leave":
+                handleIslandLeave(player);
+                break;
             case "help":
             case "?":
                 sendHelpMessage(player);
@@ -152,15 +155,37 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 
-                // Proceed with deletion
-                islandManager.deleteIsland(player.getUniqueId()).thenAccept(success -> {
-                    if (success) {
-                        player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
-                            .append(Component.text("Your island has been deleted.", NamedTextColor.GREEN)));
-                    } else {
-                        player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                            .append(Component.text("Failed to delete island.", NamedTextColor.RED)));
-                    }
+                // Get all members before deletion
+                islandManager.getMembers(islandId).thenAccept(members -> {
+                    // Proceed with deletion
+                    islandManager.deleteIsland(player.getUniqueId()).thenAccept(success -> {
+                        if (success) {
+                            player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                                .append(Component.text("Your island has been deleted.", NamedTextColor.GREEN)));
+                            
+                            // Notify all members (except the owner who initiated it)
+                            for (com.server.islands.data.IslandMember member : members) {
+                                if (!member.getPlayerUuid().equals(player.getUniqueId())) {
+                                    Player memberPlayer = player.getServer().getPlayer(member.getPlayerUuid());
+                                    if (memberPlayer != null && memberPlayer.isOnline()) {
+                                        memberPlayer.sendMessage(Component.empty());
+                                        memberPlayer.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.RED, TextDecoration.BOLD));
+                                        memberPlayer.sendMessage(Component.text("⚠ ISLAND DELETED", NamedTextColor.RED, TextDecoration.BOLD));
+                                        memberPlayer.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.RED, TextDecoration.BOLD));
+                                        memberPlayer.sendMessage(Component.text("The island you were a member of has been deleted by ", NamedTextColor.YELLOW)
+                                            .append(Component.text(player.getName(), NamedTextColor.AQUA))
+                                            .append(Component.text(".", NamedTextColor.YELLOW)));
+                                        memberPlayer.sendMessage(Component.text("You can now create or join another island.", NamedTextColor.GRAY));
+                                        memberPlayer.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.RED, TextDecoration.BOLD));
+                                        memberPlayer.sendMessage(Component.empty());
+                                    }
+                                }
+                            }
+                        } else {
+                            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                                .append(Component.text("Failed to delete island.", NamedTextColor.RED)));
+                        }
+                    });
                 });
             });
         });
@@ -427,7 +452,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(Component.text("Usage: ", NamedTextColor.RED)
                 .append(Component.text("/island promote <player> <role>", NamedTextColor.YELLOW)));
             player.sendMessage(Component.text("Roles: ", NamedTextColor.GRAY)
-                .append(Component.text("CO_OWNER, ADMIN, MOD, MEMBER", NamedTextColor.YELLOW)));
+                .append(Component.text("OWNER, CO_OWNER, ADMIN, MOD, MEMBER", NamedTextColor.YELLOW)));
             return;
         }
         
@@ -449,13 +474,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                 .append(Component.text("Invalid role: " + roleName, NamedTextColor.RED)));
             player.sendMessage(Component.text("Valid roles: ", NamedTextColor.GRAY)
-                .append(Component.text("CO_OWNER, ADMIN, MOD, MEMBER", NamedTextColor.YELLOW)));
-            return;
-        }
-        
-        if (newRole == com.server.islands.data.IslandMember.IslandRole.OWNER) {
-            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("Use /island transfer to transfer ownership!", NamedTextColor.RED)));
+                .append(Component.text("OWNER, CO_OWNER, ADMIN, MOD, MEMBER", NamedTextColor.YELLOW)));
             return;
         }
         
@@ -469,6 +488,43 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             
             // Check permissions
             islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(role -> {
+                // Special case: Promoting to OWNER
+                if (newRole == com.server.islands.data.IslandMember.IslandRole.OWNER) {
+                    if (role != com.server.islands.data.IslandMember.IslandRole.OWNER) {
+                        player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                            .append(Component.text("Only the island owner can promote someone to owner!", NamedTextColor.RED)));
+                        return;
+                    }
+                    
+                    // Verify target is a member
+                    islandManager.getMemberRole(islandId, targetPlayer.getUniqueId()).thenAccept(targetRole -> {
+                        if (targetRole == null) {
+                            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                                .append(Component.text("That player is not a member of your island!", NamedTextColor.RED)));
+                            return;
+                        }
+                        
+                        // Transfer ownership (this will demote current owner to CO_OWNER)
+                        islandManager.transferOwnership(islandId, targetPlayer.getUniqueId()).thenAccept(success -> {
+                            if (success) {
+                                player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                                    .append(Component.text(targetPlayer.getName(), NamedTextColor.AQUA))
+                                    .append(Component.text(" is now the owner! You have been demoted to Co-Owner.", NamedTextColor.GREEN)));
+                                
+                                if (targetPlayer.isOnline()) {
+                                    targetPlayer.sendMessage(Component.text("✓ ", NamedTextColor.GOLD, TextDecoration.BOLD)
+                                        .append(Component.text("You are now the owner of the island!", NamedTextColor.GOLD)));
+                                }
+                            } else {
+                                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                                    .append(Component.text("Failed to transfer ownership.", NamedTextColor.RED)));
+                            }
+                        });
+                    });
+                    return;
+                }
+                
+                // Regular promotion (not to OWNER)
                 if (role == null || !role.canManageRole(newRole)) {
                     player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                         .append(Component.text("You don't have permission to promote to this role!", NamedTextColor.RED)));
@@ -651,6 +707,58 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
+     * Handles /island leave - Leave the island (members to co-owners only)
+     */
+    private void handleIslandLeave(Player player) {
+        // Get player's island
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You are not part of any island!", NamedTextColor.RED)));
+                return;
+            }
+            
+            // Check player's role
+            islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(role -> {
+                if (role == null) {
+                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                        .append(Component.text("Failed to check your island role!", NamedTextColor.RED)));
+                    return;
+                }
+                
+                // Owner cannot leave
+                if (role == com.server.islands.data.IslandMember.IslandRole.OWNER) {
+                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                        .append(Component.text("Island owners cannot leave! Use ", NamedTextColor.RED))
+                        .append(Component.text("/island delete", NamedTextColor.YELLOW))
+                        .append(Component.text(" to delete your island, or ", NamedTextColor.RED))
+                        .append(Component.text("/island promote <player> OWNER", NamedTextColor.YELLOW))
+                        .append(Component.text(" to transfer ownership first.", NamedTextColor.RED)));
+                    return;
+                }
+                
+                // Remove the player from the island
+                islandManager.removeMember(islandId, player.getUniqueId()).thenAccept(v -> {
+                    player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                        .append(Component.text("You have left the island.", NamedTextColor.GREEN)));
+                    
+                    // Notify the owner
+                    islandManager.loadIsland(islandId).thenAccept(island -> {
+                        if (island != null) {
+                            Player owner = player.getServer().getPlayer(island.getOwnerUuid());
+                            if (owner != null && owner.isOnline()) {
+                                owner.sendMessage(Component.text("⚠ ", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                                    .append(Component.text(player.getName(), NamedTextColor.AQUA))
+                                    .append(Component.text(" has left your island.", NamedTextColor.YELLOW)));
+                            }
+                        }
+                    });
+                });
+            });
+        });
+    }
+    
+    /**
      * Handles /island kick <player>
      */
     private void handleIslandKick(Player player, String[] args) {
@@ -732,6 +840,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
         sendCommandHelp(player, "/island accept", "Accept an island invitation");
         sendCommandHelp(player, "/island deny", "Decline an island invitation");
         sendCommandHelp(player, "/island kick <player>", "Remove a player from your island");
+        sendCommandHelp(player, "/island leave", "Leave your current island");
         sendCommandHelp(player, "/island promote <player> <role>", "Promote a member");
         sendCommandHelp(player, "/island demote <player>", "Demote a member");
         sendCommandHelp(player, "/island transfer <player>", "Transfer island ownership");
@@ -762,7 +871,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             suggestions.addAll(Arrays.asList(
                 "create", "delete", "home", "visit", "upgrade", 
                 "info", "settings", "members", "invite", "accept", "deny",
-                "kick", "promote", "demote", "transfer", "help"
+                "kick", "leave", "promote", "demote", "transfer", "help"
             ));
             
             // Filter by what player has typed
@@ -787,7 +896,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             
             // Suggest roles for promote command
             if (subCommand.equals("promote")) {
-                suggestions.addAll(Arrays.asList("CO_OWNER", "ADMIN", "MOD", "MEMBER"));
+                suggestions.addAll(Arrays.asList("OWNER", "CO_OWNER", "ADMIN", "MOD", "MEMBER"));
                 return suggestions.stream()
                     .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
                     .collect(Collectors.toList());

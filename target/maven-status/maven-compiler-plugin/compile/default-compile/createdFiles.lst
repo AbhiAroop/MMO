@@ -89,6 +89,7 @@ com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\AdminProfileCommand.class
 com\server\islands\commands\IslandCreateGUI$1.class
 com\server\enchantments\gui\EnchantmentApplicator$FragmentData.class
+com\server\listeners\ServerReloadListener.class
 com\server\enchantments\effects\AmbientParticleTask.class
 com\server\commands\NPCCommand.class
 com\server\enchantments\effects\ElementalParticles$1.class

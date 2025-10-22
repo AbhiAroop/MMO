@@ -230,6 +230,26 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Kick all players on reload to prevent island issues
+        getLogger().info("Kicking all players due to server reload/shutdown...");
+        java.util.List<org.bukkit.entity.Player> playersToKick = new java.util.ArrayList<>(getServer().getOnlinePlayers());
+        for (org.bukkit.entity.Player player : playersToKick) {
+            try {
+                player.kick(net.kyori.adventure.text.Component.text("Server is reloading. Please reconnect!")
+                    .color(net.kyori.adventure.text.format.NamedTextColor.YELLOW));
+                getLogger().info("Kicked player: " + player.getName());
+            } catch (Exception e) {
+                getLogger().warning("Failed to kick player " + player.getName() + ": " + e.getMessage());
+            }
+        }
+        
+        // Wait a moment for kicks to process
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         if (actionBarManager != null) {
             actionBarManager.stopActionBarUpdates();
         }
@@ -265,6 +285,9 @@ public class Main extends JavaPlugin {
     }
 
     private void registerListeners() {
+        // Register server reload listener to kick players before reload
+        this.getServer().getPluginManager().registerEvents(new com.server.listeners.ServerReloadListener(this), this);
+        
         this.getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AutoItemEnhancementListener(this), this);
         this.getServer().getPluginManager().registerEvents(new CombatListener(this), this);
