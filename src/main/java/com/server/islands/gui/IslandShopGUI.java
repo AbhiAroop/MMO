@@ -28,14 +28,22 @@ public class IslandShopGUI {
      * Open the Island Shop GUI for a player
      */
     public static void open(Player player, IslandManager islandManager) {
-        islandManager.getIsland(player.getUniqueId()).thenAccept(island -> {
-            if (island == null) {
+        // Get player's island ID (works for both owners and members)
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
                 player.sendMessage(Component.text("You don't have an island!", NamedTextColor.RED));
                 return;
             }
             
-            org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
-                Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE);
+            // Load the island by ID
+            islandManager.loadIsland(islandId).thenAccept(island -> {
+                if (island == null) {
+                    player.sendMessage(Component.text("Failed to load island!", NamedTextColor.RED));
+                    return;
+                }
+                
+                org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    Inventory gui = Bukkit.createInventory(null, 54, GUI_TITLE);
                     
                     // Add cyan borders first
                     addBorders(gui);
@@ -53,6 +61,7 @@ public class IslandShopGUI {
                 addBackButton(gui);
                 
                 player.openInventory(gui);
+                });
             });
         });
     }

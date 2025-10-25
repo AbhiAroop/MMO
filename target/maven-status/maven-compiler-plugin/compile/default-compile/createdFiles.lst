@@ -27,6 +27,7 @@ com\server\entities\npc\story\KaelenEchobound.class
 com\server\enchantments\abilities\offensive\Voltbrand$1.class
 com\server\display\MobDisplayManager$1.class
 com\server\enchantments\abilities\utility\ArcNexus$1.class
+com\server\islands\commands\IslandSettingsGUIListener.class
 com\server\islands\commands\IslandMenuGUIListener.class
 com\server\cosmetics\CosmeticManager$2.class
 com\server\entities\npc\dialogue\DialogueManager.class
@@ -216,6 +217,7 @@ com\server\profiles\skills\rewards\rewards\UnlockReward.class
 com\server\islands\commands\IslandVisitGUI.class
 com\server\abilities\AbilityManager.class
 com\server\crafting\listeners\AutoCraftingListener.class
+com\server\islands\commands\IslandSettingsGUI.class
 com\server\profiles\skills\abilities\gui\AbilityGUIListener.class
 com\server\profiles\skills\events\SkillActionBarListener.class
 com\server\events\CustomMobListener.class

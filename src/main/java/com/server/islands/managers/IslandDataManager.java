@@ -100,6 +100,8 @@ public class IslandDataManager {
                 "crop_growth_level INTEGER NOT NULL," +
                 "weather_control INTEGER NOT NULL," +
                 "current_biome TEXT NOT NULL," +
+                "pvp_enabled INTEGER NOT NULL DEFAULT 0," +
+                "visitors_enabled INTEGER NOT NULL DEFAULT 1," +
                 "spawn_x DOUBLE NOT NULL," +
                 "spawn_y DOUBLE NOT NULL," +
                 "spawn_z DOUBLE NOT NULL," +
@@ -140,6 +142,18 @@ public class IslandDataManager {
             stmt.execute(createStatisticsTable);
             stmt.execute(createInvitesTable);
             
+            // Add new columns if they don't exist (for existing databases)
+            try {
+                stmt.execute("ALTER TABLE player_islands ADD COLUMN pvp_enabled INTEGER NOT NULL DEFAULT 0");
+            } catch (Exception e) {
+                // Column already exists, ignore
+            }
+            try {
+                stmt.execute("ALTER TABLE player_islands ADD COLUMN visitors_enabled INTEGER NOT NULL DEFAULT 1");
+            } catch (Exception e) {
+                // Column already exists, ignore
+            }
+            
             // Create indexes for faster queries
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_owner ON player_islands(owner_uuid)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_member_player ON island_members(player_uuid)");
@@ -154,7 +168,7 @@ public class IslandDataManager {
      */
     public CompletableFuture<Void> saveIsland(PlayerIsland island) {
         return CompletableFuture.runAsync(() -> {
-            String sql = "INSERT OR REPLACE INTO player_islands VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            String sql = "INSERT OR REPLACE INTO player_islands VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, island.getIslandId().toString());
@@ -173,11 +187,13 @@ public class IslandDataManager {
                 stmt.setInt(14, island.getCropGrowthLevel());
                 stmt.setInt(15, island.hasWeatherControl() ? 1 : 0);
                 stmt.setString(16, island.getCurrentBiome());
-                stmt.setDouble(17, island.getSpawnX());
-                stmt.setDouble(18, island.getSpawnY());
-                stmt.setDouble(19, island.getSpawnZ());
-                stmt.setFloat(20, island.getSpawnYaw());
-                stmt.setFloat(21, island.getSpawnPitch());
+                stmt.setInt(17, island.isPvpEnabled() ? 1 : 0);
+                stmt.setInt(18, island.isVisitorsEnabled() ? 1 : 0);
+                stmt.setDouble(19, island.getSpawnX());
+                stmt.setDouble(20, island.getSpawnY());
+                stmt.setDouble(21, island.getSpawnZ());
+                stmt.setFloat(22, island.getSpawnYaw());
+                stmt.setFloat(23, island.getSpawnPitch());
                 
                 stmt.executeUpdate();
                 
@@ -271,6 +287,8 @@ public class IslandDataManager {
             rs.getInt("crop_growth_level"),
             rs.getInt("weather_control") == 1,
             rs.getString("current_biome"),
+            rs.getInt("pvp_enabled") == 1,
+            rs.getInt("visitors_enabled") == 1,
             rs.getDouble("spawn_x"),
             rs.getDouble("spawn_y"),
             rs.getDouble("spawn_z"),

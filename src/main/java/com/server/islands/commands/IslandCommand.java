@@ -275,7 +275,8 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             return;
         }
         
-        islandManager.teleportToIsland(player, targetPlayer.getUniqueId()).thenAccept(success -> {
+        // Use visitIsland to enforce visitor permissions
+        islandManager.visitIsland(player, targetPlayer.getUniqueId()).thenAccept(success -> {
             if (success) {
                 player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
                     .append(Component.text("Welcome to ", NamedTextColor.GREEN))
@@ -335,8 +336,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
      * Handles /island settings - Opens settings GUI
      */
     private void handleIslandSettings(Player player) {
-        player.sendMessage(Component.text("⚙ ", NamedTextColor.GOLD, TextDecoration.BOLD)
-            .append(Component.text("Island settings GUI coming soon!", NamedTextColor.YELLOW)));
+        IslandSettingsGUI.open(player, islandManager);
     }
     
     /**

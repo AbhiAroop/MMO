@@ -146,29 +146,49 @@ public class IslandMenuGUIListener implements Listener {
     }
     
     private void handleIslandInfo(Player player) {
-        islandManager.getIsland(player.getUniqueId()).thenAccept(island -> {
-            if (island == null) {
+        // Get player's island ID (works for both owners and members)
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
                 player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                     .append(Component.text("You don't have an island!", NamedTextColor.RED)));
                 return;
             }
             
-            Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
-                IslandInfoGUI.openForOwnIsland(player, island, islandManager);
+            // Load the island by ID
+            islandManager.loadIsland(islandId).thenAccept(island -> {
+                if (island == null) {
+                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                        .append(Component.text("Failed to load island!", NamedTextColor.RED)));
+                    return;
+                }
+                
+                Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    IslandInfoGUI.openForOwnIsland(player, island, islandManager);
+                });
             });
         });
     }
     
     private void handleIslandUpgrades(Player player) {
-        islandManager.getIsland(player.getUniqueId()).thenAccept(island -> {
-            if (island == null) {
+        // Get player's island ID (works for both owners and members)
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
                 player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                     .append(Component.text("You don't have an island!", NamedTextColor.RED)));
                 return;
             }
             
-            Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
-                IslandUpgradeGUI.open(player, island, islandManager);
+            // Load the island by ID
+            islandManager.loadIsland(islandId).thenAccept(island -> {
+                if (island == null) {
+                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                        .append(Component.text("Failed to load island!", NamedTextColor.RED)));
+                    return;
+                }
+                
+                Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    IslandUpgradeGUI.open(player, island, islandManager);
+                });
             });
         });
     }
@@ -186,8 +206,9 @@ public class IslandMenuGUIListener implements Listener {
     }
     
     private void handleIslandSettings(Player player) {
-        player.sendMessage(Component.text("⚙ ", NamedTextColor.GOLD, TextDecoration.BOLD)
-            .append(Component.text("Island settings GUI coming soon!", NamedTextColor.YELLOW)));
+        Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+            IslandSettingsGUI.open(player, islandManager);
+        });
     }
     
     private void handleVisitIsland(Player player) {

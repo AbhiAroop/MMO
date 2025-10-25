@@ -93,20 +93,29 @@ public class IslandGUIListener implements Listener {
      * Handles clicks in the Upgrade GUI
      */
     private void handleUpgradeGUIClick(Player player, int slot) {
-        // Get the player's island by owner UUID
-        islandManager.getIslandByOwner(player.getUniqueId()).thenAccept(island -> {
-            if (island == null) {
+        // Get the player's island ID (works for both owners and members)
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
                 return;
             }
             
-            // Handle upgrade clicks (slots: 11, 13, 15, 29, 31)
-            if (slot == 11 || slot == 13 || slot == 15 || slot == 29 || slot == 31) {
-                IslandUpgradeGUI.handleUpgradeClick(player, island, slot, islandManager);
-            } else if (slot == 49) {
+            // Handle back button first (doesn't need island data)
+            if (slot == 49) {
                 // Back button - return to island menu
                 org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
                     player.closeInventory();
                     IslandMenuGUI.open(player, islandManager);
+                });
+                return;
+            }
+            
+            // For upgrade clicks, load the island
+            if (slot == 11 || slot == 13 || slot == 15 || slot == 29 || slot == 31) {
+                islandManager.loadIsland(islandId).thenAccept(island -> {
+                    if (island == null) {
+                        return;
+                    }
+                    IslandUpgradeGUI.handleUpgradeClick(player, island, slot, islandManager);
                 });
             }
         });

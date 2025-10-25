@@ -26,9 +26,17 @@ public class IslandManageRolesGUI {
         islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
             if (islandId == null) return;
             
-            islandManager.getMembers(islandId).thenAccept(members -> {
-                Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
-                    Inventory gui = Bukkit.createInventory(null, 54, Component.text("⚙ Manage Roles"));
+            // Check if player has permission to manage roles (ADMIN+)
+            islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(role -> {
+                if (role == null || !role.hasPermission(IslandMember.IslandRole.ADMIN)) {
+                    player.sendMessage(Component.text("✗ ", net.kyori.adventure.text.format.NamedTextColor.RED, net.kyori.adventure.text.format.TextDecoration.BOLD)
+                        .append(Component.text("You need to be at least an Admin to manage roles!", net.kyori.adventure.text.format.NamedTextColor.RED)));
+                    return;
+                }
+                
+                islandManager.getMembers(islandId).thenAccept(members -> {
+                    Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                        Inventory gui = Bukkit.createInventory(null, 54, Component.text("⚙ Manage Roles"));
                     
                     int slot = 10;
                     for (IslandMember member : members) {
@@ -65,6 +73,7 @@ public class IslandManageRolesGUI {
                     gui.setItem(49, createBackButton());
                     fillEmpty(gui);
                     player.openInventory(gui);
+                    });
                 });
             });
         });

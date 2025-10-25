@@ -169,6 +169,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\comm
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\data\PlayerSkillData.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\items\CustomItems.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\managers\IslandUpgradeManager.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\IslandSettingsGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\IslandMenuGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\NPCManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\gui\ChallengeCategoryTreeGUI.java
@@ -184,6 +185,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\display\Dama
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\recipes\FurnaceRecipe.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\defensive\Terraheart.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Embershade.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\IslandSettingsGUIListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\PassiveNPC.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\RangedCombatManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\AbilityRegistry.java

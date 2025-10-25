@@ -141,7 +141,7 @@ public class IslandProtectionListener implements Listener {
             return;
         }
         
-        Player player = (Player) event.getDamager();
+        Player damager = (Player) event.getDamager();
         Location location = event.getEntity().getLocation();
         
         String worldName = location.getWorld().getName();
@@ -162,15 +162,36 @@ public class IslandProtectionListener implements Listener {
             return; // Island not loaded
         }
         
-        UUID playerUuid = player.getUniqueId();
+        UUID damagerUuid = damager.getUniqueId();
+        
+        // Check if target is a player (PVP check)
+        if (event.getEntity() instanceof Player) {
+            Player victim = (Player) event.getEntity();
+            UUID victimUuid = victim.getUniqueId();
+            
+            // Check if both are members of this island
+            IslandMember.IslandRole damagerRole = islandManager.getMemberRole(island.getIslandId(), damagerUuid).join();
+            IslandMember.IslandRole victimRole = islandManager.getMemberRole(island.getIslandId(), victimUuid).join();
+            
+            boolean damagerIsMember = island.getOwnerUuid().equals(damagerUuid) || (damagerRole != null && damagerRole.hasPermission(IslandMember.IslandRole.MEMBER));
+            boolean victimIsMember = island.getOwnerUuid().equals(victimUuid) || (victimRole != null && victimRole.hasPermission(IslandMember.IslandRole.MEMBER));
+            
+            // If both are members and PVP is disabled, block the attack
+            if (damagerIsMember && victimIsMember && !island.isPvpEnabled()) {
+                event.setCancelled(true);
+                damager.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("PVP is disabled on this island!", NamedTextColor.RED)));
+                return;
+            }
+        }
         
         // Check if player is the owner
-        if (island.getOwnerUuid().equals(playerUuid)) {
+        if (island.getOwnerUuid().equals(damagerUuid)) {
             return; // Owner can do anything
         }
         
         // Check if player is a member
-        IslandMember.IslandRole role = islandManager.getMemberRole(island.getIslandId(), playerUuid).join();
+        IslandMember.IslandRole role = islandManager.getMemberRole(island.getIslandId(), damagerUuid).join();
         
         if (role != null && role.hasPermission(IslandMember.IslandRole.MEMBER)) {
             return; // Members can attack entities
@@ -178,7 +199,7 @@ public class IslandProtectionListener implements Listener {
         
         // Not authorized
         event.setCancelled(true);
-        player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+        damager.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
             .append(Component.text("You don't have permission to do that on this island!", NamedTextColor.RED)));
     }
 }

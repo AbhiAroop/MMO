@@ -26,16 +26,24 @@ public class IslandMenuGUI {
     public static void open(Player player, IslandManager islandManager) {
         Inventory gui = Bukkit.createInventory(null, 54, Component.text(GUI_TITLE));
         
-        // Load player's island to get info
-        islandManager.getIsland(player.getUniqueId()).thenAccept(island -> {
-            if (island == null) {
+        // Get player's island ID (works for both owners and members)
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
                 return;
             }
             
-            islandManager.getMemberRole(island.getIslandId(), player.getUniqueId()).thenAccept(role -> {
-                Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
-                    populateGUI(gui, player, island, role, islandManager);
-                    player.openInventory(gui);
+            // Load the island by ID
+            islandManager.loadIsland(islandId).thenAccept(island -> {
+                if (island == null) {
+                    return;
+                }
+                
+                // Get player's role on this island
+                islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(role -> {
+                    Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                        populateGUI(gui, player, island, role, islandManager);
+                        player.openInventory(gui);
+                    });
                 });
             });
         });

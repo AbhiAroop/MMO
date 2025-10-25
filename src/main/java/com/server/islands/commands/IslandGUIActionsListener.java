@@ -154,7 +154,8 @@ public class IslandGUIActionsListener implements Listener {
                 if (targetPlayer != null && targetPlayer.isOnline()) {
                     player.closeInventory();
                     
-                    islandManager.teleportToIsland(player, targetPlayer.getUniqueId()).thenAccept(success -> {
+                    // Use visitIsland to enforce visitor permissions
+                    islandManager.visitIsland(player, targetPlayer.getUniqueId()).thenAccept(success -> {
                         if (success) {
                             player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
                                 .append(Component.text("Welcome to ", NamedTextColor.GREEN))
@@ -324,76 +325,117 @@ public class IslandGUIActionsListener implements Listener {
     }
     
     private void promotePlayer(Player player, Player target, java.util.UUID islandId, IslandMember.IslandRole currentRole) {
-        // Determine next role
-        IslandMember.IslandRole newRole;
-        if (currentRole == IslandMember.IslandRole.MEMBER) {
-            newRole = IslandMember.IslandRole.MOD;
-        } else if (currentRole == IslandMember.IslandRole.MOD) {
-            newRole = IslandMember.IslandRole.ADMIN;
-        } else if (currentRole == IslandMember.IslandRole.ADMIN) {
-            newRole = IslandMember.IslandRole.CO_OWNER;
-        } else {
-            newRole = currentRole;
-        }
-        
-        if (newRole == currentRole) {
+        // Prevent self-promotion
+        if (player.getUniqueId().equals(target.getUniqueId())) {
             player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("Cannot promote " + target.getName() + " further!", NamedTextColor.RED)));
+                .append(Component.text("You cannot promote yourself!", NamedTextColor.RED)));
             return;
         }
         
-        islandManager.setMemberRole(islandId, target.getUniqueId(), newRole).thenAccept(success -> {
-            if (success) {
-                player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
-                    .append(Component.text(target.getName(), NamedTextColor.AQUA))
-                    .append(Component.text(" promoted to ", NamedTextColor.GREEN))
+        // Check if player has permission
+        islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(playerRole -> {
+            if (playerRole == null || !playerRole.canManageRole(currentRole)) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You don't have permission to promote this player!", NamedTextColor.RED)));
+                return;
+            }
+            
+            // Determine next role
+            IslandMember.IslandRole newRole;
+            if (currentRole == IslandMember.IslandRole.MEMBER) {
+                newRole = IslandMember.IslandRole.MOD;
+            } else if (currentRole == IslandMember.IslandRole.MOD) {
+                newRole = IslandMember.IslandRole.ADMIN;
+            } else if (currentRole == IslandMember.IslandRole.ADMIN) {
+                newRole = IslandMember.IslandRole.CO_OWNER;
+            } else {
+                newRole = currentRole;
+            }
+            
+            if (newRole == currentRole) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("Cannot promote " + target.getName() + " further!", NamedTextColor.RED)));
+                return;
+            }
+            
+            // Check if player can manage the new role too
+            if (!playerRole.canManageRole(newRole)) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You don't have permission to promote to ", NamedTextColor.RED))
                     .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
-                    .append(Component.text("!", NamedTextColor.GREEN)));
-                
-                if (target.isOnline()) {
-                    target.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
-                        .append(Component.text("You have been promoted to ", NamedTextColor.GREEN))
+                    .append(Component.text("!", NamedTextColor.RED)));
+                return;
+            }
+            
+            islandManager.setMemberRole(islandId, target.getUniqueId(), newRole).thenAccept(success -> {
+                if (success) {
+                    player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                        .append(Component.text(target.getName(), NamedTextColor.AQUA))
+                        .append(Component.text(" promoted to ", NamedTextColor.GREEN))
                         .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
                         .append(Component.text("!", NamedTextColor.GREEN)));
+                    
+                    if (target.isOnline()) {
+                        target.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                            .append(Component.text("You have been promoted to ", NamedTextColor.GREEN))
+                            .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
+                            .append(Component.text("!", NamedTextColor.GREEN)));
+                    }
                 }
-            }
+            });
         });
     }
     
     private void demotePlayer(Player player, Player target, java.util.UUID islandId, IslandMember.IslandRole currentRole) {
-        // Determine lower role
-        IslandMember.IslandRole newRole;
-        if (currentRole == IslandMember.IslandRole.CO_OWNER) {
-            newRole = IslandMember.IslandRole.ADMIN;
-        } else if (currentRole == IslandMember.IslandRole.ADMIN) {
-            newRole = IslandMember.IslandRole.MOD;
-        } else if (currentRole == IslandMember.IslandRole.MOD) {
-            newRole = IslandMember.IslandRole.MEMBER;
-        } else {
-            newRole = currentRole;
-        }
-        
-        if (newRole == currentRole) {
+        // Prevent self-demotion
+        if (player.getUniqueId().equals(target.getUniqueId())) {
             player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("Cannot demote " + target.getName() + " further!", NamedTextColor.RED)));
+                .append(Component.text("You cannot demote yourself!", NamedTextColor.RED)));
             return;
         }
         
-        islandManager.setMemberRole(islandId, target.getUniqueId(), newRole).thenAccept(success -> {
-            if (success) {
-                player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
-                    .append(Component.text(target.getName(), NamedTextColor.AQUA))
-                    .append(Component.text(" demoted to ", NamedTextColor.GREEN))
-                    .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
-                    .append(Component.text("!", NamedTextColor.GREEN)));
-                
-                if (target.isOnline()) {
-                    target.sendMessage(Component.text("⚠ ", NamedTextColor.YELLOW, TextDecoration.BOLD)
-                        .append(Component.text("You have been demoted to ", NamedTextColor.YELLOW))
-                        .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
-                        .append(Component.text(".", NamedTextColor.YELLOW)));
-                }
+        // Check if player has permission
+        islandManager.getMemberRole(islandId, player.getUniqueId()).thenAccept(playerRole -> {
+            if (playerRole == null || !playerRole.canManageRole(currentRole)) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You don't have permission to demote this player!", NamedTextColor.RED)));
+                return;
             }
+            
+            // Determine lower role
+            IslandMember.IslandRole newRole;
+            if (currentRole == IslandMember.IslandRole.CO_OWNER) {
+                newRole = IslandMember.IslandRole.ADMIN;
+            } else if (currentRole == IslandMember.IslandRole.ADMIN) {
+                newRole = IslandMember.IslandRole.MOD;
+            } else if (currentRole == IslandMember.IslandRole.MOD) {
+                newRole = IslandMember.IslandRole.MEMBER;
+            } else {
+                newRole = currentRole;
+            }
+            
+            if (newRole == currentRole) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("Cannot demote " + target.getName() + " further!", NamedTextColor.RED)));
+                return;
+            }
+            
+            islandManager.setMemberRole(islandId, target.getUniqueId(), newRole).thenAccept(success -> {
+                if (success) {
+                    player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                        .append(Component.text(target.getName(), NamedTextColor.AQUA))
+                        .append(Component.text(" demoted to ", NamedTextColor.GREEN))
+                        .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
+                        .append(Component.text("!", NamedTextColor.GREEN)));
+                    
+                    if (target.isOnline()) {
+                        target.sendMessage(Component.text("⚠ ", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                            .append(Component.text("You have been demoted to ", NamedTextColor.YELLOW))
+                            .append(Component.text(newRole.getDisplayName(), NamedTextColor.GOLD))
+                            .append(Component.text(".", NamedTextColor.YELLOW)));
+                    }
+                }
+            });
         });
     }
     

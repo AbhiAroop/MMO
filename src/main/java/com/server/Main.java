@@ -646,6 +646,9 @@ public class Main extends JavaPlugin {
             // Register island info GUI listener
             getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandInfoGUIListener(islandManager), this);
             
+            // Register island settings GUI listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandSettingsGUIListener(islandManager), this);
+            
             // Register challenge GUI listener
             getServer().getPluginManager().registerEvents(new com.server.islands.commands.ChallengeCategoryGUIListener(islandManager, challengeManager), this);
             

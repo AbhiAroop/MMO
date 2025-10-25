@@ -22,6 +22,10 @@ import com.server.islands.data.PlayerIsland;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+
 /**
  * Main manager for island operations.
  * Handles island creation, loading, unloading, and player interactions.
@@ -364,6 +368,27 @@ public class IslandManager {
             PlayerIsland island = getIslandByOwner(ownerUuid).join();
             if (island == null) {
                 return false;
+            }
+            
+            // Check if visitors are allowed
+            if (!island.isVisitorsEnabled()) {
+                // Check if the visitor is a member of the island
+                UUID visitorUuid = visitor.getUniqueId();
+                boolean isMember = island.getOwnerUuid().equals(visitorUuid);
+                
+                if (!isMember) {
+                    IslandMember.IslandRole role = getMemberRole(island.getIslandId(), visitorUuid).join();
+                    isMember = role != null && role.hasPermission(IslandMember.IslandRole.MEMBER);
+                }
+                
+                if (!isMember) {
+                    // Not a member and visitors are disabled
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        visitor.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                            .append(Component.text("This island is not accepting visitors!", NamedTextColor.RED)));
+                    });
+                    return false;
+                }
             }
             
             // Check if island allows visitors

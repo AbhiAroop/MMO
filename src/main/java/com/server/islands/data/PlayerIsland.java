@@ -37,6 +37,10 @@ public class PlayerIsland {
     private boolean weatherControl;
     private String currentBiome;
     
+    // Settings
+    private boolean pvpEnabled;
+    private boolean visitorsEnabled;
+    
     // Statistics
     private IslandStatistics statistics;
     
@@ -69,6 +73,8 @@ public class PlayerIsland {
         this.cropGrowthLevel = 1;
         this.weatherControl = false;
         this.currentBiome = getDefaultBiome();
+        this.pvpEnabled = false; // PVP disabled by default
+        this.visitorsEnabled = true; // Visitors allowed by default
         this.statistics = new IslandStatistics(islandId);
         
         // Default spawn (one block above platform at y=99)
@@ -86,6 +92,7 @@ public class PlayerIsland {
                        String worldName, long createdAt, long lastAccessed, int islandLevel,
                        long islandValue, int islandTokens, int sizeLevel, int playerLimitLevel, int redstoneLimitLevel,
                        int cropGrowthLevel, boolean weatherControl, String currentBiome,
+                       boolean pvpEnabled, boolean visitorsEnabled,
                        double spawnX, double spawnY, double spawnZ, float spawnYaw, float spawnPitch) {
         this.islandId = islandId;
         this.ownerUuid = ownerUuid;
@@ -103,6 +110,8 @@ public class PlayerIsland {
         this.cropGrowthLevel = cropGrowthLevel;
         this.weatherControl = weatherControl;
         this.currentBiome = currentBiome;
+        this.pvpEnabled = pvpEnabled;
+        this.visitorsEnabled = visitorsEnabled;
         this.spawnX = spawnX;
         this.spawnY = spawnY;
         this.spawnZ = spawnZ;
@@ -428,6 +437,22 @@ public class PlayerIsland {
     
     public void setCurrentBiome(String currentBiome) {
         this.currentBiome = currentBiome;
+    }
+    
+    public boolean isPvpEnabled() {
+        return pvpEnabled;
+    }
+    
+    public void setPvpEnabled(boolean pvpEnabled) {
+        this.pvpEnabled = pvpEnabled;
+    }
+    
+    public boolean isVisitorsEnabled() {
+        return visitorsEnabled;
+    }
+    
+    public void setVisitorsEnabled(boolean visitorsEnabled) {
+        this.visitorsEnabled = visitorsEnabled;
     }
     
     public double getSpawnX() {
