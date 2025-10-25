@@ -24,8 +24,39 @@ public class IslandUpgradeManager {
     }
     
     /**
+     * Calculate island token cost for an upgrade based on level
+     * Must match the costs shown in IslandUpgradeGUI
+     */
+    private static int calculateTokenCost(String upgradeType, int currentLevel) {
+        switch (upgradeType.toLowerCase()) {
+            case "size":
+                if (currentLevel < 3) return 1;
+                if (currentLevel < 5) return 2;
+                if (currentLevel < 10) return 3;
+                if (currentLevel < 15) return 5;
+                if (currentLevel < 25) return 8;
+                if (currentLevel < 40) return 10;
+                if (currentLevel < 60) return 15;
+                if (currentLevel < 80) return 20;
+                if (currentLevel < 120) return 30;
+                if (currentLevel < 180) return 40;
+                return 50;
+            case "player_limit":
+                return 5 + (currentLevel * 5);
+            case "redstone":
+                return 3 + (currentLevel * 5);
+            case "crop_growth":
+                return 5 + (currentLevel * 7);
+            case "weather":
+                return 50;
+            default:
+                return 5;
+        }
+    }
+    
+    /**
      * Upgrades the island size by 2 blocks (1 in each direction).
-     * Cost: 1000 units per upgrade
+     * Cost: Units + Island Tokens (based on level)
      * Max size: 500x500
      */
     public CompletableFuture<UpgradeResult> upgradeSizeLevel(Player player) {
@@ -42,17 +73,25 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "Your island is already at maximum size (500x500)!");
             }
             
-            int cost = island.getSizeUpgradeCost();
+            int unitCost = island.getSizeUpgradeCost();
+            int tokenCost = calculateTokenCost("size", island.getSizeLevel());
             
-            // Check if player can afford it
+            // Check if player can afford units
             PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(playerUuid);
-            if (profile == null || profile.getUnits() < cost) {
-                return new UpgradeResult(false, "You need " + cost + " units to upgrade! (You have " + 
+            if (profile == null || profile.getUnits() < unitCost) {
+                return new UpgradeResult(false, "You need " + unitCost + " units to upgrade! (You have " + 
                     (profile != null ? profile.getUnits() : 0) + ")");
             }
             
-            // Deduct cost
-            profile.removeUnits(cost);
+            // Check if island has enough tokens
+            if (island.getIslandTokens() < tokenCost) {
+                return new UpgradeResult(false, "You need " + tokenCost + " island tokens to upgrade! (You have " + 
+                    island.getIslandTokens() + ")");
+            }
+            
+            // Deduct costs
+            profile.removeUnits(unitCost);
+            island.removeIslandTokens(tokenCost);
             
             // Upgrade level
             int oldSize = island.getCurrentSize();
@@ -67,12 +106,13 @@ public class IslandUpgradeManager {
             
             return new UpgradeResult(true, "Island size upgraded from " + oldSize + "x" + oldSize + 
                 " to " + newSize + "x" + newSize + "! (" + island.getSizeLevel() + "/" + 
-                island.getMaxSizeLevel() + ")");
+                island.getMaxSizeLevel() + ") [-" + unitCost + " units, -" + tokenCost + " tokens]");
         });
     }
     
     /**
      * Upgrades the player limit.
+     * Cost: Units + Island Tokens (based on level)
      */
     public CompletableFuture<UpgradeResult> upgradePlayerLimit(Player player) {
         return CompletableFuture.supplyAsync(() -> {
@@ -88,17 +128,25 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "Your player limit is already at maximum!");
             }
             
-            int cost = island.getPlayerLimitUpgradeCost();
+            int unitCost = island.getPlayerLimitUpgradeCost();
+            int tokenCost = calculateTokenCost("player_limit", island.getPlayerLimitLevel());
             
-            // Check if player can afford it
+            // Check if player can afford units
             PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(playerUuid);
-            if (profile == null || profile.getUnits() < cost) {
-                return new UpgradeResult(false, "You need " + cost + " units to upgrade! (You have " + 
+            if (profile == null || profile.getUnits() < unitCost) {
+                return new UpgradeResult(false, "You need " + unitCost + " units to upgrade! (You have " + 
                     (profile != null ? profile.getUnits() : 0) + ")");
             }
             
-            // Deduct cost
-            profile.removeUnits(cost);
+            // Check if island has enough tokens
+            if (island.getIslandTokens() < tokenCost) {
+                return new UpgradeResult(false, "You need " + tokenCost + " island tokens to upgrade! (You have " + 
+                    island.getIslandTokens() + ")");
+            }
+            
+            // Deduct costs
+            profile.removeUnits(unitCost);
+            island.removeIslandTokens(tokenCost);
             
             // Upgrade level
             int oldLimit = island.getCurrentPlayerLimit();
@@ -109,13 +157,13 @@ public class IslandUpgradeManager {
             islandManager.getDataManager().saveIsland(island).join();
             
             return new UpgradeResult(true, "§aPlayer limit upgraded from " + oldLimit + 
-                " to " + newLimit + " players!");
+                " to " + newLimit + " players! [-" + unitCost + " units, -" + tokenCost + " tokens]");
         });
     }
     
     /**
      * Upgrades the redstone limit.
-     * Cost: 1000 units per upgrade
+     * Cost: Units + Island Tokens (based on level)
      * Starts at 10, increases by 5 per level, max 100 at level 19
      */
     public CompletableFuture<UpgradeResult> upgradeRedstoneLimit(Player player) {
@@ -132,17 +180,25 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "Your redstone limit is already at maximum (100 items)!");
             }
             
-            int cost = island.getRedstoneLimitUpgradeCost();
+            int unitCost = island.getRedstoneLimitUpgradeCost();
+            int tokenCost = calculateTokenCost("redstone", island.getRedstoneLimitLevel());
             
-            // Check if player can afford it
+            // Check if player can afford units
             PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(playerUuid);
-            if (profile == null || profile.getUnits() < cost) {
-                return new UpgradeResult(false, "You need " + cost + " units to upgrade! (You have " + 
+            if (profile == null || profile.getUnits() < unitCost) {
+                return new UpgradeResult(false, "You need " + unitCost + " units to upgrade! (You have " + 
                     (profile != null ? profile.getUnits() : 0) + ")");
             }
             
-            // Deduct cost
-            profile.removeUnits(cost);
+            // Check if island has enough tokens
+            if (island.getIslandTokens() < tokenCost) {
+                return new UpgradeResult(false, "You need " + tokenCost + " island tokens to upgrade! (You have " + 
+                    island.getIslandTokens() + ")");
+            }
+            
+            // Deduct costs
+            profile.removeUnits(unitCost);
+            island.removeIslandTokens(tokenCost);
             
             // Upgrade level
             int oldLimit = island.getCurrentRedstoneLimit();
@@ -154,12 +210,13 @@ public class IslandUpgradeManager {
             
             return new UpgradeResult(true, "Redstone limit upgraded from " + oldLimit + 
                 " to " + newLimit + " items! (" + island.getRedstoneLimitLevel() + "/" + 
-                island.getMaxRedstoneLevel() + ")");
+                island.getMaxRedstoneLevel() + ") [-" + unitCost + " units, -" + tokenCost + " tokens]");
         });
     }
     
     /**
      * Upgrades the crop growth speed.
+     * Cost: Units + Island Tokens (based on level)
      */
     public CompletableFuture<UpgradeResult> upgradeCropGrowth(Player player) {
         return CompletableFuture.supplyAsync(() -> {
@@ -175,17 +232,25 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "Your crop growth is already at maximum speed!");
             }
             
-            int cost = island.getCropGrowthUpgradeCost();
+            int unitCost = island.getCropGrowthUpgradeCost();
+            int tokenCost = calculateTokenCost("crop_growth", island.getCropGrowthLevel());
             
-            // Check if player can afford it
+            // Check if player can afford units
             PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(playerUuid);
-            if (profile == null || profile.getUnits() < cost) {
-                return new UpgradeResult(false, "You need " + cost + " units to upgrade! (You have " + 
+            if (profile == null || profile.getUnits() < unitCost) {
+                return new UpgradeResult(false, "You need " + unitCost + " units to upgrade! (You have " + 
                     (profile != null ? profile.getUnits() : 0) + ")");
             }
             
-            // Deduct cost
-            profile.removeUnits(cost);
+            // Check if island has enough tokens
+            if (island.getIslandTokens() < tokenCost) {
+                return new UpgradeResult(false, "You need " + tokenCost + " island tokens to upgrade! (You have " + 
+                    island.getIslandTokens() + ")");
+            }
+            
+            // Deduct costs
+            profile.removeUnits(unitCost);
+            island.removeIslandTokens(tokenCost);
             
             // Upgrade level
             double oldMultiplier = island.getCropGrowthMultiplier();
@@ -196,12 +261,13 @@ public class IslandUpgradeManager {
             islandManager.getDataManager().saveIsland(island).join();
             
             return new UpgradeResult(true, "§aCrop growth upgraded from " + oldMultiplier + 
-                "x to " + newMultiplier + "x speed!");
+                "x to " + newMultiplier + "x speed! [-" + unitCost + " units, -" + tokenCost + " tokens]");
         });
     }
     
     /**
      * Toggles weather control for an island (one-time purchase).
+     * Cost: 50000 Units + 50 Island Tokens
      */
     public CompletableFuture<UpgradeResult> enableWeatherControl(Player player) {
         return CompletableFuture.supplyAsync(() -> {
@@ -217,17 +283,25 @@ public class IslandUpgradeManager {
                 return new UpgradeResult(false, "You already have weather control!");
             }
             
-            int cost = 50000; // Fixed cost for weather control
+            int unitCost = 50000; // Fixed cost for weather control
+            int tokenCost = calculateTokenCost("weather", 0); // Level doesn't matter, it's always 50
             
-            // Check if player can afford it
+            // Check if player can afford units
             PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(playerUuid);
-            if (profile == null || profile.getUnits() < cost) {
-                return new UpgradeResult(false, "You need " + cost + " units to enable weather control! (You have " + 
+            if (profile == null || profile.getUnits() < unitCost) {
+                return new UpgradeResult(false, "You need " + unitCost + " units to enable weather control! (You have " + 
                     (profile != null ? profile.getUnits() : 0) + ")");
             }
             
-            // Deduct cost
-            profile.removeUnits(cost);
+            // Check if island has enough tokens
+            if (island.getIslandTokens() < tokenCost) {
+                return new UpgradeResult(false, "You need " + tokenCost + " island tokens to enable weather control! (You have " + 
+                    island.getIslandTokens() + ")");
+            }
+            
+            // Deduct costs
+            profile.removeUnits(unitCost);
+            island.removeIslandTokens(tokenCost);
             
             // Enable weather control
             island.setWeatherControl(true);
@@ -235,7 +309,8 @@ public class IslandUpgradeManager {
             // Save island
             islandManager.getDataManager().saveIsland(island).join();
             
-            return new UpgradeResult(true, "§aWeather control enabled! Use /island weather to control your island's weather.");
+            return new UpgradeResult(true, "§aWeather control enabled! Use /island weather to control your island's weather. [-" + 
+                unitCost + " units, -" + tokenCost + " tokens]");
         });
     }
     

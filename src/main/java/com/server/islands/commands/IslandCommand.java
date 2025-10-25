@@ -25,9 +25,14 @@ import net.kyori.adventure.text.format.TextDecoration;
 public class IslandCommand implements CommandExecutor, TabCompleter {
     
     private final IslandManager islandManager;
+    private com.server.islands.managers.ChallengeManager challengeManager;
     
     public IslandCommand(IslandManager islandManager) {
         this.islandManager = islandManager;
+    }
+    
+    public void setChallengeManager(com.server.islands.managers.ChallengeManager challengeManager) {
+        this.challengeManager = challengeManager;
     }
     
     @Override
@@ -39,9 +44,9 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
         
         Player player = (Player) sender;
         
-        // No arguments - teleport to own island or show help
+        // No arguments - open island menu GUI
         if (args.length == 0) {
-            handleIslandHome(player);
+            handleIslandMenuGUI(player);
             return true;
         }
         
@@ -65,6 +70,11 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
             case "upgrade":
             case "up":
                 handleIslandUpgrade(player);
+                break;
+            case "challenges":
+            case "challenge":
+            case "c":
+                handleIslandChallenges(player);
                 break;
             case "settings":
             case "config":
@@ -114,6 +124,26 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
         }
         
         return true;
+    }
+    
+    /**
+     * Handles /island - Opens main menu or create GUI
+     */
+    private void handleIslandMenuGUI(Player player) {
+        // Check if player has an island (as owner or member)
+        islandManager.hasIslandMembership(player.getUniqueId()).thenAccept(hasMembership -> {
+            if (!hasMembership) {
+                // Player doesn't have an island - open creation GUI
+                org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    IslandCreateGUI.open(player, islandManager);
+                });
+            } else {
+                // Player has an island - open main menu
+                org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    IslandMenuGUI.open(player, islandManager);
+                });
+            }
+        });
     }
     
     /**
@@ -278,6 +308,30 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
     }
     
     /**
+     * Handles /island challenges - Opens challenges GUI
+     */
+    private void handleIslandChallenges(Player player) {
+        // Check if player has an island
+        islandManager.getIsland(player.getUniqueId()).thenAccept(island -> {
+            if (island == null) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You don't have an island!", NamedTextColor.RED)));
+                return;
+            }
+            
+            if (challengeManager == null) {
+                player.sendMessage(Component.text("✗ Challenge system not initialized!", NamedTextColor.RED));
+                return;
+            }
+            
+            // Open challenges GUI on main thread
+            org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                IslandChallengesGUI.open(player, islandManager, challengeManager);
+            });
+        });
+    }
+    
+    /**
      * Handles /island settings - Opens settings GUI
      */
     private void handleIslandSettings(Player player) {
@@ -311,8 +365,17 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
      * Handles /island members - Shows island members
      */
     private void handleIslandMembers(Player player) {
-        player.sendMessage(Component.text("👥 ", NamedTextColor.AQUA, TextDecoration.BOLD)
-            .append(Component.text("Island members GUI coming soon!", NamedTextColor.YELLOW)));
+        islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
+            if (islandId == null) {
+                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                    .append(Component.text("You don't have an island!", NamedTextColor.RED)));
+                return;
+            }
+            
+            org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                IslandMembersGUI.open(player, islandManager);
+            });
+        });
     }
     
     /**
@@ -833,6 +896,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
         sendCommandHelp(player, "/island home", "Teleport to your island");
         sendCommandHelp(player, "/island visit <player>", "Visit another player's island");
         sendCommandHelp(player, "/island upgrade", "Open upgrade GUI");
+        sendCommandHelp(player, "/island challenges", "View and complete challenges");
         sendCommandHelp(player, "/island info [player]", "View island information");
         sendCommandHelp(player, "/island settings", "Configure island settings");
         sendCommandHelp(player, "/island members", "View island members");
@@ -869,7 +933,7 @@ public class IslandCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             // Suggest subcommands
             suggestions.addAll(Arrays.asList(
-                "create", "delete", "home", "visit", "upgrade", 
+                "create", "delete", "home", "visit", "upgrade", "challenges",
                 "info", "settings", "members", "invite", "accept", "deny",
                 "kick", "leave", "promote", "demote", "transfer", "help"
             ));

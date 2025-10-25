@@ -119,6 +119,11 @@ commands:
     description: Island management commands
     usage: /island [create|delete|home|visit|upgrade|info|settings|members|invite|kick|help]
     aliases: [is, isle]
+  islandadmin:
+    description: Island admin commands for managing islands, tokens, and testing
+    usage: /islandadmin [settokens|addtokens|setlevel|setvalue|info]
+    permission: island.admin
+    aliases: [isadmin, isa]
 
 permissions:
   mmo.admin:
@@ -166,3 +171,7 @@ permissions:
   mmo.admin.enchant:
     description: Administrative commands for custom enchanting system
     default: op
+  island.admin:
+    description: Allows managing islands, tokens, levels, and challenges
+    default: op
+

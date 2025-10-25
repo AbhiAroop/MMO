@@ -39,24 +39,31 @@ public class IslandUpgradeGUI {
         // Get player's currency
         PlayerProfile profile = ProfileManager.getInstance().getActivePlayerProfile(player.getUniqueId());
         int playerUnits = (profile != null) ? profile.getUnits() : 0;
+        int islandTokens = island.getIslandTokens();
+        
+        // Add cyan borders first
+        addBorders(gui);
         
         // Size Upgrade (slot 11)
-        gui.setItem(11, createSizeUpgradeItem(island, playerUnits));
+        gui.setItem(11, createSizeUpgradeItem(island, playerUnits, islandTokens));
         
         // Player Limit Upgrade (slot 13)
-        gui.setItem(13, createPlayerLimitUpgradeItem(island, playerUnits));
+        gui.setItem(13, createPlayerLimitUpgradeItem(island, playerUnits, islandTokens));
         
         // Redstone Limit Upgrade (slot 15)
-        gui.setItem(15, createRedstoneLimitUpgradeItem(island, playerUnits));
+        gui.setItem(15, createRedstoneLimitUpgradeItem(island, playerUnits, islandTokens));
         
         // Crop Growth Upgrade (slot 29)
-        gui.setItem(29, createCropGrowthUpgradeItem(island, playerUnits));
+        gui.setItem(29, createCropGrowthUpgradeItem(island, playerUnits, islandTokens));
         
         // Weather Control (slot 31)
-        gui.setItem(31, createWeatherControlItem(island, playerUnits));
+        gui.setItem(31, createWeatherControlItem(island, playerUnits, islandTokens));
         
-        // Currency Info (slot 49)
-        gui.setItem(49, createCurrencyInfoItem(playerUnits));
+        // Currency Info (slot 4)
+        gui.setItem(4, createCurrencyInfoItem(playerUnits, islandTokens));
+        
+        // Back button (slot 49)
+        gui.setItem(49, createBackButton());
         
         // Fill empty slots
         fillEmptySlots(gui);
@@ -64,14 +71,52 @@ public class IslandUpgradeGUI {
         player.openInventory(gui);
     }
     
-    private static ItemStack createSizeUpgradeItem(PlayerIsland island, int playerUnits) {
+    /**
+     * Calculate island token cost for an upgrade based on level
+     * Tokens scale with level to match challenge rewards progression
+     * Lower costs for early game to encourage progression
+     */
+    private static int calculateTokenCost(String upgradeType, int currentLevel) {
+        switch (upgradeType.toLowerCase()) {
+            case "size":
+                // Size: 1-1-2-3-5-8-10-15-20-30-40-50+ tokens (progressive, low early game)
+                if (currentLevel < 3) return 1;
+                if (currentLevel < 5) return 2;
+                if (currentLevel < 10) return 3;
+                if (currentLevel < 15) return 5;
+                if (currentLevel < 25) return 8;
+                if (currentLevel < 40) return 10;
+                if (currentLevel < 60) return 15;
+                if (currentLevel < 80) return 20;
+                if (currentLevel < 120) return 30;
+                if (currentLevel < 180) return 40;
+                return 50;
+            case "player_limit":
+                // Player limit: 5-10-20-30-50 tokens (5 levels, more affordable)
+                return 5 + (currentLevel * 5);
+            case "redstone":
+                // Redstone: 3-8-15-25-40 tokens (5 levels, affordable early)
+                return 3 + (currentLevel * 5);
+            case "crop_growth":
+                // Crop growth: 5-12-20-30-45 tokens (5 levels)
+                return 5 + (currentLevel * 7);
+            case "weather":
+                // Weather control: 50 tokens (unlock, reduced from 100)
+                return 50;
+            default:
+                return 5;
+        }
+    }
+    
+    private static ItemStack createSizeUpgradeItem(PlayerIsland island, int playerUnits, int islandTokens) {
         ItemStack item = new ItemStack(Material.MAP);
         ItemMeta meta = item.getItemMeta();
         
         int currentLevel = island.getSizeLevel();
         int currentSize = island.getCurrentSize();
         int maxLevel = island.getMaxSizeLevel();
-        int nextCost = island.getSizeUpgradeCost();
+        int nextUnitCost = island.getSizeUpgradeCost();
+        int nextTokenCost = calculateTokenCost("size", currentLevel);
         
         meta.displayName(Component.text("🗺 Island Size", NamedTextColor.GOLD, TextDecoration.BOLD));
         
@@ -88,17 +133,28 @@ public class IslandUpgradeGUI {
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
                 .append(Component.text(nextSize + "x" + nextSize, NamedTextColor.WHITE))
                 .append(Component.text(" (+2 blocks)", NamedTextColor.GRAY)));
-            lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
-                .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("━━━ Cost ━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+            lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+                .append(Component.text(formatNumber(nextUnitCost) + " Units", 
+                    playerUnits >= nextUnitCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+                .append(Component.text(nextTokenCost + " Island Tokens", 
+                    islandTokens >= nextTokenCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
             lore.add(Component.empty());
             lore.add(Component.text("Each upgrade adds 1 block", NamedTextColor.DARK_GRAY));
             lore.add(Component.text("in each direction (2 total).", NamedTextColor.DARK_GRAY));
             lore.add(Component.empty());
             
-            if (playerUnits >= nextCost) {
+            if (playerUnits >= nextUnitCost && islandTokens >= nextTokenCost) {
                 lore.add(Component.text("✓ Click to upgrade!", NamedTextColor.GREEN, TextDecoration.BOLD));
             } else {
-                lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
+                if (playerUnits < nextUnitCost) {
+                    lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED));
+                }
+                if (islandTokens < nextTokenCost) {
+                    lore.add(Component.text("✗ Not enough tokens!", NamedTextColor.RED));
+                }
             }
         } else {
             lore.add(Component.text("✓ MAX LEVEL (500x500)", NamedTextColor.GREEN, TextDecoration.BOLD));
@@ -109,13 +165,14 @@ public class IslandUpgradeGUI {
         return item;
     }
     
-    private static ItemStack createPlayerLimitUpgradeItem(PlayerIsland island, int playerUnits) {
+    private static ItemStack createPlayerLimitUpgradeItem(PlayerIsland island, int playerUnits, int islandTokens) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = item.getItemMeta();
         
         int currentLevel = island.getPlayerLimitLevel();
         int currentLimit = island.getCurrentPlayerLimit();
-        int nextCost = island.getPlayerLimitUpgradeCost();
+        int nextUnitCost = island.getPlayerLimitUpgradeCost();
+        int nextTokenCost = calculateTokenCost("player_limit", currentLevel);
         
         meta.displayName(Component.text("👥 Player Limit", NamedTextColor.AQUA, TextDecoration.BOLD));
         
@@ -131,14 +188,25 @@ public class IslandUpgradeGUI {
             int nextLimit = getNextPlayerLimit(currentLevel);
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
                 .append(Component.text(nextLimit + " players", NamedTextColor.WHITE)));
-            lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
-                .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("━━━ Cost ━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+            lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+                .append(Component.text(formatNumber(nextUnitCost) + " Units", 
+                    playerUnits >= nextUnitCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+                .append(Component.text(nextTokenCost + " Island Tokens", 
+                    islandTokens >= nextTokenCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
             lore.add(Component.empty());
             
-            if (playerUnits >= nextCost) {
+            if (playerUnits >= nextUnitCost && islandTokens >= nextTokenCost) {
                 lore.add(Component.text("✓ Click to upgrade!", NamedTextColor.GREEN, TextDecoration.BOLD));
             } else {
-                lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
+                if (playerUnits < nextUnitCost) {
+                    lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED));
+                }
+                if (islandTokens < nextTokenCost) {
+                    lore.add(Component.text("✗ Not enough tokens!", NamedTextColor.RED));
+                }
             }
         } else {
             lore.add(Component.text("✓ MAX LEVEL", NamedTextColor.GREEN, TextDecoration.BOLD));
@@ -149,7 +217,7 @@ public class IslandUpgradeGUI {
         return item;
     }
     
-    private static ItemStack createRedstoneLimitUpgradeItem(PlayerIsland island, int playerUnits) {
+    private static ItemStack createRedstoneLimitUpgradeItem(PlayerIsland island, int playerUnits, int islandTokens) {
         ItemStack item = new ItemStack(Material.REDSTONE);
         ItemMeta meta = item.getItemMeta();
         
@@ -170,20 +238,32 @@ public class IslandUpgradeGUI {
         
         if (currentLevel < maxLevel) {
             int nextLimit = island.getNextRedstoneLimit();
+            int nextTokenCost = calculateTokenCost("redstone", currentLevel);
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
                 .append(Component.text(nextLimit + " items", NamedTextColor.WHITE))
                 .append(Component.text(" (+5)", NamedTextColor.GRAY)));
-            lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
-                .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("━━━ Cost ━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+            lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+                .append(Component.text(formatNumber(nextCost) + " Units", 
+                    playerUnits >= nextCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+                .append(Component.text(nextTokenCost + " Island Tokens", 
+                    islandTokens >= nextTokenCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
             lore.add(Component.empty());
             lore.add(Component.text("Tracks redstone dust, torches,", NamedTextColor.DARK_GRAY));
             lore.add(Component.text("repeaters, comparators, etc.", NamedTextColor.DARK_GRAY));
             lore.add(Component.empty());
             
-            if (playerUnits >= nextCost) {
+            if (playerUnits >= nextCost && islandTokens >= nextTokenCost) {
                 lore.add(Component.text("✓ Click to upgrade!", NamedTextColor.GREEN, TextDecoration.BOLD));
             } else {
-                lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
+                if (playerUnits < nextCost) {
+                    lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED));
+                }
+                if (islandTokens < nextTokenCost) {
+                    lore.add(Component.text("✗ Not enough tokens!", NamedTextColor.RED));
+                }
             }
         } else {
             lore.add(Component.text("✓ MAX LEVEL (100 items)", NamedTextColor.GREEN, TextDecoration.BOLD));
@@ -194,7 +274,7 @@ public class IslandUpgradeGUI {
         return item;
     }
     
-    private static ItemStack createCropGrowthUpgradeItem(PlayerIsland island, int playerUnits) {
+    private static ItemStack createCropGrowthUpgradeItem(PlayerIsland island, int playerUnits, int islandTokens) {
         ItemStack item = new ItemStack(Material.WHEAT);
         ItemMeta meta = item.getItemMeta();
         
@@ -214,16 +294,28 @@ public class IslandUpgradeGUI {
         
         if (currentLevel < 4) {
             double nextMultiplier = getNextCropMultiplier(currentLevel);
+            int nextTokenCost = calculateTokenCost("crop_growth", currentLevel);
             lore.add(Component.text("Next: ", NamedTextColor.GREEN)
                 .append(Component.text(nextMultiplier + "x", NamedTextColor.WHITE)));
-            lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
-                .append(Component.text(formatNumber(nextCost) + " Units", NamedTextColor.GOLD)));
+            lore.add(Component.empty());
+            lore.add(Component.text("━━━ Cost ━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+            lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+                .append(Component.text(formatNumber(nextCost) + " Units", 
+                    playerUnits >= nextCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+                .append(Component.text(nextTokenCost + " Island Tokens", 
+                    islandTokens >= nextTokenCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
             lore.add(Component.empty());
             
-            if (playerUnits >= nextCost) {
+            if (playerUnits >= nextCost && islandTokens >= nextTokenCost) {
                 lore.add(Component.text("✓ Click to upgrade!", NamedTextColor.GREEN, TextDecoration.BOLD));
             } else {
-                lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
+                if (playerUnits < nextCost) {
+                    lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED));
+                }
+                if (islandTokens < nextTokenCost) {
+                    lore.add(Component.text("✗ Not enough tokens!", NamedTextColor.RED));
+                }
             }
         } else {
             lore.add(Component.text("✓ MAX LEVEL", NamedTextColor.GREEN, TextDecoration.BOLD));
@@ -234,7 +326,7 @@ public class IslandUpgradeGUI {
         return item;
     }
     
-    private static ItemStack createWeatherControlItem(PlayerIsland island, int playerUnits) {
+    private static ItemStack createWeatherControlItem(PlayerIsland island, int playerUnits, int islandTokens) {
         ItemStack item = new ItemStack(Material.SUNFLOWER);
         ItemMeta meta = item.getItemMeta();
         
@@ -252,20 +344,31 @@ public class IslandUpgradeGUI {
             lore.add(Component.text("You can control the weather", NamedTextColor.GRAY));
             lore.add(Component.text("on your island!", NamedTextColor.GRAY));
         } else {
+            int weatherTokenCost = calculateTokenCost("weather", 0);
             lore.add(Component.text("Status: ", NamedTextColor.GRAY)
                 .append(Component.text("DISABLED", NamedTextColor.RED, TextDecoration.BOLD)));
             lore.add(Component.empty());
             lore.add(Component.text("Purchase to control weather", NamedTextColor.GRAY));
             lore.add(Component.text("on your island!", NamedTextColor.GRAY));
             lore.add(Component.empty());
-            lore.add(Component.text("Cost: ", NamedTextColor.YELLOW)
-                .append(Component.text("50,000 Units", NamedTextColor.GOLD)));
+            lore.add(Component.text("━━━ Cost ━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+            lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+                .append(Component.text("50,000 Units", 
+                    playerUnits >= 50000 ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+                .append(Component.text(weatherTokenCost + " Island Tokens", 
+                    islandTokens >= weatherTokenCost ? NamedTextColor.GREEN : NamedTextColor.RED)));
             lore.add(Component.empty());
             
-            if (playerUnits >= 50000) {
+            if (playerUnits >= 50000 && islandTokens >= weatherTokenCost) {
                 lore.add(Component.text("✓ Click to purchase!", NamedTextColor.GREEN, TextDecoration.BOLD));
             } else {
-                lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED, TextDecoration.BOLD));
+                if (playerUnits < 50000) {
+                    lore.add(Component.text("✗ Not enough units!", NamedTextColor.RED));
+                }
+                if (islandTokens < weatherTokenCost) {
+                    lore.add(Component.text("✗ Not enough tokens!", NamedTextColor.RED));
+                }
             }
         }
         
@@ -274,19 +377,26 @@ public class IslandUpgradeGUI {
         return item;
     }
     
-    private static ItemStack createCurrencyInfoItem(int playerUnits) {
-        ItemStack item = new ItemStack(Material.GOLD_INGOT);
+    private static ItemStack createCurrencyInfoItem(int playerUnits, int islandTokens) {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
         ItemMeta meta = item.getItemMeta();
         
         meta.displayName(Component.text("💰 Your Balance", NamedTextColor.GOLD, TextDecoration.BOLD));
         
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Units: ", NamedTextColor.GRAY)
-            .append(Component.text(formatNumber(playerUnits), NamedTextColor.YELLOW, TextDecoration.BOLD)));
+        lore.add(Component.text("━━━━━━━━━━━━━━━━━━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
+        lore.add(Component.text("  ⛃ ", NamedTextColor.GOLD)
+            .append(Component.text(formatNumber(playerUnits) + " Units", NamedTextColor.YELLOW, TextDecoration.BOLD)));
+        lore.add(Component.text("  ⭐ ", NamedTextColor.AQUA)
+            .append(Component.text(islandTokens + " Island Tokens", NamedTextColor.AQUA, TextDecoration.BOLD)));
+        lore.add(Component.text("━━━━━━━━━━━━━━━━━━━━", NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH));
         lore.add(Component.empty());
-        lore.add(Component.text("Click an upgrade above to", NamedTextColor.GRAY));
-        lore.add(Component.text("improve your island!", NamedTextColor.GRAY));
+        lore.add(Component.text("All upgrades now require", NamedTextColor.GRAY));
+        lore.add(Component.text("both Units and Island Tokens!", NamedTextColor.GRAY));
+        lore.add(Component.empty());
+        lore.add(Component.text("Complete challenges to earn", NamedTextColor.YELLOW));
+        lore.add(Component.text("Island Tokens!", NamedTextColor.YELLOW));
         
         meta.lore(lore);
         item.setItemMeta(meta);
@@ -304,6 +414,52 @@ public class IslandUpgradeGUI {
                 gui.setItem(i, filler);
             }
         }
+    }
+    
+    /**
+     * Adds cyan borders to the GUI
+     */
+    private static void addBorders(Inventory gui) {
+        ItemStack border = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
+        ItemMeta meta = border.getItemMeta();
+        meta.displayName(Component.empty());
+        border.setItemMeta(meta);
+        
+        // Top row
+        for (int i = 0; i < 9; i++) {
+            gui.setItem(i, border);
+        }
+        
+        // Bottom row
+        for (int i = 45; i < 54; i++) {
+            gui.setItem(i, border);
+        }
+        
+        // Left and right columns
+        for (int i = 1; i < 5; i++) {
+            gui.setItem(i * 9, border);
+            gui.setItem(i * 9 + 8, border);
+        }
+    }
+    
+    /**
+     * Creates the back button
+     */
+    private static ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.BARRIER);
+        ItemMeta meta = item.getItemMeta();
+        
+        meta.displayName(Component.text("❌ Back", NamedTextColor.RED, TextDecoration.BOLD)
+            .decoration(TextDecoration.ITALIC, false));
+        
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text("Return to island menu", NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+        
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
     
     /**
@@ -385,3 +541,4 @@ public class IslandUpgradeGUI {
         return String.format("%,d", number);
     }
 }
+

@@ -25,6 +25,7 @@ public class PlayerIsland {
     // Progression
     private int islandLevel;
     private long islandValue;
+    private int islandTokens; // Island tokens earned from challenges
     
     // Upgrade levels
     private int sizeLevel;
@@ -61,6 +62,7 @@ public class PlayerIsland {
         // Default values
         this.islandLevel = 1;
         this.islandValue = 0;
+        this.islandTokens = 0;
         this.sizeLevel = 1;
         this.playerLimitLevel = 1;
         this.redstoneLimitLevel = 1;
@@ -82,7 +84,7 @@ public class PlayerIsland {
      */
     public PlayerIsland(UUID islandId, UUID ownerUuid, String islandName, IslandType islandType,
                        String worldName, long createdAt, long lastAccessed, int islandLevel,
-                       long islandValue, int sizeLevel, int playerLimitLevel, int redstoneLimitLevel,
+                       long islandValue, int islandTokens, int sizeLevel, int playerLimitLevel, int redstoneLimitLevel,
                        int cropGrowthLevel, boolean weatherControl, String currentBiome,
                        double spawnX, double spawnY, double spawnZ, float spawnYaw, float spawnPitch) {
         this.islandId = islandId;
@@ -94,6 +96,7 @@ public class PlayerIsland {
         this.lastAccessed = lastAccessed;
         this.islandLevel = islandLevel;
         this.islandValue = islandValue;
+        this.islandTokens = islandTokens;
         this.sizeLevel = sizeLevel;
         this.playerLimitLevel = playerLimitLevel;
         this.redstoneLimitLevel = redstoneLimitLevel;
@@ -353,6 +356,30 @@ public class PlayerIsland {
     
     public void setIslandValue(long islandValue) {
         this.islandValue = islandValue;
+    }
+    
+    public int getIslandTokens() {
+        return islandTokens;
+    }
+    
+    public void setIslandTokens(int islandTokens) {
+        this.islandTokens = islandTokens;
+    }
+    
+    public void addIslandTokens(int amount) {
+        this.islandTokens += amount;
+    }
+    
+    public boolean hasEnoughTokens(int amount) {
+        return islandTokens >= amount;
+    }
+    
+    public boolean removeIslandTokens(int amount) {
+        if (hasEnoughTokens(amount)) {
+            this.islandTokens -= amount;
+            return true;
+        }
+        return false;
     }
     
     public int getSizeLevel() {

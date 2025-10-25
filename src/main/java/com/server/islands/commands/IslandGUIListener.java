@@ -6,7 +6,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
+import com.server.islands.data.IslandChallenge.ChallengeCategory;
 import com.server.islands.data.IslandType;
+import com.server.islands.data.TreeGridPosition;
+import com.server.islands.gui.ChallengeCategoryTreeGUI;
+import com.server.islands.managers.ChallengeManager;
 import com.server.islands.managers.IslandManager;
 
 import net.kyori.adventure.text.Component;
@@ -18,9 +22,11 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 public class IslandGUIListener implements Listener {
     
     private final IslandManager islandManager;
+    private final ChallengeManager challengeManager;
     
-    public IslandGUIListener(IslandManager islandManager) {
+    public IslandGUIListener(IslandManager islandManager, ChallengeManager challengeManager) {
         this.islandManager = islandManager;
+        this.challengeManager = challengeManager;
     }
     
     @EventHandler
@@ -44,6 +50,12 @@ public class IslandGUIListener implements Listener {
             if (event.getSlot() == 49) { // Close button
                 player.closeInventory();
             }
+        } else if (title.contains("Island Challenges")) {
+            event.setCancelled(true);
+            handleChallengesGUIClick(player, event.getSlot());
+        } else if (title.contains("Challenges:")) {
+            event.setCancelled(true);
+            handleTreeGUIClick(player, event.getSlot(), title);
         }
     }
     
@@ -91,9 +103,92 @@ public class IslandGUIListener implements Listener {
             if (slot == 11 || slot == 13 || slot == 15 || slot == 29 || slot == 31) {
                 IslandUpgradeGUI.handleUpgradeClick(player, island, slot, islandManager);
             } else if (slot == 49) {
-                // Currency info - just close
-                player.closeInventory();
+                // Back button - return to island menu
+                org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    player.closeInventory();
+                    IslandMenuGUI.open(player, islandManager);
+                });
             }
         });
+    }
+    
+    /**
+     * Handles clicks in the Island Challenges menu
+     */
+    private void handleChallengesGUIClick(Player player, int slot) {
+        ChallengeCategory category = null;
+        
+        // Map slots to categories
+        switch (slot) {
+            case 10: category = ChallengeCategory.FARMING; break;
+            case 12: category = ChallengeCategory.MINING; break;
+            case 14: category = ChallengeCategory.COMBAT; break;
+            case 16: category = ChallengeCategory.BUILDING; break;
+            case 19: category = ChallengeCategory.CRAFTING; break;
+            case 21: category = ChallengeCategory.EXPLORATION; break;
+            case 23: category = ChallengeCategory.ECONOMY; break;
+            case 25: category = ChallengeCategory.SOCIAL; break;
+            case 28: category = ChallengeCategory.PROGRESSION; break;
+            case 34: category = ChallengeCategory.SPECIAL; break;
+            case 49: // Back button
+                org.bukkit.Bukkit.getScheduler().runTask(islandManager.getPlugin(), () -> {
+                    player.closeInventory();
+                    IslandMenuGUI.open(player, islandManager);
+                });
+                return;
+            default:
+                return;
+        }
+        
+        if (category != null) {
+            // Open the tree GUI for this category
+            ChallengeCategoryTreeGUI.openChallengeTreeGUI(player, category, challengeManager, islandManager);
+        }
+    }
+    
+    /**
+     * Handles clicks in the Challenge Tree GUI
+     */
+    private void handleTreeGUIClick(Player player, int slot, String title) {
+        // Extract category from title (format: "Challenges: 🌾 Farming")
+        // Remove color codes and split
+        String cleanTitle = title.replaceAll("§.", "").trim();
+        String[] parts = cleanTitle.split(": ");
+        if (parts.length < 2) return;
+        
+        // Extract category name (last word after icon)
+        String categoryPart = parts[1].trim();
+        String[] categoryWords = categoryPart.split(" ");
+        String categoryName = categoryWords[categoryWords.length - 1].toUpperCase();
+        
+        ChallengeCategory category;
+        try {
+            category = ChallengeCategory.valueOf(categoryName);
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Component.text("§cError: Invalid category - " + categoryName));
+            return;
+        }
+        
+        // Get current position from the GUI title or default to (0,0)
+        TreeGridPosition currentPos = ChallengeCategoryTreeGUI.getPlayerViewPosition(player);
+        if (currentPos == null) {
+            currentPos = new TreeGridPosition(0, 0);
+        }
+        
+        // Navigation buttons (vertical only)
+        if (slot == 26) { // Up arrow - scroll the view UP (increase centerY to show lower Y values at bottom)
+            ChallengeCategoryTreeGUI.openChallengeTreeAtPosition(player, category, 
+                currentPos.getX(), currentPos.getY() + 1, challengeManager, islandManager);
+        } else if (slot == 35) { // Down arrow - scroll the view DOWN (decrease centerY to show higher Y values at top)
+            ChallengeCategoryTreeGUI.openChallengeTreeAtPosition(player, category, 
+                currentPos.getX(), currentPos.getY() - 1, challengeManager, islandManager);
+        } else if (slot == 45) { // Back button
+            IslandChallengesGUI.open(player, islandManager, challengeManager);
+        }
+        // Slots 9-44 can be challenge nodes - handle challenge clicks
+        else if (slot >= 9 && slot <= 44) {
+            // TODO: Implement challenge detail view or start progress
+            player.sendMessage(Component.text("§7Challenge clicked at slot " + slot));
+        }
     }
 }

@@ -93,6 +93,7 @@ public class IslandDataManager {
                 "last_accessed BIGINT NOT NULL," +
                 "island_level INTEGER NOT NULL," +
                 "island_value BIGINT NOT NULL," +
+                "island_tokens INTEGER NOT NULL DEFAULT 0," +
                 "size_level INTEGER NOT NULL," +
                 "player_limit_level INTEGER NOT NULL," +
                 "redstone_limit_level INTEGER NOT NULL," +
@@ -153,7 +154,7 @@ public class IslandDataManager {
      */
     public CompletableFuture<Void> saveIsland(PlayerIsland island) {
         return CompletableFuture.runAsync(() -> {
-            String sql = "INSERT OR REPLACE INTO player_islands VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            String sql = "INSERT OR REPLACE INTO player_islands VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, island.getIslandId().toString());
@@ -165,17 +166,18 @@ public class IslandDataManager {
                 stmt.setLong(7, island.getLastAccessed());
                 stmt.setInt(8, island.getIslandLevel());
                 stmt.setLong(9, island.getIslandValue());
-                stmt.setInt(10, island.getSizeLevel());
-                stmt.setInt(11, island.getPlayerLimitLevel());
-                stmt.setInt(12, island.getRedstoneLimitLevel());
-                stmt.setInt(13, island.getCropGrowthLevel());
-                stmt.setInt(14, island.hasWeatherControl() ? 1 : 0);
-                stmt.setString(15, island.getCurrentBiome());
-                stmt.setDouble(16, island.getSpawnX());
-                stmt.setDouble(17, island.getSpawnY());
-                stmt.setDouble(18, island.getSpawnZ());
-                stmt.setFloat(19, island.getSpawnYaw());
-                stmt.setFloat(20, island.getSpawnPitch());
+                stmt.setInt(10, island.getIslandTokens());
+                stmt.setInt(11, island.getSizeLevel());
+                stmt.setInt(12, island.getPlayerLimitLevel());
+                stmt.setInt(13, island.getRedstoneLimitLevel());
+                stmt.setInt(14, island.getCropGrowthLevel());
+                stmt.setInt(15, island.hasWeatherControl() ? 1 : 0);
+                stmt.setString(16, island.getCurrentBiome());
+                stmt.setDouble(17, island.getSpawnX());
+                stmt.setDouble(18, island.getSpawnY());
+                stmt.setDouble(19, island.getSpawnZ());
+                stmt.setFloat(20, island.getSpawnYaw());
+                stmt.setFloat(21, island.getSpawnPitch());
                 
                 stmt.executeUpdate();
                 
@@ -262,6 +264,7 @@ public class IslandDataManager {
             rs.getLong("last_accessed"),
             rs.getInt("island_level"),
             rs.getLong("island_value"),
+            rs.getInt("island_tokens"),
             rs.getInt("size_level"),
             rs.getInt("player_limit_level"),
             rs.getInt("redstone_limit_level"),
@@ -604,6 +607,22 @@ public class IslandDataManager {
             }
             
             return null;
+        });
+    }
+    
+    /**
+     * Updates island tokens in the database.
+     */
+    public CompletableFuture<Void> updateIslandTokens(UUID islandId, int newTokenAmount) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "UPDATE player_islands SET island_tokens = ? WHERE island_id = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setInt(1, newTokenAmount);
+                stmt.setString(2, islandId.toString());
+                stmt.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to update island tokens: " + e.getMessage());
+            }
         });
     }
 }

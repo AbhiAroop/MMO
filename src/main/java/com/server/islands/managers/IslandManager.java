@@ -448,6 +448,19 @@ public class IslandManager {
         return dataManager.saveStatistics(stats);
     }
     
+    /**
+     * Updates island tokens in the database.
+     */
+    public CompletableFuture<Void> updateIslandTokens(UUID islandId, int newTokenAmount) {
+        return CompletableFuture.runAsync(() -> {
+            PlayerIsland island = cache.getIsland(islandId);
+            if (island != null) {
+                island.setIslandTokens(newTokenAmount);
+            }
+            dataManager.updateIslandTokens(islandId, newTokenAmount).join();
+        });
+    }
+    
     // ==================== Members ====================
     
     /**

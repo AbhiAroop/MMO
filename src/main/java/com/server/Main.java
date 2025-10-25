@@ -98,6 +98,7 @@ public class Main extends JavaPlugin {
     private CustomEntityManager customEntityManager;
     private AbilityRegistry abilityRegistry;
     private GemCarvingManager gemCarvingManager;
+    private com.server.islands.managers.ChallengeManager challengeManager;
     private ScheduledExecutorService playtimeUpdateService;
     private EnchantmentTableStructure enchantmentTableStructure;
     private EnchantmentGUIListener enchantmentGUIListener;
@@ -256,6 +257,16 @@ public class Main extends JavaPlugin {
 
         if (scoreboardManager != null) {
             scoreboardManager.cleanup();
+        }
+
+        // Close challenge database connection
+        if (challengeManager != null) {
+            try {
+                challengeManager.shutdown().join(); // Wait for shutdown to complete
+                getLogger().info("Challenge system shut down successfully.");
+            } catch (Exception e) {
+                getLogger().warning("Error shutting down challenge system: " + e.getMessage());
+            }
         }
 
         if (healthRegenerationManager != null) {
@@ -579,16 +590,64 @@ public class Main extends JavaPlugin {
 
             // Register island command
             org.bukkit.command.PluginCommand islandCommand = this.getCommand("island");
+            com.server.islands.commands.IslandCommand islandHandler = null;
             if (islandCommand != null) {
-                com.server.islands.commands.IslandCommand islandHandler = new com.server.islands.commands.IslandCommand(islandManager);
+                islandHandler = new com.server.islands.commands.IslandCommand(islandManager);
                 islandCommand.setExecutor(islandHandler);
                 islandCommand.setTabCompleter(islandHandler);
             } else {
                 LOGGER.warning("Command 'island' not registered in plugin.yml file!");
             }
+            
+            // Register island admin command
+            org.bukkit.command.PluginCommand islandAdminCommand = this.getCommand("islandadmin");
+            com.server.islands.commands.IslandAdminCommand islandAdminHandler = null;
+            if (islandAdminCommand != null) {
+                islandAdminHandler = new com.server.islands.commands.IslandAdminCommand(islandManager);
+                islandAdminCommand.setExecutor(islandAdminHandler);
+                islandAdminCommand.setTabCompleter(islandAdminHandler);
+            } else {
+                LOGGER.warning("Command 'islandadmin' not registered in plugin.yml file!");
+            }
 
-            // Register island GUI listener
-            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandGUIListener(islandManager), this);
+            // Initialize Challenge Manager
+            challengeManager = new com.server.islands.managers.ChallengeManager(this, islandManager);
+            
+            // Initialize database synchronously to ensure it's ready
+            challengeManager.initialize();
+            
+            // Register starter challenges after database is ready
+            com.server.islands.data.StarterChallenges.registerAll(challengeManager);
+            
+            getLogger().info("Challenge system initialized successfully!");
+            getLogger().info("Registered starter challenges for all categories");
+            
+            // Set challenge manager for command handlers
+            if (islandHandler != null) {
+                islandHandler.setChallengeManager(challengeManager);
+            }
+            if (islandAdminHandler != null) {
+                islandAdminHandler.setChallengeManager(challengeManager);
+            }
+            
+            // Register island GUI listeners
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandGUIListener(islandManager, challengeManager), this);
+            
+            // Create and register IslandMenuGUIListener with challenge manager
+            com.server.islands.commands.IslandMenuGUIListener islandMenuGUIListener = new com.server.islands.commands.IslandMenuGUIListener(islandManager);
+            islandMenuGUIListener.setChallengeManager(challengeManager);
+            getServer().getPluginManager().registerEvents(islandMenuGUIListener, this);
+            
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandGUIActionsListener(islandManager), this);
+            
+            // Register island shop GUI listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandShopGUIListener(islandManager), this);
+            
+            // Register island info GUI listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.IslandInfoGUIListener(islandManager), this);
+            
+            // Register challenge GUI listener
+            getServer().getPluginManager().registerEvents(new com.server.islands.commands.ChallengeCategoryGUIListener(islandManager, challengeManager), this);
             
             // Register island redstone listener
             getServer().getPluginManager().registerEvents(new com.server.islands.listeners.IslandRedstoneListener(islandManager), this);
