@@ -725,6 +725,35 @@ public class PlayerStats {
     }
 
     /**
+     * Add farming fortune from skill tree nodes
+     * This will properly update both the default value and current value
+     * @param amount The amount of farming fortune to add
+     */
+    public void increaseDefaultFarmingFortune(double amount) {
+        this.defaultFarmingFortune += amount;
+        // Also update the current farming fortune value to reflect the new default
+        this.farmingFortune += amount;
+    }
+
+    /**
+     * Add farming speed from skill tree nodes
+     * This will properly update both the default value and current value
+     * @param amount The amount of farming speed to add
+     */
+    public void increaseDefaultFarmingSpeed(double amount) {
+        // For now, just store it. When we implement farming speed stat, we can use it
+        // This is a placeholder for future implementation
+    }
+    
+    /**
+     * Get farming speed (placeholder for future implementation)
+     */
+    public double getFarmingSpeed() {
+        // Return 1.0 as default for now
+        return 1.0;
+    }
+
+    /**
      * Add mining fortune from skill tree nodes
      * This will properly update both the default value and current value
      * @param amount The amount of mining fortune to add

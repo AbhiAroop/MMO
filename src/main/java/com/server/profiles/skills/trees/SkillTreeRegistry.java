@@ -11,6 +11,7 @@ import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SkillType;
+import com.server.profiles.skills.skills.farming.trees.FarmingTreeBuilder;
 import com.server.profiles.skills.skills.mining.trees.MiningTreeBuilder;
 import com.server.profiles.skills.trees.builders.GenericTreeBuilder;
 import com.server.profiles.skills.trees.builders.SkillTreeBuilder;
@@ -44,6 +45,9 @@ public class SkillTreeRegistry {
         // Register mining tree builders
         treeBuilders.put(SkillType.MINING.getId(), new MiningTreeBuilder());
         
+        // Register farming tree builder
+        treeBuilders.put(SkillType.FARMING.getId(), new FarmingTreeBuilder());
+        
         // Add more tree builders as they are implemented
         // For example:
         // treeBuilders.put(SkillType.EXCAVATING.getId(), new ExcavatingTreeBuilder());
@@ -72,7 +76,7 @@ public class SkillTreeRegistry {
      * Initialize all skill trees
      */
     private void initializeSkillTrees() {
-        // Initialize trees for main skills only
+        // Initialize trees for main skills only (subskills are part of the main tree)
         for (Skill skill : SkillRegistry.getInstance().getAllSkills()) {
             // Only create trees for main skills, not subskills
             if (skill.isMainSkill()) {

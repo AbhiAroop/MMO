@@ -29,6 +29,9 @@ public enum SkillRewardType {
     public static final String LOOTING_FORTUNE = "looting_fortune";
     public static final String FISHING_FORTUNE = "fishing_fortune";
     
+    // Farming stats
+    public static final String CROP_GROWTH_SPEED = "crop_growth_speed";
+    
     // Other stats
     public static final String LUCK = "luck";
     

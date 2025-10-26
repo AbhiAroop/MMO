@@ -74,6 +74,7 @@ import com.server.profiles.skills.core.SkillLevelupListener;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.display.SkillActionBarManager;
+import com.server.profiles.skills.events.FarmingListener;
 import com.server.profiles.skills.events.MiningListener;
 import com.server.profiles.skills.events.SkillActionBarListener;
 import com.server.profiles.skills.events.SkillEventListener;
@@ -323,6 +324,7 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new SkillLevelupListener(this), this);
 
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new FarmingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
 
         this.getServer().getPluginManager().registerEvents(new RangedDamageListener(this), this);

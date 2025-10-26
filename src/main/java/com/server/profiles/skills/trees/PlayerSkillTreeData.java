@@ -295,6 +295,10 @@ public class PlayerSkillTreeData {
                     com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
                         (com.server.profiles.skills.skills.mining.MiningSkill) skill;
                     miningSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
+                } else if (skill instanceof com.server.profiles.skills.skills.farming.FarmingSkill) {
+                    com.server.profiles.skills.skills.farming.FarmingSkill farmingSkill = 
+                        (com.server.profiles.skills.skills.farming.FarmingSkill) skill;
+                    farmingSkill.applyNodeUpgrade(player, nodeId, oldLevel, newLevel);
                 }
                 // Add other main skills here as they are implemented
             }
@@ -437,6 +441,24 @@ public class PlayerSkillTreeData {
         if (Main.getInstance().isDebugMode()) {
             Main.getInstance().getLogger().info("[PlayerSkillTreeData] Reset complete for " + skillId + 
                                             ", total tokens refunded: " + totalTokensRefunded);
+        }
+        
+        // Call the skill's reset handler to remove stat bonuses and handle any cleanup
+        Player player = findPlayerForSkillTree();
+        if (player != null) {
+            Skill skill = SkillRegistry.getInstance().getSkill(skillId);
+            if (skill != null && skill.isMainSkill()) {
+                if (skill instanceof com.server.profiles.skills.skills.mining.MiningSkill) {
+                    com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
+                        (com.server.profiles.skills.skills.mining.MiningSkill) skill;
+                    miningSkill.handleSkillTreeReset(player, nodeLevels);
+                } else if (skill instanceof com.server.profiles.skills.skills.farming.FarmingSkill) {
+                    com.server.profiles.skills.skills.farming.FarmingSkill farmingSkill = 
+                        (com.server.profiles.skills.skills.farming.FarmingSkill) skill;
+                    farmingSkill.handleSkillTreeReset(player, nodeLevels);
+                }
+                // Add other main skills here as they are implemented
+            }
         }
         
         return totalTokensRefunded;

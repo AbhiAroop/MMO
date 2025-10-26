@@ -895,6 +895,10 @@ public static void handleNodeClick(Player player, ItemStack clickedItem) {
         com.server.profiles.skills.skills.mining.MiningSkill miningSkill = 
             (com.server.profiles.skills.skills.mining.MiningSkill) skill;
         miningSkill.applyNodeUpgrade(player, nodeId, currentLevel, nextLevel);
+    } else if (skill instanceof com.server.profiles.skills.skills.farming.FarmingSkill) {
+        com.server.profiles.skills.skills.farming.FarmingSkill farmingSkill = 
+            (com.server.profiles.skills.skills.farming.FarmingSkill) skill;
+        farmingSkill.applyNodeUpgrade(player, nodeId, currentLevel, nextLevel);
     }
     // Add other main skills here as they are implemented
     

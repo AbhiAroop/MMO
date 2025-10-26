@@ -22,9 +22,9 @@ public enum SubskillType {
     MASTER_ANGLER("master_angler", "Master Angler", "Catch rare fish", SkillType.FISHING),
     
     // Farming subskills
-    CROP_GROWTH("crop_growth", "Crop Growth", "Crops grow faster", SkillType.FARMING),
-    ANIMAL_BREEDER("animal_breeder", "Animal Breeder", "Better animal breeding outcomes", SkillType.FARMING),
-    HARVESTER("harvester", "Harvester", "Get more drops from harvesting", SkillType.FARMING),
+    HARVESTING("harvesting", "Harvesting", "Grants XP upon breaking crops and unlocks access to different crop types", SkillType.FARMING),
+    CULTIVATING("cultivating", "Cultivating", "Gain XP from planting and growing crops (requires Harvesting level 10)", SkillType.FARMING),
+    BOTANY("botany", "Botany", "Advanced plant manipulation and custom crop mechanics", SkillType.FARMING),
     
     // Combat subskills
     SWORDSMANSHIP("swordsmanship", "Swordsmanship", "Deal more damage with swords", SkillType.COMBAT),
