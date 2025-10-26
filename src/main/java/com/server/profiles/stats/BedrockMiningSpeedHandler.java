@@ -52,8 +52,33 @@ public class BedrockMiningSpeedHandler implements Listener {
     private final Map<UUID, Long> recentBreaks = new HashMap<>();
     private static final long BREAK_COOLDOWN_MS = 10; // 10ms cooldown (just 1 tick) to prevent double-processing
     
+    // Track last arm animation packet for hold-to-break detection
+    private final Map<UUID, Long> lastArmSwing = new HashMap<>();
+    private static final long ARM_SWING_TIMEOUT_MS = 200; // 200ms = 4 ticks (if no swing, player stopped holding)
+    
     public BedrockMiningSpeedHandler(Main plugin) {
         this.plugin = plugin;
+        
+        // Listen for arm animation packets to detect continuous mining
+        ProtocolLibrary.getProtocolManager().addPacketListener(
+            new com.comphenix.protocol.events.PacketAdapter(plugin, 
+                com.comphenix.protocol.events.ListenerPriority.NORMAL, 
+                PacketType.Play.Client.ARM_ANIMATION) {
+                
+                @Override
+                public void onPacketReceiving(com.comphenix.protocol.events.PacketEvent event) {
+                    Player player = event.getPlayer();
+                    
+                    // Only track for Bedrock players who are actively mining
+                    if (BedrockPlayerUtil.isBedrockPlayer(player) && activeMining.containsKey(player.getUniqueId())) {
+                        lastArmSwing.put(player.getUniqueId(), System.currentTimeMillis());
+                        
+                        DebugManager.getInstance().debug(DebugSystem.MINING, 
+                            "Bedrock player " + player.getName() + " - ARM_ANIMATION packet received");
+                    }
+                }
+            }
+        );
     }
     
     /**
@@ -164,6 +189,9 @@ public class BedrockMiningSpeedHandler implements Listener {
         // Cancel any existing mining operation for this player (different block)
         cancelMining(playerUuid);
         
+        // Record initial arm swing timestamp for hold-to-break detection
+        lastArmSwing.put(playerUuid, System.currentTimeMillis());
+        
         // Start a new mining operation with animation
         MiningOperation operation = new MiningOperation(player, block, breakTimeTicks);
         activeMining.put(playerUuid, operation);
@@ -214,6 +242,7 @@ public class BedrockMiningSpeedHandler implements Listener {
         UUID playerUuid = event.getPlayer().getUniqueId();
         cancelMining(playerUuid);
         recentBreaks.remove(playerUuid);
+        lastArmSwing.remove(playerUuid);
     }
     
     /**
@@ -225,6 +254,8 @@ public class BedrockMiningSpeedHandler implements Listener {
             operation.cancel();
             activeMining.remove(playerUuid);
         }
+        // Clean up arm swing tracking
+        lastArmSwing.remove(playerUuid);
     }
     
     /**
@@ -606,9 +637,26 @@ public class BedrockMiningSpeedHandler implements Listener {
                         return;
                     }
                     
-                    // Check if player is still targeting the block
-                    // For Bedrock players, checking if they're looking at the block is the most reliable way
-                    // to detect if they're still mining (Bedrock doesn't send continuous dig packets like Java)
+                    // Check if player is still holding the break button by checking arm swing packets
+                    Long lastSwing = lastArmSwing.get(player.getUniqueId());
+                    if (lastSwing == null) {
+                        DebugManager.getInstance().debug(DebugSystem.MINING, 
+                            "Bedrock player " + player.getName() + " - No arm swing tracked - cancelling");
+                        cancelMining(player.getUniqueId());
+                        return;
+                    }
+                    
+                    long timeSinceLastSwing = System.currentTimeMillis() - lastSwing;
+                    if (timeSinceLastSwing > ARM_SWING_TIMEOUT_MS) {
+                        // Player hasn't swung in too long - they stopped holding the button
+                        DebugManager.getInstance().debug(DebugSystem.MINING, 
+                            "Bedrock player " + player.getName() + " - Stopped holding break button (" + 
+                            timeSinceLastSwing + "ms since last arm swing) - cancelling");
+                        cancelMining(player.getUniqueId());
+                        return;
+                    }
+                    
+                    // Check if player is still targeting the block (secondary check)
                     Block targetBlock = player.getTargetBlockExact(6);
                     if (targetBlock == null || !targetBlock.getLocation().equals(block.getLocation())) {
                         // Player looked away from the target block - cancel mining
