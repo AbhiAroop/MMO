@@ -327,6 +327,9 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new FarmingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
 
+        // Register Bedrock mining speed handler
+        this.getServer().getPluginManager().registerEvents(new com.server.profiles.stats.BedrockMiningSpeedHandler(this), this);
+
         this.getServer().getPluginManager().registerEvents(new RangedDamageListener(this), this);
 
         this.getServer().getPluginManager().registerEvents(new CustomCraftingListener(this), this);
