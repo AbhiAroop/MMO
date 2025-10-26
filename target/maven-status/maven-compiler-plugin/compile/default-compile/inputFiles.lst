@@ -1,4 +1,5 @@
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\data\IslandMember.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\util\BedrockPlayerUtil.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\data\TreeGridPosition.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\trees\SkillTreeRegistry.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.java
@@ -109,6 +110,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\rec
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\debug\DebugManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\gui\SkillsGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\AutoCraftingListener.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\stats\BedrockMiningSpeedHandler.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\CombatHandler.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\RadiantGrace.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilityGUIListener.java

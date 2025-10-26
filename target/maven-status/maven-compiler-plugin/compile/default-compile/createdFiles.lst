@@ -105,6 +105,7 @@ com\server\debug\DebugManager.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\enchantments\gui\GUIAnimationHandler.class
 com\server\islands\data\StarterChallenges.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$3.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\enchantments\gui\AnvilCombiner$PreviewResult.class
@@ -132,6 +133,7 @@ com\server\entities\npc\CombatHandler.class
 com\server\islands\data\IslandMember.class
 com\server\islands\data\ChallengeCategoryTree.class
 com\server\profiles\skills\abilities\AbilityRegistry.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$2.class
 com\server\islands\managers\ChallengeManager.class
 com\server\islands\managers\IslandManager.class
 com\server\enchantments\abilities\utility\MistborneTempest$1.class
@@ -167,12 +169,14 @@ com\server\islands\managers\IslandWorldManager$1.class
 com\server\commands\MenuCommand.class
 com\server\enchantments\abilities\offensive\CelestialSurge.class
 com\server\entities\npc\NPCDamageEffects.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$1.class
 com\server\profiles\skills\abilities\passive\PassiveAbility.class
 com\server\profiles\skills\abilities\AbstractSkillAbility.class
 com\server\entities\npc\types\BaseNPC.class
 com\server\commands\DebugCommand.class
 com\server\entities\npc\behaviors\FleeingBehavior.class
 com\server\profiles\skills\abilities\active\AbstractActiveAbility.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation.class
 com\server\profiles\stats\StatScanManager$ItemStatBonuses.class
 com\server\abilities\AbilityManager$4.class
 com\server\profiles\skills\gui\SkillGUIListener.class
@@ -190,6 +194,7 @@ com\server\enchantments\listeners\EnchantmentTableListener.class
 com\server\islands\commands\IslandMenuGUI.class
 com\server\islands\commands\ChallengeCategoryGUIListener.class
 com\server\islands\commands\IslandInfoGUI.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$2.class
 com\server\profiles\skills\core\SubskillType.class
 com\server\profiles\gui\ProfileGUI.class
 com\server\events\AutoRespawnListener.class
@@ -207,6 +212,7 @@ com\server\islands\data\IslandChallenge.class
 com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.class
 com\server\enchantments\data\EnchantmentRarity.class
 com\server\enchantments\gui\AnvilCombiner$CombineResult.class
+com\server\util\BedrockPlayerUtil.class
 com\server\enchantments\gui\EnchantmentTableGUI.class
 com\server\entities\mobs\CustomMob$2.class
 com\server\enchantments\data\EnchantmentQuality.class
@@ -274,6 +280,7 @@ com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
 com\server\enchantments\abilities\utility\ArcNexus$StackData.class
 com\server\profiles\skills\tokens\SkillToken$TokenTier.class
+com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$1.class
 com\server\profiles\skills\skills\mining\subskills\OreExtractionSubskill.class
 com\server\events\PlayerListener$6.class
 com\server\entities\npc\story\NellMossgleam$1.class
@@ -282,6 +289,7 @@ com\server\crafting\recipes\FurnaceRecipe$RecipeType.class
 com\server\events\NPCDamageListener.class
 com\server\islands\data\IslandChallenge$ChallengeCategory.class
 com\server\profiles\skills\gui\SkillDetailsGUI.class
+com\server\profiles\stats\BedrockMiningSpeedHandler.class
 com\server\commands\CrystalCommand.class
 com\server\entities\npc\types\CombatNPC.class
 com\server\islands\listeners\IslandRedstoneListener.class

@@ -15,6 +15,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import com.server.islands.data.IslandMember;
 import com.server.islands.data.PlayerIsland;
 import com.server.islands.managers.IslandManager;
+import com.server.util.BedrockPlayerUtil;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -29,6 +30,19 @@ public class IslandProtectionListener implements Listener {
     
     public IslandProtectionListener(IslandManager islandManager) {
         this.islandManager = islandManager;
+    }
+    
+    /**
+     * Send an error message with action bar support for Bedrock players
+     */
+    private void sendErrorMessage(Player player, String message) {
+        Component errorComponent = Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+            .append(Component.text(message, NamedTextColor.RED));
+        player.sendMessage(errorComponent);
+        
+        // Send simplified version to action bar for Bedrock players
+        String actionBarMessage = "§c✗ " + message;
+        BedrockPlayerUtil.sendActionBar(player, actionBarMessage);
     }
     
     /**
@@ -78,8 +92,7 @@ public class IslandProtectionListener implements Listener {
         
         if (!canBuild(player, location)) {
             event.setCancelled(true);
-            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("You don't have permission to break blocks on this island!", NamedTextColor.RED)));
+            sendErrorMessage(player, "You don't have permission to break blocks on this island!");
         }
     }
     
@@ -90,8 +103,7 @@ public class IslandProtectionListener implements Listener {
         
         if (!canBuild(player, location)) {
             event.setCancelled(true);
-            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("You don't have permission to place blocks on this island!", NamedTextColor.RED)));
+            sendErrorMessage(player, "You don't have permission to place blocks on this island!");
         }
     }
     
@@ -125,8 +137,7 @@ public class IslandProtectionListener implements Listener {
             case BREWING_STAND:
                 if (!canBuild(player, location)) {
                     event.setCancelled(true);
-                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                        .append(Component.text("You don't have permission to use this on this island!", NamedTextColor.RED)));
+                    sendErrorMessage(player, "You don't have permission to use this on this island!");
                 }
                 break;
             default:

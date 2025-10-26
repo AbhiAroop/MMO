@@ -19,6 +19,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 
 import com.server.islands.data.PlayerIsland;
 import com.server.islands.managers.IslandManager;
+import com.server.util.BedrockPlayerUtil;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -124,8 +125,11 @@ public class IslandRedstoneListener implements Listener {
             // Try to get from cache by checking if this is the owner's island
             // This handles the case where the island isn't cached yet
             event.setCancelled(true);
-            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("Island data not loaded! Please try again.", NamedTextColor.RED)));
+            
+            Component errorMsg = Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+                .append(Component.text("Island data not loaded! Please try again.", NamedTextColor.RED));
+            player.sendMessage(errorMsg);
+            BedrockPlayerUtil.sendActionBar(player, "§c✗ Island data not loaded!");
             return;
         }
         
@@ -143,12 +147,15 @@ public class IslandRedstoneListener implements Listener {
             
             islandManager.getPlugin().getLogger().info("[Island Redstone] BLOCKED placement - limit reached");
             
-            // Send message to player
+            // Send message to player (chat and action bar)
             player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
                 .append(Component.text("Redstone limit reached! ", NamedTextColor.RED))
                 .append(Component.text("(" + currentCount + "/" + limit + ")", NamedTextColor.GRAY)));
             player.sendMessage(Component.text("Upgrade your redstone limit with ", NamedTextColor.YELLOW)
                 .append(Component.text("/island upgrade", NamedTextColor.GOLD)));
+            
+            // Action bar for Bedrock players
+            BedrockPlayerUtil.sendActionBar(player, "§c✗ Redstone limit: " + currentCount + "/" + limit + " §e/island upgrade");
         } else {
             islandManager.getPlugin().getLogger().info("[Island Redstone] ALLOWED placement - adding to cache");
             

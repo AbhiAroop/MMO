@@ -168,7 +168,12 @@ public class BedrockMiningSpeedHandler implements Listener {
                 
                 if (!oreExtraction.canMineOre(player, blockType)) {
                     // Don't allow mining this ore
-                    player.sendMessage(org.bukkit.ChatColor.RED + "You need to unlock the ability to mine this ore first.");
+                    String chatMessage = org.bukkit.ChatColor.RED + "You need to unlock the ability to mine this ore first.";
+                    String actionBarMessage = org.bukkit.ChatColor.RED + "⛏ Locked Ore - Check skill tree to unlock";
+                    
+                    // Send to chat and action bar (action bar for Bedrock players)
+                    com.server.util.BedrockPlayerUtil.sendMessage(player, chatMessage, actionBarMessage);
+                    
                     DebugManager.getInstance().debug(DebugSystem.MINING, 
                         "Bedrock player " + player.getName() + " tried to mine locked ore: " + blockType);
                     return;
@@ -184,9 +189,16 @@ public class BedrockMiningSpeedHandler implements Listener {
                 
                 if (!harvesting.canHarvestCrop(player, blockType)) {
                     // Don't allow harvesting this crop
-                    player.sendMessage(org.bukkit.ChatColor.RED + "You need to unlock the ability to harvest " + 
-                        getCropDisplayName(blockType) + org.bukkit.ChatColor.RED + " first!");
+                    String chatMessage = org.bukkit.ChatColor.RED + "You need to unlock the ability to harvest " + 
+                        getCropDisplayName(blockType) + org.bukkit.ChatColor.RED + " first!";
+                    String actionBarMessage = org.bukkit.ChatColor.RED + "🌾 Locked: " + getCropDisplayName(blockType) + 
+                        org.bukkit.ChatColor.YELLOW + " - Check Harvesting skill tree";
+                    
+                    // Send to chat and action bar
+                    player.sendMessage(chatMessage);
                     player.sendMessage(org.bukkit.ChatColor.YELLOW + "Check your Harvesting skill tree to unlock this crop.");
+                    com.server.util.BedrockPlayerUtil.sendActionBar(player, actionBarMessage);
+                    
                     DebugManager.getInstance().debug(DebugSystem.MINING, 
                         "Bedrock player " + player.getName() + " tried to harvest locked crop: " + blockType);
                     return;

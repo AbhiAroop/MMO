@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.server.islands.managers.ChallengeManager;
 import com.server.islands.managers.IslandManager;
+import com.server.util.BedrockPlayerUtil;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -29,6 +30,32 @@ public class IslandMenuGUIListener implements Listener {
     
     public void setChallengeManager(ChallengeManager challengeManager) {
         this.challengeManager = challengeManager;
+    }
+    
+    /**
+     * Send an error message to player with action bar support for Bedrock players
+     */
+    private void sendErrorMessage(Player player, String message) {
+        Component errorComponent = Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
+            .append(Component.text(message, NamedTextColor.RED));
+        player.sendMessage(errorComponent);
+        
+        // Send simplified version to action bar for Bedrock players
+        String actionBarMessage = "§c✗ " + message;
+        BedrockPlayerUtil.sendActionBar(player, actionBarMessage);
+    }
+    
+    /**
+     * Send a success message to player with action bar support for Bedrock players
+     */
+    private void sendSuccessMessage(Player player, String message) {
+        Component successComponent = Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
+            .append(Component.text(message, NamedTextColor.GREEN));
+        player.sendMessage(successComponent);
+        
+        // Send to action bar for Bedrock players
+        String actionBarMessage = "§a✓ " + message;
+        BedrockPlayerUtil.sendActionBar(player, actionBarMessage);
     }
     
     @EventHandler
@@ -83,15 +110,13 @@ public class IslandMenuGUIListener implements Listener {
             if (!itemName.contains("✗")) {
                 handleInvitePlayer(player);
             } else {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have permission to invite players!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have permission to invite players!");
             }
         } else if (itemName.contains("Island Settings")) {
             if (!itemName.contains("✗")) {
                 handleIslandSettings(player);
             } else {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have permission to change settings!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have permission to change settings!");
             }
         } else if (itemName.contains("Island Shop")) {
             handleIslandShop(player);
@@ -103,8 +128,7 @@ public class IslandMenuGUIListener implements Listener {
             if (!itemName.contains("✗")) {
                 handleManageRoles(player);
             } else {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have permission to manage roles!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have permission to manage roles!");
             }
         } else if (itemName.contains("Transfer Ownership")) {
             handleTransferOwnership(player);
@@ -120,25 +144,21 @@ public class IslandMenuGUIListener implements Listener {
     private void handleIslandHome(Player player) {
         islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
             if (islandId == null) {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have an island!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have an island!");
                 return;
             }
             
             islandManager.loadIsland(islandId).thenAccept(island -> {
                 if (island == null) {
-                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                        .append(Component.text("Failed to load island!", NamedTextColor.RED)));
+                    sendErrorMessage(player, "Failed to load island!");
                     return;
                 }
                 
                 islandManager.teleportToIsland(player, island).thenAccept(success -> {
                     if (success) {
-                        player.sendMessage(Component.text("✓ ", NamedTextColor.GREEN, TextDecoration.BOLD)
-                            .append(Component.text("Welcome to your island!", NamedTextColor.GREEN)));
+                        sendSuccessMessage(player, "Welcome to your island!");
                     } else {
-                        player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                            .append(Component.text("Failed to teleport to island!", NamedTextColor.RED)));
+                        sendErrorMessage(player, "Failed to teleport to island!");
                     }
                 });
             });
@@ -149,16 +169,14 @@ public class IslandMenuGUIListener implements Listener {
         // Get player's island ID (works for both owners and members)
         islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
             if (islandId == null) {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have an island!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have an island!");
                 return;
             }
             
             // Load the island by ID
             islandManager.loadIsland(islandId).thenAccept(island -> {
                 if (island == null) {
-                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                        .append(Component.text("Failed to load island!", NamedTextColor.RED)));
+                    sendErrorMessage(player, "Failed to load island!");
                     return;
                 }
                 
@@ -173,16 +191,14 @@ public class IslandMenuGUIListener implements Listener {
         // Get player's island ID (works for both owners and members)
         islandManager.getPlayerIslandId(player.getUniqueId()).thenAccept(islandId -> {
             if (islandId == null) {
-                player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                    .append(Component.text("You don't have an island!", NamedTextColor.RED)));
+                sendErrorMessage(player, "You don't have an island!");
                 return;
             }
             
             // Load the island by ID
             islandManager.loadIsland(islandId).thenAccept(island -> {
                 if (island == null) {
-                    player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                        .append(Component.text("Failed to load island!", NamedTextColor.RED)));
+                    sendErrorMessage(player, "Failed to load island!");
                     return;
                 }
                 
@@ -272,8 +288,7 @@ public class IslandMenuGUIListener implements Listener {
     
     private void handleIslandChallenges(Player player) {
         if (challengeManager == null) {
-            player.sendMessage(Component.text("✗ ", NamedTextColor.RED, TextDecoration.BOLD)
-                .append(Component.text("Challenge system is not initialized yet!", NamedTextColor.RED)));
+            sendErrorMessage(player, "Challenge system is not initialized yet!");
             return;
         }
         
