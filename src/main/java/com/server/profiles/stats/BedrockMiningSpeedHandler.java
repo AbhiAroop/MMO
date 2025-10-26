@@ -15,6 +15,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDamageAbortEvent;
 import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.comphenix.protocol.PacketType;
@@ -26,6 +27,11 @@ import com.server.debug.DebugManager;
 import com.server.debug.DebugManager.DebugSystem;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.farming.subskills.HarvestingSubskill;
+import com.server.profiles.skills.skills.mining.subskills.OreExtractionSubskill;
 import com.server.util.BedrockPlayerUtil;
 
 /**
@@ -151,6 +157,42 @@ public class BedrockMiningSpeedHandler implements Listener {
         
         Block block = event.getBlock();
         UUID playerUuid = player.getUniqueId();
+        Material blockType = block.getType();
+        
+        // CHECK PERMISSIONS: Prevent breaking locked ores and crops
+        // Check if this is an ore that might be locked
+        if (isOre(blockType)) {
+            Skill oreExtractionSkill = SkillRegistry.getInstance().getSubskill(SubskillType.ORE_EXTRACTION);
+            if (oreExtractionSkill instanceof OreExtractionSubskill) {
+                OreExtractionSubskill oreExtraction = (OreExtractionSubskill) oreExtractionSkill;
+                
+                if (!oreExtraction.canMineOre(player, blockType)) {
+                    // Don't allow mining this ore
+                    player.sendMessage(org.bukkit.ChatColor.RED + "You need to unlock the ability to mine this ore first.");
+                    DebugManager.getInstance().debug(DebugSystem.MINING, 
+                        "Bedrock player " + player.getName() + " tried to mine locked ore: " + blockType);
+                    return;
+                }
+            }
+        }
+        
+        // Check if this is a crop that might be locked
+        if (isCrop(blockType)) {
+            Skill harvestingSkill = SkillRegistry.getInstance().getSubskill(SubskillType.HARVESTING);
+            if (harvestingSkill instanceof HarvestingSubskill) {
+                HarvestingSubskill harvesting = (HarvestingSubskill) harvestingSkill;
+                
+                if (!harvesting.canHarvestCrop(player, blockType)) {
+                    // Don't allow harvesting this crop
+                    player.sendMessage(org.bukkit.ChatColor.RED + "You need to unlock the ability to harvest " + 
+                        getCropDisplayName(blockType) + org.bukkit.ChatColor.RED + " first!");
+                    player.sendMessage(org.bukkit.ChatColor.YELLOW + "Check your Harvesting skill tree to unlock this crop.");
+                    DebugManager.getInstance().debug(DebugSystem.MINING, 
+                        "Bedrock player " + player.getName() + " tried to harvest locked crop: " + blockType);
+                    return;
+                }
+            }
+        }
         
         // Check if we're in cooldown period after a recent break
         Long lastBreak = recentBreaks.get(playerUuid);
@@ -783,8 +825,33 @@ public class BedrockMiningSpeedHandler implements Listener {
                     DebugManager.getInstance().debug(DebugSystem.MINING, 
                         "Bedrock player " + player.getName() + " - Breaking block now!");
                     
-                    // Break the block
-                    block.breakNaturally(player.getInventory().getItemInMainHand());
+                    // Get player profile for fortune calculation
+                    Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+                    if (activeSlot != null) {
+                        PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+                        if (profile != null) {
+                            Material blockType = block.getType();
+                            
+                            // Handle ores with mining fortune
+                            if (isOre(blockType)) {
+                                handleOreBreak(player, block, profile);
+                            }
+                            // Handle crops with farming fortune
+                            else if (isCrop(blockType)) {
+                                handleCropBreak(player, block, profile);
+                            }
+                            // Handle regular blocks (just break normally)
+                            else {
+                                block.breakNaturally(player.getInventory().getItemInMainHand());
+                            }
+                        } else {
+                            // Fallback if no profile
+                            block.breakNaturally(player.getInventory().getItemInMainHand());
+                        }
+                    } else {
+                        // Fallback if no profile
+                        block.breakNaturally(player.getInventory().getItemInMainHand());
+                    }
                     
                     // Set break cooldown to prevent immediate restart
                     recentBreaks.put(player.getUniqueId(), System.currentTimeMillis());
@@ -820,6 +887,253 @@ public class BedrockMiningSpeedHandler implements Listener {
             if (player.isOnline()) {
                 sendBlockCrackPacket(player, block, 255, entityId);
             }
+        }
+    }
+    
+    /**
+     * Handle ore breaking with mining fortune
+     */
+    private void handleOreBreak(Player player, Block block, PlayerProfile profile) {
+        Material blockType = block.getType();
+        
+        // Get mining fortune from player stats
+        double miningFortune = profile.getStats().getMiningFortune();
+        int fortuneMultiplier = calculateFortuneMultiplier(miningFortune);
+        
+        DebugManager.getInstance().debug(DebugSystem.MINING, 
+            "Bedrock player " + player.getName() + " breaking ore " + blockType + 
+            " with Mining Fortune multiplier: " + fortuneMultiplier);
+        
+        // Get the drops
+        java.util.Collection<ItemStack> normalDrops = block.getDrops(player.getInventory().getItemInMainHand());
+        
+        // If no drops, add default ore drops
+        if (normalDrops.isEmpty()) {
+            Material dropType = getDefaultDropForOre(blockType);
+            if (dropType != null) {
+                normalDrops = java.util.Arrays.asList(new ItemStack(dropType));
+            }
+        }
+        
+        // Break the block first
+        block.setType(Material.AIR);
+        
+        // Drop items with fortune multiplier
+        if (!normalDrops.isEmpty()) {
+            org.bukkit.Location dropLocation = block.getLocation().add(0.5, 0.5, 0.5);
+            for (ItemStack normalDrop : normalDrops) {
+                ItemStack multipliedDrop = normalDrop.clone();
+                multipliedDrop.setAmount(normalDrop.getAmount() * fortuneMultiplier);
+                block.getWorld().dropItemNaturally(dropLocation, multipliedDrop);
+            }
+        }
+        
+        // Award vanilla XP if applicable
+        int blockXP = getBlockXP(blockType);
+        if (blockXP > 0) {
+            player.giveExp(blockXP);
+        }
+    }
+    
+    /**
+     * Handle crop breaking with farming fortune
+     */
+    private void handleCropBreak(Player player, Block block, PlayerProfile profile) {
+        Material blockType = block.getType();
+        
+        // Get farming fortune from player stats
+        double farmingFortune = profile.getStats().getFarmingFortune();
+        int fortuneMultiplier = calculateFortuneMultiplier(farmingFortune);
+        
+        DebugManager.getInstance().debug(DebugSystem.MINING, 
+            "Bedrock player " + player.getName() + " breaking crop " + blockType + 
+            " with Farming Fortune multiplier: " + fortuneMultiplier);
+        
+        // Get the drops
+        java.util.Collection<ItemStack> normalDrops = block.getDrops(player.getInventory().getItemInMainHand());
+        
+        // Break the block first
+        block.setType(Material.AIR);
+        
+        // Drop items with fortune multiplier
+        if (!normalDrops.isEmpty()) {
+            org.bukkit.Location dropLocation = block.getLocation().add(0.5, 0.5, 0.5);
+            for (ItemStack normalDrop : normalDrops) {
+                ItemStack multipliedDrop = normalDrop.clone();
+                multipliedDrop.setAmount(normalDrop.getAmount() * fortuneMultiplier);
+                block.getWorld().dropItemNaturally(dropLocation, multipliedDrop);
+            }
+        }
+    }
+    
+    /**
+     * Calculate fortune multiplier from fortune stat
+     */
+    private int calculateFortuneMultiplier(double fortune) {
+        // Fortune is a percentage-based system:
+        // 100 fortune = 2x drops (guaranteed)
+        // 150 fortune = 2x drops + 50% chance for 3x drops
+        
+        // Calculate guaranteed multiplier (divide by 100 and add 1)
+        int guaranteedMultiplier = (int) Math.floor(fortune / 100) + 1;
+        
+        // Calculate chance for an extra drop (remainder percentage)
+        double chanceForExtraDrop = (fortune % 100);
+        
+        // Default multiplier is the guaranteed portion
+        int fortuneMultiplier = guaranteedMultiplier;
+        
+        // Check for chance-based extra drop
+        if (Math.random() * 100 < chanceForExtraDrop) {
+            fortuneMultiplier++;
+        }
+        
+        return fortuneMultiplier;
+    }
+    
+    /**
+     * Get the default drop for an ore type
+     */
+    private Material getDefaultDropForOre(Material oreType) {
+        switch (oreType) {
+            case COAL_ORE:
+            case DEEPSLATE_COAL_ORE:
+                return Material.COAL;
+            case IRON_ORE:
+            case DEEPSLATE_IRON_ORE:
+                return Material.RAW_IRON;
+            case COPPER_ORE:
+            case DEEPSLATE_COPPER_ORE:
+                return Material.RAW_COPPER;
+            case GOLD_ORE:
+            case DEEPSLATE_GOLD_ORE:
+            case NETHER_GOLD_ORE:
+                return Material.RAW_GOLD;
+            case REDSTONE_ORE:
+            case DEEPSLATE_REDSTONE_ORE:
+                return Material.REDSTONE;
+            case LAPIS_ORE:
+            case DEEPSLATE_LAPIS_ORE:
+                return Material.LAPIS_LAZULI;
+            case DIAMOND_ORE:
+            case DEEPSLATE_DIAMOND_ORE:
+                return Material.DIAMOND;
+            case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
+                return Material.EMERALD;
+            case NETHER_QUARTZ_ORE:
+                return Material.QUARTZ;
+            case ANCIENT_DEBRIS:
+                return Material.ANCIENT_DEBRIS;
+            default:
+                return null;
+        }
+    }
+    
+    /**
+     * Get vanilla XP for ore blocks
+     */
+    private int getBlockXP(Material material) {
+        switch (material) {
+            case COAL_ORE:
+            case DEEPSLATE_COAL_ORE:
+                return 1;
+            case REDSTONE_ORE:
+            case DEEPSLATE_REDSTONE_ORE:
+            case NETHER_QUARTZ_ORE:
+                return 2;
+            case LAPIS_ORE:
+            case DEEPSLATE_LAPIS_ORE:
+                return 3;
+            case DIAMOND_ORE:
+            case DEEPSLATE_DIAMOND_ORE:
+            case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
+                return 5;
+            case NETHER_GOLD_ORE:
+                return 1;
+            case ANCIENT_DEBRIS:
+                return 3;
+            default:
+                return 0;
+        }
+    }
+    
+    /**
+     * Check if a material is an ore
+     */
+    private boolean isOre(Material material) {
+        switch (material) {
+            case COAL_ORE:
+            case DEEPSLATE_COAL_ORE:
+            case IRON_ORE:
+            case DEEPSLATE_IRON_ORE:
+            case COPPER_ORE:
+            case DEEPSLATE_COPPER_ORE:
+            case GOLD_ORE:
+            case DEEPSLATE_GOLD_ORE:
+            case REDSTONE_ORE:
+            case DEEPSLATE_REDSTONE_ORE:
+            case LAPIS_ORE:
+            case DEEPSLATE_LAPIS_ORE:
+            case DIAMOND_ORE:
+            case DEEPSLATE_DIAMOND_ORE:
+            case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
+            case NETHER_GOLD_ORE:
+            case NETHER_QUARTZ_ORE:
+            case ANCIENT_DEBRIS:
+                return true;
+            default:
+                return false;
+        }
+    }
+    
+    /**
+     * Check if a material is a crop
+     */
+    private boolean isCrop(Material material) {
+        switch (material) {
+            case WHEAT:
+            case CARROTS:
+            case POTATOES:
+            case BEETROOTS:
+            case SWEET_BERRY_BUSH:
+            case COCOA:
+            case NETHER_WART:
+            case MELON:
+            case PUMPKIN:
+                return true;
+            default:
+                return false;
+        }
+    }
+    
+    /**
+     * Get display name for a crop material
+     */
+    private String getCropDisplayName(Material material) {
+        switch (material) {
+            case WHEAT:
+                return "Wheat";
+            case CARROTS:
+                return "Carrots";
+            case POTATOES:
+                return "Potatoes";
+            case BEETROOTS:
+                return "Beetroots";
+            case SWEET_BERRY_BUSH:
+                return "Sweet Berries";
+            case COCOA:
+                return "Cocoa";
+            case NETHER_WART:
+                return "Nether Wart";
+            case MELON:
+                return "Melons";
+            case PUMPKIN:
+                return "Pumpkins";
+            default:
+                return material.name();
         }
     }
 }
