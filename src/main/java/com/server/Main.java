@@ -16,6 +16,7 @@ import com.server.commands.AdminSkillsCommand;
 import com.server.commands.AdminStatsCommand;
 import com.server.commands.AdminTokensCommand;
 import com.server.commands.AnimationDebugCommand;
+import com.server.commands.BotanyCommand;
 import com.server.commands.CosmeticCommand;
 import com.server.commands.CraftingCommand;
 import com.server.commands.CrystalCommand;
@@ -177,6 +178,11 @@ public class Main extends JavaPlugin {
         // Initialize ability registry
         AbilityRegistry.initialize(this);
         
+        // Initialize Botany Manager for custom crops
+        getLogger().info("[Botany] Initializing Botany Manager...");
+        com.server.profiles.skills.skills.farming.botany.BotanyManager.initialize(this);
+        getLogger().info("[Botany] Botany Manager initialized successfully!");
+        
         // Initialize the GemCarving minigame
         gemCarvingManager = new GemCarvingManager(this);
         gemCarvingManager.initialize();
@@ -278,6 +284,17 @@ public class Main extends JavaPlugin {
         if (customEntityManager != null) {
             customEntityManager.cleanup();
         }
+        
+        // Shutdown Botany Manager
+        try {
+            if (com.server.profiles.skills.skills.farming.botany.BotanyManager.getInstance() != null) {
+                getLogger().info("[Botany] Shutting down Botany Manager...");
+                com.server.profiles.skills.skills.farming.botany.BotanyManager.getInstance().shutdown();
+                getLogger().info("[Botany] Botany Manager shut down successfully!");
+            }
+        } catch (IllegalStateException e) {
+            // Manager not initialized, skip
+        }
 
         // Clean up NPC resources
         NPCManager.getInstance().cleanup();
@@ -326,6 +343,11 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
         this.getServer().getPluginManager().registerEvents(new FarmingListener(this), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
+        
+        // Register Botany listener for custom crops
+        this.getServer().getPluginManager().registerEvents(
+            new com.server.profiles.skills.skills.farming.botany.BotanyListener(this), this);
+        getLogger().info("[Botany] Botany listener registered successfully!");
 
         // Register Bedrock mining speed handler
         this.getServer().getPluginManager().registerEvents(new com.server.profiles.stats.BedrockMiningSpeedHandler(this), this);
@@ -565,6 +587,17 @@ public class Main extends JavaPlugin {
             craftingCommand.setExecutor(new CraftingCommand());
         } else {
             LOGGER.warning("Command 'crafting' not registered in plugin.yml file!");
+        }
+        
+        // Register Botany command
+        org.bukkit.command.PluginCommand botanyCommand = this.getCommand("botany");
+        if (botanyCommand != null) {
+            BotanyCommand botanyHandler = new BotanyCommand();
+            botanyCommand.setExecutor(botanyHandler);
+            botanyCommand.setTabCompleter(botanyHandler);
+            getLogger().info("[Botany] Botany command registered successfully!");
+        } else {
+            LOGGER.warning("Command 'botany' not registered in plugin.yml file!");
         }
 
         org.bukkit.command.PluginCommand adminFurnaceCommand = this.getCommand("adminfurnace");

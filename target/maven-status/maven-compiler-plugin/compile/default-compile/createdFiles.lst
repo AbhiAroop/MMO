@@ -6,6 +6,7 @@ com\server\crafting\gui\CustomFurnaceGUI$1.class
 com\server\enchantments\abilities\offensive\Embershade.class
 com\server\profiles\skills\core\Skill.class
 com\server\display\ScoreboardManager$1.class
+com\server\profiles\skills\skills\farming\botany\BotanyManager.class
 com\server\enchantments\elements\CategorizedAffinity$1.class
 com\server\entities\npc\types\HostileNPC$1.class
 com\server\islands\data\IslandInvite.class
@@ -18,6 +19,7 @@ com\server\islands\data\IslandChallenge$ChallengeDifficulty.class
 com\server\crafting\gui\CustomFurnaceGUI$FurnaceGUILayout.class
 com\server\profiles\skills\events\MiningListener$1.class
 com\server\crafting\furnace\FurnaceType.class
+com\server\profiles\skills\skills\farming\botany\BotanyListener.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\islands\data\IslandType.class
 com\server\events\AutoRespawnListener$2.class
@@ -72,6 +74,7 @@ com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.class
 com\server\islands\data\PlayerIsland.class
 com\server\display\DamageIndicatorManager$2.class
 com\server\profiles\skills\rewards\SkillRewardType.class
+com\server\profiles\skills\skills\farming\botany\BotanyManager$2.class
 com\server\profiles\PlayerProfile.class
 com\server\profiles\skills\events\MiningListener.class
 com\server\profiles\skills\trees\PlayerSkillTreeData.class
@@ -81,6 +84,7 @@ com\server\entities\npc\NPCFactory.class
 com\server\profiles\skills\skills\fishing\FishingSkill.class
 com\server\crafting\manager\CustomFurnaceManager.class
 com\server\display\ScoreboardManager.class
+com\server\profiles\skills\skills\farming\botany\PlantedCustomCrop.class
 com\server\display\ActionBarManager.class
 com\server\profiles\skills\rewards\rewards\CurrencyReward.class
 com\server\profiles\skills\skills\farming\subskills\CultivatingSubskill.class
@@ -98,6 +102,7 @@ com\server\profiles\skills\events\SkillLevelUpEvent.class
 com\server\entities\npc\NPCType.class
 com\server\profiles\skills\gui\SkillTreeGUI$ResetData.class
 com\server\crafting\listeners\VanillaCraftingReplacer.class
+com\server\profiles\skills\skills\farming\botany\CustomCropRegistry.class
 com\server\profiles\skills\abilities\gui\AbilityListGUI.class
 com\server\display\DamageIndicatorManager.class
 com\server\profiles\skills\rewards\rewards\ItemReward.class
@@ -186,6 +191,7 @@ com\server\enchantments\abilities\offensive\Decayroot.class
 com\server\events\CustomMobListener$2.class
 com\server\events\RangedCombatManager.class
 com\server\islands\managers\IslandDataManager.class
+com\server\commands\BotanyCommand.class
 com\server\enchantments\abilities\utility\Veilborn$SneakData.class
 com\server\display\ActionBarManager$1.class
 com\server\enchantments\abilities\InfernoStrike.class
@@ -258,6 +264,7 @@ com\server\enchantments\utils\EnchantmentDamageUtil$1.class
 com\server\commands\AdminTokensCommand.class
 com\server\enchantments\abilities\utility\PureReflection.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$1.class
+com\server\profiles\skills\skills\farming\botany\CustomCrop.class
 com\server\islands\commands\IslandGUIListener.class
 com\server\profiles\skills\abilities\active\ActiveAbility.class
 com\server\commands\AnimationDebugCommand$2.class
@@ -273,6 +280,7 @@ com\server\entities\npc\behaviors\FleeingBehavior$2.class
 com\server\profiles\skills\tokens\SkillToken$1.class
 com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
+com\server\profiles\skills\skills\farming\botany\CustomCrop$BreedingRecipe.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\AdminProfileCommand.class
 com\server\enchantments\effects\ElementalParticles$1.class
@@ -303,6 +311,7 @@ com\server\enchantments\gui\AnvilGUI.class
 com\server\profiles\stats\PlayerStats.class
 com\server\utils\CurrencyFormatter.class
 com\server\enchantments\FragmentRegistry.class
+com\server\profiles\skills\skills\farming\botany\CustomCrop$CropRarity.class
 com\server\islands\listeners\IslandProtectionListener.class
 com\server\enchantments\abilities\defensive\Terraheart$1.class
 com\server\entities\npc\NPCInteractionListener.class
@@ -312,9 +321,11 @@ com\server\commands\AdminSkillsCommand.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\islands\commands\IslandMembersGUI.class
 com\server\events\AutoRespawnListener$1.class
+com\server\profiles\skills\skills\farming\botany\BotanyManager$1.class
 com\server\enchantments\data\CustomEnchantment$TriggerType.class
 com\server\profiles\skills\gui\ConfirmationGUI.class
 com\server\entities\npc\story\NellMossgleam.class
+com\server\profiles\skills\skills\farming\botany\CropBreeder.class
 com\server\islands\data\IslandChallenge$Builder.class
 com\server\crafting\manager\CustomCraftingManager$CustomRecipeData.class
 com\server\entities\npc\dialogue\DialogueResponse.class

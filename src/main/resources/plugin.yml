@@ -124,6 +124,11 @@ commands:
     usage: /islandadmin [settokens|addtokens|setlevel|setvalue|info]
     permission: island.admin
     aliases: [isadmin, isa]
+  botany:
+    description: Botany system admin commands for custom crops
+    usage: /botany [give|info|nearby|list|reload|clear|breeder]
+    permission: mmo.admin.botany
+    aliases: [crops, customcrops]
 
 permissions:
   mmo.admin:
@@ -173,5 +178,8 @@ permissions:
     default: op
   island.admin:
     description: Allows managing islands, tokens, levels, and challenges
+    default: op
+  mmo.admin.botany:
+    description: Allows managing custom crops and Botany system
     default: op
 
