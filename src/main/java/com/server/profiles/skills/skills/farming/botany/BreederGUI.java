@@ -25,7 +25,8 @@ import com.server.debug.DebugManager;
  */
 public class BreederGUI {
     
-    private static final Map<UUID, BreederData> openGUIs = new HashMap<>();
+    private static final Map<UUID, BreederData> openGUIs = new HashMap<>(); // Player UUID -> BreederData
+    private static final Map<UUID, UUID> breederOwners = new HashMap<>(); // Breeder UUID -> Player UUID (who has it open)
     private static final BreederGUIListener listener = new BreederGUIListener();
     
     private final BreederData data;
@@ -254,9 +255,29 @@ public class BreederGUI {
      * Open the GUI for a player
      */
     public void open(Player player) {
-        // Check if player already has this GUI open
+        UUID breederUUID = data.getArmorStandId();
+        
+        // Check if another player already has this breeder open
+        UUID currentOwner = breederOwners.get(breederUUID);
+        if (currentOwner != null && !currentOwner.equals(player.getUniqueId())) {
+            // Another player has this breeder open
+            Player owner = Bukkit.getPlayer(currentOwner);
+            if (owner != null && owner.isOnline()) {
+                player.sendMessage("§c§l[!] §cThis breeder is currently being used by §e" + owner.getName() + "§c!");
+                DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
+                    "[BreederGUI] Blocked " + player.getName() + " - breeder in use by " + owner.getName());
+                return;
+            } else {
+                // Owner is offline, release the lock
+                DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
+                    "[BreederGUI] Previous owner offline, releasing lock");
+                breederOwners.remove(breederUUID);
+            }
+        }
+        
+        // Check if player already has this GUI open (duplicate open prevention)
         BreederData existingData = openGUIs.get(player.getUniqueId());
-        if (existingData != null && existingData.getArmorStandId().equals(data.getArmorStandId())) {
+        if (existingData != null && existingData.getArmorStandId().equals(breederUUID)) {
             DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
                 "[BreederGUI] GUI already open for " + player.getName() + " - ignoring duplicate open");
             return;
@@ -265,10 +286,12 @@ public class BreederGUI {
         DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
             "[BreederGUI] Opening GUI for " + player.getName() + ", adding to openGUIs map. Current size: " + openGUIs.size());
         
+        // Claim ownership of this breeder
+        breederOwners.put(breederUUID, player.getUniqueId());
         openGUIs.put(player.getUniqueId(), data);
         
         DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
-            "[BreederGUI] Added to openGUIs. New size: " + openGUIs.size());
+            "[BreederGUI] Added to openGUIs. New size: " + openGUIs.size() + ", claimed breeder ownership");
         
         player.openInventory(inventory);
         
@@ -490,6 +513,15 @@ public class BreederGUI {
             data.setItem(BreederData.CATALYST_SLOT, event.getInventory().getItem(BreederData.CATALYST_SLOT));
             data.setItem(BreederData.FLUID_SLOT, event.getInventory().getItem(BreederData.FLUID_SLOT));
             data.setItem(BreederData.OUTPUT_SLOT, event.getInventory().getItem(BreederData.OUTPUT_SLOT));
+            
+            // Release breeder ownership
+            UUID breederUUID = data.getArmorStandId();
+            UUID currentOwner = breederOwners.get(breederUUID);
+            if (currentOwner != null && currentOwner.equals(player.getUniqueId())) {
+                breederOwners.remove(breederUUID);
+                DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
+                    "[BreederGUI] Released breeder ownership for " + player.getName());
+            }
             
             openGUIs.remove(player.getUniqueId());
             
