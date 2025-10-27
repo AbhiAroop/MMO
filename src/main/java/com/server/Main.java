@@ -82,6 +82,7 @@ import com.server.profiles.skills.events.SkillEventListener;
 import com.server.profiles.skills.gui.SkillGUIListener;
 import com.server.profiles.skills.gui.SkillTreeGUIListener;
 import com.server.profiles.skills.minigames.GemCarvingManager;
+import com.server.profiles.skills.skills.fishing.listeners.FishingListener;
 import com.server.profiles.skills.trees.SkillTreeRegistry;
 import com.server.profiles.stats.StatScanManager;
 import com.server.profiles.stats.health.HealthRegenerationListener;
@@ -342,6 +343,7 @@ public class Main extends JavaPlugin {
 
         this.getServer().getPluginManager().registerEvents(new MiningListener(this), this);
         this.getServer().getPluginManager().registerEvents(new FarmingListener(this), this);
+        this.getServer().getPluginManager().registerEvents(new FishingListener(), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
         
         // Register Botany listener for custom crops

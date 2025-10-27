@@ -15,6 +15,7 @@ com\server\profiles\stats\ElementalAffinity.class
 com\server\enchantments\abilities\utility\GaleStep.class
 com\server\crafting\listeners\CustomFurnaceGUIListener.class
 com\server\events\PlayerListener$5.class
+com\server\profiles\skills\skills\fishing\minigame\FishingSession.class
 com\server\events\PlayerListener$5$1.class
 com\server\islands\data\IslandChallenge$ChallengeDifficulty.class
 com\server\crafting\gui\CustomFurnaceGUI$FurnaceGUILayout.class
@@ -37,11 +38,13 @@ com\server\entities\npc\dialogue\DialogueManager.class
 com\server\enchantments\elements\HybridElement.class
 com\server\islands\managers\IslandWorldManager$2.class
 com\server\profiles\skills\skills\farming\subskills\HarvestingSubskill.class
+com\server\profiles\skills\skills\fishing\listeners\FishingListener.class
 com\server\profiles\skills\abilities\active\mining\MiningSpeedBoostAbility.class
 com\server\islands\commands\IslandManageRolesGUI.class
 com\server\commands\AdminFurnaceCommand.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession$1.class
 com\server\commands\SkillCommand.class
+com\server\profiles\skills\skills\fishing\loot\FishQuality.class
 com\server\profiles\skills\trees\builders\GenericTreeBuilder.class
 com\server\commands\AnimationDebugCommand$1.class
 com\server\enchantments\items\EnchantmentTome.class
@@ -86,6 +89,7 @@ com\server\profiles\skills\skills\fishing\FishingSkill.class
 com\server\crafting\manager\CustomFurnaceManager.class
 com\server\display\ScoreboardManager.class
 com\server\profiles\skills\skills\farming\botany\PlantedCustomCrop.class
+com\server\profiles\skills\skills\fishing\subskills\RodFishingSubskill.class
 com\server\display\ActionBarManager.class
 com\server\profiles\skills\rewards\rewards\CurrencyReward.class
 com\server\profiles\skills\skills\farming\subskills\CultivatingSubskill.class
@@ -115,6 +119,7 @@ com\server\islands\data\StarterChallenges.class
 com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$3.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
+com\server\profiles\skills\skills\fishing\listeners\FishingListener$1.class
 com\server\enchantments\gui\AnvilCombiner$PreviewResult.class
 com\server\islands\commands\IslandLeaveConfirmGUI.class
 com\server\commands\AdminSkillsCommand$SkillState.class
@@ -130,6 +135,7 @@ com\server\commands\CraftingCommand.class
 com\server\crafting\listeners\CustomFurnaceListener.class
 com\server\crafting\temperature\TemperatureSystem.class
 com\server\profiles\skills\display\SkillActionBarManager$1.class
+com\server\profiles\skills\skills\fishing\loot\FishRarity.class
 com\server\entities\npc\CombatHandler$4.class
 com\server\profiles\skills\core\AbstractSkill.class
 com\server\enchantments\structure\EnchantmentTableStructure.class
@@ -225,9 +231,11 @@ com\server\enchantments\gui\EnchantmentTableGUI.class
 com\server\entities\mobs\CustomMob$2.class
 com\server\enchantments\data\EnchantmentQuality.class
 com\server\enchantments\items\ElementalFragment.class
+com\server\profiles\skills\skills\fishing\minigame\FishingMinigame$1.class
 com\server\islands\commands\IslandUpgradeGUI.class
 com\server\enchantments\abilities\defensive\Terraheart.class
 com\server\profiles\skills\skills\farming\botany\BreederData.class
+com\server\profiles\skills\skills\fishing\types\FishingType.class
 com\server\profiles\skills\core\SkillType.class
 com\server\profiles\skills\skills\farming\trees\FarmingTreeBuilder.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility.class
@@ -246,6 +254,7 @@ com\server\profiles\skills\gui\SkillTreeGUI$1.class
 com\server\enchantments\gui\GUIAnimationHandler$AnimationState.class
 com\server\entities\npc\CombatHandler$1.class
 com\server\enchantments\elements\FragmentTier.class
+com\server\profiles\skills\skills\fishing\loot\Fish.class
 com\server\crafting\gui\CustomCraftingGUI.class
 com\server\commands\AnimationDebugCommand.class
 com\server\enchantments\listeners\AnvilGUIListener.class
@@ -286,6 +295,7 @@ com\server\display\ScoreboardManager$2.class
 com\server\profiles\skills\skills\farming\botany\CustomCrop$BreedingRecipe.class
 com\server\profiles\stats\health\HealthRegenerationListener.class
 com\server\commands\AdminProfileCommand.class
+com\server\profiles\skills\skills\fishing\minigame\FishingMinigame.class
 com\server\enchantments\effects\ElementalParticles$1.class
 com\server\entities\npc\types\HostileNPC$2.class
 com\server\entities\mobs\colossus\RunemarkColossus$1.class
@@ -385,6 +395,7 @@ com\server\enchantments\abilities\defensive\Whispers.class
 com\server\entities\mobs\CustomMob.class
 com\server\enchantments\abilities\offensive\BurdenedStone.class
 com\server\enchantments\EnchantmentRegistry.class
+com\server\profiles\skills\skills\fishing\minigame\FishingSessionManager.class
 com\server\islands\data\IslandMember$IslandRole.class
 com\server\profiles\skills\rewards\rewards\StatReward.class
 com\server\profiles\skills\events\SkillEventListener.class
@@ -418,6 +429,7 @@ com\server\islands\data\IslandStatistics.class
 com\server\profiles\skills\core\SkillProgressionManager.class
 com\server\profiles\skills\gui\SubskillsGUI.class
 com\server\entities\npc\NPCInteractionHandler.class
+com\server\profiles\skills\skills\fishing\loot\FishType.class
 com\server\profiles\skills\minigames\GemCarvingMinigame.class
 com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class

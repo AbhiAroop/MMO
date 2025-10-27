@@ -17,6 +17,7 @@ public enum SubskillType {
     ARCHAEOLOGIST("archaeologist", "Archaeologist", "Discover ancient artifacts", SkillType.EXCAVATING),
     
     // Fishing subskills
+    ROD_FISHING("rod_fishing", "Rod Fishing", "Master the timing-based fishing minigame with stats progression", SkillType.FISHING),
     FISHERMAN("fisherman", "Fisherman", "Catch fish faster", SkillType.FISHING),
     AQUATIC_TREASURES("aquatic_treasures", "Aquatic Treasures", "Find valuable items while fishing", SkillType.FISHING),
     MASTER_ANGLER("master_angler", "Master Angler", "Catch rare fish", SkillType.FISHING),
