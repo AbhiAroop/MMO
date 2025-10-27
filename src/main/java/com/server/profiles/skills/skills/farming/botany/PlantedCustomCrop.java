@@ -15,6 +15,10 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 
+import com.server.Main;
+import com.server.debug.DebugManager;
+import com.server.debug.DebugManager.DebugSystem;
+
 /**
  * Tracks a custom crop that has been planted in the world
  * Handles growth stages, visual updates, and data persistence
@@ -150,11 +154,75 @@ public class PlantedCustomCrop {
         long timeSinceLastGrowth = currentTime - lastGrowthTime;
         long requiredTime = crop.getGrowthTimePerStage() * 50; // Convert ticks to milliseconds
         
+        // Check if farmland below is hydrated - 2x growth speed if so
+        boolean isHydrated = isFarmlandHydrated();
+        if (isHydrated) {
+            requiredTime = requiredTime / 2; // Double growth speed (half the time required)
+        }
+        
         if (timeSinceLastGrowth >= requiredTime) {
             currentStage++;
             lastGrowthTime = currentTime;
             updateVisual();
+            
+            // Debug output
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                    "[Botany] Crop grew: " + crop.getDisplayName() + 
+                    " to stage " + currentStage + " (Hydrated: " + isHydrated + ")");
+            }
+            
             return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if the farmland block below the crop is hydrated
+     * @return true if farmland is hydrated (moisture level < 7)
+     */
+    private boolean isFarmlandHydrated() {
+        Block belowBlock = blockLocation.getBlock().getRelative(0, -1, 0);
+        
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                "[Botany] Checking block below: " + belowBlock.getType());
+        }
+        
+        if (belowBlock.getType() != Material.FARMLAND) {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                    "[Botany] Block below is NOT farmland: " + belowBlock.getType());
+            }
+            return false; // Not farmland somehow
+        }
+        
+        // Check moisture level of farmland using the Farmland BlockData type
+        if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+            DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                "[Botany] Block data type: " + belowBlock.getBlockData().getClass().getName());
+        }
+        
+        if (belowBlock.getBlockData() instanceof org.bukkit.block.data.type.Farmland) {
+            org.bukkit.block.data.type.Farmland farmland = (org.bukkit.block.data.type.Farmland) belowBlock.getBlockData();
+            // Farmland moisture: 0 = completely dry, 7 = fully hydrated
+            int moistureLevel = farmland.getMoisture();
+            int maxMoisture = farmland.getMaximumMoisture();
+            
+            // Debug output
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                    "[Botany] Farmland moisture: " + moistureLevel + "/" + maxMoisture + " (0=dry, " + maxMoisture + "=hydrated)");
+            }
+            
+            // Hydrated = moisture level greater than 0 (anything but completely dry)
+            return moistureLevel > 0;
+        } else {
+            if (Main.getInstance().isDebugEnabled(DebugSystem.SKILLS)) {
+                DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                    "[Botany] BlockData is NOT Farmland type!");
+            }
         }
         
         return false;
@@ -205,6 +273,11 @@ public class PlantedCustomCrop {
         long currentTime = System.currentTimeMillis();
         long timeSinceLastGrowth = currentTime - lastGrowthTime;
         long requiredTime = crop.getGrowthTimePerStage() * 50;
+        
+        // Account for hydration bonus in progress calculation
+        if (isFarmlandHydrated()) {
+            requiredTime = requiredTime / 2; // Double growth speed
+        }
         
         return Math.min(1.0, (double) timeSinceLastGrowth / requiredTime);
     }
