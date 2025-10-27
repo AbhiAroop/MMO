@@ -348,6 +348,15 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(
             new com.server.profiles.skills.skills.farming.botany.BotanyListener(this), this);
         getLogger().info("[Botany] Botany listener registered successfully!");
+        
+        // Register Breeder GUI listener
+        this.getServer().getPluginManager().registerEvents(
+            com.server.profiles.skills.skills.farming.botany.BreederGUI.getListener(), this);
+        
+        // Register Breeder Block listener
+        this.getServer().getPluginManager().registerEvents(
+            new com.server.profiles.skills.skills.farming.botany.BreederBlockListener(), this);
+        getLogger().info("[Botany] Breeder block listener registered successfully!");
 
         // Register Bedrock mining speed handler
         this.getServer().getPluginManager().registerEvents(new com.server.profiles.stats.BedrockMiningSpeedHandler(this), this);

@@ -22,6 +22,9 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import com.server.debug.DebugManager;
+import com.server.debug.DebugManager.DebugSystem;
+
 /**
  * Manages enchantment table structures - armor stands with enchanting table helmets.
  * 
@@ -87,7 +90,7 @@ public class EnchantmentTableStructure {
                     if (entity.getType() == EntityType.ARMOR_STAND) {
                         ArmorStand stand = (ArmorStand) entity;
                         if (stand.getUniqueId().equals(entry.getKey()) && isValidAltar(stand)) {
-                            plugin.getLogger().info("[Altar] Found registered altar at " + altarLoc);
+                            DebugManager.getInstance().debug(DebugSystem.ALTAR, "Found registered altar at " + altarLoc);
                             return stand;
                         }
                     }
@@ -109,13 +112,13 @@ public class EnchantmentTableStructure {
                 // Only check if it has enchanting table helmet (skip player armor stands, etc.)
                 ItemStack helmet = stand.getEquipment().getHelmet();
                 if (helmet != null && helmet.getType() == Material.ENCHANTING_TABLE) {
-                    plugin.getLogger().info("[Altar] Found valid unregistered altar");
+                    DebugManager.getInstance().debug(DebugSystem.ALTAR, "Found valid unregistered altar");
                     return stand;
                 }
             }
         }
         
-        plugin.getLogger().info("[Altar] No altar found near " + location);
+        DebugManager.getInstance().debug(DebugSystem.ALTAR, "No altar found near " + location);
         return null;
     }
     

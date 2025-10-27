@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -27,8 +28,13 @@ public class BotanyManager {
     private final Main plugin;
     private final Map<UUID, PlantedCustomCrop> plantedCrops; // UUID -> crop
     private final Map<Location, PlantedCustomCrop> cropsByLocation; // Location -> crop
-    private final Map<UUID, CropBreeder> cropBreeders; // UUID -> breeder
-    private final Map<Location, CropBreeder> breedersByLocation; // Location -> breeder
+    private final Map<UUID, CropBreeder> cropBreeders; // UUID -> breeder (OLD multiblock)
+    private final Map<Location, CropBreeder> breedersByLocation; // Location -> breeder (OLD multiblock)
+    
+    // New breeder block system
+    private final Map<UUID, BreederData> breederDataMap; // ArmorStand UUID -> BreederData
+    private final Map<Location, BreederBlock> breederBlocks; // Location -> BreederBlock
+    private final List<BreederRecipe> breederRecipes; // All registered recipes
     
     private BukkitTask growthTask;
     private BukkitTask breederTask;
@@ -42,9 +48,15 @@ public class BotanyManager {
         this.cropsByLocation = new HashMap<>();
         this.cropBreeders = new HashMap<>();
         this.breedersByLocation = new HashMap<>();
+        this.breederDataMap = new HashMap<>();
+        this.breederBlocks = new HashMap<>();
+        this.breederRecipes = new ArrayList<>();
         
         // Initialize registry
         CustomCropRegistry.getInstance();
+        
+        // Register default recipes
+        registerDefaultRecipes();
         
         // Start growth task
         startGrowthTask();
@@ -86,7 +98,8 @@ public class BotanyManager {
         breederTask = new BukkitRunnable() {
             @Override
             public void run() {
-                tickBreeders();
+                tickBreeders(); // OLD multiblock breeders
+                tickBreederBlocks(); // NEW breeder blocks
             }
         }.runTaskTimer(plugin, BREEDER_TICK_INTERVAL, BREEDER_TICK_INTERVAL);
         
@@ -323,5 +336,153 @@ public class BotanyManager {
         stats.put("fullyGrownCrops", fullyGrown);
         
         return stats;
+    }
+    
+    // ==================== NEW BREEDER BLOCK SYSTEM ====================
+    
+    /**
+     * Register default breeder recipes
+     */
+    private void registerDefaultRecipes() {
+        // Test recipe: wheat seed + golden carrot + bone meal + water bucket = golden wheat (10 seconds)
+        CustomCrop goldenWheat = CustomCropRegistry.getInstance().getCrop("golden_wheat");
+        if (goldenWheat != null) {
+            ItemStack wheatSeed = new ItemStack(org.bukkit.Material.WHEAT_SEEDS);
+            ItemStack goldenCarrot = new ItemStack(org.bukkit.Material.GOLDEN_CARROT);
+            ItemStack boneMeal = new ItemStack(org.bukkit.Material.BONE_MEAL);
+            
+            BreederRecipe testRecipe = new BreederRecipe(
+                wheatSeed,
+                goldenCarrot,
+                boneMeal,
+                org.bukkit.Material.WATER_BUCKET,
+                goldenWheat.createSeedItem(),
+                10 // 10 seconds
+            );
+            
+            breederRecipes.add(testRecipe);
+            DebugManager.getInstance().debug(DebugSystem.SKILLS,
+                "[Botany] Registered test recipe: Wheat + Golden Carrot -> Golden Wheat");
+        }
+    }
+    
+    /**
+     * Register a breeder recipe
+     */
+    public void registerBreederRecipe(BreederRecipe recipe) {
+        breederRecipes.add(recipe);
+    }
+    
+    /**
+     * Find a matching breeder recipe
+     */
+    public BreederRecipe findBreederRecipe(ItemStack seed1, ItemStack seed2, 
+                                           ItemStack catalyst, ItemStack fluid) {
+        for (BreederRecipe recipe : breederRecipes) {
+            if (recipe.matches(seed1, seed2, catalyst, fluid)) {
+                return recipe;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Register a breeder block
+     */
+    public void registerBreederBlock(BreederBlock block) {
+        Location normalizedLoc = block.getLocation().getBlock().getLocation();
+        breederBlocks.put(normalizedLoc, block);
+        DebugManager.getInstance().debug(DebugSystem.BREEDING, "Registered breeder at: " + normalizedLoc.getBlockX() + ", " + normalizedLoc.getBlockY() + ", " + normalizedLoc.getBlockZ());
+        DebugManager.getInstance().debug(DebugSystem.BREEDING, "Total breeders registered: " + breederBlocks.size());
+    }
+    
+    /**
+     * Get a breeder block at a location
+     */
+    public BreederBlock getBreederBlock(Location location) {
+        Location normalizedLoc = location.getBlock().getLocation();
+        BreederBlock breeder = breederBlocks.get(normalizedLoc);
+        DebugManager.getInstance().debug(DebugSystem.BREEDING, "Looking for breeder at: " + normalizedLoc.getBlockX() + ", " + normalizedLoc.getBlockY() + ", " + normalizedLoc.getBlockZ() + " - Found: " + (breeder != null));
+        return breeder;
+    }
+    
+    /**
+     * Remove a breeder block
+     */
+    public void removeBreederBlock(Location location) {
+        BreederBlock block = breederBlocks.remove(location.getBlock().getLocation());
+        if (block != null) {
+            block.remove();
+        }
+    }
+    
+    /**
+     * Register breeder data
+     */
+    public void registerBreederData(BreederData data) {
+        breederDataMap.put(data.getArmorStandId(), data);
+    }
+    
+    /**
+     * Get breeder data by armor stand UUID
+     */
+    public BreederData getBreederData(UUID armorStandId) {
+        return breederDataMap.get(armorStandId);
+    }
+    
+    /**
+     * Remove breeder data
+     */
+    public void removeBreederData(UUID armorStandId) {
+        breederDataMap.remove(armorStandId);
+    }
+    
+    /**
+     * Update breeder blocks (tick breeding timers)
+     */
+    private void tickBreederBlocks() {
+        for (BreederData data : new ArrayList<>(breederDataMap.values())) {
+            if (!data.isBreeding()) {
+                continue;
+            }
+            
+            // Check if breeding is complete
+            if (data.isBreedingComplete()) {
+                data.completeBreeding();
+                
+                // Update all viewing GUIs
+                BreederGUI.updateAllViewingGUIs(data);
+                
+                // Find the breeder block and update nameplate
+                for (BreederBlock block : breederBlocks.values()) {
+                    if (block.getArmorStandId().equals(data.getArmorStandId())) {
+                        block.updateNameplate("Complete!", 0);
+                        // Hide nameplate after 3 seconds
+                        Bukkit.getScheduler().runTaskLater(plugin, block::hideNameplate, 60L);
+                        break;
+                    }
+                }
+            } else {
+                // Update nameplate with remaining time
+                int remaining = data.getRemainingTime();
+                
+                // Update all viewing GUIs every second
+                BreederGUI.updateAllViewingGUIs(data);
+                
+                for (BreederBlock block : breederBlocks.values()) {
+                    if (block.getArmorStandId().equals(data.getArmorStandId())) {
+                        block.updateNameplate("Breeding", remaining);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get the plugin instance
+     */
+    public static Main getPlugin() {
+        return getInstance().plugin;
     }
 }

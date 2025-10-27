@@ -75,6 +75,10 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
                 handleBreeder(player);
                 break;
                 
+            case "givebreeder":
+                handleGiveBreeder(player, args);
+                break;
+                
             default:
                 player.sendMessage("§cUnknown subcommand: " + subCommand);
                 sendHelp(player);
@@ -87,12 +91,13 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(Player player) {
         player.sendMessage("§e§l[Botany Admin Commands]");
         player.sendMessage("§7/botany give <player> <cropId> [amount] §f- Give custom crop seeds");
+        player.sendMessage("§7/botany givebreeder <player> [amount] §f- Give breeder blocks");
         player.sendMessage("§7/botany info §f- Show system statistics");
         player.sendMessage("§7/botany nearby [radius] §f- List nearby crops/breeders");
         player.sendMessage("§7/botany list §f- List all registered crops");
         player.sendMessage("§7/botany reload §f- Reload crop registry");
         player.sendMessage("§7/botany clear [crops|breeders|all] §f- Clear crops/breeders");
-        player.sendMessage("§7/botany breeder §f- Build a breeder multiblock structure");
+        player.sendMessage("§7/botany breeder §f- Build OLD breeder multiblock structure");
     }
     
     private void handleGive(Player player, String[] args) {
@@ -299,6 +304,39 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§74. Collect your new crop seed");
     }
     
+    private void handleGiveBreeder(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage("§cUsage: /botany givebreeder <player> [amount]");
+            return;
+        }
+        
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            player.sendMessage("§cPlayer not found: " + args[1]);
+            return;
+        }
+        
+        int amount = 1;
+        if (args.length >= 3) {
+            try {
+                amount = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cInvalid amount: " + args[2]);
+                return;
+            }
+        }
+        
+        // Create breeder block items
+        for (int i = 0; i < amount; i++) {
+            target.getInventory().addItem(
+                com.server.profiles.skills.skills.farming.botany.BreederBlock.createBreederItem()
+            );
+        }
+        
+        target.sendMessage("§a§l[✓] §aReceived §f" + amount + " §aCrop Breeder" + (amount > 1 ? "s" : "") + "!");
+        player.sendMessage("§a§l[✓] §aGave §f" + amount + " §aCrop Breeder" + (amount > 1 ? "s" : "") + " to " + target.getName());
+    }
+    
     private String formatLocation(Location loc) {
         return loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ();
     }
@@ -317,6 +355,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             completions.add("give");
+            completions.add("givebreeder");
             completions.add("info");
             completions.add("nearby");
             completions.add("list");
@@ -324,7 +363,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
             completions.add("clear");
             completions.add("breeder");
         } else if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("give")) {
+            if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("givebreeder")) {
                 // Suggest online players
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     completions.add(p.getName());
