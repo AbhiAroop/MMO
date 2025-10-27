@@ -660,6 +660,15 @@ Top Layer (Y+1):
 3. System places invisible tripwire + ItemDisplay entity
 4. Crop grows through stages automatically
 
+### Farmland Protection
+- **Auto-Hydration**: Farmland with custom crops planted will NEVER turn back to dirt
+- **No Water Needed**: Custom crops keep the soil hydrated automatically
+- **Trampling Protection**: If farmland is trampled, the crop breaks and drops items based on growth:
+  - **Fully Grown (100%)**: Full harvest + seed chance
+  - **Partial Growth (50-99%)**: Reduced harvest + lower seed chance
+  - **Early Growth (0-49%)**: 50% chance to drop seed only
+- **Entity Trampling**: Mobs jumping on farmland will also destroy crops
+
 ### Harvesting Custom Crops
 1. Break the crop when fully grown
 2. Receive crop drops (based on rarity)
@@ -720,6 +729,12 @@ This ensures crops appear **above ground** like real plants, not sunken into the
 ---
 
 ## 📝 TODO / Future Features
+
+### Recently Implemented ✅
+- [x] Farmland protection - crops prevent farmland decay
+- [x] Trampling mechanics - drops based on growth progress
+- [x] Entity trampling - mobs can destroy crops
+- [x] Progressive drop system - more drops as crop matures
 
 ### Planned Features
 - [ ] Bonemeal support for custom crops

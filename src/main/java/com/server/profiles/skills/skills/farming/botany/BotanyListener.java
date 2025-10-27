@@ -15,6 +15,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -323,6 +325,144 @@ public class BotanyListener implements Listener {
                 }
             }
             event.setCancelled(true);
+        }
+    }
+    
+    /**
+     * Prevent farmland with custom crops from turning back to dirt
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFarmlandDecay(BlockFadeEvent event) {
+        Block block = event.getBlock();
+        
+        // Only handle farmland turning to dirt
+        if (block.getType() != Material.FARMLAND) {
+            return;
+        }
+        
+        // Check if there's a custom crop planted on this farmland
+        Location cropLocation = block.getRelative(BlockFace.UP).getLocation();
+        PlantedCustomCrop crop = BotanyManager.getInstance().getCropAt(cropLocation);
+        
+        if (crop != null) {
+            // Cancel the decay - keep farmland hydrated while crop is planted
+            event.setCancelled(true);
+        }
+    }
+    
+    /**
+     * Handle farmland trampling - break crop if farmland is destroyed
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFarmlandTrample(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (event.getAction() != Action.PHYSICAL) {
+            return;
+        }
+        
+        Block block = event.getClickedBlock();
+        if (block == null || block.getType() != Material.FARMLAND) {
+            return;
+        }
+        
+        // Check if there's a crop on this farmland
+        Location cropLocation = block.getRelative(BlockFace.UP).getLocation();
+        PlantedCustomCrop crop = BotanyManager.getInstance().getCropAt(cropLocation);
+        
+        if (crop != null) {
+            Player player = event.getPlayer();
+            CustomCrop cropType = CustomCropRegistry.getInstance().getCrop(crop.getCropId());
+            
+            if (cropType != null) {
+                // Drop items based on growth progress
+                double progress = crop.getGrowthProgress();
+                
+                if (progress >= 1.0) {
+                    // Fully grown - drop normal harvest
+                    Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
+                    int dropAmount = cropType.getMinDrops() + random.nextInt(cropType.getMaxDrops() - cropType.getMinDrops() + 1);
+                    
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
+                    
+                    // Chance to drop seed
+                    if (random.nextDouble() * 100 < cropType.getRareSeedChance()) {
+                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                    }
+                } else if (progress >= 0.5) {
+                    // Partial growth - drop fewer items
+                    Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
+                    int dropAmount = Math.max(1, cropType.getMinDrops() / 2);
+                    
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
+                    
+                    // Lower seed chance
+                    if (random.nextDouble() * 100 < (cropType.getRareSeedChance() * 0.5)) {
+                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                    }
+                } else {
+                    // Early growth - only drop seed sometimes
+                    if (random.nextDouble() < 0.5) {
+                        Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
+                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                    }
+                }
+                
+                // Remove the crop
+                BotanyManager.getInstance().removeCrop(crop);
+                
+                // Play break sound and particles
+                cropLocation.getWorld().playSound(cropLocation, Sound.BLOCK_CROP_BREAK, 1.0f, 1.0f);
+                cropLocation.getWorld().spawnParticle(Particle.BLOCK, cropLocation.clone().add(0.5, 0.5, 0.5), 
+                    10, 0.3, 0.3, 0.3, 0.1, Material.WHEAT.createBlockData());
+                
+                // Send message to player
+                player.sendMessage("§e§l[!] §cYou trampled a §f" + cropType.getDisplayName() + " §c(" + 
+                    String.format("%.0f%%", progress * 100) + " grown)");
+            }
+            
+            // Don't cancel the event - allow farmland to turn to dirt
+        }
+    }
+    
+    /**
+     * Handle entity trampling (like mobs jumping on crops)
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityTrample(EntityInteractEvent event) {
+        Block block = event.getBlock();
+        
+        if (block.getType() != Material.FARMLAND) {
+            return;
+        }
+        
+        // Check if there's a crop on this farmland
+        Location cropLocation = block.getRelative(BlockFace.UP).getLocation();
+        PlantedCustomCrop crop = BotanyManager.getInstance().getCropAt(cropLocation);
+        
+        if (crop != null) {
+            CustomCrop cropType = CustomCropRegistry.getInstance().getCrop(crop.getCropId());
+            
+            if (cropType != null) {
+                // Drop items based on growth (same logic as player trample)
+                double progress = crop.getGrowthProgress();
+                Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
+                
+                if (progress >= 0.5) {
+                    // Drop some items
+                    int dropAmount = Math.max(1, cropType.getMinDrops() / 2);
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
+                }
+                
+                // Always try to drop seed
+                if (random.nextDouble() < 0.3) {
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                }
+                
+                // Remove the crop
+                BotanyManager.getInstance().removeCrop(crop);
+                
+                // Play break sound
+                cropLocation.getWorld().playSound(cropLocation, Sound.BLOCK_CROP_BREAK, 1.0f, 1.0f);
+            }
         }
     }
 }
