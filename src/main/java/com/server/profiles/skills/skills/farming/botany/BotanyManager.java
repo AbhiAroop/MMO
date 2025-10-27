@@ -392,6 +392,10 @@ public class BotanyManager {
     public void registerBreederBlock(BreederBlock block) {
         Location normalizedLoc = block.getLocation().getBlock().getLocation();
         breederBlocks.put(normalizedLoc, block);
+        
+        // Show idle nameplate
+        block.updateNameplate("Idle", 0);
+        
         DebugManager.getInstance().debug(DebugSystem.BREEDING, "Registered breeder at: " + normalizedLoc.getBlockX() + ", " + normalizedLoc.getBlockY() + ", " + normalizedLoc.getBlockZ());
         DebugManager.getInstance().debug(DebugSystem.BREEDING, "Total breeders registered: " + breederBlocks.size());
     }
@@ -457,8 +461,10 @@ public class BotanyManager {
                 for (BreederBlock block : breederBlocks.values()) {
                     if (block.getArmorStandId().equals(data.getArmorStandId())) {
                         block.updateNameplate("Complete!", 0);
-                        // Hide nameplate after 3 seconds
-                        Bukkit.getScheduler().runTaskLater(plugin, block::hideNameplate, 60L);
+                        // Show idle state after 3 seconds
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            block.updateNameplate("Idle", 0);
+                        }, 60L);
                         break;
                     }
                 }

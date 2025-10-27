@@ -19,6 +19,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import com.server.debug.DebugManager;
+import com.server.profiles.skills.core.Skill;
+import com.server.profiles.skills.core.SkillProgressionManager;
+import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.core.SubskillType;
+import com.server.profiles.skills.skills.farming.subskills.BotanySubskill;
 
 /**
  * GUI for the crop breeder
@@ -307,6 +312,32 @@ public class BreederGUI {
     }
     
     /**
+     * Grant breeding XP to a player based on the completed recipe
+     */
+    private static void grantBreedingXp(Player player, BreederRecipe recipe) {
+        Skill botanySkill = SkillRegistry.getInstance().getSubskill(SubskillType.BOTANY);
+        
+        if (botanySkill instanceof BotanySubskill) {
+            // Get the output crop from the recipe's output ItemStack
+            ItemStack output = recipe.getOutput();
+            CustomCrop outputCrop = CustomCropRegistry.getInstance().getCropFromSeed(output);
+            
+            if (outputCrop != null) {
+                // Breeding gives more XP than harvesting
+                double xp = outputCrop.getBreedXp() * outputCrop.getRarity().getXpMultiplier();
+                
+                SkillProgressionManager.getInstance().addExperience(player, botanySkill, xp);
+                
+                player.sendMessage("§a✓ §7+" + String.format("%.1f", xp) + " Botany XP");
+                
+                DebugManager.getInstance().debug(DebugManager.DebugSystem.BREEDING,
+                    "[BreederGUI] Granted " + xp + " Botany XP to " + player.getName() + 
+                    " for breeding " + outputCrop.getDisplayName());
+            }
+        }
+    }
+    
+    /**
      * Internal listener class
      */
     private static class BreederGUIListener implements Listener {
@@ -374,6 +405,15 @@ public class BreederGUI {
                             (currentItem == null || currentItem.getType() == Material.AIR)) {
                             event.setCancelled(true);
                             return;
+                        }
+                        
+                        // Player is extracting output - grant XP if not already claimed
+                        if (currentItem != null && currentItem.getType() != Material.AIR) {
+                            if (!playerData.isXpClaimed() && playerData.getCompletedRecipe() != null) {
+                                // Grant breeding XP
+                                grantBreedingXp(player, playerData.getCompletedRecipe());
+                                playerData.setXpClaimed(true);
+                            }
                         }
                         
                         // Otherwise allow (taking out or swapping with existing)

@@ -1,15 +1,17 @@
 package com.server.profiles.skills.skills.farming.botany;
 
+import java.util.UUID;
+
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.EulerAngle;
-
-import java.util.UUID;
 
 /**
  * Represents a custom breeder block using an armor stand with custom model data
@@ -21,11 +23,13 @@ public class BreederBlock {
     private final UUID armorStandId;
     private final Location location;
     private ArmorStand armorStand;
+    private final TextDisplay textDisplay; // For multi-line nameplate
     
     public BreederBlock(Location location) {
         this.location = location.clone();
         this.armorStand = spawnArmorStand(location);
         this.armorStandId = armorStand.getUniqueId();
+        this.textDisplay = spawnTextDisplay(location);
     }
     
     /**
@@ -62,16 +66,76 @@ public class BreederBlock {
     }
     
     /**
-     * Update the nameplate above the breeder
+     * Spawn a text display entity for multi-line nameplate
+     */
+    private TextDisplay spawnTextDisplay(Location loc) {
+        Location displayLoc = loc.clone().add(0.5, 2.0, 0.5); // 2 blocks above breeder
+        TextDisplay display = (TextDisplay) loc.getWorld().spawnEntity(displayLoc, EntityType.TEXT_DISPLAY);
+        
+        // Configure text display
+        display.setBillboard(Display.Billboard.CENTER);
+        display.setAlignment(TextDisplay.TextAlignment.CENTER);
+        display.setSeeThrough(false);
+        display.setDefaultBackground(false);
+        display.setText(""); // Start with no text
+        display.setVisibleByDefault(true);
+        
+        return display;
+    }
+    
+    /**
+     * Update the nameplate above the breeder with detailed information
      */
     public void updateNameplate(String status, int remainingSeconds) {
-        if (armorStand != null && armorStand.isValid()) {
-            if (remainingSeconds > 0) {
-                armorStand.setCustomName("§6§l[Breeder] §e" + status + " §7(" + remainingSeconds + "s)");
-                armorStand.setCustomNameVisible(true);
+        if (textDisplay != null && textDisplay.isValid()) {
+            BreederData data = BotanyManager.getInstance().getBreederData(armorStandId);
+            
+            if (data != null && data.isBreeding()) {
+                // Build multi-line display text
+                StringBuilder text = new StringBuilder();
+                text.append("§6§l⚗ CROP BREEDER ⚗§r\n");
+                text.append("§7━━━━━━━━━━━━━━━\n");
+                
+                // Get recipe info
+                BreederRecipe recipe = data.getActiveRecipe();
+                if (recipe != null) {
+                    // Get crop info from recipe output
+                    ItemStack output = recipe.getOutput();
+                    CustomCrop outputCrop = CustomCropRegistry.getInstance().getCropFromSeed(output);
+                    
+                    if (outputCrop != null) {
+                        text.append("§eBreeding: ").append(outputCrop.getRarity().getColor())
+                            .append(outputCrop.getDisplayName()).append("\n");
+                    } else {
+                        text.append("§eBreeding...§r\n");
+                    }
+                }
+                
+                text.append("§7━━━━━━━━━━━━━━━\n");
+                
+                // Status and time
+                if (remainingSeconds > 0) {
+                    int minutes = remainingSeconds / 60;
+                    int seconds = remainingSeconds % 60;
+                    text.append("§aStatus: §e").append(status).append("\n");
+                    text.append("§aTime: §f").append(String.format("%d:%02d", minutes, seconds)).append("\n");
+                } else {
+                    text.append("§aStatus: §2§l").append(status).append("\n");
+                }
+                
+                text.append("§7━━━━━━━━━━━━━━━");
+                
+                textDisplay.setText(text.toString());
             } else {
-                armorStand.setCustomName("§6§l[Breeder] §a" + status);
-                armorStand.setCustomNameVisible(true);
+                // Idle state
+                StringBuilder text = new StringBuilder();
+                text.append("§6§l⚗ CROP BREEDER ⚗§r\n");
+                text.append("§7━━━━━━━━━━━━━━━\n");
+                text.append("§eRight-click to use\n");
+                text.append("§7Breed custom crops!\n");
+                text.append("§7━━━━━━━━━━━━━━━");
+                
+                textDisplay.setText(text.toString());
             }
         }
     }
@@ -80,8 +144,8 @@ public class BreederBlock {
      * Hide the nameplate
      */
     public void hideNameplate() {
-        if (armorStand != null && armorStand.isValid()) {
-            armorStand.setCustomNameVisible(false);
+        if (textDisplay != null && textDisplay.isValid()) {
+            textDisplay.setText("");
         }
     }
     
@@ -105,6 +169,9 @@ public class BreederBlock {
     public void remove() {
         if (armorStand != null && armorStand.isValid()) {
             armorStand.remove();
+        }
+        if (textDisplay != null && textDisplay.isValid()) {
+            textDisplay.remove();
         }
         BotanyManager.getInstance().removeBreederData(armorStandId);
     }

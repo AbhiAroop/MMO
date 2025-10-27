@@ -29,6 +29,8 @@ public class BreederData {
     private long breedingStartTime;
     private int breedingDuration; // in seconds
     private BreederRecipe activeRecipe;
+    private BreederRecipe completedRecipe; // Track completed recipe for XP
+    private boolean xpClaimed; // Track if XP has been claimed for current output
     
     public BreederData(UUID armorStandId, Location location) {
         this.armorStandId = armorStandId;
@@ -37,6 +39,7 @@ public class BreederData {
         this.isBreeding = false;
         this.breedingStartTime = 0;
         this.breedingDuration = 0;
+        this.xpClaimed = false;
     }
     
     /**
@@ -194,6 +197,10 @@ public class BreederData {
         }
         setItem(OUTPUT_SLOT, output);
         
+        // Store completed recipe for XP claiming
+        this.completedRecipe = activeRecipe;
+        this.xpClaimed = false; // Reset XP claimed flag
+        
         // Reset breeding state
         this.isBreeding = false;
         this.breedingStartTime = 0;
@@ -227,6 +234,18 @@ public class BreederData {
     
     public BreederRecipe getActiveRecipe() {
         return activeRecipe;
+    }
+    
+    public BreederRecipe getCompletedRecipe() {
+        return completedRecipe;
+    }
+    
+    public boolean isXpClaimed() {
+        return xpClaimed;
+    }
+    
+    public void setXpClaimed(boolean claimed) {
+        this.xpClaimed = claimed;
     }
     
     public Map<Integer, ItemStack> getInventory() {

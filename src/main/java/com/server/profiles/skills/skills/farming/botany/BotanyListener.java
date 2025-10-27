@@ -30,7 +30,8 @@ import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.core.SubskillType;
 import com.server.profiles.skills.data.SkillLevel;
-import com.server.profiles.skills.skills.farming.subskills.BotanySubskill;
+import com.server.profiles.skills.skills.farming.subskills.CultivatingSubskill;
+import com.server.profiles.skills.skills.farming.subskills.HarvestingSubskill;
 
 /**
  * Handles all Botany-related events
@@ -126,10 +127,11 @@ public class BotanyListener implements Listener {
                 item.setAmount(item.getAmount() - 1);
             }
             
-            // Award plant XP
-            if (botanySkill instanceof BotanySubskill) {
+            // Award planting XP to Cultivating subskill (not Botany)
+            Skill cultivatingSkill = SkillRegistry.getInstance().getSubskill(SubskillType.CULTIVATING);
+            if (cultivatingSkill instanceof CultivatingSubskill) {
                 double xp = crop.getPlantXp() * crop.getRarity().getXpMultiplier();
-                SkillProgressionManager.getInstance().addExperience(player, botanySkill, xp);
+                SkillProgressionManager.getInstance().addExperience(player, cultivatingSkill, xp);
             }
             
             // Feedback
@@ -224,12 +226,12 @@ public class BotanyListener implements Listener {
                               crop.getDisplayName() + " Seed§7!");
         }
         
-        // Award harvest XP
+        // Award harvest XP to Harvesting subskill (not Botany)
         if (profile != null) {
-            Skill botanySkill = SkillRegistry.getInstance().getSubskill(SubskillType.BOTANY);
-            if (botanySkill instanceof BotanySubskill) {
+            Skill harvestingSkill = SkillRegistry.getInstance().getSubskill(SubskillType.HARVESTING);
+            if (harvestingSkill instanceof HarvestingSubskill) {
                 double xp = crop.getHarvestXp() * crop.getRarity().getXpMultiplier();
-                SkillProgressionManager.getInstance().addExperience(player, botanySkill, xp);
+                SkillProgressionManager.getInstance().addExperience(player, harvestingSkill, xp);
             }
         }
         

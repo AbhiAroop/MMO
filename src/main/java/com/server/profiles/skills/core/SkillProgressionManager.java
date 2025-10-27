@@ -77,6 +77,9 @@ public class SkillProgressionManager {
         // Add XP to skill
         boolean leveledUp = skill.addExperience(player, amount);
         
+        // Play XP gain sound (different sound per skill type)
+        playXpSound(player, skill);
+        
         // If leveled up, check for milestones and parent skill updates
         if (leveledUp) {
     SkillLevel newLevel = skillData.getSkillLevel(skill);
@@ -161,5 +164,46 @@ public class SkillProgressionManager {
             ChatColor.YELLOW + skill.getDisplayName() + ChatColor.WHITE + " reached level " + ChatColor.YELLOW + newLevel,
             10, 70, 20
         );
+    }
+    
+    /**
+     * Play a sound effect when XP is gained
+     * Uses note block chime sound with slight pitch variations per skill
+     * 
+     * @param player The player to play sound for
+     * @param skill The skill that gained XP
+     */
+    private void playXpSound(Player player, Skill skill) {
+        float pitch;
+        
+        // Determine pitch based on skill ID (all use same chime sound, just different pitches)
+        String skillId = skill.getId();
+        
+        // Main skills - slight pitch variations for distinction
+        if (skillId.equals("mining")) {
+            pitch = 0.9f;
+        } else if (skillId.equals("excavating")) {
+            pitch = 1.0f;
+        } else if (skillId.equals("fishing")) {
+            pitch = 1.1f;
+        } else if (skillId.equals("farming")) {
+            pitch = 1.2f;
+        } else if (skillId.equals("combat")) {
+            pitch = 1.3f;
+        } 
+        // Subskills - higher pitches for distinction
+        else if (skillId.contains("ore_extraction") || skillId.contains("gem_finding")) {
+            pitch = 1.4f;
+        } else if (skillId.contains("treasure_hunter")) {
+            pitch = 1.5f;
+        } else if (skillId.contains("harvesting") || skillId.contains("cultivating") || skillId.contains("botany")) {
+            pitch = 1.6f;
+        } else {
+            // Default pitch for unknown skills
+            pitch = 1.0f;
+        }
+        
+        // Play the note block chime sound (pleasant "ding" for XP notifications)
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, pitch);
     }
 }
