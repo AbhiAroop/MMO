@@ -207,13 +207,13 @@ public class StatsGUI {
                 ChatColor.GRAY + "Mining: " + ChatColor.WHITE + String.format("%.2fx", stats.getMiningFortune()),
                 ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getMiningFortune(), "ore"),
                 "",
-                ChatColor.GRAY + "Farming: " + ChatColor.WHITE + String.format("%.2fx", stats.getFarmingFortune()),
+                ChatColor.GRAY + "Farming: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()) + " (" + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0) + ")",
                 ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getFarmingFortune(), "crop"),
                 "",
                 ChatColor.GRAY + "Looting: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune()),
                 ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getLootingFortune(), "mob drop"),
                 "",
-                ChatColor.GRAY + "Fishing: " + ChatColor.WHITE + String.format("%.2fx", stats.getFishingFortune()),
+                ChatColor.GRAY + "Fishing: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()) + " (" + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0) + ")",
                 ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getFishingFortune(), "fish"),
                 "",
                 ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + "+" + stats.getLuck() + " points"
@@ -310,7 +310,7 @@ public class StatsGUI {
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Stats:",
-                ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getFarmingFortune()),
+                ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()) + " (" + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0) + ")",
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Regular Crops: " + 
                     ChatColor.WHITE + getFortuneDescription(stats.getFarmingFortune(), "drop"),
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Special Crops: " + 
@@ -337,7 +337,7 @@ public class StatsGUI {
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Stats:",
-                ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getFishingFortune()),
+                ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()) + " (" + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0) + ")",
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Regular Fish: " + 
                     ChatColor.WHITE + getFortuneDescription(stats.getFishingFortune(), "catch"),
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Rare Fish: " + 

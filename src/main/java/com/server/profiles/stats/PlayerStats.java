@@ -85,9 +85,9 @@ public class PlayerStats {
     private int defaultManaRegen = 1;
     private int defaultLuck = 0;
     private double defaultMiningFortune = 1.00;
-    private double defaultFarmingFortune = 1.00;
+    private double defaultFarmingFortune = 0.0;  // 0 = 1x drops (no bonus), 100 = 2x drops
     private double defaultLootingFortune = 1.00;
-    private double defaultFishingFortune = 1.00;
+    private double defaultFishingFortune = 0.0;  // 0 = 1x drops (no bonus), 100 = 2x drops
     private int defaultLurePotency = 0;
     private double defaultFishingResilience = 0.0;
     private double defaultFishingFocus = 0.0;

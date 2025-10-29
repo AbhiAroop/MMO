@@ -11,6 +11,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
@@ -326,6 +327,7 @@ public class FishingListener implements Listener {
         double treasureBonus = 0.0;
         double seaMonsterAffinity = 0.0;
         double treasureSense = 0.0;
+        double fishingFortune = 0.0;  // Default 0 = 1x drops (no bonus), 100 = 2x drops
         
         if (activeSlot != null) {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
@@ -333,6 +335,7 @@ public class FishingListener implements Listener {
                 luckBonus = profile.getStats().getLuck() / 100.0; // Convert to 0.0-1.0+ range
                 seaMonsterAffinity = profile.getStats().getSeaMonsterAffinity();
                 treasureSense = profile.getStats().getTreasureSense();
+                fishingFortune = profile.getStats().getFishingFortune(); // Get fishing fortune for drop multiplier
                 
                 // Get treasure bonus from Rod Fishing subskill
                 Skill rodFishingSkill = SkillRegistry.getInstance().getSkill("rod_fishing");
@@ -377,8 +380,13 @@ public class FishingListener implements Listener {
         // Priority 2: Try to get treasure/junk (based on treasure bonus and treasure sense)
         FishingTreasure treasure = FishingTreasure.tryGetTreasure(session.getFishingType(), treasureBonus, treasureSense);
         if (treasure != null) {
-            // Give treasure item
-            player.getInventory().addItem(treasure.toItemStack());
+            // Calculate drop amount based on fishing fortune (same as mining fortune)
+            int dropAmount = calculateFortuneDrops(fishingFortune);
+            
+            // Give treasure item(s)
+            ItemStack treasureStack = treasure.toItemStack();
+            treasureStack.setAmount(dropAmount);
+            player.getInventory().addItem(treasureStack);
             
             // Notify player based on treasure type
             String treasureTypeMsg;
@@ -420,7 +428,12 @@ public class FishingListener implements Listener {
                     break;
             }
             
-            player.sendMessage(treasureTypeMsg + treasure.getDisplayName());
+            // Add amount info if multiple drops from fortune
+            String amountInfo = dropAmount > 1 ? " §7x" + dropAmount : "";
+            player.sendMessage(treasureTypeMsg + treasure.getDisplayName() + amountInfo);
+            if (dropAmount > 1) {
+                player.sendMessage("§7§o(Fishing Fortune: " + String.format("%.0f", fishingFortune) + " = " + String.format("%.1fx", (fishingFortune / 100.0) + 1.0) + ")");
+            }
             
             // Grant XP based on treasure type
             double treasureXp = 5.0;
@@ -484,14 +497,24 @@ public class FishingListener implements Listener {
             session.getBait() // Pass the bait used
         );
         
+        // Calculate drop amount based on fishing fortune (same as mining fortune)
+        int dropAmount = calculateFortuneDrops(fishingFortune);
+        
         // Give fish to player
-        player.getInventory().addItem(caughtFish.toItemStack());
+        ItemStack fishStack = caughtFish.toItemStack();
+        fishStack.setAmount(dropAmount);
+        player.getInventory().addItem(fishStack);
         
         // Send success message with fish details
+        String amountInfo = dropAmount > 1 ? " §7x" + dropAmount : "";
         player.sendMessage(String.format(
-            "§a§lFishing Complete! §7Caught a %s§7!",
-            caughtFish.getFishType().getDisplayName()
+            "§a§lFishing Complete! §7Caught a %s§7!%s",
+            caughtFish.getFishType().getDisplayName(),
+            amountInfo
         ));
+        if (dropAmount > 1) {
+            player.sendMessage("§7§o(Fishing Fortune: " + String.format("%.0f", fishingFortune) + " = " + String.format("%.1fx", (fishingFortune / 100.0) + 1.0) + ")");
+        }
         player.sendMessage(String.format(
             "§7Size: §f%.1fcm §7| Quality: %s §7| Rarity: %s",
             caughtFish.getSize(),
@@ -508,6 +531,37 @@ public class FishingListener implements Listener {
             player.sendTitle("§6§l✦ TROPHY FISH! ✦", "§eAn legendary catch!", 10, 60, 10);
             // TODO: Broadcast to server when trophy fish is caught
         }
+    }
+    
+    /**
+     * Calculate drop amount based on fishing fortune (works like mining fortune)
+     * Fortune is a percentage value where 100 fortune = 2x multiplier (1 bonus drop)
+     * @param fortune The fishing fortune value (default 0 = 1x, 100 = 2x, 500 = 6x)
+     * @return The number of items to drop
+     */
+    private int calculateFortuneDrops(double fortune) {
+        // Base drop is always 1
+        int baseDrops = 1;
+        
+        // Convert fortune to bonus drops (100 fortune = +1 drop, 500 fortune = +5 drops)
+        // Fortune 0 = 1 drop (no bonus)
+        // Fortune 100 = 2 drops (1 guaranteed bonus)
+        // Fortune 150 = 2 drops + 50% chance for 1 more (2-3 drops)
+        // Fortune 500 = 6 drops (5 guaranteed bonus)
+        double bonusMultiplier = fortune / 100.0;
+        
+        // Calculate guaranteed bonus drops (floor of bonus multiplier)
+        int guaranteedBonusDrops = (int) Math.floor(bonusMultiplier);
+        
+        // Calculate chance for one extra drop (fractional part)
+        double fractionalPart = bonusMultiplier - guaranteedBonusDrops;
+        int extraBonusDrop = 0;
+        
+        if (fractionalPart > 0 && Math.random() < fractionalPart) {
+            extraBonusDrop = 1;
+        }
+        
+        return baseDrops + guaranteedBonusDrops + extraBonusDrop;
     }
     
     /**
