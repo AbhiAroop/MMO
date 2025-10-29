@@ -15,7 +15,7 @@ import com.server.profiles.skills.skills.fishing.loot.FishType;
 public enum FishingBait {
     WORM(
         "§aWorm Bait",
-        100001,
+        200001, // Changed from 100001 to avoid conflict with Golden Wheat (100001-100004)
         Arrays.asList(
             "§7A common earthworm that attracts",
             "§7basic freshwater fish.",
@@ -29,7 +29,7 @@ public enum FishingBait {
     
     CRICKET(
         "§2Cricket Bait",
-        100002,
+        200002, // Changed from 100002
         Arrays.asList(
             "§7A lively cricket that attracts",
             "§7surface-dwelling fish.",
@@ -43,7 +43,7 @@ public enum FishingBait {
     
     MINNOW(
         "§bMinnow Bait",
-        100003,
+        200003, // Changed from 100003
         Arrays.asList(
             "§7A small live fish that attracts",
             "§7larger predatory fish.",
@@ -57,7 +57,7 @@ public enum FishingBait {
     
     LEECH(
         "§5Leech Bait",
-        100004,
+        200004, // Changed from 100004
         Arrays.asList(
             "§7A blood-sucking leech that attracts",
             "§7exotic and dangerous fish.",
@@ -71,7 +71,7 @@ public enum FishingBait {
     
     MAGIC_LURE(
         "§6§lMagic Lure",
-        100005,
+        200005, // Changed from 100005
         Arrays.asList(
             "§7An enchanted lure that attracts",
             "§7the rarest and most powerful fish.",
