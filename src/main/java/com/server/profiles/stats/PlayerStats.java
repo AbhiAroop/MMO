@@ -404,20 +404,21 @@ public class PlayerStats {
      * Calculate fishing wait time (bite delay) based on lure potency
      * Uses logarithmic scaling: higher lure potency = shorter wait time
      * 
-     * Default (0 potency): 5-100 seconds
-     * 10 potency: 5-88 seconds  
-     * 50 potency: 5-65 seconds
-     * 100 potency: 5-47 seconds
-     * 200 potency: 5-28 seconds
-     * 500+ potency: 5-5 seconds (minimum, instant bite)
+     * Default (0 potency): 1-100 seconds
+     * 1 potency: 1-98 seconds  
+     * 10 potency: 1-86 seconds
+     * 50 potency: 1-62 seconds
+     * 100 potency: 1-43 seconds
+     * 200 potency: 1-24 seconds
+     * 500+ potency: 1-1 seconds (minimum, instant bite)
      * 
-     * Formula: maxWait = 100 - (95 * log10(potency + 1) / log10(501))
-     * This creates a smooth curve from 100s at 0 potency to 5s at 500 potency
+     * Formula: maxWait = 100 - (99 * log10(potency + 1) / log10(501))
+     * This creates a smooth curve from 100s at 0 potency to 1s at 500 potency
      * 
      * @return Pair of (minWait, maxWait) in ticks (20 ticks = 1 second)
      */
     public int[] getFishingWaitTime() {
-        int minWaitTicks = 100; // 5 seconds minimum
+        int minWaitTicks = 20; // 1 second minimum (changed from 5 seconds)
         
         // Calculate max wait time based on lure potency
         double maxWaitSeconds;
@@ -426,14 +427,15 @@ public class PlayerStats {
         } else {
             // Logarithmic scaling
             // At potency 0: 100 seconds
-            // At potency 10: ~88 seconds
-            // At potency 50: ~65 seconds
-            // At potency 100: ~47 seconds
-            // At potency 200: ~28 seconds
-            // At potency 500+: ~5 seconds (capped, instant bite)
+            // At potency 1: ~98 seconds
+            // At potency 10: ~86 seconds
+            // At potency 50: ~62 seconds
+            // At potency 100: ~43 seconds
+            // At potency 200: ~24 seconds
+            // At potency 500+: ~1 second (capped, instant bite)
             double scaleFactor = Math.log10(Math.min(lurePotency, 500) + 1) / Math.log10(501);
-            maxWaitSeconds = 100.0 - (95.0 * scaleFactor);
-            maxWaitSeconds = Math.max(5.0, maxWaitSeconds); // Cap at 5 seconds minimum (instant bite)
+            maxWaitSeconds = 100.0 - (99.0 * scaleFactor);
+            maxWaitSeconds = Math.max(1.0, maxWaitSeconds); // Cap at 1 second minimum (instant bite)
         }
         
         int maxWaitTicks = (int) (maxWaitSeconds * 20);
