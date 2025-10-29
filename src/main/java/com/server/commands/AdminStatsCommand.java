@@ -61,6 +61,9 @@ public class AdminStatsCommand implements TabExecutor {
         availableStats.put("lootingfortune", new StatDefinition(Double.class, "defaultLootingFortune"));
         availableStats.put("fishingfortune", new StatDefinition(Double.class, "defaultFishingFortune"));
         
+        // Fishing Stats
+        availableStats.put("lurepotency", new StatDefinition(Integer.class, "defaultLurePotency"));
+        
         // Resource Stats
         availableStats.put("manaregen", new StatDefinition(Integer.class, "defaultManaRegen"));
         availableStats.put("luck", new StatDefinition(Integer.class, "defaultLuck"));
@@ -314,6 +317,16 @@ public class AdminStatsCommand implements TabExecutor {
         sender.sendMessage(ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + 
                           String.format("%.2f", stats.getFishingFortune()) + "x" +
                           ChatColor.DARK_GRAY + " (Default: " + String.format("%.2f", stats.getDefaultFishingFortune()) + "x)");
+        
+        // Fishing Stats
+        sender.sendMessage(ChatColor.AQUA + "Fishing Stats:");
+        sender.sendMessage(ChatColor.GRAY + "Lure Potency: " + ChatColor.WHITE + 
+                          stats.getLurePotency() +
+                          ChatColor.DARK_GRAY + " (Default: " + stats.getDefaultLurePotency() + ")");
+        int[] waitTime = stats.getFishingWaitTime();
+        sender.sendMessage(ChatColor.GRAY + "Bite Wait Time: " + ChatColor.WHITE + 
+                          String.format("%.1f-%.1fs", waitTime[0] / 20.0, waitTime[1] / 20.0) +
+                          ChatColor.DARK_GRAY + " (5-100s default)");
 
         // Mining Stats
         sender.sendMessage(ChatColor.AQUA + "Other Stats:");
@@ -408,6 +421,9 @@ public class AdminStatsCommand implements TabExecutor {
                 case "fishingfortune":
                     setDefaultStatValue(stats, statName, 1.0);
                     break;
+                case "lurepotency":
+                    setDefaultStatValue(stats, statName, 0);
+                    break;
                 case "manaregen":
                     setDefaultStatValue(stats, statName, 1);
                     break;
@@ -481,6 +497,7 @@ public class AdminStatsCommand implements TabExecutor {
                 case "farmingfortune": return stats.getDefaultFarmingFortune();
                 case "lootingfortune": return stats.getDefaultLootingFortune();
                 case "fishingfortune": return stats.getDefaultFishingFortune();
+                case "lurepotency": return stats.getDefaultLurePotency();
                 case "manaregen": return stats.getDefaultManaRegen();
                 case "luck": return stats.getDefaultLuck();
                 case "attackrange": return stats.getDefaultAttackRange();
@@ -571,6 +588,9 @@ public class AdminStatsCommand implements TabExecutor {
                     break;
                 case "fishingfortune":
                     stats.setFishingFortune((Double)value);
+                    break;
+                case "lurepotency":
+                    stats.setLurePotency((Integer)value);
                     break;
                 case "manaregen":
                     stats.setManaRegen((Integer)value);

@@ -79,6 +79,31 @@ public class FishingListener implements Listener {
         if (sessionManager.hasActiveSession(player)) {
             sessionManager.endSession(player);
         }
+        
+        // Get player's lure potency stat and set custom wait time
+        FishHook hook = event.getHook();
+        if (hook != null) {
+            Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+            if (activeSlot != null) {
+                PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+                if (profile != null) {
+                    int lurePotency = profile.getStats().getLurePotency();
+                    int[] waitTime = profile.getStats().getFishingWaitTime();
+                    
+                    // Set min and max wait time on the hook
+                    hook.setMinWaitTime(waitTime[0]); // Min wait in ticks (default 100 = 5s)
+                    hook.setMaxWaitTime(waitTime[1]); // Max wait in ticks (scaled by lure potency)
+                    
+                    // Debug message (can be removed later)
+                    if (lurePotency > 0) {
+                        player.sendMessage(String.format(
+                            "§7[Lure Potency: §e%d§7] Wait time: §e%.1f-%.1fs",
+                            lurePotency, waitTime[0] / 20.0, waitTime[1] / 20.0
+                        ));
+                    }
+                }
+            }
+        }
     }
     
     /**

@@ -36,6 +36,9 @@ public class PlayerStats {
     private double lootingFortune;
     private double fishingFortune;
     
+    // Fishing Stats
+    private int lurePotency;
+    
     // Resource Stats
     private int manaRegen;
     private int luck;
@@ -80,6 +83,7 @@ public class PlayerStats {
     private double defaultFarmingFortune = 1.00;
     private double defaultLootingFortune = 1.00;
     private double defaultFishingFortune = 1.00;
+    private int defaultLurePotency = 0;
     private double defaultAttackRange = 3.0;
     private double defaultBuildRange = 5.0;
     private double defaultSize = 1.0;
@@ -124,6 +128,7 @@ public class PlayerStats {
         this.farmingFortune = defaultFarmingFortune;
         this.lootingFortune = defaultLootingFortune;
         this.fishingFortune = defaultFishingFortune;
+        this.lurePotency = defaultLurePotency;
         this.currentHealth = defaultCurrentHealth;
         this.foodLevel = defaultFoodLevel;
         this.saturation = defaultSaturation;
@@ -196,6 +201,10 @@ public class PlayerStats {
     
     public double getFishingFortune() { return fishingFortune; }
     public void setFishingFortune(double fishingFortune) { this.fishingFortune = Math.max(0, fishingFortune); }
+    
+    // Fishing Stats
+    public int getLurePotency() { return lurePotency; }
+    public void setLurePotency(int lurePotency) { this.lurePotency = Math.max(0, lurePotency); }
 
     // Resource Stats
     public int getManaRegen() { return manaRegen; }
@@ -355,6 +364,49 @@ public class PlayerStats {
 
     public double getDefaultFishingFortune() {
         return defaultFishingFortune;
+    }
+    
+    public int getDefaultLurePotency() {
+        return defaultLurePotency;
+    }
+    
+    /**
+     * Calculate fishing wait time (bite delay) based on lure potency
+     * Uses logarithmic scaling: higher lure potency = shorter wait time
+     * 
+     * Default (0 potency): 5-100 seconds
+     * 10 potency: 5-85 seconds  
+     * 50 potency: 5-50 seconds
+     * 100 potency: 5-30 seconds
+     * 200+ potency: 5-15 seconds (minimum)
+     * 
+     * Formula: maxWait = 100 - (70 * log10(potency + 1) / log10(201))
+     * This creates a smooth curve from 100s at 0 potency to 15s at 200 potency
+     * 
+     * @return Pair of (minWait, maxWait) in ticks (20 ticks = 1 second)
+     */
+    public int[] getFishingWaitTime() {
+        int minWaitTicks = 100; // 5 seconds minimum
+        
+        // Calculate max wait time based on lure potency
+        double maxWaitSeconds;
+        if (lurePotency <= 0) {
+            maxWaitSeconds = 100.0; // Default max
+        } else {
+            // Logarithmic scaling
+            // At potency 0: 100 seconds
+            // At potency 10: ~85 seconds
+            // At potency 50: ~50 seconds
+            // At potency 100: ~30 seconds
+            // At potency 200+: ~15 seconds (capped)
+            double scaleFactor = Math.log10(Math.min(lurePotency, 200) + 1) / Math.log10(201);
+            maxWaitSeconds = 100.0 - (85.0 * scaleFactor);
+            maxWaitSeconds = Math.max(15.0, maxWaitSeconds); // Cap at 15 seconds minimum
+        }
+        
+        int maxWaitTicks = (int) (maxWaitSeconds * 20);
+        
+        return new int[] { minWaitTicks, maxWaitTicks };
     }
 
     public double getDefaultAttackRange() {
