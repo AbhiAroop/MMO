@@ -67,6 +67,9 @@ public class FishingSession {
         active = false;
         cleanup();
         minigame.onComplete();
+        
+        // Remove from session manager (don't call endSession to avoid recursion)
+        FishingSessionManager.getInstance().removeSession(playerId);
     }
     
     /**
@@ -79,6 +82,9 @@ public class FishingSession {
         active = false;
         cleanup();
         minigame.onCancel();
+        
+        // Remove from session manager (don't call endSession to avoid recursion)
+        FishingSessionManager.getInstance().removeSession(playerId);
     }
     
     /**
@@ -91,6 +97,9 @@ public class FishingSession {
         active = false;
         cleanup();
         minigame.onFail();
+        
+        // Remove from session manager (don't call endSession to avoid recursion)
+        FishingSessionManager.getInstance().removeSession(playerId);
     }
     
     /**

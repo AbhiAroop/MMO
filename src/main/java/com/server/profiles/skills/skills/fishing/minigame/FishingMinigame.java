@@ -25,17 +25,28 @@ public class FishingMinigame {
     private BossBar bossBar;
     private double indicatorPosition; // 0.0 to 100.0
     private double indicatorDirection; // 1.0 or -1.0
+    private double indicatorSpeed; // Speed multiplier for current round
+    private double indicatorSize; // Size of the indicator (spike) for current round
     private double catchZoneStart; // 0.0 to 100.0
     private double catchZoneEnd; // 0.0 to 100.0
     
     private int currentRound;
     private int requiredRounds;
-    private int missedCatches;
-    private static final int MAX_MISSED_CATCHES = 3;
+    private int missedCatchesThisRound;
+    private int maxMissesPerRound; // Can be increased by enchantments
+    
+    // Inactivity tracking
+    private long roundStartTime;
+    private static final long INACTIVITY_TIMEOUT = 10000L; // 10 seconds in milliseconds
     
     // Timing constants
     private static final long TICK_INTERVAL = 1L; // Run every tick (50ms)
-    private static final double PERFECT_CATCH_THRESHOLD = 0.05; // 5% of catch zone
+    private static final double MIN_SPEED_MULTIPLIER = 0.7; // 70% of base speed
+    private static final double MAX_SPEED_MULTIPLIER = 1.5; // 150% of base speed
+    private static final double MIN_ZONE_MULTIPLIER = 0.4; // 40% of base catch zone (harder)
+    private static final double MAX_ZONE_MULTIPLIER = 2.5; // 250% of base catch zone (easier, up to 25% of bar)
+    private static final double MIN_INDICATOR_SIZE = 1.5; // Minimum indicator size (small spike)
+    private static final double MAX_INDICATOR_SIZE = 3.5; // Maximum indicator size (large spike)
     
     public FishingMinigame(FishingSession session) {
         this.session = session;
@@ -57,7 +68,9 @@ public class FishingMinigame {
         }
         
         this.currentRound = 0;
-        this.missedCatches = 0;
+        this.missedCatchesThisRound = 0;
+        this.maxMissesPerRound = 2; // Default 2 misses per round (can be increased by enchantments)
+        this.roundStartTime = System.currentTimeMillis();
     }
     
     /**
@@ -102,6 +115,22 @@ public class FishingMinigame {
                     cancel();
                     return;
                 }
+                
+                // Check for inactivity timeout
+                long currentTime = System.currentTimeMillis();
+                long timeSinceRoundStart = currentTime - roundStartTime;
+                
+                if (timeSinceRoundStart > INACTIVITY_TIMEOUT) {
+                    // Player has been inactive for too long
+                    player.sendMessage("§c§lTIMEOUT! §7You took too long to react. The fish got away!");
+                    session.fail();
+                    cancel();
+                    return;
+                }
+                
+                // Update boss bar color based on time remaining
+                updateBossBarColor(timeSinceRoundStart);
+                
                 updateIndicator();
                 updateDisplay();
             }
@@ -115,18 +144,45 @@ public class FishingMinigame {
      */
     private void startNewRound() {
         currentRound++;
-        session.incrementTotalRounds();
         
-        // Calculate catch zone size based on stats (with null check)
-        double catchZoneSize;
+        // Reset round timer for inactivity detection
+        roundStartTime = System.currentTimeMillis();
+        
+        // Reset miss counter for new round
+        missedCatchesThisRound = 0;
+        
+        // Calculate base catch zone size from stats (with null check)
+        double baseCatchZoneSize;
         if (rodFishingSubskill != null) {
-            catchZoneSize = rodFishingSubskill.getCatchZoneSize(player);
+            baseCatchZoneSize = rodFishingSubskill.getCatchZoneSize(player);
         } else {
-            catchZoneSize = 10.0; // Default value if subskill not available
+            baseCatchZoneSize = 10.0; // Default value if subskill not available
         }
         
         FishingType type = session.getFishingType();
-        catchZoneSize = catchZoneSize / type.getDifficultyMultiplier();
+        baseCatchZoneSize = baseCatchZoneSize / type.getDifficultyMultiplier();
+        
+        // Randomize catch zone size for this round (between 40% and 250% of base)
+        // Using weighted random to make extreme values rare
+        double zoneMultiplier;
+        double random = Math.random();
+        
+        // Use a bell curve distribution (Box-Muller transform approximation)
+        // Most values will be near 1.0 (100%), extreme values are rare
+        double mean = 1.3; // Slightly favor larger zones (130% of base)
+        double stdDev = 0.5; // Standard deviation controls spread
+        
+        // Generate normal distribution value
+        double normalRandom = Math.cos(2 * Math.PI * random) * Math.sqrt(-2 * Math.log(Math.random()));
+        zoneMultiplier = mean + (normalRandom * stdDev);
+        
+        // Clamp to our min/max range
+        zoneMultiplier = Math.max(MIN_ZONE_MULTIPLIER, Math.min(MAX_ZONE_MULTIPLIER, zoneMultiplier));
+        
+        double catchZoneSize = baseCatchZoneSize * zoneMultiplier;
+        
+        // Ensure catch zone doesn't exceed 25% of the total bar
+        catchZoneSize = Math.min(catchZoneSize, 25.0);
         
         // Random catch zone position (ensure it fits within bounds)
         double maxStart = 100.0 - catchZoneSize;
@@ -137,7 +193,20 @@ public class FishingMinigame {
         indicatorPosition = Math.random() * 100.0;
         indicatorDirection = Math.random() < 0.5 ? 1.0 : -1.0;
         
-        // Update boss bar title
+        // Randomize indicator speed for this round (between 70% and 150% of base speed)
+        indicatorSpeed = MIN_SPEED_MULTIPLIER + (Math.random() * (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER));
+        
+        // Randomize indicator size (spike width) for this round
+        // Ensure spike cannot be larger than the catch zone
+        double maxIndicatorSize = Math.min(MAX_INDICATOR_SIZE, catchZoneSize / 2.0);
+        indicatorSize = MIN_INDICATOR_SIZE + (Math.random() * (maxIndicatorSize - MIN_INDICATOR_SIZE));
+        
+        // Only show title for the first round
+        if (currentRound == 1) {
+            player.sendTitle("§b§lRound " + currentRound + "/" + requiredRounds, "§7Click when the spike hits the green zone!", 5, 30, 5);
+        }
+        
+        // Update boss bar title with current round number
         bossBar.setTitle(session.getFishingType().getColoredName() + " §7- Round " + currentRound + "/" + requiredRounds);
     }
     
@@ -146,15 +215,18 @@ public class FishingMinigame {
      */
     private void updateIndicator() {
         // Get indicator speed from stats (with null check)
-        double speed;
+        double baseSpeed;
         if (rodFishingSubskill != null) {
-            speed = rodFishingSubskill.getIndicatorSpeed(player);
+            baseSpeed = rodFishingSubskill.getIndicatorSpeed(player);
         } else {
-            speed = 2.0; // Default speed if subskill not available
+            baseSpeed = 2.0; // Default speed if subskill not available
         }
         
         FishingType type = session.getFishingType();
-        speed = speed * type.getDifficultyMultiplier();
+        baseSpeed = baseSpeed * type.getDifficultyMultiplier();
+        
+        // Apply randomized speed multiplier for this round
+        double speed = baseSpeed * indicatorSpeed;
         
         // Move indicator
         indicatorPosition += indicatorDirection * speed;
@@ -170,15 +242,75 @@ public class FishingMinigame {
     }
     
     /**
+     * Update boss bar color based on time remaining in round
+     * Green (0-5s) -> Yellow (5-7.5s) -> Red (7.5-10s)
+     */
+    private void updateBossBarColor(long timeSinceRoundStart) {
+        double timeRemainingMs = INACTIVITY_TIMEOUT - timeSinceRoundStart;
+        double percentageRemaining = timeRemainingMs / INACTIVITY_TIMEOUT;
+        
+        if (percentageRemaining > 0.5) {
+            // More than 50% time remaining (0-5 seconds elapsed) - GREEN
+            bossBar.setColor(BarColor.GREEN);
+        } else if (percentageRemaining > 0.25) {
+            // 25-50% time remaining (5-7.5 seconds elapsed) - YELLOW
+            bossBar.setColor(BarColor.YELLOW);
+        } else {
+            // Less than 25% time remaining (7.5-10 seconds elapsed) - RED
+            bossBar.setColor(BarColor.RED);
+        }
+    }
+    
+    /**
      * Update visual display (boss bar and action bar)
      */
     private void updateDisplay() {
-        // Update boss bar color based on indicator position
-        if (isIndicatorInCatchZone()) {
-            bossBar.setColor(BarColor.GREEN);
-        } else {
-            bossBar.setColor(BarColor.RED);
+        // Boss bar color is updated in updateBossBarColor based on time remaining
+        // Don't override it here based on indicator position
+        
+        // Calculate zones to ensure all three are always visible
+        double catchZoneCenter = (catchZoneStart + catchZoneEnd) / 2.0;
+        double catchZoneSize = catchZoneEnd - catchZoneStart;
+        
+        // Ensure minimum zone size for visibility (at least 6 units for all 3 zones to show)
+        double minZoneSize = 6.0;
+        if (catchZoneSize < minZoneSize) {
+            // Expand zone to minimum size
+            double expansion = (minZoneSize - catchZoneSize) / 2.0;
+            catchZoneStart = Math.max(0, catchZoneStart - expansion);
+            catchZoneEnd = Math.min(100.0, catchZoneEnd + expansion);
+            catchZoneSize = catchZoneEnd - catchZoneStart;
         }
+        
+        // Calculate perfect zone (center 30% of catch zone - always visible)
+        double perfectZoneSize = catchZoneSize * 0.30;
+        
+        // Ensure perfect zone is at least as large as the spike (minimum 2x spike size for visibility)
+        double minPerfectZoneSize = indicatorSize * 2.5;
+        if (perfectZoneSize < minPerfectZoneSize) {
+            perfectZoneSize = minPerfectZoneSize;
+            // If perfect zone needs to be larger, expand catch zone accordingly
+            if (perfectZoneSize > catchZoneSize * 0.30) {
+                double requiredCatchZoneSize = perfectZoneSize / 0.30;
+                if (requiredCatchZoneSize > catchZoneSize) {
+                    double expansion = (requiredCatchZoneSize - catchZoneSize) / 2.0;
+                    catchZoneStart = Math.max(0, catchZoneStart - expansion);
+                    catchZoneEnd = Math.min(100.0, catchZoneEnd + expansion);
+                    catchZoneSize = catchZoneEnd - catchZoneStart;
+                    catchZoneCenter = (catchZoneStart + catchZoneEnd) / 2.0;
+                }
+            }
+        }
+        
+        double perfectZoneStart = catchZoneCenter - (perfectZoneSize / 2.0);
+        double perfectZoneEnd = catchZoneCenter + (perfectZoneSize / 2.0);
+        
+        // Calculate good zone (center 65% of catch zone - surrounds perfect)
+        double goodZoneSize = catchZoneSize * 0.65;
+        double goodZoneStart = catchZoneCenter - (goodZoneSize / 2.0);
+        double goodZoneEnd = catchZoneCenter + (goodZoneSize / 2.0);
+        
+        // Yellow zone is the full catch zone (outer layer)
         
         // Create action bar display
         StringBuilder actionBar = new StringBuilder();
@@ -187,13 +319,30 @@ public class FishingMinigame {
         for (int i = 0; i < totalChars; i++) {
             double position = (i / (double) totalChars) * 100.0;
             
-            // Check if this position is the indicator
-            if (Math.abs(position - indicatorPosition) < 2.0) {
-                actionBar.append("§e▼§r");
+            // Check if this position is the indicator (using dynamic indicator size)
+            if (Math.abs(position - indicatorPosition) < indicatorSize) {
+                // Color indicator based on catch zone proximity
+                if (position >= perfectZoneStart && position <= perfectZoneEnd) {
+                    actionBar.append("§a▼§r"); // Green for perfect zone
+                } else if (position >= goodZoneStart && position <= goodZoneEnd) {
+                    actionBar.append("§6▼§r"); // Gold/orange for good zone
+                } else if (position >= catchZoneStart && position <= catchZoneEnd) {
+                    actionBar.append("§e▼§r"); // Yellow for okay zone
+                } else {
+                    actionBar.append("§e▼§r"); // Yellow when outside zone
+                }
             }
-            // Check if this position is in catch zone
-            else if (position >= catchZoneStart && position <= catchZoneEnd) {
+            // Check if this position is in perfect zone (green center)
+            else if (position >= perfectZoneStart && position <= perfectZoneEnd) {
                 actionBar.append("§a■§r");
+            }
+            // Check if this position is in good zone (orange/gold surrounding)
+            else if (position >= goodZoneStart && position <= goodZoneEnd) {
+                actionBar.append("§6■§r");
+            }
+            // Check if this position is in catch zone (yellow outer)
+            else if (position >= catchZoneStart && position <= catchZoneEnd) {
+                actionBar.append("§e■§r");
             }
             // Regular position
             else {
@@ -232,33 +381,61 @@ public class FishingMinigame {
      * Player attempts to catch
      */
     public void attemptCatch() {
+        // Reset the round timer since player took action
+        roundStartTime = System.currentTimeMillis();
+        
+        // Count every attempt (success or miss) for accuracy calculation
+        session.incrementTotalRounds();
+        
         if (isIndicatorInCatchZone()) {
             // Successful catch
             session.incrementSuccessfulCatches();
             
-            double accuracy = getCatchAccuracy();
-            boolean isPerfect = accuracy >= (1.0 - PERFECT_CATCH_THRESHOLD);
+            // Determine which zone the indicator is in
+            double catchZoneCenter = (catchZoneStart + catchZoneEnd) / 2.0;
+            double catchZoneSize = catchZoneEnd - catchZoneStart;
+            double distanceFromCenter = Math.abs(indicatorPosition - catchZoneCenter);
+            double relativePosition = distanceFromCenter / (catchZoneSize / 2.0); // 0.0 at center, 1.0 at edge
             
-            if (isPerfect) {
-                session.incrementPerfectCatches();
-                player.sendTitle("§6§l✦ PERFECT! ✦", "§eRound " + currentRound + "/" + requiredRounds, 5, 20, 5);
-            } else {
-                player.sendTitle("§a§lGOOD!", "§7Round " + currentRound + "/" + requiredRounds, 5, 15, 5);
-            }
+            boolean isPerfect = relativePosition <= 0.30; // Within 30% of center (green zone)
+            boolean isGood = relativePosition <= 0.65; // Within 65% of center (orange zone)
             
             // Check if all rounds completed
             if (currentRound >= requiredRounds) {
+                // Show final completion message with quality
+                if (isPerfect) {
+                    session.incrementPerfectCatches();
+                    player.sendTitle("§a§l✦ PERFECT ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 10);
+                } else if (isGood) {
+                    player.sendTitle("§6§l✦ GOOD ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 10);
+                } else {
+                    player.sendTitle("§e§l✦ NICE ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 10);
+                }
                 session.complete();
             } else {
-                // Start next round
+                // Show completion message for this round with quality
+                if (isPerfect) {
+                    session.incrementPerfectCatches();
+                    player.sendTitle("§a§l✦ PERFECT ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 5);
+                } else if (isGood) {
+                    player.sendTitle("§6§l✦ GOOD ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 5);
+                } else {
+                    player.sendTitle("§e§l✦ NICE ✦", "§e§lRound " + currentRound + "/" + requiredRounds + " Complete!", 5, 30, 5);
+                }
+                
+                // Start next round immediately (action bar updates right away)
+                // Title message stays visible for 2 seconds as configured above
                 startNewRound();
             }
         } else {
             // Miss
-            missedCatches++;
-            player.sendTitle("§c§lMISS!", "§7" + (MAX_MISSED_CATCHES - missedCatches) + " attempts left", 5, 15, 5);
+            missedCatchesThisRound++;
+            int remainingMisses = maxMissesPerRound - missedCatchesThisRound;
+            player.sendTitle("§c§lMISS!", "§7" + remainingMisses + " " + (remainingMisses == 1 ? "miss" : "misses") + " left this round", 5, 15, 5);
             
-            if (missedCatches >= MAX_MISSED_CATCHES) {
+            if (missedCatchesThisRound >= maxMissesPerRound) {
+                // Too many misses this round - fish escapes
+                player.sendMessage("§c§lFISH ESCAPED! §7You missed too many times this round.");
                 session.fail();
             }
         }
@@ -340,8 +517,16 @@ public class FishingMinigame {
         return requiredRounds;
     }
     
-    public int getMissedCatches() {
-        return missedCatches;
+    public int getMissedCatchesThisRound() {
+        return missedCatchesThisRound;
+    }
+    
+    public int getMaxMissesPerRound() {
+        return maxMissesPerRound;
+    }
+    
+    public void setMaxMissesPerRound(int maxMisses) {
+        this.maxMissesPerRound = Math.max(1, maxMisses); // Minimum 1 miss allowed
     }
     
     public double getCatchZoneStart() {

@@ -80,6 +80,13 @@ public class FishingSessionManager {
     }
     
     /**
+     * Remove session from manager without cancelling (used internally when session ends itself)
+     */
+    public void removeSession(UUID playerId) {
+        activeSessions.remove(playerId);
+    }
+    
+    /**
      * End all active sessions (for plugin disable)
      */
     public void endAllSessions() {

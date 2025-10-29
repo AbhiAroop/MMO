@@ -88,6 +88,13 @@ public class FishingListener implements Listener {
      * We cancel the vanilla bite and handle everything ourselves to avoid timeout issues
      */
     private void handleBite(Player player, PlayerFishEvent event) {
+        // If player already has an active minigame session, ignore this bite
+        // This prevents vanilla from restarting the minigame when another BOP occurs
+        if (sessionManager.hasActiveSession(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        
         FishHook hook = event.getHook();
         
         // Determine fishing type based on hook location
