@@ -20,6 +20,7 @@ import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.skills.fishing.baits.BaitManager;
 import com.server.profiles.skills.skills.fishing.baits.FishingBait;
 import com.server.profiles.skills.skills.fishing.loot.Fish;
+import com.server.profiles.skills.skills.fishing.loot.FishingMob;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSession;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSessionManager;
 import com.server.profiles.skills.skills.fishing.subskills.RodFishingSubskill;
@@ -318,6 +319,48 @@ public class FishingListener implements Listener {
      * Called by FishingSession when completed successfully
      */
     public void grantFishingLoot(Player player, FishingSession session) {
+        // Get player's luck stat for mob chance calculation
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        double luckBonus = 0.0;
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                luckBonus = profile.getStats().getLuck() / 100.0; // Convert to 0.0-1.0+ range
+            }
+        }
+        
+        // Try to spawn a mob instead of giving fish
+        FishingMob mob = FishingMob.trySpawnMob(session.getFishingType(), luckBonus);
+        if (mob != null && player.getFishHook() != null) {
+            // Spawn the mob at the hook location, hooked to the fishing rod
+            org.bukkit.Location spawnLoc = player.getFishHook().getLocation();
+            org.bukkit.entity.Entity spawnedEntity = spawnLoc.getWorld().spawnEntity(spawnLoc, mob.getEntityType());
+            
+            // Hook the entity to the fishing rod
+            player.getFishHook().setHookedEntity(spawnedEntity);
+            
+            // Notify player
+            player.sendTitle("§c§l⚠ MOB HOOKED! ⚠", "§7You caught a " + mob.getDisplayName() + "§7!", 10, 60, 10);
+            player.sendMessage("§c§l⚠ §cYou fished up a " + mob.getDisplayName() + "§c!");
+            player.sendMessage("§7The creature is hooked to your fishing rod!");
+            
+            // Play dramatic sound
+            if (player.getLocation() != null) {
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 0.8f);
+            }
+            
+            // Grant reduced XP for mob catch
+            double mobXp = 5.0 * session.getFishingType().getDifficultyMultiplier();
+            Skill rodFishingSkill = SkillRegistry.getInstance().getSkill("rod_fishing");
+            if (rodFishingSkill != null) {
+                SkillProgressionManager.getInstance().addExperience(player, rodFishingSkill, mobXp);
+            }
+            
+            player.sendMessage(String.format("§7XP: §e+%.1f §8(mob encounter)", mobXp));
+            return;
+        }
+        
+        // No mob spawned, give normal fish
         // Calculate XP based on performance
         double baseXp = 10.0;
         double accuracy = session.getAccuracy();

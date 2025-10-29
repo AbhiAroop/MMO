@@ -362,6 +362,7 @@ com\server\islands\commands\ChallengeCategoryGUI.class
 com\server\utils\NamespacedKeyUtils.class
 com\server\islands\commands\ChallengeCategoryGUI$1.class
 com\server\profiles\ProfileManager$1.class
+com\server\profiles\skills\skills\fishing\loot\FishingMob.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentApplication.class
 com\server\entities\mobs\colossus\RunemarkColossus.class
 com\server\profiles\skills\gui\RewardsGUI$1.class
