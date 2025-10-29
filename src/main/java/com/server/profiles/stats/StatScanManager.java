@@ -839,6 +839,24 @@ public class StatScanManager {
                 }
             }
             
+            // Process Fishing Focus from enchanted lines
+            double fishingFocusBonus = extractBaseDoubleStat(cleanLine, "Fishing Focus:");
+            if (fishingFocusBonus > 0) {
+                bonuses.fishingFocus += fishingFocusBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added fishing focus: " + fishingFocusBonus + " (total: " + bonuses.fishingFocus + ")");
+                }
+            }
+            
+            // Process Fishing Precision from enchanted lines
+            double fishingPrecisionBonus = extractBaseDoubleStat(cleanLine, "Fishing Precision:");
+            if (fishingPrecisionBonus > 0) {
+                bonuses.fishingPrecision += fishingPrecisionBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added fishing precision: " + fishingPrecisionBonus + " (total: " + bonuses.fishingPrecision + ")");
+                }
+            }
+            
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
             
@@ -987,6 +1005,8 @@ public class StatScanManager {
         stats.setFishingFortune(stats.getDefaultFishingFortune() + bonuses.fishingFortune);
         stats.setLurePotency(stats.getDefaultLurePotency() + bonuses.lurePotency);
         stats.setFishingResilience(stats.getDefaultFishingResilience() + bonuses.fishingResilience);
+        stats.setFishingFocus(stats.getDefaultFishingFocus() + bonuses.fishingFocus);
+        stats.setFishingPrecision(stats.getDefaultFishingPrecision() + bonuses.fishingPrecision);
         
         if (plugin.isDebugEnabled(DebugSystem.STATS)) {
             plugin.debugLog(DebugSystem.STATS,
@@ -994,7 +1014,9 @@ public class StatScanManager {
                 " | HealthRegen: " + stats.getHealthRegen() + " (+" + bonuses.healthRegen + ")" +
                 " | FishingFortune: " + stats.getFishingFortune() + " (+" + bonuses.fishingFortune + ")" +
                 " | LurePotency: " + stats.getLurePotency() + " (+" + bonuses.lurePotency + ")" +
-                " | FishingResilience: " + stats.getFishingResilience() + " (+" + bonuses.fishingResilience + ")");
+                " | FishingResilience: " + stats.getFishingResilience() + " (+" + bonuses.fishingResilience + ")" +
+                " | FishingFocus: " + stats.getFishingFocus() + " (+" + bonuses.fishingFocus + ")" +
+                " | FishingPrecision: " + stats.getFishingPrecision() + " (+" + bonuses.fishingPrecision + ")");
         }
     }
         
@@ -1823,6 +1845,8 @@ public class StatScanManager {
         int lurePotency = 0;
         double fishingFortune = 0;
         double fishingResilience = 0;
+        double fishingFocus = 0;
+        double fishingPrecision = 0;
     }
 
 }

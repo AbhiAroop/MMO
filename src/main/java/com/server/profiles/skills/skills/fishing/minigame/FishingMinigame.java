@@ -227,6 +227,27 @@ public class FishingMinigame {
         double maxIndicatorSize = Math.min(MAX_INDICATOR_SIZE, catchZoneSize / 2.0);
         indicatorSize = MIN_INDICATOR_SIZE + (Math.random() * (maxIndicatorSize - MIN_INDICATOR_SIZE));
         
+        // Get active profile slot for stats (used by both Fishing Precision and Fishing Focus)
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        
+        // Apply Fishing Precision - chance to halve spike size (minimum 1)
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                PlayerStats stats = profile.getStats();
+                double fishingPrecision = stats.getFishingPrecision();
+                
+                if (fishingPrecision > 0 && Math.random() * 100.0 < fishingPrecision) {
+                    // Halve the spike size
+                    double newSize = indicatorSize / 2.0;
+                    // Ensure minimum size of 1
+                    if (newSize >= 1.0) {
+                        indicatorSize = newSize;
+                    }
+                }
+            }
+        }
+        
         // Only show title for the first round
         if (currentRound == 1) {
             player.sendTitle("§b§lRound " + currentRound + "/" + requiredRounds, "§7Click when the spike hits the green zone!", 5, 30, 5);
@@ -335,6 +356,55 @@ public class FishingMinigame {
         double goodZoneSize = catchZoneSize * 0.65;
         double goodZoneStart = catchZoneCenter - (goodZoneSize / 2.0);
         double goodZoneEnd = catchZoneCenter + (goodZoneSize / 2.0);
+        
+        // Apply Fishing Focus - increase each zone size individually
+        // 10% chance per value to increase by 1
+        Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                PlayerStats stats = profile.getStats();
+                double fishingFocus = stats.getFishingFocus();
+                
+                if (fishingFocus > 0) {
+                    // Calculate guaranteed bonuses (floor of focus / 10)
+                    int guaranteedBonuses = (int) Math.floor(fishingFocus / 10.0);
+                    int extraBoxes = guaranteedBonuses;
+                    
+                    // Calculate chance for an additional bonus (remainder * 10%)
+                    double chanceForNext = (fishingFocus % 10.0) * 10.0;
+                    if (chanceForNext > 0 && Math.random() * 100.0 < chanceForNext) {
+                        extraBoxes++;
+                    }
+                    
+                    // Apply the bonus to each zone individually
+                    if (extraBoxes > 0) {
+                        // Increase perfect zone (green)
+                        perfectZoneSize += extraBoxes;
+                        perfectZoneStart = catchZoneCenter - (perfectZoneSize / 2.0);
+                        perfectZoneEnd = catchZoneCenter + (perfectZoneSize / 2.0);
+                        
+                        // Increase good zone (orange)
+                        goodZoneSize += extraBoxes;
+                        goodZoneStart = catchZoneCenter - (goodZoneSize / 2.0);
+                        goodZoneEnd = catchZoneCenter + (goodZoneSize / 2.0);
+                        
+                        // Increase catch zone (yellow)
+                        double expansion = extraBoxes / 2.0;
+                        catchZoneStart = Math.max(0, catchZoneStart - expansion);
+                        catchZoneEnd = Math.min(100.0, catchZoneEnd + expansion);
+                        catchZoneSize = catchZoneEnd - catchZoneStart;
+                        catchZoneCenter = (catchZoneStart + catchZoneEnd) / 2.0;
+                        
+                        // Recalculate zone positions based on new center
+                        perfectZoneStart = catchZoneCenter - (perfectZoneSize / 2.0);
+                        perfectZoneEnd = catchZoneCenter + (perfectZoneSize / 2.0);
+                        goodZoneStart = catchZoneCenter - (goodZoneSize / 2.0);
+                        goodZoneEnd = catchZoneCenter + (goodZoneSize / 2.0);
+                    }
+                }
+            }
+        }
         
         // Yellow zone is the full catch zone (outer layer)
         

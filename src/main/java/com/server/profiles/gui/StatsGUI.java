@@ -356,7 +356,17 @@ public class StatsGUI {
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Resilience:",
                 ChatColor.GRAY + "Resilience: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingResilience()),
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Extra Misses: " + 
-                    ChatColor.WHITE + getResilienceDescription(stats.getFishingResilience())
+                    ChatColor.WHITE + getResilienceDescription(stats.getFishingResilience()),
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Focus:",
+                ChatColor.GRAY + "Focus: " + ChatColor.WHITE + String.format("%.1f", stats.getFishingFocus()),
+                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Box Size Bonus: " + 
+                    ChatColor.WHITE + getFocusDescription(stats.getFishingFocus()),
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Precision:",
+                ChatColor.GRAY + "Precision: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingPrecision()),
+                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Spike Size: " + 
+                    ChatColor.WHITE + getPrecisionDescription(stats.getFishingPrecision())
             },
             false
         );
@@ -694,6 +704,47 @@ public class StatsGUI {
             return String.format("+%d miss%s + %.1f%% chance for +%d", 
                 guaranteedMisses, guaranteedMisses > 1 ? "es" : "",
                 chanceForNext, guaranteedMisses + 1);
+        }
+    }
+    
+    /**
+     * Format fishing focus description
+     * 10% chance per value to increase catch zone boxes by 1 for the round
+     */
+    private static String getFocusDescription(double focus) {
+        if (focus == 0) {
+            return "No bonus";
+        }
+        
+        // Calculate guaranteed bonuses (floor of focus / 10)
+        int guaranteedBonuses = (int) Math.floor(focus / 10.0);
+        
+        // Calculate chance for an additional bonus (remainder percentage)
+        double chanceForNext = (focus % 10.0) * 10.0;
+        
+        // Format the description
+        if (guaranteedBonuses == 0) {
+            return String.format("%.0f%% chance for +1 box size", chanceForNext);
+        } else if (chanceForNext < 0.1) {
+            return String.format("+%d box size%s", guaranteedBonuses, guaranteedBonuses > 1 ? "s" : "");
+        } else {
+            return String.format("+%d box%s + %.0f%% chance for +%d", 
+                guaranteedBonuses, guaranteedBonuses > 1 ? "es" : "",
+                chanceForNext, guaranteedBonuses + 1);
+        }
+    }
+    
+    /**
+     * Format fishing precision description
+     * Percentage chance to halve spike size (minimum 1)
+     */
+    private static String getPrecisionDescription(double precision) {
+        if (precision == 0) {
+            return "No reduction";
+        } else if (precision >= 100) {
+            return "50% smaller (guaranteed)";
+        } else {
+            return String.format("%.1f%% chance for 50%% reduction", precision);
         }
     }
     

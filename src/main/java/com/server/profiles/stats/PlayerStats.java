@@ -39,6 +39,8 @@ public class PlayerStats {
     // Fishing Stats
     private int lurePotency;
     private double fishingResilience;
+    private double fishingFocus;
+    private double fishingPrecision;
     
     // Resource Stats
     private int manaRegen;
@@ -86,6 +88,8 @@ public class PlayerStats {
     private double defaultFishingFortune = 1.00;
     private int defaultLurePotency = 0;
     private double defaultFishingResilience = 0.0;
+    private double defaultFishingFocus = 0.0;
+    private double defaultFishingPrecision = 0.0;
     private double defaultAttackRange = 3.0;
     private double defaultBuildRange = 5.0;
     private double defaultSize = 1.0;
@@ -132,6 +136,8 @@ public class PlayerStats {
         this.fishingFortune = defaultFishingFortune;
         this.lurePotency = defaultLurePotency;
         this.fishingResilience = defaultFishingResilience;
+        this.fishingFocus = defaultFishingFocus;
+        this.fishingPrecision = defaultFishingPrecision;
         this.currentHealth = defaultCurrentHealth;
         this.foodLevel = defaultFoodLevel;
         this.saturation = defaultSaturation;
@@ -211,6 +217,12 @@ public class PlayerStats {
     
     public double getFishingResilience() { return fishingResilience; }
     public void setFishingResilience(double fishingResilience) { this.fishingResilience = Math.max(0, fishingResilience); }
+    
+    public double getFishingFocus() { return fishingFocus; }
+    public void setFishingFocus(double fishingFocus) { this.fishingFocus = Math.max(0, fishingFocus); }
+    
+    public double getFishingPrecision() { return fishingPrecision; }
+    public void setFishingPrecision(double fishingPrecision) { this.fishingPrecision = Math.max(0, Math.min(100, fishingPrecision)); }
 
     // Resource Stats
     public int getManaRegen() { return manaRegen; }
@@ -378,6 +390,14 @@ public class PlayerStats {
     
     public double getDefaultFishingResilience() {
         return defaultFishingResilience;
+    }
+    
+    public double getDefaultFishingFocus() {
+        return defaultFishingFocus;
+    }
+    
+    public double getDefaultFishingPrecision() {
+        return defaultFishingPrecision;
     }
     
     /**
