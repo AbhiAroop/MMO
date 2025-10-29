@@ -375,13 +375,14 @@ public class PlayerStats {
      * Uses logarithmic scaling: higher lure potency = shorter wait time
      * 
      * Default (0 potency): 5-100 seconds
-     * 10 potency: 5-85 seconds  
-     * 50 potency: 5-50 seconds
-     * 100 potency: 5-30 seconds
-     * 200+ potency: 5-15 seconds (minimum)
+     * 10 potency: 5-88 seconds  
+     * 50 potency: 5-65 seconds
+     * 100 potency: 5-47 seconds
+     * 200 potency: 5-28 seconds
+     * 500+ potency: 5-5 seconds (minimum, instant bite)
      * 
-     * Formula: maxWait = 100 - (70 * log10(potency + 1) / log10(201))
-     * This creates a smooth curve from 100s at 0 potency to 15s at 200 potency
+     * Formula: maxWait = 100 - (95 * log10(potency + 1) / log10(501))
+     * This creates a smooth curve from 100s at 0 potency to 5s at 500 potency
      * 
      * @return Pair of (minWait, maxWait) in ticks (20 ticks = 1 second)
      */
@@ -395,13 +396,14 @@ public class PlayerStats {
         } else {
             // Logarithmic scaling
             // At potency 0: 100 seconds
-            // At potency 10: ~85 seconds
-            // At potency 50: ~50 seconds
-            // At potency 100: ~30 seconds
-            // At potency 200+: ~15 seconds (capped)
-            double scaleFactor = Math.log10(Math.min(lurePotency, 200) + 1) / Math.log10(201);
-            maxWaitSeconds = 100.0 - (85.0 * scaleFactor);
-            maxWaitSeconds = Math.max(15.0, maxWaitSeconds); // Cap at 15 seconds minimum
+            // At potency 10: ~88 seconds
+            // At potency 50: ~65 seconds
+            // At potency 100: ~47 seconds
+            // At potency 200: ~28 seconds
+            // At potency 500+: ~5 seconds (capped, instant bite)
+            double scaleFactor = Math.log10(Math.min(lurePotency, 500) + 1) / Math.log10(501);
+            maxWaitSeconds = 100.0 - (95.0 * scaleFactor);
+            maxWaitSeconds = Math.max(5.0, maxWaitSeconds); // Cap at 5 seconds minimum (instant bite)
         }
         
         int maxWaitTicks = (int) (maxWaitSeconds * 20);
