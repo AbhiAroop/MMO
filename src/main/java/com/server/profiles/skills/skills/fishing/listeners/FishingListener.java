@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -376,6 +377,21 @@ public class FishingListener implements Listener {
         if (caughtFish.isTrophy()) {
             player.sendTitle("§6§l✦ TROPHY FISH! ✦", "§eAn legendary catch!", 10, 60, 10);
             // TODO: Broadcast to server when trophy fish is caught
+        }
+    }
+    
+    /**
+     * Prevent bait items from being placed as blocks
+     * Fixes bug where baits (wheat seeds) could be planted on farmland
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        Player player = event.getPlayer();
+        
+        // Check if the item being placed is a bait
+        if (FishingBait.fromItem(event.getItemInHand()) != null) {
+            event.setCancelled(true);
+            player.sendMessage("§c§l⚠ §cBaits cannot be placed! They are meant for fishing only.");
         }
     }
 }
