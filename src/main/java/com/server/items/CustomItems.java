@@ -514,5 +514,37 @@ public class CustomItems {
         return item;
     }
 
+    public static ItemStack createBambooRod() {
+        ItemStack item = new ItemStack(Material.FISHING_ROD);
+        ItemMeta meta = item.getItemMeta();
+        
+        // Set custom model data (2XXXXX for functional items, 40000 base for fishing rods)
+        meta.setCustomModelData(240001); // 2 for functional item, 40 for fishing rod, 001 for first variant
+        
+        // Set name and lore
+        meta.setDisplayName("§a§lBamboo Rod");
+        meta.setLore(Arrays.asList(
+            "§7Rarity: " + ItemRarity.BASIC.getFormattedName(),
+            "§7\"A lightweight fishing rod crafted from",
+            "§7bamboo, perfect for quick catches.\"",
+            "",
+            "§7Stats:",
+            "§cPhysical Damage: §c+3",
+            "§bLure Potency: §b+1",
+            "",
+            "§6Passive: §eQuick Cast",
+            "§7Reduces fishing wait time and can be used",
+            "§7as a makeshift weapon when needed.",
+            "",
+            "§8The flexible bamboo construction makes this",
+            "§8rod both durable and surprisingly effective",
+            "§8in close-quarters situations.",
+            ""
+        ));
+        
+        item.setItemMeta(meta);
+        return item;
+    }
+
     
 }

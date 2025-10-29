@@ -809,6 +809,27 @@ public class StatScanManager {
                 }
             }
             
+            // Process Fishing Fortune from enchanted lines
+            double fishingFortuneBonus = extractBaseDoubleStat(cleanLine, "Fishing Fortune:");
+            if (fishingFortuneBonus > 0) {
+                bonuses.fishingFortune += fishingFortuneBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added fishing fortune: " + fishingFortuneBonus + " (total: " + bonuses.fishingFortune + ")");
+                }
+            }
+            
+            // Process Lure Potency from enchanted lines
+            int lurePotencyBonus = extractBaseIntStat(cleanLine, "Lure Potency:");
+            if (lurePotencyBonus == 0) {
+                lurePotencyBonus = extractBaseIntStat(cleanLine, "Fishing Potency:");
+            }
+            if (lurePotencyBonus > 0) {
+                bonuses.lurePotency += lurePotencyBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added lure potency: " + lurePotencyBonus + " (total: " + bonuses.lurePotency + ")");
+                }
+            }
+            
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
             
@@ -953,10 +974,16 @@ public class StatScanManager {
         stats.setMiningSpeed(stats.getDefaultMiningSpeed() + bonuses.miningSpeed);
         stats.setBuildRange(stats.getDefaultBuildRange() + bonuses.buildRange);
         
+        // Fishing stats
+        stats.setFishingFortune(stats.getDefaultFishingFortune() + bonuses.fishingFortune);
+        stats.setLurePotency(stats.getDefaultLurePotency() + bonuses.lurePotency);
+        
         if (plugin.isDebugEnabled(DebugSystem.STATS)) {
             plugin.debugLog(DebugSystem.STATS,
                 "Applied stat bonuses to " + stats.toString() + 
-                " | HealthRegen: " + stats.getHealthRegen() + " (+" + bonuses.healthRegen + ")");
+                " | HealthRegen: " + stats.getHealthRegen() + " (+" + bonuses.healthRegen + ")" +
+                " | FishingFortune: " + stats.getFishingFortune() + " (+" + bonuses.fishingFortune + ")" +
+                " | LurePotency: " + stats.getLurePotency() + " (+" + bonuses.lurePotency + ")");
         }
     }
         
@@ -1782,6 +1809,8 @@ public class StatScanManager {
         double miningFortune = 0;
         double miningSpeed = 0;
         double buildRange = 0;
+        int lurePotency = 0;
+        double fishingFortune = 0;
     }
 
 }

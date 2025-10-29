@@ -329,6 +329,9 @@ public class StatsGUI {
         gui.setItem(32, farmingStatsItem);
         
         // Fishing Stats
+        int[] waitTime = stats.getFishingWaitTime();
+        String waitTimeStr = String.format("%.1f-%.1fs", waitTime[0] / 20.0, waitTime[1] / 20.0);
+        
         ItemStack fishingStatsItem = createStatsItem(Material.FISHING_ROD,
             ChatColor.BLUE + "Fishing Stats",
             new String[] {
@@ -345,6 +348,8 @@ public class StatsGUI {
                 ChatColor.GRAY + "Double Catch: " + ChatColor.WHITE + calculateDoubleCatch(player, stats) + "%",
                 "",
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Speed:",
+                ChatColor.GRAY + "Lure Potency: " + ChatColor.WHITE + stats.getLurePotency(),
+                ChatColor.GRAY + "Wait Time: " + ChatColor.WHITE + waitTimeStr,
                 ChatColor.GRAY + "Bite Speed: " + ChatColor.WHITE + calculateBiteSpeed(player, stats) + "%",
                 ChatColor.GRAY + "Lure Power: " + ChatColor.WHITE + calculateLurePower(player, stats) + "%"
             },
