@@ -12,6 +12,7 @@ import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.SkillRegistry;
 import com.server.profiles.skills.skills.fishing.subskills.RodFishingSubskill;
 import com.server.profiles.skills.skills.fishing.types.FishingType;
+import com.server.profiles.stats.PlayerStats;
 
 /**
  * Handles the timing-based fishing minigame mechanics
@@ -69,7 +70,32 @@ public class FishingMinigame {
         
         this.currentRound = 0;
         this.missedCatchesThisRound = 0;
-        this.maxMissesPerRound = 2; // Default 2 misses per round (can be increased by enchantments)
+        
+        // Calculate max misses based on Fishing Resilience stat
+        // Base: 2 misses per round
+        // Resilience works like fortune: 100% = +1 guaranteed miss, remainder = chance for additional miss
+        int baseMisses = 2;
+        int extraMisses = 0;
+        
+        if (activeSlot != null) {
+            PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
+            if (profile != null) {
+                PlayerStats stats = profile.getStats();
+                double resilience = stats.getFishingResilience();
+                
+                // Calculate guaranteed extra misses (floor of resilience / 100)
+                int guaranteedExtra = (int) Math.floor(resilience / 100.0);
+                extraMisses += guaranteedExtra;
+                
+                // Calculate chance for one more miss (remainder percentage)
+                double chanceForNext = resilience % 100.0;
+                if (chanceForNext > 0 && Math.random() * 100.0 < chanceForNext) {
+                    extraMisses++;
+                }
+            }
+        }
+        
+        this.maxMissesPerRound = baseMisses + extraMisses;
         this.roundStartTime = System.currentTimeMillis();
     }
     

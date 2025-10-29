@@ -351,7 +351,12 @@ public class StatsGUI {
                 ChatColor.GRAY + "Lure Potency: " + ChatColor.WHITE + stats.getLurePotency(),
                 ChatColor.GRAY + "Wait Time: " + ChatColor.WHITE + waitTimeStr,
                 ChatColor.GRAY + "Bite Speed: " + ChatColor.WHITE + calculateBiteSpeed(player, stats) + "%",
-                ChatColor.GRAY + "Lure Power: " + ChatColor.WHITE + calculateLurePower(player, stats) + "%"
+                ChatColor.GRAY + "Lure Power: " + ChatColor.WHITE + calculateLurePower(player, stats) + "%",
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Resilience:",
+                ChatColor.GRAY + "Resilience: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingResilience()),
+                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Extra Misses: " + 
+                    ChatColor.WHITE + getResilienceDescription(stats.getFishingResilience())
             },
             false
         );
@@ -662,6 +667,33 @@ public class StatsGUI {
         } else {
             return String.format("%dx %s + %.1f%% chance for %dx", 
                 guaranteedMultiplier + 1, type, chanceForNext, guaranteedMultiplier + 2);
+        }
+    }
+    
+    /**
+     * Get a readable description of fishing resilience effects
+     * Works like fortune: 100% = guaranteed +1 miss, 150% = +1 miss + 50% chance for +2 misses
+     */
+    private static String getResilienceDescription(double resilience) {
+        if (resilience == 0) {
+            return "No extra misses";
+        }
+        
+        // Calculate guaranteed extra misses (whole number part after dividing by 100)
+        int guaranteedMisses = (int) Math.floor(resilience / 100.0);
+        
+        // Calculate chance for an additional miss (remainder percentage)
+        double chanceForNext = resilience % 100.0;
+        
+        // Format the description
+        if (guaranteedMisses == 0) {
+            return String.format("%.1f%% chance for +1 miss", chanceForNext);
+        } else if (chanceForNext < 0.1) {
+            return String.format("+%d extra miss%s", guaranteedMisses, guaranteedMisses > 1 ? "es" : "");
+        } else {
+            return String.format("+%d miss%s + %.1f%% chance for +%d", 
+                guaranteedMisses, guaranteedMisses > 1 ? "es" : "",
+                chanceForNext, guaranteedMisses + 1);
         }
     }
     

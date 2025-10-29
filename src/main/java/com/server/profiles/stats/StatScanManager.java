@@ -830,6 +830,15 @@ public class StatScanManager {
                 }
             }
             
+            // Process Fishing Resilience from enchanted lines
+            double fishingResilienceBonus = extractBaseDoubleStat(cleanLine, "Fishing Resilience:");
+            if (fishingResilienceBonus > 0) {
+                bonuses.fishingResilience += fishingResilienceBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added fishing resilience: " + fishingResilienceBonus + " (total: " + bonuses.fishingResilience + ")");
+                }
+            }
+            
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
             
@@ -977,13 +986,15 @@ public class StatScanManager {
         // Fishing stats
         stats.setFishingFortune(stats.getDefaultFishingFortune() + bonuses.fishingFortune);
         stats.setLurePotency(stats.getDefaultLurePotency() + bonuses.lurePotency);
+        stats.setFishingResilience(stats.getDefaultFishingResilience() + bonuses.fishingResilience);
         
         if (plugin.isDebugEnabled(DebugSystem.STATS)) {
             plugin.debugLog(DebugSystem.STATS,
                 "Applied stat bonuses to " + stats.toString() + 
                 " | HealthRegen: " + stats.getHealthRegen() + " (+" + bonuses.healthRegen + ")" +
                 " | FishingFortune: " + stats.getFishingFortune() + " (+" + bonuses.fishingFortune + ")" +
-                " | LurePotency: " + stats.getLurePotency() + " (+" + bonuses.lurePotency + ")");
+                " | LurePotency: " + stats.getLurePotency() + " (+" + bonuses.lurePotency + ")" +
+                " | FishingResilience: " + stats.getFishingResilience() + " (+" + bonuses.fishingResilience + ")");
         }
     }
         
@@ -1811,6 +1822,7 @@ public class StatScanManager {
         double buildRange = 0;
         int lurePotency = 0;
         double fishingFortune = 0;
+        double fishingResilience = 0;
     }
 
 }

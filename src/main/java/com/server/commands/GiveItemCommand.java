@@ -48,6 +48,11 @@ public class GiveItemCommand implements CommandExecutor, TabCompleter {
         itemCreators.put("wandererboots", CustomItems::createWanderersWeaveBoots);        
         // Add full set option - special case handling in onCommand
         itemCreators.put("wandererset", () -> CustomItems.createWanderersWeaveHood());
+        
+        // Add fishing rods
+        itemCreators.put("bamboorod", CustomItems::createBambooRod);
+        itemCreators.put("bamboo", CustomItems::createBambooRod);
+        
         // Add more items as they are created
         
     }

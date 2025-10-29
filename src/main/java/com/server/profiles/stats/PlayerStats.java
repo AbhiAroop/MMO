@@ -38,6 +38,7 @@ public class PlayerStats {
     
     // Fishing Stats
     private int lurePotency;
+    private double fishingResilience;
     
     // Resource Stats
     private int manaRegen;
@@ -84,6 +85,7 @@ public class PlayerStats {
     private double defaultLootingFortune = 1.00;
     private double defaultFishingFortune = 1.00;
     private int defaultLurePotency = 0;
+    private double defaultFishingResilience = 0.0;
     private double defaultAttackRange = 3.0;
     private double defaultBuildRange = 5.0;
     private double defaultSize = 1.0;
@@ -129,6 +131,7 @@ public class PlayerStats {
         this.lootingFortune = defaultLootingFortune;
         this.fishingFortune = defaultFishingFortune;
         this.lurePotency = defaultLurePotency;
+        this.fishingResilience = defaultFishingResilience;
         this.currentHealth = defaultCurrentHealth;
         this.foodLevel = defaultFoodLevel;
         this.saturation = defaultSaturation;
@@ -205,6 +208,9 @@ public class PlayerStats {
     // Fishing Stats
     public int getLurePotency() { return lurePotency; }
     public void setLurePotency(int lurePotency) { this.lurePotency = Math.max(0, lurePotency); }
+    
+    public double getFishingResilience() { return fishingResilience; }
+    public void setFishingResilience(double fishingResilience) { this.fishingResilience = Math.max(0, fishingResilience); }
 
     // Resource Stats
     public int getManaRegen() { return manaRegen; }
@@ -368,6 +374,10 @@ public class PlayerStats {
     
     public int getDefaultLurePotency() {
         return defaultLurePotency;
+    }
+    
+    public double getDefaultFishingResilience() {
+        return defaultFishingResilience;
     }
     
     /**
