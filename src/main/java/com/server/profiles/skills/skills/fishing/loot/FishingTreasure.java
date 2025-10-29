@@ -115,15 +115,17 @@ public enum FishingTreasure {
     }
     
     /**
-     * Try to get a treasure item based on fishing type and luck
+     * Try to get a treasure item based on fishing type, treasure bonus, and treasure sense
      * @param fishingType The type of fishing environment
      * @param treasureBonus Treasure bonus stat (0.0 to 1.0+)
+     * @param treasureSense Player's treasure sense (uncapped %, multiplicative boost)
      * @return A FishingTreasure if one should be given, null otherwise
      */
-    public static FishingTreasure tryGetTreasure(FishingType fishingType, double treasureBonus) {
-        // Base chance for treasure: 17% (can be modified by treasure bonus)
+    public static FishingTreasure tryGetTreasure(FishingType fishingType, double treasureBonus, double treasureSense) {
+        // Base chance for treasure: 17% (can be modified by treasure bonus and treasure sense)
         // treasureBonus of 0.0 = 17%, treasureBonus of 1.0 = 34% (doubled)
-        double baseTreasureChance = 0.17 + (treasureBonus * 0.17);
+        // treasureSense of 100% = 2x treasure chance (multiplicative bonus)
+        double baseTreasureChance = (0.17 + (treasureBonus * 0.17)) * (1.0 + (treasureSense / 100.0));
         
         // First check if treasure should spawn at all
         if (random.nextDouble() > baseTreasureChance) {

@@ -857,6 +857,24 @@ public class StatScanManager {
                 }
             }
             
+            // Process Sea Monster Affinity from enchanted lines
+            double seaMonsterAffinityBonus = extractBaseDoubleStat(cleanLine, "Sea Monster Affinity:");
+            if (seaMonsterAffinityBonus > 0) {
+                bonuses.seaMonsterAffinity += seaMonsterAffinityBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added sea monster affinity: " + seaMonsterAffinityBonus + " (total: " + bonuses.seaMonsterAffinity + ")");
+                }
+            }
+            
+            // Process Treasure Sense from enchanted lines
+            double treasureSenseBonus = extractBaseDoubleStat(cleanLine, "Treasure Sense:");
+            if (treasureSenseBonus > 0) {
+                bonuses.treasureSense += treasureSenseBonus;
+                if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                    plugin.debugLog(DebugSystem.ENCHANTING, "STAT SCAN: Added treasure sense: " + treasureSenseBonus + " (total: " + bonuses.treasureSense + ")");
+                }
+            }
+            
             // Process other stats...
             bonuses.cooldownReduction += extractBaseIntStat(cleanLine, "Cooldown Reduction:");
             
@@ -1007,6 +1025,8 @@ public class StatScanManager {
         stats.setFishingResilience(stats.getDefaultFishingResilience() + bonuses.fishingResilience);
         stats.setFishingFocus(stats.getDefaultFishingFocus() + bonuses.fishingFocus);
         stats.setFishingPrecision(stats.getDefaultFishingPrecision() + bonuses.fishingPrecision);
+        stats.setSeaMonsterAffinity(stats.getDefaultSeaMonsterAffinity() + bonuses.seaMonsterAffinity);
+        stats.setTreasureSense(stats.getDefaultTreasureSense() + bonuses.treasureSense);
         
         if (plugin.isDebugEnabled(DebugSystem.STATS)) {
             plugin.debugLog(DebugSystem.STATS,
@@ -1847,6 +1867,8 @@ public class StatScanManager {
         double fishingResilience = 0;
         double fishingFocus = 0;
         double fishingPrecision = 0;
+        double seaMonsterAffinity = 0;
+        double treasureSense = 0;
     }
 
 }

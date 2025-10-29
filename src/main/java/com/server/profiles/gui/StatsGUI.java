@@ -366,7 +366,17 @@ public class StatsGUI {
                 ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Precision:",
                 ChatColor.GRAY + "Precision: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingPrecision()),
                 ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Spike Size: " + 
-                    ChatColor.WHITE + getPrecisionDescription(stats.getFishingPrecision())
+                    ChatColor.WHITE + getPrecisionDescription(stats.getFishingPrecision()),
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Sea Monster Affinity:",
+                ChatColor.GRAY + "Affinity: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
+                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Mob Spawn Chance: " + 
+                    ChatColor.WHITE + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
+                "",
+                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Treasure Sense:",
+                ChatColor.GRAY + "Sense: " + ChatColor.WHITE + String.format("%.1f%%", stats.getTreasureSense()),
+                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Treasure Spawn Chance: " + 
+                    ChatColor.WHITE + getTreasureSenseDescription(stats.getTreasureSense())
             },
             false
         );
@@ -745,6 +755,24 @@ public class StatsGUI {
             return "50% smaller (guaranteed)";
         } else {
             return String.format("%.1f%% chance for 50%% reduction", precision);
+        }
+    }
+    
+    private static String getSeaMonsterAffinityDescription(double affinity) {
+        if (affinity == 0) {
+            return "No bonus";
+        } else {
+            double multiplier = 1.0 + (affinity / 100.0);
+            return String.format("%.1fx mob spawn chance", multiplier);
+        }
+    }
+    
+    private static String getTreasureSenseDescription(double sense) {
+        if (sense == 0) {
+            return "No bonus";
+        } else {
+            double multiplier = 1.0 + (sense / 100.0);
+            return String.format("%.1fx treasure spawn chance", multiplier);
         }
     }
     

@@ -78,20 +78,22 @@ public enum FishingMob {
     }
     
     /**
-     * Try to spawn a mob based on fishing type and luck
+     * Try to spawn a mob based on fishing type, luck, and sea monster affinity
      * @param fishingType The type of fishing environment
      * @param luckBonus Additional luck modifier (0.0 to 1.0+)
+     * @param seaMonsterAffinity Player's sea monster affinity (uncapped %, multiplicative boost)
      * @return A FishingMob if one should spawn, null otherwise
      */
-    public static FishingMob trySpawnMob(FishingType fishingType, double luckBonus) {
+    public static FishingMob trySpawnMob(FishingType fishingType, double luckBonus, double seaMonsterAffinity) {
         List<FishingMob> possibleMobs = getMobsForType(fishingType);
         if (possibleMobs.isEmpty()) {
             return null;
         }
         
-        // Base chance for mob: 8% (can be reduced by luck)
+        // Base chance for mob: 8% (can be reduced by luck, increased by sea monster affinity)
         // luckBonus of 0.0 = 8%, luckBonus of 1.0 = 4% (halved with high luck)
-        double baseMobChance = 0.08 * (1.0 - (luckBonus * 0.5));
+        // seaMonsterAffinity of 100% = 2x mob chance (multiplicative bonus)
+        double baseMobChance = 0.08 * (1.0 - (luckBonus * 0.5)) * (1.0 + (seaMonsterAffinity / 100.0));
         
         // First check if mob should spawn at all
         if (random.nextDouble() > baseMobChance) {

@@ -324,11 +324,15 @@ public class FishingListener implements Listener {
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         double luckBonus = 0.0;
         double treasureBonus = 0.0;
+        double seaMonsterAffinity = 0.0;
+        double treasureSense = 0.0;
         
         if (activeSlot != null) {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
             if (profile != null) {
                 luckBonus = profile.getStats().getLuck() / 100.0; // Convert to 0.0-1.0+ range
+                seaMonsterAffinity = profile.getStats().getSeaMonsterAffinity();
+                treasureSense = profile.getStats().getTreasureSense();
                 
                 // Get treasure bonus from Rod Fishing subskill
                 Skill rodFishingSkill = SkillRegistry.getInstance().getSkill("rod_fishing");
@@ -339,8 +343,8 @@ public class FishingListener implements Listener {
             }
         }
         
-        // Priority 1: Try to spawn a mob (8% base chance, reduced by luck)
-        FishingMob mob = FishingMob.trySpawnMob(session.getFishingType(), luckBonus);
+        // Priority 1: Try to spawn a mob (8% base chance, reduced by luck, increased by sea monster affinity)
+        FishingMob mob = FishingMob.trySpawnMob(session.getFishingType(), luckBonus, seaMonsterAffinity);
         if (mob != null && player.getFishHook() != null) {
             // Spawn the mob at the hook location, hooked to the fishing rod
             org.bukkit.Location spawnLoc = player.getFishHook().getLocation();
@@ -370,8 +374,8 @@ public class FishingListener implements Listener {
             return;
         }
         
-        // Priority 2: Try to get treasure/junk (based on treasure bonus)
-        FishingTreasure treasure = FishingTreasure.tryGetTreasure(session.getFishingType(), treasureBonus);
+        // Priority 2: Try to get treasure/junk (based on treasure bonus and treasure sense)
+        FishingTreasure treasure = FishingTreasure.tryGetTreasure(session.getFishingType(), treasureBonus, treasureSense);
         if (treasure != null) {
             // Give treasure item
             player.getInventory().addItem(treasure.toItemStack());

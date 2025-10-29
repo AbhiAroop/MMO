@@ -41,6 +41,8 @@ public class PlayerStats {
     private double fishingResilience;
     private double fishingFocus;
     private double fishingPrecision;
+    private double seaMonsterAffinity;
+    private double treasureSense;
     
     // Resource Stats
     private int manaRegen;
@@ -90,6 +92,8 @@ public class PlayerStats {
     private double defaultFishingResilience = 0.0;
     private double defaultFishingFocus = 0.0;
     private double defaultFishingPrecision = 0.0;
+    private double defaultSeaMonsterAffinity = 0.0;
+    private double defaultTreasureSense = 0.0;
     private double defaultAttackRange = 3.0;
     private double defaultBuildRange = 5.0;
     private double defaultSize = 1.0;
@@ -138,6 +142,8 @@ public class PlayerStats {
         this.fishingResilience = defaultFishingResilience;
         this.fishingFocus = defaultFishingFocus;
         this.fishingPrecision = defaultFishingPrecision;
+        this.seaMonsterAffinity = defaultSeaMonsterAffinity;
+        this.treasureSense = defaultTreasureSense;
         this.currentHealth = defaultCurrentHealth;
         this.foodLevel = defaultFoodLevel;
         this.saturation = defaultSaturation;
@@ -223,6 +229,12 @@ public class PlayerStats {
     
     public double getFishingPrecision() { return fishingPrecision; }
     public void setFishingPrecision(double fishingPrecision) { this.fishingPrecision = Math.max(0, Math.min(100, fishingPrecision)); }
+
+    public double getSeaMonsterAffinity() { return seaMonsterAffinity; }
+    public void setSeaMonsterAffinity(double seaMonsterAffinity) { this.seaMonsterAffinity = Math.max(0, seaMonsterAffinity); }
+
+    public double getTreasureSense() { return treasureSense; }
+    public void setTreasureSense(double treasureSense) { this.treasureSense = Math.max(0, treasureSense); }
 
     // Resource Stats
     public int getManaRegen() { return manaRegen; }
@@ -398,6 +410,14 @@ public class PlayerStats {
     
     public double getDefaultFishingPrecision() {
         return defaultFishingPrecision;
+    }
+    
+    public double getDefaultSeaMonsterAffinity() {
+        return defaultSeaMonsterAffinity;
+    }
+    
+    public double getDefaultTreasureSense() {
+        return defaultTreasureSense;
     }
     
     /**
