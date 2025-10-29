@@ -89,31 +89,28 @@ public enum FishingMob {
             return null;
         }
         
-        // Calculate total chance with luck bonus
-        // Base chance: 0-10% depending on mob
-        // Luck reduces chance (higher luck = less likely to fish up mobs)
-        double totalChance = 0.0;
-        for (FishingMob mob : possibleMobs) {
-            // Reduce mob chance if player has high luck (they want fish, not mobs)
-            double adjustedChance = mob.getBaseChance() * (1.0 - (luckBonus * 0.5));
-            totalChance += Math.max(0.01, adjustedChance); // Minimum 1% chance per mob
-        }
+        // Base chance for mob: 8% (can be reduced by luck)
+        // luckBonus of 0.0 = 8%, luckBonus of 1.0 = 4% (halved with high luck)
+        double baseMobChance = 0.08 * (1.0 - (luckBonus * 0.5));
         
-        // Roll to see if any mob spawns
-        double roll = random.nextDouble();
-        if (roll > totalChance) {
+        // First check if mob should spawn at all
+        if (random.nextDouble() > baseMobChance) {
             return null; // No mob spawns
         }
         
-        // If a mob spawns, select which one based on weighted chances
-        double cumulativeChance = 0.0;
-        double selectRoll = random.nextDouble() * totalChance;
+        // Mob spawns! Now select which one based on weighted chances
+        double totalWeight = 0.0;
+        for (FishingMob mob : possibleMobs) {
+            totalWeight += mob.getBaseChance();
+        }
+        
+        double selectRoll = random.nextDouble() * totalWeight;
+        double cumulativeWeight = 0.0;
         
         for (FishingMob mob : possibleMobs) {
-            double adjustedChance = mob.getBaseChance() * (1.0 - (luckBonus * 0.5));
-            cumulativeChance += Math.max(0.01, adjustedChance);
+            cumulativeWeight += mob.getBaseChance();
             
-            if (selectRoll <= cumulativeChance) {
+            if (selectRoll <= cumulativeWeight) {
                 return mob;
             }
         }

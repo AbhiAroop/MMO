@@ -21,6 +21,7 @@ import com.server.profiles.skills.skills.fishing.baits.BaitManager;
 import com.server.profiles.skills.skills.fishing.baits.FishingBait;
 import com.server.profiles.skills.skills.fishing.loot.Fish;
 import com.server.profiles.skills.skills.fishing.loot.FishingMob;
+import com.server.profiles.skills.skills.fishing.loot.FishingTreasure;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSession;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSessionManager;
 import com.server.profiles.skills.skills.fishing.subskills.RodFishingSubskill;
@@ -322,14 +323,23 @@ public class FishingListener implements Listener {
         // Get player's luck stat for mob chance calculation
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         double luckBonus = 0.0;
+        double treasureBonus = 0.0;
+        
         if (activeSlot != null) {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
             if (profile != null) {
                 luckBonus = profile.getStats().getLuck() / 100.0; // Convert to 0.0-1.0+ range
+                
+                // Get treasure bonus from Rod Fishing subskill
+                Skill rodFishingSkill = SkillRegistry.getInstance().getSkill("rod_fishing");
+                if (rodFishingSkill instanceof RodFishingSubskill) {
+                    // getTreasureChance returns percentage (0-100), convert to 0.0-1.0
+                    treasureBonus = ((RodFishingSubskill) rodFishingSkill).getTreasureChance(player) / 100.0;
+                }
             }
         }
         
-        // Try to spawn a mob instead of giving fish
+        // Priority 1: Try to spawn a mob (8% base chance, reduced by luck)
         FishingMob mob = FishingMob.trySpawnMob(session.getFishingType(), luckBonus);
         if (mob != null && player.getFishHook() != null) {
             // Spawn the mob at the hook location, hooked to the fishing rod
@@ -360,7 +370,86 @@ public class FishingListener implements Listener {
             return;
         }
         
-        // No mob spawned, give normal fish
+        // Priority 2: Try to get treasure/junk (based on treasure bonus)
+        FishingTreasure treasure = FishingTreasure.tryGetTreasure(session.getFishingType(), treasureBonus);
+        if (treasure != null) {
+            // Give treasure item
+            player.getInventory().addItem(treasure.toItemStack());
+            
+            // Notify player based on treasure type
+            String treasureTypeMsg;
+            switch (treasure.getType()) {
+                case EPIC:
+                    player.sendTitle("§6§l✦ EPIC TREASURE! ✦", "§eYou found " + treasure.getDisplayName() + "§e!", 10, 60, 10);
+                    treasureTypeMsg = "§6§l✦ EPIC TREASURE! ";
+                    if (player.getLocation() != null) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                    }
+                    break;
+                case RARE:
+                    player.sendTitle("§5§l◆ RARE TREASURE! ◆", "§dYou found " + treasure.getDisplayName() + "§d!", 10, 50, 10);
+                    treasureTypeMsg = "§5§l◆ RARE TREASURE! ";
+                    if (player.getLocation() != null) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+                    }
+                    break;
+                case UNCOMMON:
+                    treasureTypeMsg = "§9§l♦ Uncommon Treasure! ";
+                    if (player.getLocation() != null) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.3f);
+                    }
+                    break;
+                case COMMON:
+                    treasureTypeMsg = "§f§l♦ Common Treasure! ";
+                    if (player.getLocation() != null) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                    }
+                    break;
+                case JUNK:
+                    treasureTypeMsg = "§7Junk Item: ";
+                    if (player.getLocation() != null) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.5f, 0.8f);
+                    }
+                    break;
+                default:
+                    treasureTypeMsg = "§7Found: ";
+                    break;
+            }
+            
+            player.sendMessage(treasureTypeMsg + treasure.getDisplayName());
+            
+            // Grant XP based on treasure type
+            double treasureXp = 5.0;
+            switch (treasure.getType()) {
+                case EPIC:
+                    treasureXp = 50.0;
+                    break;
+                case RARE:
+                    treasureXp = 30.0;
+                    break;
+                case UNCOMMON:
+                    treasureXp = 20.0;
+                    break;
+                case COMMON:
+                    treasureXp = 10.0;
+                    break;
+                case JUNK:
+                    treasureXp = 3.0;
+                    break;
+            }
+            
+            treasureXp *= session.getFishingType().getDifficultyMultiplier();
+            
+            Skill rodFishingSkill = SkillRegistry.getInstance().getSkill("rod_fishing");
+            if (rodFishingSkill != null) {
+                SkillProgressionManager.getInstance().addExperience(player, rodFishingSkill, treasureXp);
+            }
+            
+            player.sendMessage(String.format("§7XP: §e+%.1f §8(treasure find)", treasureXp));
+            return;
+        }
+        
+        // Priority 3: Give normal fish (default behavior)
         // Calculate XP based on performance
         double baseXp = 10.0;
         double accuracy = session.getAccuracy();
@@ -382,13 +471,7 @@ public class FishingListener implements Listener {
             SkillProgressionManager.getInstance().addExperience(player, rodFishingSkill, totalXp);
         }
         
-        // Get treasure bonus from Rod Fishing subskill
-        double treasureBonus = 0.0;
-        if (rodFishingSkill instanceof RodFishingSubskill) {
-            treasureBonus = ((RodFishingSubskill) rodFishingSkill).getTreasureChance(player);
-        }
-        
-        // Create fish based on performance and bait used
+        // Create fish based on performance and bait used (use treasureBonus calculated above)
         Fish caughtFish = Fish.createFish(
             session.getFishingType(), 
             accuracy, 

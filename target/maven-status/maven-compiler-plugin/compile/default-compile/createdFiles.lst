@@ -162,6 +162,7 @@ com\server\crafting\gui\CustomFurnaceGUI.class
 com\server\profiles\skills\rewards\RewardManager.class
 com\server\islands\commands\IslandShopGUIListener$ShopItem.class
 com\server\enchantments\abilities\utility\PureReflection$2.class
+com\server\profiles\skills\skills\fishing\loot\FishingTreasure.class
 com\server\islands\commands\IslandInfoGUI$1.class
 com\server\events\CustomMobListener$1.class
 com\server\islands\managers\IslandUpgradeManager$UpgradeResult.class
@@ -353,6 +354,7 @@ com\server\display\DamageIndicatorManager$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$CrystalTier.class
 com\server\events\CombatListener.class
 com\server\crafting\listeners\AdvancedCraftingListener.class
+com\server\profiles\skills\skills\fishing\loot\FishingTreasure$TreasureType.class
 com\server\islands\commands\IslandCreateGUI.class
 com\server\profiles\skills\skills\mining\MiningSkill.class
 com\server\profiles\stats\StatScanManager.class
