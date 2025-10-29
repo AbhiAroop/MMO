@@ -23,6 +23,7 @@ import com.server.commands.CrystalCommand;
 import com.server.commands.CurrencyCommand;
 import com.server.commands.DebugCommand;
 import com.server.commands.EnchantCommand;
+import com.server.commands.FishingCommand;
 import com.server.commands.FlyCommand;
 import com.server.commands.GemCarvingToolCommand;
 import com.server.commands.GiveHatCommand;
@@ -609,6 +610,17 @@ public class Main extends JavaPlugin {
             getLogger().info("[Botany] Botany command registered successfully!");
         } else {
             LOGGER.warning("Command 'botany' not registered in plugin.yml file!");
+        }
+        
+        // Register Fishing command
+        org.bukkit.command.PluginCommand fishingCommand = this.getCommand("fishing");
+        if (fishingCommand != null) {
+            FishingCommand fishingHandler = new FishingCommand();
+            fishingCommand.setExecutor(fishingHandler);
+            fishingCommand.setTabCompleter(fishingHandler);
+            getLogger().info("[Fishing] Fishing command registered successfully!");
+        } else {
+            LOGGER.warning("Command 'fishing' not registered in plugin.yml file!");
         }
 
         org.bukkit.command.PluginCommand adminFurnaceCommand = this.getCommand("adminfurnace");

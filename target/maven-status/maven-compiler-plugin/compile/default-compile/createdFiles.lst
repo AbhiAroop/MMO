@@ -22,6 +22,7 @@ com\server\crafting\gui\CustomFurnaceGUI$FurnaceGUILayout.class
 com\server\profiles\skills\events\MiningListener$1.class
 com\server\crafting\furnace\FurnaceType.class
 com\server\profiles\skills\skills\farming\botany\BotanyListener.class
+com\server\commands\FishingCommand.class
 com\server\commands\SpawnCustomMobCommand.class
 com\server\islands\data\IslandType.class
 com\server\events\AutoRespawnListener$2.class
@@ -116,6 +117,7 @@ com\server\debug\DebugManager.class
 com\server\entities\mobs\colossus\VerdigranColossus.class
 com\server\enchantments\gui\GUIAnimationHandler.class
 com\server\islands\data\StarterChallenges.class
+com\server\profiles\skills\skills\fishing\baits\FishingBait.class
 com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$3.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
@@ -272,6 +274,7 @@ com\server\crafting\manager\CustomFurnaceManager$2.class
 com\server\abilities\AbilityManager$2.class
 com\server\entities\npc\NPCDamageEffects$1.class
 com\server\profiles\skills\abilities\SkillAbility.class
+com\server\profiles\skills\skills\fishing\baits\BaitManager.class
 com\server\enchantments\utils\EnchantmentDamageUtil$1.class
 com\server\commands\AdminTokensCommand.class
 com\server\enchantments\abilities\utility\PureReflection.class

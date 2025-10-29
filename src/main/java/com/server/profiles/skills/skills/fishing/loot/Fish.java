@@ -6,6 +6,7 @@ import java.util.List;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.server.profiles.skills.skills.fishing.baits.FishingBait;
 import com.server.profiles.skills.skills.fishing.types.FishingType;
 
 /**
@@ -28,16 +29,30 @@ public class Fish {
     
     /**
      * Create a fish based on fishing performance and type
+     * @param fishingType The environment being fished in
+     * @param accuracy The accuracy percentage from minigame
+     * @param treasureBonus Treasure bonus stat
+     * @param perfectCatches Number of perfect catches
+     * @param bait The bait used (can be null)
      */
-    public static Fish createFish(FishingType fishingType, double accuracy, double treasureBonus, int perfectCatches) {
-        // Determine fish type based on fishing environment
-        FishType fishType = FishType.getRandomFish(fishingType);
+    public static Fish createFish(FishingType fishingType, double accuracy, double treasureBonus, 
+                                 int perfectCatches, FishingBait bait) {
+        // Determine fish type based on bait or fishing environment
+        FishType fishType;
+        if (bait != null && !bait.getAttractedFish().isEmpty()) {
+            // If bait is used, get a random fish from the attracted list
+            fishType = bait.getRandomAttractedFish();
+        } else {
+            // No bait or empty list, use environment-based selection
+            fishType = FishType.getRandomFish(fishingType);
+        }
         
         // Determine rarity based on treasure bonus
         FishRarity rarity = FishRarity.getRandomRarity(treasureBonus);
         
-        // Determine quality based on accuracy
-        FishQuality quality = FishQuality.fromAccuracy(accuracy);
+        // Determine quality based on accuracy, perfect catches, and bait bonus
+        double qualityBoost = bait != null ? bait.getQualityBoost() : 0.0;
+        FishQuality quality = FishQuality.fromAccuracy(accuracy, perfectCatches, qualityBoost);
         
         // Calculate size (affected by quality and rarity)
         double baseSize = fishType.getBaseSize();
@@ -55,6 +70,13 @@ public class Fish {
                           size > baseSize * 1.5 && Math.random() < 0.1;
         
         return new Fish(fishType, rarity, quality, size, isTrophy);
+    }
+    
+    /**
+     * Legacy method for backwards compatibility
+     */
+    public static Fish createFish(FishingType fishingType, double accuracy, double treasureBonus, int perfectCatches) {
+        return createFish(fishingType, accuracy, treasureBonus, perfectCatches, null);
     }
     
     /**

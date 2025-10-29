@@ -13,6 +13,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\CustomFurnaceListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillLevelupListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\events\SkillActionBarListener.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\fishing\baits\BaitManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\data\IslandChallenge.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\BotanyCommand.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\gui\AdvancedCraftingGUI.java
@@ -267,6 +268,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ski
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\manager\CustomCraftingManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\BaseNPC.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\AdminProfileCommand.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\FishingCommand.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\IslandInfoGUIListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\passive\AbstractPassiveAbility.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\SkillAbility.java
@@ -298,5 +300,6 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\NellMossgleam.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\offensive\Stormfire.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\excavating\ExcavatingSkill.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\fishing\baits\FishingBait.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\CombatListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\events\AutoRespawnListener.java

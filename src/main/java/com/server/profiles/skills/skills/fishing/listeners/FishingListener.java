@@ -16,6 +16,8 @@ import com.server.profiles.ProfileManager;
 import com.server.profiles.skills.core.Skill;
 import com.server.profiles.skills.core.SkillProgressionManager;
 import com.server.profiles.skills.core.SkillRegistry;
+import com.server.profiles.skills.skills.fishing.baits.BaitManager;
+import com.server.profiles.skills.skills.fishing.baits.FishingBait;
 import com.server.profiles.skills.skills.fishing.loot.Fish;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSession;
 import com.server.profiles.skills.skills.fishing.minigame.FishingSessionManager;
@@ -95,6 +97,16 @@ public class FishingListener implements Listener {
             return;
         }
         
+        // Check if player has bait
+        FishingBait bait = BaitManager.findBaitInInventory(player);
+        if (bait == null) {
+            event.setCancelled(true);
+            player.sendTitle("§c§lNo Bait!", "§7You need bait to catch fish!", 10, 40, 10);
+            player.sendMessage("§c§l⚠ §cYou need bait to start fishing!");
+            player.sendMessage("§7Purchase bait from the fishing shop or use §e/fishing bait§7.");
+            return;
+        }
+        
         FishHook hook = event.getHook();
         
         // Determine fishing type based on hook location
@@ -124,12 +136,22 @@ public class FishingListener implements Listener {
             }
         }
         
+        // Consume the bait
+        FishingBait consumedBait = BaitManager.consumeBait(player);
+        if (consumedBait == null) {
+            // Shouldn't happen since we checked above, but just in case
+            event.setCancelled(true);
+            player.sendTitle("§c§lNo Bait!", "§7You need bait to catch fish!", 10, 40, 10);
+            return;
+        }
+        
         // IMPORTANT: Don't cancel the event - let the bite happen
         // This keeps the hook in the water so we can continue the minigame
         // The hook will stay cast until we complete the minigame or the player cancels
         
-        // Create and start fishing session
+        // Create and start fishing session with bait
         FishingSession session = sessionManager.createSession(player, fishingType);
+        session.setBait(consumedBait); // Store the bait used for this session
         session.startMinigame();
         
         // Notify player
@@ -297,12 +319,13 @@ public class FishingListener implements Listener {
             treasureBonus = ((RodFishingSubskill) rodFishingSkill).getTreasureChance(player);
         }
         
-        // Create fish based on performance
+        // Create fish based on performance and bait used
         Fish caughtFish = Fish.createFish(
             session.getFishingType(), 
             accuracy, 
             treasureBonus, 
-            perfectCatches
+            perfectCatches,
+            session.getBait() // Pass the bait used
         );
         
         // Give fish to player

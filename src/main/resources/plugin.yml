@@ -129,6 +129,11 @@ commands:
     usage: /botany [give|info|nearby|list|reload|clear|breeder]
     permission: mmo.admin.botany
     aliases: [crops, customcrops]
+  fishing:
+    description: Fishing system admin commands for baits and testing
+    usage: /fishing [bait|listbaits]
+    permission: mmo.admin.fishing
+    aliases: [fish]
 
 permissions:
   mmo.admin:
@@ -181,5 +186,8 @@ permissions:
     default: op
   mmo.admin.botany:
     description: Allows managing custom crops and Botany system
+    default: op
+  mmo.admin.fishing:
+    description: Allows managing fishing baits and system
     default: op
 

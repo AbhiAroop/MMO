@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import com.server.profiles.skills.skills.fishing.baits.FishingBait;
 import com.server.profiles.skills.skills.fishing.types.FishingType;
 
 /**
@@ -15,6 +16,7 @@ public class FishingSession {
     private final Player player;
     private final FishingType fishingType;
     private final FishingMinigame minigame;
+    private FishingBait bait; // The bait used for this session
     
     private BukkitTask minigameTask;
     private boolean active;
@@ -35,6 +37,7 @@ public class FishingSession {
         this.successfulCatches = 0;
         this.totalRounds = 0;
         this.perfectCatches = 0;
+        this.bait = null;
     }
     
     /**
@@ -182,5 +185,13 @@ public class FishingSession {
             return 0.0;
         }
         return (double) successfulCatches / totalRounds * 100.0;
+    }
+    
+    public FishingBait getBait() {
+        return bait;
+    }
+    
+    public void setBait(FishingBait bait) {
+        this.bait = bait;
     }
 }

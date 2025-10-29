@@ -52,20 +52,35 @@ public enum FishQuality {
     /**
      * Get quality based on fishing accuracy with randomness
      * Harsh penalty for misses, making high quality very difficult to achieve
+     * Perfect/Good catches and bait quality boost improve chances
      */
     public static FishQuality fromAccuracy(double accuracy) {
-        // Accuracy is percentage (0-100)
-        // Lower accuracy = much higher chance of poor quality
+        return fromAccuracy(accuracy, 0, 0.0);
+    }
+    
+    /**
+     * Get quality based on fishing accuracy, perfect catches, and bait quality bonus
+     * @param accuracy The accuracy percentage (0-100)
+     * @param perfectCatches Number of perfect catches in the session
+     * @param qualityBoost Quality boost from bait (0-100 percentage points)
+     */
+    public static FishQuality fromAccuracy(double accuracy, int perfectCatches, double qualityBoost) {
+        // Apply bait quality boost to accuracy
+        double adjustedAccuracy = Math.min(100.0, accuracy + qualityBoost);
+        
+        // Each perfect catch adds 2% to quality roll
+        double perfectBonus = perfectCatches * 2.0;
         
         // Generate random roll (0-100)
         double roll = Math.random() * 100.0;
         
-        // Quality thresholds based on accuracy
-        // With perfect accuracy (100%), still only 25% chance for EXCELLENT
-        // With any misses, quality drops dramatically
+        // Subtract perfect bonus from roll (lower roll = better quality)
+        roll = Math.max(0, roll - perfectBonus);
         
-        if (accuracy >= 100.0) {
-            // Perfect accuracy (no misses)
+        // Quality thresholds based on adjusted accuracy
+        
+        if (adjustedAccuracy >= 100.0) {
+            // Perfect accuracy (no misses) + quality boost
             // 5% PERFECT, 25% EXCELLENT, 40% GOOD, 25% NORMAL, 5% POOR
             if (roll < 5) return PERFECT;
             else if (roll < 30) return EXCELLENT;
@@ -73,7 +88,7 @@ public enum FishQuality {
             else if (roll < 95) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 90.0) {
+        } else if (adjustedAccuracy >= 90.0) {
             // 1 miss in 5 rounds (90% accuracy)
             // 1% PERFECT, 15% EXCELLENT, 34% GOOD, 40% NORMAL, 10% POOR
             if (roll < 1) return PERFECT;
@@ -82,7 +97,7 @@ public enum FishQuality {
             else if (roll < 90) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 80.0) {
+        } else if (adjustedAccuracy >= 80.0) {
             // 1 miss in 4-5 rounds (80-90% accuracy)
             // 10% EXCELLENT, 25% GOOD, 45% NORMAL, 20% POOR
             if (roll < 10) return EXCELLENT;
@@ -90,7 +105,7 @@ public enum FishQuality {
             else if (roll < 80) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 70.0) {
+        } else if (adjustedAccuracy >= 70.0) {
             // 70-80% accuracy
             // 5% EXCELLENT, 20% GOOD, 40% NORMAL, 35% POOR
             if (roll < 5) return EXCELLENT;
@@ -98,21 +113,21 @@ public enum FishQuality {
             else if (roll < 65) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 60.0) {
+        } else if (adjustedAccuracy >= 60.0) {
             // 60-70% accuracy (2 misses in 5 rounds = 60%)
             // 15% GOOD, 35% NORMAL, 50% POOR
             if (roll < 15) return GOOD;
             else if (roll < 50) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 50.0) {
+        } else if (adjustedAccuracy >= 50.0) {
             // 50-60% accuracy
             // 5% GOOD, 25% NORMAL, 70% POOR
             if (roll < 5) return GOOD;
             else if (roll < 30) return NORMAL;
             else return POOR;
             
-        } else if (accuracy >= 40.0) {
+        } else if (adjustedAccuracy >= 40.0) {
             // 40-50% accuracy (2 misses in 4 rounds = 50%)
             // 20% NORMAL, 80% POOR
             if (roll < 20) return NORMAL;
