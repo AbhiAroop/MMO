@@ -203,27 +203,34 @@ public class StatsGUI {
             ChatColor.AQUA + "✦ Utility Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Mana: " + ChatColor.AQUA + stats.getMana() + "/" + currentTotalMana + 
+                ChatColor.YELLOW + "Resources:",
+                ChatColor.GRAY + "  Mana: " + ChatColor.AQUA + stats.getMana() + "/" + currentTotalMana + 
                     (totalManaBonus > 0 ? ChatColor.GREEN + " (+" + totalManaBonus + ")" : ""),
-                ChatColor.DARK_GRAY + "  ➥ Resource for abilities",
+                ChatColor.DARK_GRAY + "    ➥ Resource for abilities",
+                ChatColor.GRAY + "  Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s",
+                ChatColor.DARK_GRAY + "    ➥ Mana restored per second",
                 "",
-                ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s",
-                ChatColor.DARK_GRAY + "  ➥ Mana restored per second",
+                ChatColor.YELLOW + "Attributes:",
+                ChatColor.GRAY + "  Cooldown Reduction: " + ChatColor.WHITE + stats.getCooldownReduction() + "%",
+                ChatColor.DARK_GRAY + "    ➥ Reduces ability cooldowns",
+                ChatColor.GRAY + "  Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed),
+                ChatColor.DARK_GRAY + "    ➥ Walking/running speed",
+                ChatColor.GRAY + "  Size: " + ChatColor.WHITE + String.format("%.2f", currentSize) + "x",
+                ChatColor.DARK_GRAY + "    ➥ Player size multiplier",
                 "",
-                ChatColor.GRAY + "Cooldown Reduction: " + ChatColor.WHITE + stats.getCooldownReduction() + "%",
-                ChatColor.DARK_GRAY + "  ➥ Reduces ability cooldowns",
+                ChatColor.YELLOW + "Interaction:",
+                ChatColor.GRAY + "  Build Range: " + ChatColor.WHITE + String.format("%.1f", stats.getBuildRange()) + " blocks",
+                ChatColor.DARK_GRAY + "    ➥ Block placing reach",
+                ChatColor.GRAY + "  Luck: " + ChatColor.YELLOW + stats.getLuck(),
+                ChatColor.DARK_GRAY + "    ➥ Affects drops and loot",
                 "",
-                ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed),
-                ChatColor.DARK_GRAY + "  ➥ Walking/running speed",
-                "",
-                ChatColor.GRAY + "Size: " + ChatColor.WHITE + String.format("%.2f", currentSize) + "x",
-                ChatColor.DARK_GRAY + "  ➥ Player size multiplier",
-                "",
-                ChatColor.GRAY + "Build Range: " + ChatColor.WHITE + String.format("%.1f", stats.getBuildRange()) + " blocks",
-                ChatColor.DARK_GRAY + "  ➥ Block placing reach",
-                "",
-                ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + stats.getLuck(),
-                ChatColor.DARK_GRAY + "  ➥ Affects drops and loot"
+                ChatColor.YELLOW + "Survival:",
+                ChatColor.GRAY + "  Food Level: " + ChatColor.WHITE + stats.getFoodLevel() + "/20",
+                ChatColor.DARK_GRAY + "    ➥ Hunger bar fullness",
+                ChatColor.GRAY + "  Saturation: " + ChatColor.WHITE + String.format("%.1f", stats.getSaturation()),
+                ChatColor.DARK_GRAY + "    ➥ Hidden food buffer",
+                ChatColor.GRAY + "  Experience: " + ChatColor.WHITE + "Lv." + stats.getExpLevel() + " (" + String.format("%.0f%%", stats.getExpProgress() * 100) + ")",
+                ChatColor.DARK_GRAY + "    ➥ Current XP level"
             },
             true
         );
@@ -236,13 +243,21 @@ public class StatsGUI {
             ChatColor.GRAY + "⛏ Mining Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Mining Speed: " + ChatColor.WHITE + String.format("%.2fx", currentMiningSpeed) +
+                ChatColor.YELLOW + "Mining Speed: " + ChatColor.WHITE + String.format("%.2fx", currentMiningSpeed) +
                     (totalMiningSpeedBonus > 0 ? ChatColor.GREEN + " (+" + String.format("%.2f", totalMiningSpeedBonus) + "x)" : ""),
-                ChatColor.DARK_GRAY + "  ➥ Block breaking speed",
+                ChatColor.DARK_GRAY + "  ➥ Block breaking speed multiplier",
                 "",
-                ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getMiningFortune()),
+                ChatColor.YELLOW + "Mining Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getMiningFortune()),
                 ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getMiningFortune() / 100.0) + 1.0),
-                ChatColor.DARK_GRAY + "  ➥ Extra ore/block drops"
+                ChatColor.DARK_GRAY + "  ➥ Extra ore/block drops bonus",
+                "",
+                ChatColor.AQUA + "Subskills:",
+                ChatColor.GRAY + "  • Gem Finding",
+                ChatColor.DARK_GRAY + "    ➥ Chance for rare gems",
+                ChatColor.GRAY + "  • Excavation",
+                ChatColor.DARK_GRAY + "    ➥ Extra drops from digging",
+                ChatColor.GRAY + "  • Ore Processing",
+                ChatColor.DARK_GRAY + "    ➥ Auto-smelt ores"
             },
             false
         );
@@ -253,9 +268,20 @@ public class StatsGUI {
             ChatColor.GREEN + "🌾 Farming Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()),
+                ChatColor.YELLOW + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()),
                 ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0),
-                ChatColor.DARK_GRAY + "  ➥ Extra crop/plant drops"
+                ChatColor.DARK_GRAY + "  ➥ Extra crop/plant drops bonus",
+                "",
+                ChatColor.YELLOW + "Farming Speed: " + ChatColor.WHITE + String.format("%.2fx", stats.getFarmingSpeed()),
+                ChatColor.DARK_GRAY + "  ➥ Crop growth speed multiplier",
+                "",
+                ChatColor.AQUA + "Subskills:",
+                ChatColor.GRAY + "  • Green Thumb",
+                ChatColor.DARK_GRAY + "    ➥ Increased crop quality",
+                ChatColor.GRAY + "  • Hoe Mastery",
+                ChatColor.DARK_GRAY + "    ➥ Faster tilling and harvesting",
+                ChatColor.GRAY + "  • Herbalism",
+                ChatColor.DARK_GRAY + "    ➥ Special plant effects"
             },
             false
         );
@@ -266,8 +292,16 @@ public class StatsGUI {
             ChatColor.GOLD + "💰 Looting Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Looting Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune()),
-                ChatColor.DARK_GRAY + "  ➥ Extra mob drop chance"
+                ChatColor.YELLOW + "Looting Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune()),
+                ChatColor.DARK_GRAY + "  ➥ Extra mob drop multiplier",
+                "",
+                ChatColor.AQUA + "Subskills:",
+                ChatColor.GRAY + "  • Scavenging",
+                ChatColor.DARK_GRAY + "    ➥ Find extra loot",
+                ChatColor.GRAY + "  • Lucky Strikes",
+                ChatColor.DARK_GRAY + "    ➥ Rare drop chance",
+                ChatColor.GRAY + "  • Treasure Hunter",
+                ChatColor.DARK_GRAY + "    ➥ Better chest loot"
             },
             false
         );
@@ -306,7 +340,13 @@ public class StatsGUI {
                 ChatColor.GRAY + "  Sea Monster: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
                 ChatColor.DARK_GRAY + "    ➥ " + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
                 ChatColor.GRAY + "  Treasure Sense: " + ChatColor.WHITE + String.format("%.1f%%", stats.getTreasureSense()),
-                ChatColor.DARK_GRAY + "    ➥ " + getTreasureSenseDescription(stats.getTreasureSense())
+                ChatColor.DARK_GRAY + "    ➥ " + getTreasureSenseDescription(stats.getTreasureSense()),
+                "",
+                ChatColor.AQUA + "Subskills:",
+                ChatColor.GRAY + "  • Master Angler",
+                ChatColor.DARK_GRAY + "    ➥ Better fish quality",
+                ChatColor.GRAY + "  • Deep Sea Hunter",
+                ChatColor.DARK_GRAY + "    ➥ Rare sea creatures"
             },
             false
         );
