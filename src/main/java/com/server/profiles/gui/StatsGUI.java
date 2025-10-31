@@ -526,11 +526,17 @@ public class StatsGUI {
         // Add enchanted glow if requested
         if (enchanted) {
             meta.addEnchant(Enchantment.AQUA_AFFINITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         
-        // Hide attributes to keep the tooltip clean
+        // Hide all item flags for a clean display
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
+        meta.addItemFlags(ItemFlag.HIDE_DESTROYS);
+        meta.addItemFlags(ItemFlag.HIDE_PLACED_ON);
+        meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        meta.addItemFlags(ItemFlag.HIDE_DYE);
+        meta.addItemFlags(ItemFlag.HIDE_ARMOR_TRIM);
         
         item.setItemMeta(meta);
         return item;
@@ -678,6 +684,17 @@ public class StatsGUI {
         ItemStack pane = new ItemStack(material);
         ItemMeta meta = pane.getItemMeta();
         meta.setDisplayName(" ");
+        
+        // Hide all item flags for a clean display
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
+        meta.addItemFlags(ItemFlag.HIDE_DESTROYS);
+        meta.addItemFlags(ItemFlag.HIDE_PLACED_ON);
+        meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        meta.addItemFlags(ItemFlag.HIDE_DYE);
+        meta.addItemFlags(ItemFlag.HIDE_ARMOR_TRIM);
+        
         pane.setItemMeta(meta);
         return pane;
     }
