@@ -53,7 +53,7 @@ public class GUIListener implements Listener {
         // Cancel clicks in all menu GUIs (with robust checks for different title formats)
         if (title.equals(ProfileGUI.PLAYER_MENU_TITLE) || 
             title.equals(ProfileGUI.PROFILE_SELECTION_TITLE) || 
-            title.contains("Stats") && title.startsWith(ChatColor.GOLD + "✦") || 
+            (title.contains("Stats") && (title.contains("⚔") || title.startsWith(ChatColor.GOLD + "✦"))) || 
             title.equals(ChatColor.GOLD + "✦ " + ChatColor.AQUA + "Skills Menu" + ChatColor.GOLD + " ✦") ||
             title.contains("Cosmetic Equipment") ||
             title.contains("Rewards:") ||

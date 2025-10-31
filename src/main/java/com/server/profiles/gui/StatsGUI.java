@@ -289,7 +289,30 @@ public class StatsGUI {
         );
         gui.setItem(32, utilityAffinityItem);
         
-        // Fill empty slots with glass panes
+        // Create decorative border with varied glass panes
+        // Top and bottom rows - Gray glass panes
+        for (int i = 0; i < 9; i++) {
+            if (gui.getItem(i) == null) {
+                gui.setItem(i, createGlassPane(Material.GRAY_STAINED_GLASS_PANE));
+            }
+            if (gui.getItem(45 + i) == null) {
+                gui.setItem(45 + i, createGlassPane(Material.GRAY_STAINED_GLASS_PANE));
+            }
+        }
+        
+        // Side borders - Light gray glass panes
+        for (int row = 1; row < 5; row++) {
+            int leftSlot = row * 9;
+            int rightSlot = row * 9 + 8;
+            if (gui.getItem(leftSlot) == null) {
+                gui.setItem(leftSlot, createGlassPane(Material.LIGHT_GRAY_STAINED_GLASS_PANE));
+            }
+            if (gui.getItem(rightSlot) == null) {
+                gui.setItem(rightSlot, createGlassPane(Material.LIGHT_GRAY_STAINED_GLASS_PANE));
+            }
+        }
+        
+        // Fill remaining empty slots with black glass panes
         for (int i = 0; i < 54; i++) {
             if (gui.getItem(i) == null) {
                 gui.setItem(i, createGlassPane(Material.BLACK_STAINED_GLASS_PANE));
