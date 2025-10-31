@@ -73,76 +73,47 @@ public class StatsGUI {
         int totalHealthBonus = currentHealth - baseHealth;
         int totalArmorBonus = currentArmor - baseArmor;
         int totalMagicResistBonus = currentMagicResist - baseMagicResist;
-        double totalAttackRangeBonus = currentAttackRange - baseAttackRange;
-        double totalSizeBonus = currentSize - baseSize;
         double totalMiningSpeedBonus = currentMiningSpeed - baseMiningSpeed;
 
-        // Extract equipment info for display
-        String helmetName = "None";
-        String chestplateName = "None";
-        String leggingsName = "None";
-        String bootsName = "None";
+        // Create the main GUI - 54 slots (6 rows)
+        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.DARK_GRAY + "⚔ " + ChatColor.GOLD + player.getName() + "'s Stats " + ChatColor.DARK_GRAY + "⚔");
         
-        List<String> helmetStats = new ArrayList<>();
-        List<String> chestplateStats = new ArrayList<>();
-        List<String> leggingsStats = new ArrayList<>();
-        List<String> bootsStats = new ArrayList<>();
-        List<String> mainHandStats = new ArrayList<>();
-        
-        // Extract equipment info
-        extractEquipmentStats(player, helmetStats, chestplateStats, leggingsStats, bootsStats, mainHandStats);
-        
-        // Extract item names
-        helmetName = getItemDisplayName(player.getInventory().getHelmet());
-        chestplateName = getItemDisplayName(player.getInventory().getChestplate());
-        leggingsName = getItemDisplayName(player.getInventory().getLeggings());
-        bootsName = getItemDisplayName(player.getInventory().getBoots());
-        String mainHandName = getItemDisplayName(player.getInventory().getItemInMainHand());
-
-        // Create the main GUI with fancier design - 54 slots (6 rows)
-        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.GOLD + "✦ " + ChatColor.GREEN + player.getName() + "'s Stats " + ChatColor.GOLD + "✦");
-
-        // Create player head info item
-        ItemStack playerHead = createPlayerHeadItem(player, profile);
-        gui.setItem(4, playerHead);
-        
-        // Get current attack speed from attribute (includes enchantment modifiers like Arc Nexus)
+        // Get current attack speed from attribute
         double currentAttackSpeed = stats.getAttackSpeed();
         AttributeInstance attackSpeedAttr = player.getAttribute(Attribute.GENERIC_ATTACK_SPEED);
         if (attackSpeedAttr != null) {
             currentAttackSpeed = attackSpeedAttr.getValue();
         }
         
-        // Get current movement speed from attribute (includes enchantment modifiers like Veilborn)
+        // Get current movement speed from attribute
         double currentMovementSpeed = stats.getSpeed();
         AttributeInstance movementSpeedAttr = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (movementSpeedAttr != null) {
             currentMovementSpeed = movementSpeedAttr.getValue();
         }
         
-        // Combat Stats (Diamond Sword) - Top row
+        // === ROW 1: Core Combat Stats ===
+        
+        // Combat Stats (Diamond Sword)
         ItemStack combatItem = createStatsItem(Material.DIAMOND_SWORD, 
-            ChatColor.RED + "Combat Stats",
+            ChatColor.RED + "⚔ Combat Stats",
             new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Physical Damage: " + ChatColor.WHITE + currentPDamage + 
                     (totalPDamageBonus > 0 ? ChatColor.GREEN + " (+" + totalPDamageBonus + ")" : ""),
                 ChatColor.GRAY + "Magic Damage: " + ChatColor.WHITE + currentMDamage + 
                     (totalMDamageBonus > 0 ? ChatColor.GREEN + " (+" + totalMDamageBonus + ")" : ""),
-                ChatColor.GRAY + "Attack Range: " + ChatColor.WHITE + String.format("%.1f", currentAttackRange) + " blocks" +
-                    (totalAttackRangeBonus > 0 ? ChatColor.GREEN + " (+" + String.format("%.1f", totalAttackRangeBonus) + ")" : ""),
                 ChatColor.GRAY + "Ranged Damage: " + ChatColor.WHITE + stats.getRangedDamage(),
+                ChatColor.GRAY + "Attack Speed: " + ChatColor.WHITE + String.format("%.2f", currentAttackSpeed) + "/s",
+                ChatColor.GRAY + "Attack Range: " + ChatColor.WHITE + String.format("%.1f", currentAttackRange) + " blocks",
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Critical Stats:",
-                ChatColor.GRAY + "Critical Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getCriticalChance() * 100),
-                ChatColor.GRAY + "Critical Damage: " + ChatColor.WHITE + stats.getCriticalDamage() + "x",
+                ChatColor.YELLOW + "Critical:",
+                ChatColor.GRAY + "  Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getCriticalChance() * 100),
+                ChatColor.GRAY + "  Damage: " + ChatColor.WHITE + String.format("%.1fx", stats.getCriticalDamage()),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Burst Stats:",
-                ChatColor.GRAY + "Burst Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getBurstChance() * 100),
-                ChatColor.GRAY + "Burst Damage: " + ChatColor.WHITE + stats.getBurstDamage() + "x",
-                "",
-                ChatColor.GRAY + "Attack Speed: " + ChatColor.WHITE + String.format("%.2f", currentAttackSpeed) + " hits/sec" +
-                    (currentAttackSpeed != stats.getAttackSpeed() ? ChatColor.GREEN + " (+" + String.format("%.2f", currentAttackSpeed - stats.getAttackSpeed()) + ")" : "")
+                ChatColor.YELLOW + "Burst:",
+                ChatColor.GRAY + "  Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getBurstChance() * 100),
+                ChatColor.GRAY + "  Damage: " + ChatColor.WHITE + String.format("%.1fx", stats.getBurstDamage())
             },
             true
         );
@@ -150,26 +121,22 @@ public class StatsGUI {
 
         // Defense Stats (Diamond Chestplate)
         ItemStack defenseItem = createStatsItem(Material.DIAMOND_CHESTPLATE,
-            ChatColor.BLUE + "Defense Stats",
+            ChatColor.BLUE + "🛡 Defense Stats",
             new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Health: " + ChatColor.WHITE + currentHealth + 
                     (totalHealthBonus > 0 ? ChatColor.GREEN + " (+" + totalHealthBonus + ")" : ""),
                 ChatColor.GRAY + "Armor: " + ChatColor.WHITE + currentArmor + 
-                    (totalArmorBonus > 0 ? ChatColor.GREEN + " (+" + totalArmorBonus + ")" : "") +
-                    ChatColor.GRAY + " [" + String.format("%.1f", stats.getPhysicalDamageReduction()) + "% reduction]",                
+                    (totalArmorBonus > 0 ? ChatColor.GREEN + " (+" + totalArmorBonus + ")" : ""),
+                ChatColor.GRAY + "  Reduction: " + ChatColor.WHITE + String.format("%.1f%%", stats.getPhysicalDamageReduction()),
                 ChatColor.GRAY + "Magic Resist: " + ChatColor.WHITE + currentMagicResist + 
-                    (totalMagicResistBonus > 0 ? ChatColor.GREEN + " (+" + totalMagicResistBonus + ")" : "") +
-                    ChatColor.GRAY + " [" + String.format("%.1f", stats.getMagicDamageReduction()) + "% reduction]",
+                    (totalMagicResistBonus > 0 ? ChatColor.GREEN + " (+" + totalMagicResistBonus + ")" : ""),
+                ChatColor.GRAY + "  Reduction: " + ChatColor.WHITE + String.format("%.1f%%", stats.getMagicDamageReduction()),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Sustain:",
-                ChatColor.GRAY + "Life Steal: " + ChatColor.WHITE + stats.getLifeSteal() + "%",
-                ChatColor.GRAY + "Omnivamp: " + ChatColor.WHITE + stats.getOmnivamp() + "%",
-                ChatColor.GRAY + "Health Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()) + "/sec",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Other:",
-                ChatColor.GRAY + "Size: " + ChatColor.WHITE + String.format("%.2f", currentSize) + "x" +
-                    (totalSizeBonus > 0 ? ChatColor.GREEN + " (+" + String.format("%.2f", totalSizeBonus) + ")" : "")
+                ChatColor.YELLOW + "Sustain:",
+                ChatColor.GRAY + "  Life Steal: " + ChatColor.WHITE + String.format("%.1f%%", stats.getLifeSteal()),
+                ChatColor.GRAY + "  Omnivamp: " + ChatColor.WHITE + String.format("%.1f%%", stats.getOmnivamp()),
+                ChatColor.GRAY + "  Health Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()) + "/s"
             },
             true
         );
@@ -177,100 +144,102 @@ public class StatsGUI {
 
         // Resource Stats (Experience Bottle)
         ItemStack resourceItem = createStatsItem(Material.EXPERIENCE_BOTTLE,
-            ChatColor.GREEN + "Resource Stats",
+            ChatColor.AQUA + "✦ Utility Stats",
             new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Mana: " + ChatColor.AQUA + stats.getMana() + "/" + currentTotalMana,
-                ChatColor.GRAY + "Base Mana: " + ChatColor.WHITE + baseMana + 
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.GRAY + "Mana: " + ChatColor.AQUA + stats.getMana() + "/" + currentTotalMana + 
                     (totalManaBonus > 0 ? ChatColor.GREEN + " (+" + totalManaBonus + ")" : ""),
-                ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/sec",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Utility:",
+                ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s",
                 ChatColor.GRAY + "Cooldown Reduction: " + ChatColor.WHITE + stats.getCooldownReduction() + "%",
-                ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed) + "x" +
-                    (currentMovementSpeed != stats.getSpeed() ? ChatColor.GREEN + " (+" + String.format("%.2f", currentMovementSpeed - stats.getSpeed()) + ")" : ""),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Experience:",
-                ChatColor.GRAY + "Level: " + ChatColor.YELLOW + player.getLevel(),
-                ChatColor.GRAY + "XP Progress: " + ChatColor.YELLOW + String.format("%.1f%%", player.getExp() * 100)
+                ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed),
+                ChatColor.GRAY + "Size: " + ChatColor.WHITE + String.format("%.2f", currentSize) + "x",
+                ChatColor.GRAY + "Build Range: " + ChatColor.WHITE + String.format("%.1f", stats.getBuildRange()) + " blocks",
+                ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + stats.getLuck()
             },
             true
         );
         gui.setItem(14, resourceItem);
 
-        // Fortune Stats (Gold Ingot)
-        ItemStack fortuneItem = createStatsItem(Material.GOLD_INGOT,
-            ChatColor.GOLD + "Fortune Stats",
+        // Mining Stats (Diamond Pickaxe)
+        ItemStack miningItem = createStatsItem(Material.DIAMOND_PICKAXE,
+            ChatColor.GRAY + "⛏ Mining Stats",
             new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Multipliers:",
-                ChatColor.GRAY + "Mining: " + ChatColor.WHITE + String.format("%.2fx", stats.getMiningFortune()),
-                ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getMiningFortune(), "ore"),
-                "",
-                ChatColor.GRAY + "Farming: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()) + " (" + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0) + ")",
-                ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getFarmingFortune(), "crop"),
-                "",
-                ChatColor.GRAY + "Looting: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune()),
-                ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getLootingFortune(), "mob drop"),
-                "",
-                ChatColor.GRAY + "Fishing: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()) + " (" + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0) + ")",
-                ChatColor.GRAY + "Current Effect: " + ChatColor.WHITE + getFortuneDescription(stats.getFishingFortune(), "fish"),
-                "",
-                ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + "+" + stats.getLuck() + " points"
-            },
-            true
-        );
-        gui.setItem(16, fortuneItem);
-        
-        // Second row of specialized stats
-        
-        // Mining Stats
-        ItemStack miningStatsItem = createStatsItem(Material.DIAMOND_PICKAXE,
-            ChatColor.AQUA + "Mining Stats",
-            new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Speed Stats:",
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Mining Speed: " + ChatColor.WHITE + String.format("%.2fx", currentMiningSpeed) +
                     (totalMiningSpeedBonus > 0 ? ChatColor.GREEN + " (+" + String.format("%.2f", totalMiningSpeedBonus) + "x)" : ""),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Stats:",
-                ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getMiningFortune()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Regular Blocks: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getMiningFortune(), "drop"),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Rare Ores: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getMiningFortune() * 0.75, "drop"),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Special Bonuses:",
-                ChatColor.GRAY + "Gem Find Rate: " + ChatColor.WHITE + calculateGemFindRate(player, stats) + "%",
-                ChatColor.GRAY + "Excavation Efficiency: " + ChatColor.WHITE + calculateExcavationRate(player, stats) + "%"
+                ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getMiningFortune())
             },
             false
         );
-        gui.setItem(28, miningStatsItem);
+        gui.setItem(16, miningItem);
         
-        // Combat Stats - More detailed
-        ItemStack detailedCombatItem = createStatsItem(Material.DIAMOND_AXE,
-            ChatColor.RED + "Detailed Combat Stats",
+        // === ROW 2: Skill Stats ===
+        
+        // Farming Stats (Diamond Hoe)
+        ItemStack farmingItem = createStatsItem(Material.DIAMOND_HOE,
+            ChatColor.GREEN + "🌾 Farming Stats",
             new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "DPS Calculation:",
-                ChatColor.GRAY + "Base DPS: " + ChatColor.WHITE + 
-                    calculateBaseDPS(stats),
-                ChatColor.GRAY + "Critical DPS: " + ChatColor.WHITE + 
-                    calculateCriticalDPS(stats),
-                ChatColor.GRAY + "With Burst: " + ChatColor.WHITE + 
-                    calculateBurstDPS(stats),
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()),
+                ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0)
+            },
+            false
+        );
+        gui.setItem(19, farmingItem);
+        
+        // Looting Fortune (Gold Sword)
+        ItemStack lootingItem = createStatsItem(Material.GOLDEN_SWORD,
+            ChatColor.GOLD + "💰 Looting Stats",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.GRAY + "Looting Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune())
+            },
+            false
+        );
+        gui.setItem(21, lootingItem);
+        
+        // Fishing Stats (Fishing Rod)
+        int[] waitTime = stats.getFishingWaitTime();
+        String waitTimeStr = String.format("%.1f-%.1fs", waitTime[0] / 20.0, waitTime[1] / 20.0);
+        
+        ItemStack fishingItem = createStatsItem(Material.FISHING_ROD,
+            ChatColor.AQUA + "🎣 Fishing Stats",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.YELLOW + "Fortune:",
+                ChatColor.GRAY + "  Fishing Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()),
+                ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Effective Stats:",
-                ChatColor.GRAY + "Effective Health: " + ChatColor.WHITE + calculateEffectiveHealth(stats),
-                ChatColor.GRAY + "vs Physical: " + ChatColor.WHITE + calculateEffectivePhysical(stats),
-                ChatColor.GRAY + "vs Magic: " + ChatColor.WHITE + calculateEffectiveMagic(stats),
+                ChatColor.YELLOW + "Minigame Stats:",
+                ChatColor.GRAY + "  Resilience: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingResilience()),
+                ChatColor.GRAY + "    " + getResilienceDescription(stats.getFishingResilience()),
+                ChatColor.GRAY + "  Focus: " + ChatColor.WHITE + String.format("%.1f", stats.getFishingFocus()),
+                ChatColor.GRAY + "    " + getFocusDescription(stats.getFishingFocus()),
+                ChatColor.GRAY + "  Precision: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingPrecision()),
+                ChatColor.GRAY + "    " + getPrecisionDescription(stats.getFishingPrecision()),
                 "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Sustain Per Second:",
-                ChatColor.GRAY + "From Life Steal: " + ChatColor.WHITE + String.format("%.1f", calculateLifeStealPerSecond(stats)),
-                ChatColor.GRAY + "From Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()),
+                ChatColor.YELLOW + "Fishing Speed:",
+                ChatColor.GRAY + "  Lure Potency: " + ChatColor.WHITE + stats.getLurePotency(),
+                ChatColor.GRAY + "  Wait Time: " + ChatColor.WHITE + waitTimeStr,
                 "",
-                ChatColor.RED + "⚔ " + ChatColor.YELLOW + "Offensive Affinity:",
+                ChatColor.YELLOW + "Spawn Modifiers:",
+                ChatColor.GRAY + "  Sea Monster Affinity: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
+                ChatColor.GRAY + "    " + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
+                ChatColor.GRAY + "  Treasure Sense: " + ChatColor.WHITE + String.format("%.1f%%", stats.getTreasureSense()),
+                ChatColor.GRAY + "    " + getTreasureSenseDescription(stats.getTreasureSense())
+            },
+            false
+        );
+        gui.setItem(23, fishingItem);
+        
+        // === ROW 3: Elemental Affinity ===
+        
+        // Offensive Affinity (Blaze Powder)
+        ItemStack offenseAffinityItem = createStatsItem(Material.BLAZE_POWDER,
+            ChatColor.RED + "⚔ Offensive Affinity",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.OFFENSE),
@@ -278,9 +247,17 @@ public class StatsGUI {
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW, com.server.enchantments.elements.AffinityCategory.OFFENSE),
-                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.OFFENSE),
-                "",
-                ChatColor.BLUE + "🛡 " + ChatColor.YELLOW + "Defensive Affinity:",
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.OFFENSE)
+            },
+            false
+        );
+        gui.setItem(28, offenseAffinityItem);
+        
+        // Defensive Affinity (Shield)
+        ItemStack defenseAffinityItem = createStatsItem(Material.SHIELD,
+            ChatColor.BLUE + "🛡 Defensive Affinity",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.DEFENSE),
@@ -288,9 +265,17 @@ public class StatsGUI {
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.NATURE, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHTNING, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.SHADOW, com.server.enchantments.elements.AffinityCategory.DEFENSE),
-                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.DEFENSE),
-                "",
-                ChatColor.GREEN + "✦ " + ChatColor.YELLOW + "Utility Affinity:",
+                getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.LIGHT, com.server.enchantments.elements.AffinityCategory.DEFENSE)
+            },
+            false
+        );
+        gui.setItem(30, defenseAffinityItem);
+        
+        // Utility Affinity (Feather)
+        ItemStack utilityAffinityItem = createStatsItem(Material.FEATHER,
+            ChatColor.GREEN + "✦ Utility Affinity",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.UTILITY),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.UTILITY),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.UTILITY),
@@ -302,95 +287,14 @@ public class StatsGUI {
             },
             false
         );
-        gui.setItem(30, detailedCombatItem);
+        gui.setItem(32, utilityAffinityItem);
         
-        // Farming Stats
-        ItemStack farmingStatsItem = createStatsItem(Material.DIAMOND_HOE,
-            ChatColor.GREEN + "Farming Stats",
-            new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Stats:",
-                ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()) + " (" + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0) + ")",
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Regular Crops: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getFarmingFortune(), "drop"),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Special Crops: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getFarmingFortune() * 0.8, "drop"),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Special Bonuses:",
-                ChatColor.GRAY + "Growth Speed: " + ChatColor.WHITE + calculateGrowthSpeed(player, stats) + "%",
-                ChatColor.GRAY + "Special Find: " + ChatColor.WHITE + calculateSpecialFind(player, stats) + "%",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Tool Efficiency:",
-                ChatColor.GRAY + "Hoe Efficiency: " + ChatColor.WHITE + calculateHoeEfficiency(player, stats) + "%",
-                ChatColor.GRAY + "Soil Quality: " + ChatColor.WHITE + calculateSoilQuality(player, stats) + "%"
-            },
-            false
-        );
-        gui.setItem(32, farmingStatsItem);
-        
-        // Fishing Stats
-        int[] waitTime = stats.getFishingWaitTime();
-        String waitTimeStr = String.format("%.1f-%.1fs", waitTime[0] / 20.0, waitTime[1] / 20.0);
-        
-        ItemStack fishingStatsItem = createStatsItem(Material.FISHING_ROD,
-            ChatColor.BLUE + "Fishing Stats",
-            new String[] {
-                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fortune Stats:",
-                ChatColor.GRAY + "Fishing Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()) + " (" + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0) + ")",
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Regular Fish: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getFishingFortune(), "catch"),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Rare Fish: " + 
-                    ChatColor.WHITE + getFortuneDescription(stats.getFishingFortune() * 0.7, "catch"),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Special Bonuses:",
-                ChatColor.GRAY + "Treasure Chance: " + ChatColor.WHITE + calculateTreasureChance(player, stats) + "%",
-                ChatColor.GRAY + "Double Catch: " + ChatColor.WHITE + calculateDoubleCatch(player, stats) + "%",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Speed:",
-                ChatColor.GRAY + "Lure Potency: " + ChatColor.WHITE + stats.getLurePotency(),
-                ChatColor.GRAY + "Wait Time: " + ChatColor.WHITE + waitTimeStr,
-                ChatColor.GRAY + "Bite Speed: " + ChatColor.WHITE + calculateBiteSpeed(player, stats) + "%",
-                ChatColor.GRAY + "Lure Power: " + ChatColor.WHITE + calculateLurePower(player, stats) + "%",
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Resilience:",
-                ChatColor.GRAY + "Resilience: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingResilience()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Extra Misses: " + 
-                    ChatColor.WHITE + getResilienceDescription(stats.getFishingResilience()),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Focus:",
-                ChatColor.GRAY + "Focus: " + ChatColor.WHITE + String.format("%.1f", stats.getFishingFocus()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Box Size Bonus: " + 
-                    ChatColor.WHITE + getFocusDescription(stats.getFishingFocus()),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Fishing Precision:",
-                ChatColor.GRAY + "Precision: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingPrecision()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Spike Size: " + 
-                    ChatColor.WHITE + getPrecisionDescription(stats.getFishingPrecision()),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Sea Monster Affinity:",
-                ChatColor.GRAY + "Affinity: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Mob Spawn Chance: " + 
-                    ChatColor.WHITE + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
-                "",
-                ChatColor.AQUA + "» " + ChatColor.YELLOW + "Treasure Sense:",
-                ChatColor.GRAY + "Sense: " + ChatColor.WHITE + String.format("%.1f%%", stats.getTreasureSense()),
-                ChatColor.DARK_GRAY + "• " + ChatColor.GRAY + "Treasure Spawn Chance: " + 
-                    ChatColor.WHITE + getTreasureSenseDescription(stats.getTreasureSense())
-            },
-            false
-        );
-        gui.setItem(34, fishingStatsItem);
-
-        // Equipment summary (third row)
-        ItemStack equippedItem = createEquipmentItem(
-            helmetName, chestplateName, leggingsName, bootsName, mainHandName,
-            helmetStats, chestplateStats, leggingsStats, bootsStats, mainHandStats
-        );
-        gui.setItem(40, equippedItem);
-
-        // Fill empty slots with decorative glass panes
-        fillBorder(gui);
+        // Fill empty slots with glass panes
+        for (int i = 0; i < 54; i++) {
+            if (gui.getItem(i) == null) {
+                gui.setItem(i, createGlassPane(Material.BLACK_STAINED_GLASS_PANE));
+            }
+        }
 
         player.openInventory(gui);
     }
