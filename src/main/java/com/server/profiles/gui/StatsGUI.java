@@ -92,114 +92,190 @@ public class StatsGUI {
             currentMovementSpeed = movementSpeedAttr.getValue();
         }
         
-        // === ROW 1: Core Combat Stats ===
+        // ===== CREATE DECORATIVE BORDER FIRST =====
+        // Top row - Alternating colorful pattern
+        gui.setItem(0, createGlassPane(Material.RED_STAINED_GLASS_PANE));
+        gui.setItem(1, createGlassPane(Material.ORANGE_STAINED_GLASS_PANE));
+        gui.setItem(2, createGlassPane(Material.YELLOW_STAINED_GLASS_PANE));
+        gui.setItem(3, createGlassPane(Material.LIME_STAINED_GLASS_PANE));
+        gui.setItem(4, createGlassPane(Material.CYAN_STAINED_GLASS_PANE));
+        gui.setItem(5, createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE));
+        gui.setItem(6, createGlassPane(Material.BLUE_STAINED_GLASS_PANE));
+        gui.setItem(7, createGlassPane(Material.PURPLE_STAINED_GLASS_PANE));
+        gui.setItem(8, createGlassPane(Material.MAGENTA_STAINED_GLASS_PANE));
         
-        // Combat Stats (Diamond Sword)
+        // Bottom row - Same colorful pattern
+        gui.setItem(45, createGlassPane(Material.RED_STAINED_GLASS_PANE));
+        gui.setItem(46, createGlassPane(Material.ORANGE_STAINED_GLASS_PANE));
+        gui.setItem(47, createGlassPane(Material.YELLOW_STAINED_GLASS_PANE));
+        gui.setItem(48, createGlassPane(Material.LIME_STAINED_GLASS_PANE));
+        gui.setItem(49, createGlassPane(Material.CYAN_STAINED_GLASS_PANE));
+        gui.setItem(50, createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE));
+        gui.setItem(51, createGlassPane(Material.BLUE_STAINED_GLASS_PANE));
+        gui.setItem(52, createGlassPane(Material.PURPLE_STAINED_GLASS_PANE));
+        gui.setItem(53, createGlassPane(Material.MAGENTA_STAINED_GLASS_PANE));
+        
+        // Left side - Pink/Magenta gradient
+        gui.setItem(9, createGlassPane(Material.PINK_STAINED_GLASS_PANE));
+        gui.setItem(18, createGlassPane(Material.PINK_STAINED_GLASS_PANE));
+        gui.setItem(27, createGlassPane(Material.MAGENTA_STAINED_GLASS_PANE));
+        gui.setItem(36, createGlassPane(Material.MAGENTA_STAINED_GLASS_PANE));
+        
+        // Right side - Blue/Cyan gradient
+        gui.setItem(17, createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE));
+        gui.setItem(26, createGlassPane(Material.LIGHT_BLUE_STAINED_GLASS_PANE));
+        gui.setItem(35, createGlassPane(Material.CYAN_STAINED_GLASS_PANE));
+        gui.setItem(44, createGlassPane(Material.CYAN_STAINED_GLASS_PANE));
+        
+        // === ROW 1: Core Combat Stats (Slots 10-16) ===
+        
+        // Combat Stats (Diamond Sword) - Slot 11
         ItemStack combatItem = createStatsItem(Material.DIAMOND_SWORD, 
             ChatColor.RED + "⚔ Combat Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Physical Damage: " + ChatColor.WHITE + currentPDamage + 
                     (totalPDamageBonus > 0 ? ChatColor.GREEN + " (+" + totalPDamageBonus + ")" : ""),
+                ChatColor.DARK_GRAY + "  ➥ Base melee damage per hit",
+                "",
                 ChatColor.GRAY + "Magic Damage: " + ChatColor.WHITE + currentMDamage + 
                     (totalMDamageBonus > 0 ? ChatColor.GREEN + " (+" + totalMDamageBonus + ")" : ""),
+                ChatColor.DARK_GRAY + "  ➥ Spell and magic damage",
+                "",
                 ChatColor.GRAY + "Ranged Damage: " + ChatColor.WHITE + stats.getRangedDamage(),
+                ChatColor.DARK_GRAY + "  ➥ Bow and projectile damage",
+                "",
                 ChatColor.GRAY + "Attack Speed: " + ChatColor.WHITE + String.format("%.2f", currentAttackSpeed) + "/s",
+                ChatColor.DARK_GRAY + "  ➥ Attacks per second",
+                "",
                 ChatColor.GRAY + "Attack Range: " + ChatColor.WHITE + String.format("%.1f", currentAttackRange) + " blocks",
+                ChatColor.DARK_GRAY + "  ➥ Maximum melee reach",
                 "",
                 ChatColor.YELLOW + "Critical:",
                 ChatColor.GRAY + "  Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getCriticalChance() * 100),
+                ChatColor.DARK_GRAY + "    ➥ Chance to deal crit damage",
                 ChatColor.GRAY + "  Damage: " + ChatColor.WHITE + String.format("%.1fx", stats.getCriticalDamage()),
+                ChatColor.DARK_GRAY + "    ➥ Damage multiplier on crit",
                 "",
                 ChatColor.YELLOW + "Burst:",
                 ChatColor.GRAY + "  Chance: " + ChatColor.WHITE + String.format("%.1f%%", stats.getBurstChance() * 100),
-                ChatColor.GRAY + "  Damage: " + ChatColor.WHITE + String.format("%.1fx", stats.getBurstDamage())
+                ChatColor.DARK_GRAY + "    ➥ Chance to trigger burst",
+                ChatColor.GRAY + "  Damage: " + ChatColor.WHITE + String.format("%.1fx", stats.getBurstDamage()),
+                ChatColor.DARK_GRAY + "    ➥ Multiplier on burst crit"
             },
             true
         );
-        gui.setItem(10, combatItem);
+        gui.setItem(11, combatItem);
 
-        // Defense Stats (Diamond Chestplate)
+        // Defense Stats (Diamond Chestplate) - Slot 13
         ItemStack defenseItem = createStatsItem(Material.DIAMOND_CHESTPLATE,
             ChatColor.BLUE + "🛡 Defense Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Health: " + ChatColor.WHITE + currentHealth + 
                     (totalHealthBonus > 0 ? ChatColor.GREEN + " (+" + totalHealthBonus + ")" : ""),
+                ChatColor.DARK_GRAY + "  ➥ Maximum hit points",
+                "",
                 ChatColor.GRAY + "Armor: " + ChatColor.WHITE + currentArmor + 
                     (totalArmorBonus > 0 ? ChatColor.GREEN + " (+" + totalArmorBonus + ")" : ""),
                 ChatColor.GRAY + "  Reduction: " + ChatColor.WHITE + String.format("%.1f%%", stats.getPhysicalDamageReduction()),
+                ChatColor.DARK_GRAY + "  ➥ Physical damage reduction",
+                "",
                 ChatColor.GRAY + "Magic Resist: " + ChatColor.WHITE + currentMagicResist + 
                     (totalMagicResistBonus > 0 ? ChatColor.GREEN + " (+" + totalMagicResistBonus + ")" : ""),
                 ChatColor.GRAY + "  Reduction: " + ChatColor.WHITE + String.format("%.1f%%", stats.getMagicDamageReduction()),
+                ChatColor.DARK_GRAY + "  ➥ Magic damage reduction",
                 "",
                 ChatColor.YELLOW + "Sustain:",
                 ChatColor.GRAY + "  Life Steal: " + ChatColor.WHITE + String.format("%.1f%%", stats.getLifeSteal()),
+                ChatColor.DARK_GRAY + "    ➥ Heal from physical hits",
                 ChatColor.GRAY + "  Omnivamp: " + ChatColor.WHITE + String.format("%.1f%%", stats.getOmnivamp()),
-                ChatColor.GRAY + "  Health Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()) + "/s"
+                ChatColor.DARK_GRAY + "    ➥ Heal from all damage",
+                ChatColor.GRAY + "  Health Regen: " + ChatColor.WHITE + String.format("%.1f", stats.getHealthRegen()) + "/s",
+                ChatColor.DARK_GRAY + "    ➥ Passive HP regeneration"
             },
             true
         );
-        gui.setItem(12, defenseItem);
+        gui.setItem(13, defenseItem);
 
-        // Resource Stats (Experience Bottle)
+        // Resource Stats (Experience Bottle) - Slot 15
         ItemStack resourceItem = createStatsItem(Material.EXPERIENCE_BOTTLE,
             ChatColor.AQUA + "✦ Utility Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Mana: " + ChatColor.AQUA + stats.getMana() + "/" + currentTotalMana + 
                     (totalManaBonus > 0 ? ChatColor.GREEN + " (+" + totalManaBonus + ")" : ""),
+                ChatColor.DARK_GRAY + "  ➥ Resource for abilities",
+                "",
                 ChatColor.GRAY + "Mana Regen: " + ChatColor.WHITE + stats.getManaRegen() + "/s",
+                ChatColor.DARK_GRAY + "  ➥ Mana restored per second",
+                "",
                 ChatColor.GRAY + "Cooldown Reduction: " + ChatColor.WHITE + stats.getCooldownReduction() + "%",
+                ChatColor.DARK_GRAY + "  ➥ Reduces ability cooldowns",
                 "",
                 ChatColor.GRAY + "Movement Speed: " + ChatColor.WHITE + String.format("%.2f", currentMovementSpeed),
+                ChatColor.DARK_GRAY + "  ➥ Walking/running speed",
+                "",
                 ChatColor.GRAY + "Size: " + ChatColor.WHITE + String.format("%.2f", currentSize) + "x",
+                ChatColor.DARK_GRAY + "  ➥ Player size multiplier",
+                "",
                 ChatColor.GRAY + "Build Range: " + ChatColor.WHITE + String.format("%.1f", stats.getBuildRange()) + " blocks",
-                ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + stats.getLuck()
+                ChatColor.DARK_GRAY + "  ➥ Block placing reach",
+                "",
+                ChatColor.GRAY + "Luck: " + ChatColor.YELLOW + stats.getLuck(),
+                ChatColor.DARK_GRAY + "  ➥ Affects drops and loot"
             },
             true
         );
-        gui.setItem(14, resourceItem);
+        gui.setItem(15, resourceItem);
 
-        // Mining Stats (Diamond Pickaxe)
+        // === ROW 2: Skill Stats (Slots 19-25) ===
+        
+        // Mining Stats (Diamond Pickaxe) - Slot 20
         ItemStack miningItem = createStatsItem(Material.DIAMOND_PICKAXE,
             ChatColor.GRAY + "⛏ Mining Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Mining Speed: " + ChatColor.WHITE + String.format("%.2fx", currentMiningSpeed) +
                     (totalMiningSpeedBonus > 0 ? ChatColor.GREEN + " (+" + String.format("%.2f", totalMiningSpeedBonus) + "x)" : ""),
-                ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getMiningFortune())
+                ChatColor.DARK_GRAY + "  ➥ Block breaking speed",
+                "",
+                ChatColor.GRAY + "Mining Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getMiningFortune()),
+                ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getMiningFortune() / 100.0) + 1.0),
+                ChatColor.DARK_GRAY + "  ➥ Extra ore/block drops"
             },
             false
         );
-        gui.setItem(16, miningItem);
+        gui.setItem(20, miningItem);
         
-        // === ROW 2: Skill Stats ===
-        
-        // Farming Stats (Diamond Hoe)
+        // Farming Stats (Diamond Hoe) - Slot 22
         ItemStack farmingItem = createStatsItem(Material.DIAMOND_HOE,
             ChatColor.GREEN + "🌾 Farming Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 ChatColor.GRAY + "Farming Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFarmingFortune()),
-                ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0)
+                ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFarmingFortune() / 100.0) + 1.0),
+                ChatColor.DARK_GRAY + "  ➥ Extra crop/plant drops"
             },
             false
         );
-        gui.setItem(19, farmingItem);
+        gui.setItem(22, farmingItem);
         
-        // Looting Fortune (Gold Sword)
+        // Looting Fortune (Gold Sword) - Slot 24
         ItemStack lootingItem = createStatsItem(Material.GOLDEN_SWORD,
             ChatColor.GOLD + "💰 Looting Stats",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                ChatColor.GRAY + "Looting Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune())
+                ChatColor.GRAY + "Looting Fortune: " + ChatColor.WHITE + String.format("%.2fx", stats.getLootingFortune()),
+                ChatColor.DARK_GRAY + "  ➥ Extra mob drop chance"
             },
             false
         );
-        gui.setItem(21, lootingItem);
+        gui.setItem(24, lootingItem);
         
-        // Fishing Stats (Fishing Rod)
+        // === ROW 3: More Skills (Slots 29-35) ===
+        
+        // Fishing Stats (Fishing Rod) - Slot 31
         int[] waitTime = stats.getFishingWaitTime();
         String waitTimeStr = String.format("%.1f-%.1fs", waitTime[0] / 20.0, waitTime[1] / 20.0);
         
@@ -210,36 +286,65 @@ public class StatsGUI {
                 ChatColor.YELLOW + "Fortune:",
                 ChatColor.GRAY + "  Fishing Fortune: " + ChatColor.WHITE + String.format("%.0f", stats.getFishingFortune()),
                 ChatColor.GRAY + "  Multiplier: " + ChatColor.WHITE + String.format("%.1fx", (stats.getFishingFortune() / 100.0) + 1.0),
+                ChatColor.DARK_GRAY + "    ➥ Extra fish/treasure drops",
                 "",
                 ChatColor.YELLOW + "Minigame Stats:",
                 ChatColor.GRAY + "  Resilience: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingResilience()),
-                ChatColor.GRAY + "    " + getResilienceDescription(stats.getFishingResilience()),
+                ChatColor.DARK_GRAY + "    ➥ " + getResilienceDescription(stats.getFishingResilience()),
                 ChatColor.GRAY + "  Focus: " + ChatColor.WHITE + String.format("%.1f", stats.getFishingFocus()),
-                ChatColor.GRAY + "    " + getFocusDescription(stats.getFishingFocus()),
+                ChatColor.DARK_GRAY + "    ➥ " + getFocusDescription(stats.getFishingFocus()),
                 ChatColor.GRAY + "  Precision: " + ChatColor.WHITE + String.format("%.1f%%", stats.getFishingPrecision()),
-                ChatColor.GRAY + "    " + getPrecisionDescription(stats.getFishingPrecision()),
+                ChatColor.DARK_GRAY + "    ➥ " + getPrecisionDescription(stats.getFishingPrecision()),
                 "",
                 ChatColor.YELLOW + "Fishing Speed:",
                 ChatColor.GRAY + "  Lure Potency: " + ChatColor.WHITE + stats.getLurePotency(),
+                ChatColor.DARK_GRAY + "    ➥ Reduces wait time",
                 ChatColor.GRAY + "  Wait Time: " + ChatColor.WHITE + waitTimeStr,
+                ChatColor.DARK_GRAY + "    ➥ Time until fish bites",
                 "",
                 ChatColor.YELLOW + "Spawn Modifiers:",
-                ChatColor.GRAY + "  Sea Monster Affinity: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
-                ChatColor.GRAY + "    " + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
+                ChatColor.GRAY + "  Sea Monster: " + ChatColor.WHITE + String.format("%.1f%%", stats.getSeaMonsterAffinity()),
+                ChatColor.DARK_GRAY + "    ➥ " + getSeaMonsterAffinityDescription(stats.getSeaMonsterAffinity()),
                 ChatColor.GRAY + "  Treasure Sense: " + ChatColor.WHITE + String.format("%.1f%%", stats.getTreasureSense()),
-                ChatColor.GRAY + "    " + getTreasureSenseDescription(stats.getTreasureSense())
+                ChatColor.DARK_GRAY + "    ➥ " + getTreasureSenseDescription(stats.getTreasureSense())
             },
             false
         );
-        gui.setItem(23, fishingItem);
+        gui.setItem(31, fishingItem);
         
-        // === ROW 3: Elemental Affinity ===
+        // Placeholder for future skill 1 (Slot 29) - Woodcutting example
+        ItemStack futureSkill1 = createStatsItem(Material.GRAY_STAINED_GLASS_PANE,
+            ChatColor.DARK_GRAY + "??? Coming Soon",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.GRAY + "Future skill slot",
+                ChatColor.DARK_GRAY + "  ➥ More skills coming!"
+            },
+            false
+        );
+        gui.setItem(29, futureSkill1);
         
-        // Offensive Affinity (Blaze Powder)
+        // Placeholder for future skill 2 (Slot 33)
+        ItemStack futureSkill2 = createStatsItem(Material.GRAY_STAINED_GLASS_PANE,
+            ChatColor.DARK_GRAY + "??? Coming Soon",
+            new String[] {
+                ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.GRAY + "Future skill slot",
+                ChatColor.DARK_GRAY + "  ➥ More skills coming!"
+            },
+            false
+        );
+        gui.setItem(33, futureSkill2);
+        
+        // === ROW 4: Elemental Affinity (Slots 38-42) ===
+        
+        // Offensive Affinity (Blaze Powder) - Slot 39
         ItemStack offenseAffinityItem = createStatsItem(Material.BLAZE_POWDER,
             ChatColor.RED + "⚔ Offensive Affinity",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.DARK_GRAY + "Boosts elemental damage dealt",
+                "",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.OFFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.OFFENSE),
@@ -251,13 +356,15 @@ public class StatsGUI {
             },
             false
         );
-        gui.setItem(28, offenseAffinityItem);
+        gui.setItem(39, offenseAffinityItem);
         
-        // Defensive Affinity (Shield)
+        // Defensive Affinity (Shield) - Slot 40
         ItemStack defenseAffinityItem = createStatsItem(Material.SHIELD,
             ChatColor.BLUE + "🛡 Defensive Affinity",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.DARK_GRAY + "Reduces elemental damage taken",
+                "",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.DEFENSE),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.DEFENSE),
@@ -269,13 +376,15 @@ public class StatsGUI {
             },
             false
         );
-        gui.setItem(30, defenseAffinityItem);
+        gui.setItem(40, defenseAffinityItem);
         
-        // Utility Affinity (Feather)
+        // Utility Affinity (Feather) - Slot 41
         ItemStack utilityAffinityItem = createStatsItem(Material.FEATHER,
             ChatColor.GREEN + "✦ Utility Affinity",
             new String[] {
                 ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                ChatColor.DARK_GRAY + "Enhances elemental effects",
+                "",
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.FIRE, com.server.enchantments.elements.AffinityCategory.UTILITY),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.WATER, com.server.enchantments.elements.AffinityCategory.UTILITY),
                 getCategorizedAffinityLine(stats, com.server.enchantments.elements.ElementType.EARTH, com.server.enchantments.elements.AffinityCategory.UTILITY),
@@ -287,32 +396,9 @@ public class StatsGUI {
             },
             false
         );
-        gui.setItem(32, utilityAffinityItem);
+        gui.setItem(41, utilityAffinityItem);
         
-        // Create decorative border with varied glass panes
-        // Top and bottom rows - Gray glass panes
-        for (int i = 0; i < 9; i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, createGlassPane(Material.GRAY_STAINED_GLASS_PANE));
-            }
-            if (gui.getItem(45 + i) == null) {
-                gui.setItem(45 + i, createGlassPane(Material.GRAY_STAINED_GLASS_PANE));
-            }
-        }
-        
-        // Side borders - Light gray glass panes
-        for (int row = 1; row < 5; row++) {
-            int leftSlot = row * 9;
-            int rightSlot = row * 9 + 8;
-            if (gui.getItem(leftSlot) == null) {
-                gui.setItem(leftSlot, createGlassPane(Material.LIGHT_GRAY_STAINED_GLASS_PANE));
-            }
-            if (gui.getItem(rightSlot) == null) {
-                gui.setItem(rightSlot, createGlassPane(Material.LIGHT_GRAY_STAINED_GLASS_PANE));
-            }
-        }
-        
-        // Fill remaining empty slots with black glass panes
+        // Fill remaining empty slots with decorative black glass panes
         for (int i = 0; i < 54; i++) {
             if (gui.getItem(i) == null) {
                 gui.setItem(i, createGlassPane(Material.BLACK_STAINED_GLASS_PANE));
