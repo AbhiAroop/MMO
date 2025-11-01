@@ -75,6 +75,7 @@ public class EnchantmentRegistry {
         register(new Frostflow());
         register(new Deepcurrent());
         register(new Mistveil());
+        register(new com.server.enchantments.abilities.utility.SwiftCatch());
         
         // Earth enchantments
         register(new BurdenedStone());

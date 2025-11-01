@@ -117,6 +117,44 @@ public class FishingMinigame {
             requiredRounds = 5;
         }
         
+        // Check for Swift Catch enchantment on fishing rod
+        org.bukkit.inventory.ItemStack fishingRod = player.getInventory().getItemInMainHand();
+        if (fishingRod != null && fishingRod.getType() == org.bukkit.Material.FISHING_ROD) {
+            // Get all enchantments from the fishing rod
+            java.util.List<com.server.enchantments.data.EnchantmentData> enchantments = 
+                com.server.enchantments.data.EnchantmentData.getEnchantmentsFromItem(fishingRod);
+            
+            // Look for Swift Catch enchantment
+            for (com.server.enchantments.data.EnchantmentData enchData : enchantments) {
+                if (enchData.getEnchantmentId().equals("swift_catch")) {
+                    // Get rounds reduced based on enchantment level
+                    int roundsReduced = com.server.enchantments.abilities.utility.SwiftCatch.getRoundsReduced(
+                        enchData.getLevel()
+                    );
+                    
+                    // Reduce required rounds (minimum 1 round)
+                    requiredRounds = Math.max(1, requiredRounds - roundsReduced);
+                    
+                    // Notify player about the enchantment effect
+                    String levelStr = "";
+                    switch (enchData.getLevel()) {
+                        case I: levelStr = "I"; break;
+                        case II: levelStr = "II"; break;
+                        case III: levelStr = "III"; break;
+                        case IV: levelStr = "IV"; break;
+                        case V: levelStr = "V"; break;
+                        case VI: levelStr = "VI"; break;
+                        case VII: levelStr = "VII"; break;
+                        case VIII: levelStr = "VIII"; break;
+                    }
+                    
+                    player.sendMessage("§b§lSwift Catch " + levelStr + 
+                        " §7activated! §e" + roundsReduced + " round" + (roundsReduced > 1 ? "s" : "") + " reduced!");
+                    break; // Only apply once
+                }
+            }
+        }
+        
         // Adjust catch zone based on difficulty (result stored for display purposes)
         @SuppressWarnings("unused")
         double adjustedCatchZone = catchZoneSize / difficultyMultiplier;
