@@ -21,6 +21,7 @@ public class FishingMinigame {
     private final FishingSession session;
     private final Player player;
     private final RodFishingSubskill rodFishingSubskill;
+    private org.bukkit.inventory.ItemStack originalFishingRod; // Store the exact fishing rod being used
     
     // Minigame state
     private BossBar bossBar;
@@ -103,6 +104,14 @@ public class FishingMinigame {
      * Start the minigame
      */
     public void start() {
+        // Store the original fishing rod being used
+        originalFishingRod = player.getInventory().getItemInMainHand();
+        if (originalFishingRod == null || originalFishingRod.getType() != org.bukkit.Material.FISHING_ROD) {
+            // No fishing rod in hand, cancel immediately
+            session.cancel();
+            return;
+        }
+        
         // Calculate difficulty based on fishing type and player stats
         FishingType type = session.getFishingType();
         double difficultyMultiplier = type.getDifficultyMultiplier();
@@ -118,7 +127,7 @@ public class FishingMinigame {
         }
         
         // Check for Swift Catch enchantment on fishing rod
-        org.bukkit.inventory.ItemStack fishingRod = player.getInventory().getItemInMainHand();
+        org.bukkit.inventory.ItemStack fishingRod = originalFishingRod;
         if (fishingRod != null && fishingRod.getType() == org.bukkit.Material.FISHING_ROD) {
             // Get all enchantments from the fishing rod
             java.util.List<com.server.enchantments.data.EnchantmentData> enchantments = 
@@ -176,6 +185,15 @@ public class FishingMinigame {
             @Override
             public void run() {
                 if (!session.isActive()) {
+                    cancel();
+                    return;
+                }
+                
+                // Check if player is still holding the same fishing rod
+                org.bukkit.inventory.ItemStack currentItem = player.getInventory().getItemInMainHand();
+                if (!isSameFishingRod(currentItem, originalFishingRod)) {
+                    player.sendMessage("§c§lCANCELLED! §7You stopped holding your fishing rod!");
+                    session.cancel();
                     cancel();
                     return;
                 }
@@ -673,5 +691,35 @@ public class FishingMinigame {
     
     public double getIndicatorPosition() {
         return indicatorPosition;
+    }
+    
+    /**
+     * Check if two fishing rods are the exact same item
+     * Compares material type, metadata, and NBT data
+     */
+    private boolean isSameFishingRod(org.bukkit.inventory.ItemStack current, org.bukkit.inventory.ItemStack original) {
+        // Both null = same
+        if (current == null && original == null) {
+            return true;
+        }
+        
+        // One null, other not = different
+        if (current == null || original == null) {
+            return false;
+        }
+        
+        // Different types = different
+        if (current.getType() != original.getType()) {
+            return false;
+        }
+        
+        // Not a fishing rod = different
+        if (current.getType() != org.bukkit.Material.FISHING_ROD) {
+            return false;
+        }
+        
+        // Compare using ItemStack.isSimilar() which checks material, durability, and metadata
+        // This will ensure custom fishing rods with different custom model data are distinguished
+        return current.isSimilar(original);
     }
 }
