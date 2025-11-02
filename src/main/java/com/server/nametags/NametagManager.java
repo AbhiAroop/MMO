@@ -66,6 +66,9 @@ public class NametagManager {
         PacketNametagHandler.createTeam(player, teamName, nametagData[0], nametagData[1], nametagData[2]);
         initializedPlayers.put(player.getUniqueId(), true);
         
+        // Set tab list display name: [Member] Name
+        updateTabListName(player);
+        
         // Start periodic update task (every 10 ticks = 0.5 seconds)
         BukkitRunnable task = new BukkitRunnable() {
             @Override
@@ -118,6 +121,17 @@ public class NametagManager {
         
         // Update team via packet (mode 2)
         PacketNametagHandler.updateTeam(player, teamName, nametagData[0], nametagData[1], nametagData[2]);
+        
+        // Update tab list display name
+        updateTabListName(player);
+    }
+    
+    /**
+     * Update the player's tab list display name
+     */
+    private void updateTabListName(Player player) {
+        String rank = "§7[§fMember§7]";
+        player.setPlayerListName(rank + " §f" + player.getName());
     }
     
     /**

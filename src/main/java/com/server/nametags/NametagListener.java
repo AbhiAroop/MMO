@@ -21,6 +21,10 @@ public class NametagListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         
+        // Set custom join message: [Member] Name joined the game
+        String rank = "§7[§fMember§7]";
+        event.setJoinMessage(rank + " §f" + player.getName() + " §7joined the game");
+        
         // Initialize nametag system for this player
         NametagManager.getInstance().initializePlayer(player);
     }
@@ -31,6 +35,10 @@ public class NametagListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        
+        // Set custom quit message: [Member] Name left the game
+        String rank = "§7[§fMember§7]";
+        event.setQuitMessage(rank + " §f" + player.getName() + " §7left the game");
         
         // Remove nametag updates for this player
         NametagManager.getInstance().removePlayer(player);
