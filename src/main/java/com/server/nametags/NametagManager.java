@@ -7,8 +7,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
 
 import com.server.Main;
 import com.server.profiles.PlayerProfile;
@@ -16,21 +14,30 @@ import com.server.profiles.ProfileManager;
 import com.server.profiles.stats.PlayerStats;
 
 /**
- * Manages custom player nametags using scoreboard teams
+ * Manages custom player nametags using NMS packets
+ * Sends ClientboundSetPlayerTeamPacket to display custom nametags above player heads
  * 
  * Format:
- * Line 1: [{rank}] {playername} ({level})
- * Line 2: {currenthealth}/{maxhealth} ♥
+ * [{rank}] {playername} ({level}) | HP: {currenthealth}/{maxhealth} ♥
  */
 public class NametagManager {
     
     private static NametagManager instance;
     private final Map<UUID, BukkitRunnable> updateTasks;
-    private final Scoreboard scoreboard;
+    private final Map<UUID, Boolean> initializedPlayers;
     
     private NametagManager() {
         this.updateTasks = new HashMap<>();
-        this.scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        this.initializedPlayers = new HashMap<>();
+        
+        // Check if packet handler initialized successfully
+        if (!PacketNametagHandler.isInitialized()) {
+            Bukkit.getLogger().severe("[NametagManager] Failed to initialize packet handler!");
+            Bukkit.getLogger().severe("[NametagManager] Error: " + PacketNametagHandler.getError());
+            Bukkit.getLogger().severe("[NametagManager] Custom nametags will NOT work!");
+        } else {
+            Bukkit.getLogger().info("[NametagManager] Packet handler initialized successfully!");
+        }
     }
     
     public static NametagManager getInstance() {
@@ -42,14 +49,22 @@ public class NametagManager {
     
     /**
      * Initialize nametags for a player
-     * Starts periodic updates for all other players
+     * Creates a team via packets and sets up periodic updates
      */
     public void initializePlayer(Player player) {
-        // Create or get team for this player
-        getOrCreateTeam(player);
+        if (!PacketNametagHandler.isInitialized()) {
+            return;
+        }
         
-        // Update this player's nametag
-        updateNametag(player);
+        // Get team name
+        String teamName = getTeamName(player);
+        
+        // Get initial nametag data [displayName, prefix, suffix]
+        String[] nametagData = buildNametagData(player);
+        
+        // Create team via packet (mode 0)
+        PacketNametagHandler.createTeam(player, teamName, nametagData[0], nametagData[1], nametagData[2]);
+        initializedPlayers.put(player.getUniqueId(), true);
         
         // Start periodic update task (every 10 ticks = 0.5 seconds)
         BukkitRunnable task = new BukkitRunnable() {
@@ -61,7 +76,7 @@ public class NametagManager {
                     return;
                 }
                 
-                updateNametag(player);
+                updatePlayerNametag(player);
             }
         };
         
@@ -78,68 +93,52 @@ public class NametagManager {
             task.cancel();
         }
         
-        // Remove from team
-        Team team = scoreboard.getTeam(getTeamName(player));
-        if (team != null) {
-            team.removeEntry(player.getName());
+        initializedPlayers.remove(player.getUniqueId());
+        
+        // Remove team via packet (mode 1)
+        if (PacketNametagHandler.isInitialized()) {
+            String teamName = getTeamName(player);
+            PacketNametagHandler.removeTeam(teamName);
         }
     }
     
     /**
-     * Get or create a team for a player
+     * Update a player's nametag with current stats
      */
-    private Team getOrCreateTeam(Player player) {
+    private void updatePlayerNametag(Player player) {
+        if (!PacketNametagHandler.isInitialized()) {
+            return;
+        }
+        
+        // Get team name
         String teamName = getTeamName(player);
-        Team team = scoreboard.getTeam(teamName);
         
-        if (team == null) {
-            team = scoreboard.registerNewTeam(teamName);
-            team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
-            team.setCanSeeFriendlyInvisibles(false);
-        }
+        // Get current nametag data [displayName, prefix, suffix]
+        String[] nametagData = buildNametagData(player);
         
-        // Add player to their team if not already
-        if (!team.hasEntry(player.getName())) {
-            team.addEntry(player.getName());
-        }
-        
-        return team;
+        // Update team via packet (mode 2)
+        PacketNametagHandler.updateTeam(player, teamName, nametagData[0], nametagData[1], nametagData[2]);
     }
     
     /**
-     * Get unique team name for a player
+     * Get team name for a player
      */
     private String getTeamName(Player player) {
-        // Team names have a 16 character limit
-        // Use first 10 chars of UUID to keep it unique
-        return "nametag_" + player.getUniqueId().toString().substring(0, 6);
+        return "nt_" + player.getUniqueId().toString().substring(0, 10);
     }
     
     /**
-     * Update a player's nametag
+     * Build the nametag data for a player
+     * Returns [displayName, prefix, suffix]
+     * DisplayName contains the full multi-line nametag
      */
-    public void updateNametag(Player player) {
-        Team team = getOrCreateTeam(player);
-        String[] nametagLines = buildNametagLines(player);
-        
-        // Set prefix (line above name) and suffix (line below name)
-        // Note: Prefix + playername + suffix must not exceed 256 characters total
-        team.setPrefix(nametagLines[0]);
-        team.setSuffix(nametagLines[1]);
-    }
-    
-    /**
-     * Build the nametag lines for a player
-     * Returns [prefix, suffix] where prefix is above name and suffix is below
-     */
-    private String[] buildNametagLines(Player player) {
+    private String[] buildNametagData(Player player) {
         // Get player profile and stats
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
         
         String rank = "§7[§fMember§7]"; // Default rank (placeholder for future rank system)
         int level = 1;
         double currentHealth = player.getHealth();
-        double maxHealth = player.getMaxHealth();
         
         if (activeSlot != null) {
             PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
@@ -149,24 +148,22 @@ public class NametagManager {
                 // Get player level from profile
                 level = profile.getProfileLevel();
                 
-                // Get health values (actual current health from Bukkit, max from stats)
-                maxHealth = stats.getHealth();
+                // Get health value (actual current health from Bukkit, capped at max)
+                double maxHealth = stats.getHealth();
                 currentHealth = Math.min(currentHealth, maxHealth); // Cap current at max
             }
         }
         
-        // Format health values (round to 1 decimal place)
+        // Format health value (round to 1 decimal place)
         String healthStr = String.format("%.1f", currentHealth);
-        String maxHealthStr = String.format("%.1f", maxHealth);
         
-        // Build nametag lines
-        // Prefix (above name): [Rank] (Level)
-        // The player's actual name appears in the middle (automatically)
-        // Suffix (below name): CurrentHealth/MaxHealth ♥
-        String prefix = rank + " §7(§e" + level + "§7) §f";
-        String suffix = "\n§c" + healthStr + "§7/§c" + maxHealthStr + " §c♥";
+        // Build single-line nametag: [Member] PlayerName (Level) CurrentHealth♥
+        // Use prefix for rank, player name in middle, suffix for level and health
+        String prefix = rank + " ";
+        String suffix = " §7(§e" + level + "§7) §c" + healthStr + "♥";
         
-        return new String[]{prefix, suffix};
+        // Player name will appear between prefix and suffix
+        return new String[] { player.getName(), prefix, suffix };
     }
     
     /**
@@ -175,7 +172,14 @@ public class NametagManager {
      */
     public void updateAllNametags() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            updateNametag(player);
+            updatePlayerNametag(player);
         }
+    }
+    
+    /**
+     * Update a specific player's nametag immediately (called from listeners)
+     */
+    public void updateNametag(Player player) {
+        updatePlayerNametag(player);
     }
 }

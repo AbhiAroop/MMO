@@ -24,6 +24,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ski
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\fishing\minigame\FishingSession.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\data\ChallengeCategoryTree.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\farming\subskills\CultivatingSubskill.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\nametags\PacketNametagHandler.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\EmberVeil.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\story\KaelenEchobound.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\MenuCommand.java
@@ -51,6 +52,7 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\comm
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\ProfileManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\IslandCommand.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\cosmetics\CosmeticManager.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\nametags\NametagListener.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\commands\GiveHatCommand.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\listeners\VanillaCraftingReplacer.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\mobs\colossus\VerdigranColossus.java
@@ -176,9 +178,11 @@ C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\utils\Curren
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\abilities\gui\AbilitiesGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\crafting\furnace\FurnaceType.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\data\IslandStatistics.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\nametags\NametagManager.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\rewards\rewards\CurrencyReward.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\gui\AnvilGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\core\SkillProgressionManager.java
+C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\enchantments\abilities\utility\SwiftCatch.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\entities\npc\types\CombatNPC.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\islands\commands\ChallengeCategoryGUI.java
 C:\Users\Abhi\Desktop\Projects\MMOREPO\MMO\src\main\java\com\server\profiles\skills\skills\farming\botany\BotanyListener.java

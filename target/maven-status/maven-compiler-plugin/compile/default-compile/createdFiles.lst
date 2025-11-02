@@ -119,6 +119,7 @@ com\server\enchantments\gui\GUIAnimationHandler.class
 com\server\islands\data\StarterChallenges.class
 com\server\profiles\skills\skills\fishing\baits\FishingBait.class
 com\server\profiles\stats\BedrockMiningSpeedHandler$MiningOperation$3.class
+com\server\nametags\NametagListener.class
 com\server\enchantments\gui\EnchantmentApplicator$EnchantmentResult.class
 com\server\profiles\skills\minigames\GemCarvingManager.class
 com\server\profiles\skills\skills\fishing\listeners\FishingListener$1.class
@@ -218,6 +219,7 @@ com\server\events\AutoRespawnListener.class
 com\server\commands\AdminStatsCommand$StatDefinition.class
 com\server\enchantments\abilities\offensive\Cinderwake.class
 com\server\entities\npc\CombatHandler$3.class
+com\server\profiles\skills\skills\fishing\minigame\FishingMinigame$2.class
 com\server\islands\gui\IslandShopGUI.class
 com\server\crafting\manager\CustomFurnaceManager$OfflineProgressResult.class
 com\server\profiles\skills\abilities\passive\mining\VeinMinerAbility$1.class
@@ -258,6 +260,7 @@ com\server\enchantments\gui\GUIAnimationHandler$AnimationState.class
 com\server\entities\npc\CombatHandler$1.class
 com\server\enchantments\elements\FragmentTier.class
 com\server\profiles\skills\skills\fishing\loot\Fish.class
+com\server\enchantments\abilities\utility\SwiftCatch.class
 com\server\crafting\gui\CustomCraftingGUI.class
 com\server\commands\AnimationDebugCommand.class
 com\server\enchantments\listeners\AnvilGUIListener.class
@@ -332,6 +335,7 @@ com\server\enchantments\FragmentRegistry.class
 com\server\profiles\skills\skills\farming\botany\CustomCrop$CropRarity.class
 com\server\islands\listeners\IslandProtectionListener.class
 com\server\enchantments\abilities\defensive\Terraheart$1.class
+com\server\nametags\PacketNametagHandler.class
 com\server\entities\npc\NPCInteractionListener.class
 com\server\crafting\gui\AutoCraftingGUI.class
 com\server\entities\mobs\CustomMob$1$1.class
@@ -339,6 +343,7 @@ com\server\commands\AdminSkillsCommand.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\islands\commands\IslandMembersGUI.class
 com\server\events\AutoRespawnListener$1.class
+com\server\enchantments\abilities\utility\SwiftCatch$1.class
 com\server\profiles\skills\skills\farming\botany\BotanyManager$1.class
 com\server\enchantments\data\CustomEnchantment$TriggerType.class
 com\server\profiles\skills\gui\ConfirmationGUI.class
@@ -436,6 +441,7 @@ com\server\profiles\skills\core\SkillProgressionManager.class
 com\server\profiles\skills\gui\SubskillsGUI.class
 com\server\entities\npc\NPCInteractionHandler.class
 com\server\profiles\skills\skills\fishing\loot\FishType.class
+com\server\nametags\NametagManager$1.class
 com\server\profiles\skills\minigames\GemCarvingMinigame.class
 com\server\entities\npc\story\StoryNPCRegistry.class
 com\server\profiles\skills\trees\SkillTreeNode.class
@@ -446,6 +452,7 @@ com\server\events\PlayerListener$1.class
 com\server\profiles\skills\skills\farming\subskills\HarvestingSubskill$1.class
 com\server\display\MobDisplayManager.class
 com\server\profiles\skills\skills\farming\botany\BreederBlock.class
+com\server\nametags\NametagManager.class
 com\server\entities\npc\dialogue\DialogueAction.class
 com\server\profiles\skills\minigames\GemCarvingMinigame$GameSession.class
 com\server\islands\commands\IslandInviteGUI.class
