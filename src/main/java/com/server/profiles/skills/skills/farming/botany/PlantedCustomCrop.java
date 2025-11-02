@@ -41,7 +41,13 @@ public class PlantedCustomCrop {
         this.uuid = UUID.randomUUID();
         this.cropId = cropId;
         this.blockLocation = blockLocation.clone();
-        this.currentStage = 0;
+        // Check if this crop has a separate seed model (array length > maxGrowthStages)
+        CustomCrop crop = CustomCropRegistry.getInstance().getCrop(cropId);
+        if (crop != null && crop.getCustomModelData(0) != crop.getCustomModelData(1)) {
+            this.currentStage = 1; // Start at stage 1 for crops with separate seed textures
+        } else {
+            this.currentStage = 0; // Start at stage 0 for crops that reuse seed texture
+        }
         this.lastGrowthTime = System.currentTimeMillis();
         this.plantedBy = plantedBy;
         
@@ -85,11 +91,11 @@ public class PlantedCustomCrop {
             Location displayLoc = blockLocation.clone().add(0.5, 0.0, 0.5);
             ItemDisplay display = (ItemDisplay) world.spawnEntity(displayLoc, EntityType.ITEM_DISPLAY);
             
-            // Set the item with custom model data
+            // Set the item with custom model data (use currentStage which starts at 1)
             ItemStack cropItem = new ItemStack(Material.WHEAT_SEEDS);
             org.bukkit.inventory.meta.ItemMeta meta = cropItem.getItemMeta();
             if (meta != null) {
-                meta.setCustomModelData(crop.getCustomModelData(0));
+                meta.setCustomModelData(crop.getCustomModelData(currentStage));
                 cropItem.setItemMeta(meta);
             }
             display.setItemStack(cropItem);
@@ -236,7 +242,16 @@ public class PlantedCustomCrop {
         if (crop == null) {
             return false;
         }
-        return currentStage >= crop.getMaxGrowthStages() - 1;
+        // Crops with separate seed textures: stages 1-4, fully grown at stage 4
+        // Crops with reused seed textures: stages 0-3, fully grown at stage 3
+        return currentStage >= crop.getMaxGrowthStages() - 1 + (hasSeparateSeedTexture(crop) ? 1 : 0);
+    }
+    
+    /**
+     * Check if this crop has a separate seed texture
+     */
+    private boolean hasSeparateSeedTexture(CustomCrop crop) {
+        return crop.getCustomModelData(0) != crop.getCustomModelData(1);
     }
     
     /**

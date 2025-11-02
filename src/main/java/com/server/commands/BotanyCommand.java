@@ -119,7 +119,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         CustomCrop crop = CustomCropRegistry.getInstance().getCrop(cropId);
         if (crop == null) {
             player.sendMessage("§cUnknown crop ID: " + cropId);
-            player.sendMessage("§7Valid IDs: golden_wheat, crimson_carrot, ender_berry, crystal_melon, celestial_potato, void_pumpkin");
+            player.sendMessage("§7Valid IDs: golden_wheat, crimson_carrot, moonpetal, ender_berry, crystal_melon, celestial_potato, void_pumpkin");
             return;
         }
         
@@ -377,6 +377,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
             // Suggest crop IDs
             completions.add("golden_wheat");
             completions.add("crimson_carrot");
+            completions.add("moonpetal");
             completions.add("ender_berry");
             completions.add("crystal_melon");
             completions.add("celestial_potato");

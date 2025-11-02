@@ -159,6 +159,38 @@ public class CustomCropRegistry {
         ));
         registerCrop(crimsonCarrot);
         
+        // Moonpetal - Mystical flower that blooms under moonlight
+        // Create custom moonpetal drop item
+        ItemStack moonpetalDrop = new ItemStack(Material.ALLIUM, 1);
+        org.bukkit.inventory.meta.ItemMeta moonpetalMeta = moonpetalDrop.getItemMeta();
+        if (moonpetalMeta != null) {
+            moonpetalMeta.setDisplayName("§aMoonpetal");
+            moonpetalMeta.setCustomModelData(100065); // moonpetal.png
+            moonpetalDrop.setItemMeta(moonpetalMeta);
+        }
+        
+        CustomCrop moonpetal = new CustomCrop(
+            "moonpetal",
+            "Moonpetal",
+            CropRarity.UNCOMMON,
+            4,
+            800L, // 40 seconds per stage
+            // Index 0 = seed (100060), indices 1-4 = growth stages (100061-100064)
+            new int[]{100060, 100061, 100062, 100063, 100064},
+            "crops/moonpetal",
+            5, // Requires Botany level 5
+            moonpetalDrop, // Custom drop item with CMD 100065
+            3, 5,
+            0.12,
+            20.0,
+            30.0,
+            50.0
+        );
+        moonpetal.addBreedingRecipe(new BreedingRecipe(
+            "golden_wheat", "golden_wheat", 0.60, 5
+        ));
+        registerCrop(moonpetal);
+        
         // RARE CROPS
         
         // Ender Berry - Mysterious berry with ender properties
