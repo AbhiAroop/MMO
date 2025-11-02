@@ -1,7 +1,11 @@
 package com.server.profiles.skills.skills.farming.botany;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -9,6 +13,9 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,7 +25,10 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockFadeEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.RayTraceResult;
 
 import com.server.Main;
 import com.server.debug.DebugManager;
@@ -42,9 +52,18 @@ import com.server.profiles.skills.skills.farming.subskills.HarvestingSubskill;
 public class BotanyListener implements Listener {
     
     private final Random random;
+    private final Map<UUID, BossBar> playerBossBars;
+    private final Map<UUID, Location> lastLookedCrop;
+    private final Main plugin;
     
     public BotanyListener(Main plugin) {
         this.random = new Random();
+        this.playerBossBars = new HashMap<>();
+        this.lastLookedCrop = new HashMap<>();
+        this.plugin = plugin;
+        
+        // Start a repeating task to update boss bars every 10 ticks (0.5 seconds)
+        Bukkit.getScheduler().runTaskTimer(plugin, this::updateAllBossBars, 10L, 10L);
     }
     
     /**
@@ -173,18 +192,36 @@ public class BotanyListener implements Listener {
             return;
         }
         
-        // Check if crop is fully grown
-        if (!plantedCrop.isFullyGrown()) {
-            player.sendMessage("§c✗ This " + crop.getRarity().getColor() + crop.getDisplayName() + 
-                              "§c is not fully grown yet!");
-            player.sendMessage("§7Growth: §f" + (int)(plantedCrop.getGrowthProgress() * 100) + "%");
-            event.setCancelled(true);
-            return;
-        }
-        
         // Cancel event (we handle drops manually)
         event.setCancelled(true);
         event.setDropItems(false);
+        
+        Location dropLocation = block.getLocation().add(0.5, 0.5, 0.5);
+        
+        // Check if crop is fully grown
+        if (!plantedCrop.isFullyGrown()) {
+            // Early harvest - only drop seed
+            player.sendMessage("§e⚠ This " + crop.getRarity().getColor() + crop.getDisplayName() + 
+                              "§e is not fully grown yet!");
+            player.sendMessage("§7Growth: §f" + (int)(plantedCrop.getGrowthProgress() * 100) + "% §7- Seed returned");
+            
+            // Always drop the seed back
+            ItemStack seed = crop.createSeedItem();
+            block.getWorld().dropItemNaturally(dropLocation, seed);
+            
+            // Remove the crop
+            BotanyManager.getInstance().removeCrop(plantedCrop);
+            
+            // Feedback
+            Location playerLoc = player.getLocation();
+            if (playerLoc != null) {
+                player.playSound(playerLoc, Sound.BLOCK_CROP_BREAK, 1.0f, 0.8f);
+            }
+            block.getWorld().spawnParticle(Particle.BLOCK, dropLocation, 5, 0.2, 0.2, 0.2, 0.1, 
+                Material.WHEAT.createBlockData());
+            
+            return;
+        }
         
         // Get player profile for XP
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -212,8 +249,7 @@ public class BotanyListener implements Listener {
             }
         }
         
-        // Drop the crop items
-        Location dropLocation = block.getLocation().add(0.5, 0.5, 0.5);
+        // Drop the crop items (reuse dropLocation from earlier)
         ItemStack drops = crop.createDropItem(dropAmount);
         block.getWorld().dropItemNaturally(dropLocation, drops);
         
@@ -375,37 +411,21 @@ public class BotanyListener implements Listener {
             CustomCrop cropType = CustomCropRegistry.getInstance().getCrop(crop.getCropId());
             
             if (cropType != null) {
-                // Drop items based on growth progress
-                double progress = crop.getGrowthProgress();
+                Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
                 
-                if (progress >= 1.0) {
+                // Check if fully grown
+                if (crop.isFullyGrown()) {
                     // Fully grown - drop normal harvest
-                    Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
                     int dropAmount = cropType.getMinDrops() + random.nextInt(cropType.getMaxDrops() - cropType.getMinDrops() + 1);
-                    
                     cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
                     
                     // Chance to drop seed
-                    if (random.nextDouble() * 100 < cropType.getRareSeedChance()) {
-                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
-                    }
-                } else if (progress >= 0.5) {
-                    // Partial growth - drop fewer items
-                    Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
-                    int dropAmount = Math.max(1, cropType.getMinDrops() / 2);
-                    
-                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
-                    
-                    // Lower seed chance
-                    if (random.nextDouble() * 100 < (cropType.getRareSeedChance() * 0.5)) {
+                    if (random.nextDouble() < cropType.getRareSeedChance()) {
                         cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
                     }
                 } else {
-                    // Early growth - only drop seed sometimes
-                    if (random.nextDouble() < 0.5) {
-                        Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
-                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
-                    }
+                    // Not fully grown - only drop seed
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
                 }
                 
                 // Remove the crop
@@ -417,8 +437,10 @@ public class BotanyListener implements Listener {
                     10, 0.3, 0.3, 0.3, 0.1, Material.WHEAT.createBlockData());
                 
                 // Send message to player
-                player.sendMessage("§e§l[!] §cYou trampled a §f" + cropType.getDisplayName() + " §c(" + 
-                    String.format("%.0f%%", progress * 100) + " grown)");
+                String growthStatus = crop.isFullyGrown() ? "Fully Grown" : 
+                    String.format("%.0f%% grown", crop.getGrowthProgress() * 100);
+                player.sendMessage("§e§l[!] §cYou trampled a " + cropType.getRarity().getColor() + 
+                    cropType.getDisplayName() + " §c(" + growthStatus + ")");
             }
             
             // Don't cancel the event - allow farmland to turn to dirt
@@ -444,18 +466,20 @@ public class BotanyListener implements Listener {
             CustomCrop cropType = CustomCropRegistry.getInstance().getCrop(crop.getCropId());
             
             if (cropType != null) {
-                // Drop items based on growth (same logic as player trample)
-                double progress = crop.getGrowthProgress();
                 Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
                 
-                if (progress >= 0.5) {
-                    // Drop some items
-                    int dropAmount = Math.max(1, cropType.getMinDrops() / 2);
+                // Check if fully grown
+                if (crop.isFullyGrown()) {
+                    // Fully grown - drop harvest items
+                    int dropAmount = cropType.getMinDrops() + random.nextInt(cropType.getMaxDrops() - cropType.getMinDrops() + 1);
                     cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
-                }
-                
-                // Always try to drop seed
-                if (random.nextDouble() < 0.3) {
+                    
+                    // Chance to drop seed
+                    if (random.nextDouble() < cropType.getRareSeedChance()) {
+                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                    }
+                } else {
+                    // Not fully grown - only drop seed
                     cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
                 }
                 
@@ -465,6 +489,217 @@ public class BotanyListener implements Listener {
                 // Play break sound
                 cropLocation.getWorld().playSound(cropLocation, Sound.BLOCK_CROP_BREAK, 1.0f, 1.0f);
             }
+        }
+    }
+    
+    /**
+     * Handle farmland being broken with a tool - destroy crop above it
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFarmlandBreak(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        
+        // Only handle farmland being broken
+        if (block.getType() != Material.FARMLAND) {
+            return;
+        }
+        
+        // Check if there's a crop planted on this farmland
+        Location cropLocation = block.getRelative(BlockFace.UP).getLocation();
+        PlantedCustomCrop crop = BotanyManager.getInstance().getCropAt(cropLocation);
+        
+        if (crop != null) {
+            Player player = event.getPlayer();
+            CustomCrop cropType = CustomCropRegistry.getInstance().getCrop(crop.getCropId());
+            
+            if (cropType != null) {
+                Location dropLoc = cropLocation.clone().add(0.5, 0.5, 0.5);
+                
+                // Check if fully grown
+                if (crop.isFullyGrown()) {
+                    // Fully grown - drop normal harvest
+                    int dropAmount = cropType.getMinDrops() + random.nextInt(cropType.getMaxDrops() - cropType.getMinDrops() + 1);
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createDropItem(dropAmount));
+                    
+                    // Chance to drop seed
+                    if (random.nextDouble() < cropType.getRareSeedChance()) {
+                        cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                    }
+                } else {
+                    // Not fully grown - only drop seed
+                    cropLocation.getWorld().dropItemNaturally(dropLoc, cropType.createSeedItem());
+                }
+                
+                // Remove the crop
+                BotanyManager.getInstance().removeCrop(crop);
+                
+                // Play break sound and particles
+                cropLocation.getWorld().playSound(cropLocation, Sound.BLOCK_CROP_BREAK, 1.0f, 1.0f);
+                cropLocation.getWorld().spawnParticle(Particle.BLOCK, dropLoc, 
+                    10, 0.3, 0.3, 0.3, 0.1, Material.WHEAT.createBlockData());
+                
+                // Send message to player
+                player.sendMessage("§e§l[!] §7The " + cropType.getRarity().getColor() + cropType.getDisplayName() + 
+                    " §7was destroyed by breaking the farmland!");
+            }
+        }
+    }
+    
+    /**
+     * Show boss bar when player looks at a custom crop
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        
+        // Ray trace to see what block the player is looking at
+        RayTraceResult result = player.rayTraceBlocks(5.0); // 5 block range
+        
+        if (result == null || result.getHitBlock() == null) {
+            // Not looking at any block - hide boss bar
+            hideBossBar(player);
+            return;
+        }
+        
+        Block targetBlock = result.getHitBlock();
+        
+        // Check if looking at a custom crop (tripwire)
+        if (targetBlock == null || targetBlock.getType() != Material.TRIPWIRE) {
+            hideBossBar(player);
+            return;
+        }
+        
+        // Check if there's a planted crop at this location
+        PlantedCustomCrop plantedCrop = BotanyManager.getInstance().getCropAt(targetBlock.getLocation());
+        if (plantedCrop == null) {
+            hideBossBar(player);
+            return;
+        }
+        
+        CustomCrop crop = plantedCrop.getCrop();
+        if (crop == null) {
+            hideBossBar(player);
+            return;
+        }
+        
+        // Check if we're still looking at the same crop
+        Location lastCrop = lastLookedCrop.get(player.getUniqueId());
+        if (lastCrop != null && lastCrop.equals(targetBlock.getLocation())) {
+            // Same crop - just update the boss bar
+            updateBossBar(player, crop, plantedCrop);
+        } else {
+            // New crop - create/update boss bar
+            lastLookedCrop.put(player.getUniqueId(), targetBlock.getLocation().clone());
+            showBossBar(player, crop, plantedCrop);
+        }
+    }
+    
+    /**
+     * Show or update the boss bar for a crop
+     */
+    private void showBossBar(Player player, CustomCrop crop, PlantedCustomCrop plantedCrop) {
+        BossBar bossBar = playerBossBars.get(player.getUniqueId());
+        
+        if (bossBar == null) {
+            // Create new boss bar
+            bossBar = Bukkit.createBossBar("", BarColor.GREEN, BarStyle.SEGMENTED_10);
+            bossBar.addPlayer(player);
+            playerBossBars.put(player.getUniqueId(), bossBar);
+        }
+        
+        updateBossBar(player, crop, plantedCrop);
+        bossBar.setVisible(true);
+    }
+    
+    /**
+     * Update the boss bar text and progress
+     */
+    private void updateBossBar(Player player, CustomCrop crop, PlantedCustomCrop plantedCrop) {
+        BossBar bossBar = playerBossBars.get(player.getUniqueId());
+        if (bossBar == null) return;
+        
+        int currentStage = plantedCrop.getCurrentStage();
+        int maxStages = crop.getMaxGrowthStages();
+        double stageProgress = plantedCrop.getGrowthProgress();
+        
+        // Determine which stage we're in (for display)
+        int displayStage = currentStage;
+        
+        // Check if fully grown
+        String status;
+        BarColor color;
+        if (plantedCrop.isFullyGrown()) {
+            status = "§a§lFULLY GROWN";
+            color = BarColor.GREEN;
+            stageProgress = 1.0;
+        } else {
+            status = "§e§lGROWING";
+            color = BarColor.YELLOW;
+        }
+        
+        // Build title
+        String title = crop.getRarity().getColor() + crop.getDisplayName() + " §7- " + status + 
+                      " §8[§f" + displayStage + "§7/§f" + maxStages + "§8] §7" + 
+                      (int)(stageProgress * 100) + "%";
+        
+        bossBar.setTitle(title);
+        bossBar.setProgress(Math.min(1.0, Math.max(0.0, stageProgress)));
+        bossBar.setColor(color);
+    }
+    
+    /**
+     * Hide the boss bar for a player
+     */
+    private void hideBossBar(Player player) {
+        BossBar bossBar = playerBossBars.get(player.getUniqueId());
+        if (bossBar != null) {
+            bossBar.setVisible(false);
+        }
+        lastLookedCrop.remove(player.getUniqueId());
+    }
+    
+    /**
+     * Clean up boss bars when player quits
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        BossBar bossBar = playerBossBars.remove(player.getUniqueId());
+        if (bossBar != null) {
+            bossBar.removeAll();
+        }
+        lastLookedCrop.remove(player.getUniqueId());
+    }
+    
+    /**
+     * Update all active boss bars for players looking at crops
+     * This runs periodically to keep the growth progress updated in real-time
+     */
+    private void updateAllBossBars() {
+        for (Map.Entry<UUID, Location> entry : lastLookedCrop.entrySet()) {
+            UUID playerUUID = entry.getKey();
+            Location cropLocation = entry.getValue();
+            
+            Player player = Bukkit.getPlayer(playerUUID);
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
+            
+            // Check if crop still exists at this location
+            PlantedCustomCrop plantedCrop = BotanyManager.getInstance().getCropAt(cropLocation);
+            if (plantedCrop == null) {
+                hideBossBar(player);
+                continue;
+            }
+            
+            CustomCrop crop = plantedCrop.getCrop();
+            if (crop == null) {
+                hideBossBar(player);
+                continue;
+            }
+            
+            // Update the boss bar with current crop data
+            updateBossBar(player, crop, plantedCrop);
         }
     }
 }
