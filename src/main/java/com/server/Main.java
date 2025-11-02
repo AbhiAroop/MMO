@@ -347,6 +347,9 @@ public class Main extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new FishingListener(), this);
         this.getServer().getPluginManager().registerEvents(new AbilityGUIListener(this), this);
         
+        // Register nametag listener for custom player nametags
+        this.getServer().getPluginManager().registerEvents(new com.server.nametags.NametagListener(), this);
+        
         // Register Botany listener for custom crops
         this.getServer().getPluginManager().registerEvents(
             new com.server.profiles.skills.skills.farming.botany.BotanyListener(this), this);
