@@ -166,7 +166,11 @@ public class ScoreboardManager {
         }
     }
     
-    private void updatePlayerScoreboard(Player player) {
+    /**
+     * Updates the scoreboard for a player.
+     * Public method to allow external triggers (e.g., world change events).
+     */
+    public void updatePlayerScoreboard(Player player) {
         // Get Bukkit's scoreboard manager
         org.bukkit.scoreboard.ScoreboardManager bukkitManager = Bukkit.getScoreboardManager();
         if (bukkitManager == null) return;

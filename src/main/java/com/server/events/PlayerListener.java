@@ -403,7 +403,19 @@ public class PlayerListener implements Listener {
      */
     @EventHandler
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
-        CosmeticManager.getInstance().updateCosmeticDisplay(event.getPlayer());
+        Player player = event.getPlayer();
+        CosmeticManager.getInstance().updateCosmeticDisplay(player);
+        
+        // Update scoreboard immediately when changing worlds (for island detection)
+        if (plugin.getScoreboardManager() != null) {
+            // Run next tick to ensure world change is fully processed
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    plugin.getScoreboardManager().updatePlayerScoreboard(player);
+                }
+            }.runTaskLater(plugin, 1L);
+        }
     }
 
     /**
