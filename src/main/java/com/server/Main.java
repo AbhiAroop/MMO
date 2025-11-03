@@ -102,6 +102,7 @@ public class Main extends JavaPlugin {
     private CustomEntityManager customEntityManager;
     private AbilityRegistry abilityRegistry;
     private GemCarvingManager gemCarvingManager;
+    private com.server.islands.managers.IslandManager islandManager;
     private com.server.islands.managers.ChallengeManager challengeManager;
     private ScheduledExecutorService playtimeUpdateService;
     private EnchantmentTableStructure enchantmentTableStructure;
@@ -148,8 +149,7 @@ public class Main extends JavaPlugin {
         mobDisplayManager = new MobDisplayManager();
         damageIndicatorManager = new DamageIndicatorManager(this);
 
-        // Initialize scoreboard manager
-        scoreboardManager = new ScoreboardManager(this);
+        // Scoreboard manager will be initialized after island manager loads
 
         // Initialize health regeneration manager
         healthRegenerationManager = new HealthRegenerationManager(this);
@@ -646,10 +646,13 @@ public class Main extends JavaPlugin {
         getLogger().info("========================================");
         getLogger().info("Initializing Island System...");
         try {
-            com.server.islands.managers.IslandManager islandManager = new com.server.islands.managers.IslandManager(this);
+            islandManager = new com.server.islands.managers.IslandManager(this);
             islandManager.initialize().thenRun(() -> {
                 getLogger().info("Island system initialized successfully!");
                 getLogger().info("========================================");
+                
+                // Initialize scoreboard manager AFTER island manager is ready
+                scoreboardManager = new ScoreboardManager(this, islandManager);
             });
 
             // Register island command

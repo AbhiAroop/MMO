@@ -12,10 +12,11 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 
 import com.server.Main;
+import com.server.islands.data.PlayerIsland;
+import com.server.islands.managers.IslandManager;
 import com.server.profiles.PlayerProfile;
 import com.server.profiles.ProfileManager;
 import com.server.utils.CurrencyFormatter;
@@ -23,12 +24,15 @@ import com.server.utils.CurrencyFormatter;
 public class ScoreboardManager {
     
     private final Main plugin;
+    private final IslandManager islandManager;
     private final Map<UUID, BukkitTask> playerScoreboardTasks = new HashMap<>();
     private static final int UPDATE_INTERVAL = 20; // Ticks (1 second)
     
     // For animated title
     private final String baseTitle = "MMO Server";
+    private final String islandTitle = "Island";
     private final List<String> titleFrames = new ArrayList<>();
+    private final List<String> islandTitleFrames = new ArrayList<>();
     private int currentTitleFrame = 0;
     
     // For empty lines (to create spacing)
@@ -38,22 +42,22 @@ public class ScoreboardManager {
     
     private BukkitTask titleAnimationTask;
     
-    public ScoreboardManager(Main plugin) {
+    public ScoreboardManager(Main plugin, IslandManager islandManager) {
         this.plugin = plugin;
+        this.islandManager = islandManager;
         initializeTitleAnimation();
         startTitleAnimation();
     }
     
     private void initializeTitleAnimation() {
-        // Generate colorful title animation frames
+        // Generate colorful title animation frames for main server
         String[] colors = {"§c", "§6", "§e", "§a", "§b", "§9", "§d"};
         
-        // Static frames
+        // Main title frames
         titleFrames.add("§6§l" + baseTitle);
         titleFrames.add("§e§l" + baseTitle);
         titleFrames.add("§f§l" + baseTitle);
         
-        // Moving gradient frames
         for (int i = 0; i < colors.length; i++) {
             StringBuilder title = new StringBuilder();
             for (int j = 0; j < baseTitle.length(); j++) {
@@ -63,11 +67,31 @@ public class ScoreboardManager {
             titleFrames.add(title.toString());
         }
         
-        // Pulsing frames
         titleFrames.add("§6§l" + baseTitle);
         titleFrames.add("§e§l" + baseTitle);
         titleFrames.add("§f§l" + baseTitle);
         titleFrames.add("§e§l" + baseTitle);
+        
+        // Island title frames (aqua/green theme)
+        String[] islandColors = {"§b", "§3", "§a", "§2"};
+        
+        islandTitleFrames.add("§b§l" + islandTitle);
+        islandTitleFrames.add("§3§l" + islandTitle);
+        islandTitleFrames.add("§a§l" + islandTitle);
+        
+        for (int i = 0; i < islandColors.length; i++) {
+            StringBuilder title = new StringBuilder();
+            for (int j = 0; j < islandTitle.length(); j++) {
+                int colorIndex = (i + j) % islandColors.length;
+                title.append(islandColors[colorIndex]).append("§l").append(islandTitle.charAt(j));
+            }
+            islandTitleFrames.add(title.toString());
+        }
+        
+        islandTitleFrames.add("§b§l" + islandTitle);
+        islandTitleFrames.add("§3§l" + islandTitle);
+        islandTitleFrames.add("§a§l" + islandTitle);
+        islandTitleFrames.add("§2§l" + islandTitle);
     }
     
     private void startTitleAnimation() {
@@ -130,17 +154,22 @@ public class ScoreboardManager {
         }
     }
     
+    private String formatLargeNumber(long number) {
+        if (number >= 1_000_000_000) {
+            return String.format("%.1fB", number / 1_000_000_000.0);
+        } else if (number >= 1_000_000) {
+            return String.format("%.1fM", number / 1_000_000.0);
+        } else if (number >= 1_000) {
+            return String.format("%.1fK", number / 1_000.0);
+        } else {
+            return String.valueOf(number);
+        }
+    }
+    
     private void updatePlayerScoreboard(Player player) {
         // Get Bukkit's scoreboard manager
         org.bukkit.scoreboard.ScoreboardManager bukkitManager = Bukkit.getScoreboardManager();
         if (bukkitManager == null) return;
-        
-        // Create a new scoreboard
-        Scoreboard board = bukkitManager.getNewScoreboard();
-        
-        // Create an objective
-        Objective objective = board.registerNewObjective("mmoStats", "dummy", titleFrames.get(currentTitleFrame));
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         
         // Get player profile
         Integer activeSlot = ProfileManager.getInstance().getActiveProfile(player.getUniqueId());
@@ -149,53 +178,105 @@ public class ScoreboardManager {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
+        // Check if player is on an island
+        UUID currentIslandId = islandManager.getCurrentIsland(player.getUniqueId());
+        if (currentIslandId != null) {
+            // Display island scoreboard
+            updateIslandScoreboard(player, profile, currentIslandId, bukkitManager);
+        } else {
+            // Display default scoreboard
+            updateDefaultScoreboard(player, profile, bukkitManager);
+        }
+    }
+    
+    private void updateDefaultScoreboard(Player player, PlayerProfile profile, org.bukkit.scoreboard.ScoreboardManager bukkitManager) {
+        // Create a new scoreboard
+        Scoreboard board = bukkitManager.getNewScoreboard();
+        
+        // Create an objective
+        Objective objective = board.registerNewObjective("mmoStats", "dummy", titleFrames.get(currentTitleFrame));
+        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        
         // Add entries to the scoreboard (in reverse order for correct display)
-        int scoreValue = 15; // Start from 15 and decrease for each line
+        int scoreValue = 15;
         
         // Footer
-        Score footer = objective.getScore("§7§ostore.mmo.com");
-        footer.setScore(scoreValue--);
+        objective.getScore("§7§ostore.mmo.com").setScore(scoreValue--);
+        objective.getScore(spacers[1]).setScore(scoreValue--);
         
-        // Empty line
-        Score emptyLine1 = objective.getScore(spacers[1]);
-        emptyLine1.setScore(scoreValue--);
+        // Currencies section
+        objective.getScore("§6§l┃ §e§lCurrencies §6§l┃").setScore(scoreValue--);
+        objective.getScore(spacers[2]).setScore(scoreValue--);
         
-        // Future content placeholders - can be expanded later
-        Score placeholder1 = objective.getScore("§7Coming Soon...");
-        placeholder1.setScore(scoreValue--);
+        objective.getScore("  §e⛃ §fUnits: §e" + CurrencyFormatter.formatUnits(profile.getUnits())).setScore(scoreValue--);
+        objective.getScore("  §d◆ §fPremium: §d" + CurrencyFormatter.formatPremiumUnits(profile.getPremiumUnits())).setScore(scoreValue--);
+        objective.getScore("  §b✦ §fEssence: §b" + CurrencyFormatter.formatEssence(profile.getEssence())).setScore(scoreValue--);
+        objective.getScore("  §a❖ §fBits: §a" + CurrencyFormatter.formatBits(profile.getBits())).setScore(scoreValue--);
         
-        // Empty line 
-        Score emptyLine2 = objective.getScore(spacers[2]);
-        emptyLine2.setScore(scoreValue--);
+        objective.getScore(spacers[3]).setScore(scoreValue--);
         
-        // UPDATED: Profile level instead of vanilla level
-        Score profileLevel = objective.getScore("§6§lProfile Level: §f" + profile.getProfileLevel());
-        profileLevel.setScore(scoreValue--);
+        // Player info section
+        objective.getScore("§6§l┃ §e§lPlayer Info §6§l┃").setScore(scoreValue--);
+        objective.getScore(spacers[4]).setScore(scoreValue--);
         
-        // Empty line
-        Score emptyLine3 = objective.getScore(spacers[3]);
-        emptyLine3.setScore(scoreValue--);
+        objective.getScore("  §6★ §fLevel: §e" + profile.getProfileLevel()).setScore(scoreValue--);
+        objective.getScore("  §c❤ §fHealth: §c" + String.format("%.1f", player.getHealth()) + " §7/ §c" + String.format("%.1f", player.getMaxHealth())).setScore(scoreValue--);
         
-        // Currencies
-        Score units = objective.getScore("§e§lUnits: §f" + CurrencyFormatter.formatUnits(profile.getUnits()));
-        units.setScore(scoreValue--);
-        
-        Score premium = objective.getScore("§d§lPremium: §f" + CurrencyFormatter.formatPremiumUnits(profile.getPremiumUnits()));
-        premium.setScore(scoreValue--);
-        
-        Score essence = objective.getScore("§b§lEssence: §f" + CurrencyFormatter.formatEssence(profile.getEssence()));
-        essence.setScore(scoreValue--);
-        
-        Score bits = objective.getScore("§a§lBits: §f" + CurrencyFormatter.formatBits(profile.getBits()));
-        bits.setScore(scoreValue--);
-        
-        // Empty line
-        Score emptyLine4 = objective.getScore(spacers[4]);
-        emptyLine4.setScore(scoreValue--);
+        objective.getScore(spacers[5]).setScore(scoreValue--);
         
         // Header
-        Score header = objective.getScore("§6§l⚔ §e§lPlayer Stats §6§l⚔");
-        header.setScore(scoreValue);
+        objective.getScore("§6§l━━━━━━━━━━━━━━━").setScore(scoreValue);
+        
+        // Apply the scoreboard to the player
+        player.setScoreboard(board);
+    }
+    
+    private void updateIslandScoreboard(Player player, PlayerProfile profile, UUID islandId, org.bukkit.scoreboard.ScoreboardManager bukkitManager) {
+        // Create a new scoreboard
+        Scoreboard board = bukkitManager.getNewScoreboard();
+        
+        // Create an objective with island title
+        Objective objective = board.registerNewObjective("islandStats", "dummy", islandTitleFrames.get(currentTitleFrame));
+        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        
+        // Get island data
+        PlayerIsland island = islandManager.getCache().getIsland(islandId);
+        
+        int scoreValue = 15;
+        
+        // Footer
+        objective.getScore("§7§ostore.mmo.com").setScore(scoreValue--);
+        objective.getScore(spacers[1]).setScore(scoreValue--);
+        
+        // Player info (condensed)
+        objective.getScore("§b§l┃ §3§lPlayer §b§l┃").setScore(scoreValue--);
+        objective.getScore(spacers[2]).setScore(scoreValue--);
+        objective.getScore("  §6★ §fLevel: §e" + profile.getProfileLevel()).setScore(scoreValue--);
+        objective.getScore("  §c❤ §fHP: §c" + String.format("%.0f", player.getHealth()) + "§7/§c" + String.format("%.0f", player.getMaxHealth())).setScore(scoreValue--);
+        
+        objective.getScore(spacers[3]).setScore(scoreValue--);
+        
+        if (island != null) {
+            // Island info section
+            objective.getScore("§b§l┃ §3§lIsland Info §b§l┃").setScore(scoreValue--);
+            objective.getScore(spacers[4]).setScore(scoreValue--);
+            
+            objective.getScore("  §f" + island.getIslandName()).setScore(scoreValue--);
+            objective.getScore("  §7Type: §f" + island.getIslandType().toString()).setScore(scoreValue--);
+            objective.getScore("  §3⬆ §fLevel: §b" + island.getIslandLevel()).setScore(scoreValue--);
+            objective.getScore("  §e⛃ §fValue: §6" + formatLargeNumber(island.getIslandValue())).setScore(scoreValue--);
+            objective.getScore("  §a◈ §fTokens: §2" + island.getIslandTokens()).setScore(scoreValue--);
+        } else {
+            // Fallback if island data not available
+            objective.getScore("§b§l┃ §3§lIsland §b§l┃").setScore(scoreValue--);
+            objective.getScore(spacers[4]).setScore(scoreValue--);
+            objective.getScore("  §7Loading...").setScore(scoreValue--);
+        }
+        
+        objective.getScore(spacers[5]).setScore(scoreValue--);
+        
+        // Header
+        objective.getScore("§b§l━━━━━━━━━━━━━━━").setScore(scoreValue);
         
         // Apply the scoreboard to the player
         player.setScoreboard(board);
