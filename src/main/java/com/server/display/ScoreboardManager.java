@@ -246,38 +246,38 @@ public class ScoreboardManager {
         int scoreValue = 15;
         
         // Footer
-        objective.getScore("§7§ostore.mmo.com").setScore(scoreValue--);
+        objective.getScore("§8§ostore.mmo.com").setScore(scoreValue--);
         objective.getScore(spacers[1]).setScore(scoreValue--);
         
-        // Player info (condensed)
-        objective.getScore("§b§l┃ §3§lPlayer §b§l┃").setScore(scoreValue--);
+        // Player info (condensed) - Using yellow/gold instead of cyan
+        objective.getScore("§e§l┃ §6§lPlayer §e§l┃").setScore(scoreValue--);
         objective.getScore(spacers[2]).setScore(scoreValue--);
-        objective.getScore("  §6★ §fLevel: §e" + profile.getProfileLevel()).setScore(scoreValue--);
-        objective.getScore("  §c❤ §fHP: §c" + String.format("%.0f", player.getHealth()) + "§7/§c" + String.format("%.0f", player.getMaxHealth())).setScore(scoreValue--);
+        objective.getScore("  §6★ §f" + profile.getProfileLevel()).setScore(scoreValue--);
+        objective.getScore("  §c❤ §f" + String.format("%.0f", player.getHealth()) + "§8/§f" + String.format("%.0f", player.getMaxHealth())).setScore(scoreValue--);
         
         objective.getScore(spacers[3]).setScore(scoreValue--);
         
         if (island != null) {
-            // Island info section
-            objective.getScore("§b§l┃ §3§lIsland Info §b§l┃").setScore(scoreValue--);
+            // Island info section - Using green/lime colors for better visibility
+            objective.getScore("§a§l┃ §2§lIsland §a§l┃").setScore(scoreValue--);
             objective.getScore(spacers[4]).setScore(scoreValue--);
             
-            objective.getScore("  §f" + island.getIslandName()).setScore(scoreValue--);
+            objective.getScore("  §f§l" + island.getIslandName()).setScore(scoreValue--);
             objective.getScore("  §7Type: §f" + island.getIslandType().toString()).setScore(scoreValue--);
-            objective.getScore("  §3⬆ §fLevel: §b" + island.getIslandLevel()).setScore(scoreValue--);
-            objective.getScore("  §e⛃ §fValue: §6" + formatLargeNumber(island.getIslandValue())).setScore(scoreValue--);
-            objective.getScore("  §a◈ §fTokens: §2" + island.getIslandTokens()).setScore(scoreValue--);
+            objective.getScore("  §a⬆ §fLv: §2" + island.getIslandLevel()).setScore(scoreValue--);
+            objective.getScore("  §e⛃ §fVal: §6" + formatLargeNumber(island.getIslandValue())).setScore(scoreValue--);
+            objective.getScore("  §d◈ §fTokens: §5" + island.getIslandTokens()).setScore(scoreValue--);
         } else {
             // Fallback if island data not available
-            objective.getScore("§b§l┃ §3§lIsland §b§l┃").setScore(scoreValue--);
+            objective.getScore("§a§l┃ §2§lIsland §a§l┃").setScore(scoreValue--);
             objective.getScore(spacers[4]).setScore(scoreValue--);
             objective.getScore("  §7Loading...").setScore(scoreValue--);
         }
         
         objective.getScore(spacers[5]).setScore(scoreValue--);
         
-        // Header
-        objective.getScore("§b§l━━━━━━━━━━━━━━━").setScore(scoreValue);
+        // Header - Using gold instead of cyan
+        objective.getScore("§6§l━━━━━━━━━━━━━━━").setScore(scoreValue);
         
         // Apply the scoreboard to the player
         player.setScoreboard(board);

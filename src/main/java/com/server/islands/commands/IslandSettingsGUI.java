@@ -57,6 +57,9 @@ public class IslandSettingsGUI {
                         // Add borders
                         addBorders(gui);
                         
+                        // Island Name (slot 13)
+                        gui.setItem(13, createNameChangeItem(island));
+                        
                         // PVP Toggle (slot 20)
                         gui.setItem(20, createPvPToggleItem(island));
                         
@@ -76,6 +79,29 @@ public class IslandSettingsGUI {
                 });
             });
         });
+    }
+    
+    private static ItemStack createNameChangeItem(PlayerIsland island) {
+        ItemStack item = new ItemStack(Material.NAME_TAG);
+        ItemMeta meta = item.getItemMeta();
+        
+        meta.displayName(Component.text("✏ Change Island Name", NamedTextColor.GOLD, TextDecoration.BOLD)
+            .decoration(TextDecoration.ITALIC, false));
+        
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("§7Current name: §f" + island.getIslandName()).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+        lore.add(Component.text("§7Click to change your island's name", NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("§7(Max 32 characters)", NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+        lore.add(Component.text("§e➤ Click to rename", NamedTextColor.YELLOW)
+            .decoration(TextDecoration.ITALIC, false));
+        
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
     
     private static ItemStack createPvPToggleItem(PlayerIsland island) {
