@@ -47,12 +47,16 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         String subCommand = args[0].toLowerCase();
         
         switch (subCommand) {
+            case "giveseed":
+                handleGiveSeed(player, args);
+                break;
+                
             case "give":
                 handleGive(player, args);
                 break;
                 
             case "info":
-                handleInfo(player);
+                handleInfo(player, args);
                 break;
                 
             case "nearby":
@@ -90,9 +94,10 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
     
     private void sendHelp(Player player) {
         player.sendMessage("§e§l[Botany Admin Commands]");
-        player.sendMessage("§7/botany give <player> <cropId> [amount] §f- Give custom crop seeds");
+        player.sendMessage("§7/botany giveseed <player> <cropId> [amount] §f- Give custom crop seeds");
+        player.sendMessage("§7/botany give <player> <cropId> [amount] §f- Give crop output items");
         player.sendMessage("§7/botany givebreeder <player> [amount] §f- Give breeder blocks");
-        player.sendMessage("§7/botany info §f- Show system statistics");
+        player.sendMessage("§7/botany info [cropId] §f- Show system stats or crop details");
         player.sendMessage("§7/botany nearby [radius] §f- List nearby crops/breeders");
         player.sendMessage("§7/botany list §f- List all registered crops");
         player.sendMessage("§7/botany reload §f- Reload crop registry");
@@ -100,10 +105,10 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§7/botany breeder §f- Build OLD breeder multiblock structure");
     }
     
-    private void handleGive(Player player, String[] args) {
+    private void handleGiveSeed(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage("§cUsage: /botany give <player> <cropId> [amount]");
-            player.sendMessage("§7Example: /botany give Notch golden_wheat 16");
+            player.sendMessage("§cUsage: /botany giveseed <player> <cropId> [amount]");
+            player.sendMessage("§7Example: /botany giveseed Notch golden_wheat 16");
             return;
         }
         
@@ -136,7 +141,102 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         }
     }
     
-    private void handleInfo(Player player) {
+    private void handleGive(Player player, String[] args) {
+        if (args.length < 3) {
+            player.sendMessage("§cUsage: /botany give <player> <cropId> [amount]");
+            player.sendMessage("§7Example: /botany give Notch golden_wheat 16");
+            return;
+        }
+        
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            player.sendMessage("§cPlayer not found: " + args[1]);
+            return;
+        }
+        
+        String cropId = args[2];
+        int amount = args.length >= 4 ? parseInt(args[3], 1) : 1;
+        
+        CustomCrop crop = CustomCropRegistry.getInstance().getCrop(cropId);
+        if (crop == null) {
+            player.sendMessage("§cUnknown crop ID: " + cropId);
+            player.sendMessage("§7Valid IDs: golden_wheat, crimson_carrot, moonpetal, palmfruit, ender_berry, crystal_melon, celestial_potato, void_pumpkin");
+            return;
+        }
+        
+        ItemStack dropItem = crop.createDropItem(amount);
+        target.getInventory().addItem(dropItem);
+        
+        player.sendMessage("§a✓ Given " + amount + "x " + crop.getRarity().getColor() + 
+                          crop.getDisplayName() + " §ato " + target.getName() + "!");
+        
+        if (!target.equals(player)) {
+            target.sendMessage("§a✓ You received " + amount + "x " + crop.getRarity().getColor() + 
+                              crop.getDisplayName() + "§a!");
+        }
+    }
+    
+    private void handleInfo(Player player, String[] args) {
+        // If crop ID provided, show detailed crop info
+        if (args.length >= 2) {
+            String cropId = args[1];
+            CustomCrop crop = CustomCropRegistry.getInstance().getCrop(cropId);
+            
+            if (crop == null) {
+                player.sendMessage("§cUnknown crop ID: " + cropId);
+                player.sendMessage("§7Valid IDs: golden_wheat, crimson_carrot, moonpetal, palmfruit, ender_berry, crystal_melon, celestial_potato, void_pumpkin");
+                return;
+            }
+            
+            // Show detailed crop information
+            player.sendMessage("§e§l═══════════════════════════════");
+            player.sendMessage("§e§l  " + crop.getRarity().getColor() + crop.getDisplayName() + " §e§lInformation");
+            player.sendMessage("§e§l═══════════════════════════════");
+            player.sendMessage("");
+            player.sendMessage("§7Crop ID: §f" + crop.getId());
+            player.sendMessage("§7Rarity: " + crop.getRarity().getColor() + crop.getRarity().name());
+            player.sendMessage("§7Required Level: §e" + crop.getBreedingLevel());
+            player.sendMessage("");
+            player.sendMessage("§6§l Growth Information:");
+            player.sendMessage("§7  Growth Stages: §f" + crop.getMaxGrowthStages());
+            long timePerStage = crop.getGrowthTimePerStage() / 20; // Convert ticks to seconds
+            long totalTime = timePerStage * crop.getMaxGrowthStages();
+            player.sendMessage("§7  Time per Stage: §f" + timePerStage + "s §7(" + (timePerStage / 60) + "m " + (timePerStage % 60) + "s)");
+            player.sendMessage("§7  Total Growth Time: §f" + totalTime + "s §7(" + (totalTime / 60) + "m " + (totalTime % 60) + "s)");
+            player.sendMessage("");
+            player.sendMessage("§6§l Harvest Information:");
+            if (crop.getMinDrops() == crop.getMaxDrops()) {
+                player.sendMessage("§7  Drops: §f" + crop.getMinDrops() + " item(s)");
+            } else {
+                player.sendMessage("§7  Drops: §f" + crop.getMinDrops() + "-" + crop.getMaxDrops() + " items");
+            }
+            player.sendMessage("§7  Seed Return Chance: §f" + String.format("%.1f%%", crop.getRareSeedChance() * 100));
+            player.sendMessage("§7  Harvest XP: §a+" + crop.getHarvestXp());
+            player.sendMessage("§7  Plant XP: §a+" + crop.getPlantXp());
+            player.sendMessage("");
+            
+            // Show breeding recipes
+            if (!crop.getRecipes().isEmpty()) {
+                player.sendMessage("§6§l Breeding Recipes:");
+                for (CustomCrop.BreedingRecipe recipe : crop.getRecipes()) {
+                    CustomCrop parent1 = CustomCropRegistry.getInstance().getCrop(recipe.getParentCrop1Id());
+                    CustomCrop parent2 = CustomCropRegistry.getInstance().getCrop(recipe.getParentCrop2Id());
+                    
+                    String parent1Name = parent1 != null ? parent1.getRarity().getColor() + parent1.getDisplayName() : recipe.getParentCrop1Id();
+                    String parent2Name = parent2 != null ? parent2.getRarity().getColor() + parent2.getDisplayName() : recipe.getParentCrop2Id();
+                    
+                    player.sendMessage("§7  " + parent1Name + " §f+ " + parent2Name);
+                    player.sendMessage("§7    Success Rate: §f" + String.format("%.1f%%", recipe.getSuccessChance() * 100) + 
+                                     " §7| Level: §e" + recipe.getRequiredBotanyLevel());
+                }
+            } else {
+                player.sendMessage("§7No breeding recipes available.");
+            }
+            player.sendMessage("§e§l═══════════════════════════════");
+            return;
+        }
+        
+        // Otherwise, show system statistics
         Map<String, Integer> stats = BotanyManager.getInstance().getStatistics();
         
         player.sendMessage("§e§l[Botany System Statistics]");
@@ -146,6 +246,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§7Active Breeding: §e" + stats.get("activeBreeders"));
         player.sendMessage("");
         player.sendMessage("§7Registered Crop Types: §f" + CustomCropRegistry.getInstance().getAllCrops().size());
+        player.sendMessage("§7Use §e/botany info <cropId> §7for detailed crop information");
     }
     
     private void handleNearby(Player player, String[] args) {
@@ -354,6 +455,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
         
         if (args.length == 1) {
+            completions.add("giveseed");
             completions.add("give");
             completions.add("givebreeder");
             completions.add("info");
@@ -363,7 +465,7 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
             completions.add("clear");
             completions.add("breeder");
         } else if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("givebreeder")) {
+            if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("giveseed") || args[0].equalsIgnoreCase("givebreeder")) {
                 // Suggest online players
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     completions.add(p.getName());
@@ -372,8 +474,18 @@ public class BotanyCommand implements CommandExecutor, TabCompleter {
                 completions.add("crops");
                 completions.add("breeders");
                 completions.add("all");
+            } else if (args[0].equalsIgnoreCase("info")) {
+                // Suggest crop IDs for info command
+                completions.add("golden_wheat");
+                completions.add("crimson_carrot");
+                completions.add("moonpetal");
+                completions.add("palmfruit");
+                completions.add("ender_berry");
+                completions.add("crystal_melon");
+                completions.add("celestial_potato");
+                completions.add("void_pumpkin");
             }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
+        } else if (args.length == 3 && (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("giveseed"))) {
             // Suggest crop IDs
             completions.add("golden_wheat");
             completions.add("crimson_carrot");
