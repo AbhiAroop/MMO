@@ -23,11 +23,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.RayTraceResult;
 
 import com.server.Main;
@@ -669,6 +671,30 @@ public class BotanyListener implements Listener {
             bossBar.removeAll();
         }
         lastLookedCrop.remove(player.getUniqueId());
+    }
+    
+    /**
+     * Prevent placing moonpetal and palmfruit output items (they are ALLIUM with custom model data)
+     */
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (item == null || item.getType() != Material.ALLIUM) {
+            return;
+        }
+        
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasCustomModelData()) {
+            return;
+        }
+        
+        int cmd = meta.getCustomModelData();
+        // Moonpetal output item: CMD 100065
+        // Palmfruit output item: CMD 100075
+        if (cmd == 100065 || cmd == 100075) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§cYou cannot place this item!");
+        }
     }
     
     /**

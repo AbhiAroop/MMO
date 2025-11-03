@@ -180,7 +180,7 @@ public class CustomCropRegistry {
             "crops/moonpetal",
             5, // Requires Botany level 5
             moonpetalDrop, // Custom drop item with CMD 100065
-            3, 5,
+            1, 1, // Only 1 drop per harvest
             0.12,
             20.0,
             30.0,
@@ -212,7 +212,7 @@ public class CustomCropRegistry {
             "crops/palmfruit",
             5, // Requires Botany level 5
             palmfruitDrop, // Custom drop item with CMD 100075
-            3, 5,
+            1, 1, // Only 1 drop per harvest
             0.12,
             20.0,
             30.0,
