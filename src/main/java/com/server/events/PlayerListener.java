@@ -395,7 +395,21 @@ public class PlayerListener implements Listener {
      */
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        CosmeticManager.getInstance().handlePlayerTeleport(event.getPlayer());
+        Player player = event.getPlayer();
+        CosmeticManager.getInstance().handlePlayerTeleport(player);
+        
+        // Check if teleporting between different worlds
+        if (!event.getFrom().getWorld().equals(event.getTo().getWorld())) {
+            // Update scoreboard after teleport completes (for island detection)
+            if (plugin.getScoreboardManager() != null) {
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        plugin.getScoreboardManager().updatePlayerScoreboard(player);
+                    }
+                }.runTaskLater(plugin, 2L); // 2 ticks to ensure teleport is complete
+            }
+        }
     }
 
     /**
@@ -423,11 +437,18 @@ public class PlayerListener implements Listener {
      */
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
-        // Delay cosmetic update until after respawn
+        Player player = event.getPlayer();
+        
+        // Delay cosmetic update and scoreboard update until after respawn
         new BukkitRunnable() {
             @Override
             public void run() {
-                CosmeticManager.getInstance().updateCosmeticDisplay(event.getPlayer());
+                CosmeticManager.getInstance().updateCosmeticDisplay(player);
+                
+                // Update scoreboard in case player respawned in a different world
+                if (plugin.getScoreboardManager() != null) {
+                    plugin.getScoreboardManager().updatePlayerScoreboard(player);
+                }
             }
         }.runTaskLater(plugin, 1L);
     }

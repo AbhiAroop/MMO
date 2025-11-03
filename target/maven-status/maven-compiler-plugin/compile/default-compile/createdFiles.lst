@@ -106,6 +106,7 @@ com\server\enchantments\listeners\EnchantmentGUIListener.class
 com\server\islands\managers\IslandWorldManager.class
 com\server\profiles\skills\events\SkillLevelUpEvent.class
 com\server\entities\npc\NPCType.class
+com\server\events\PlayerListener$7.class
 com\server\profiles\skills\gui\SkillTreeGUI$ResetData.class
 com\server\crafting\listeners\VanillaCraftingReplacer.class
 com\server\profiles\skills\skills\farming\botany\BreederBlockListener.class
