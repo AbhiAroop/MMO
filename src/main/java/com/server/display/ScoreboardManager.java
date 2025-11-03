@@ -182,15 +182,41 @@ public class ScoreboardManager {
         PlayerProfile profile = ProfileManager.getInstance().getProfiles(player.getUniqueId())[activeSlot];
         if (profile == null) return;
         
-        // Check if player is on an island
-        UUID currentIslandId = islandManager.getCurrentIsland(player.getUniqueId());
-        if (currentIslandId != null) {
-            // Display island scoreboard
-            updateIslandScoreboard(player, profile, currentIslandId, bukkitManager);
+        // Check if player is on an island world (detect by world name pattern)
+        String worldName = player.getWorld().getName();
+        boolean isOnIsland = worldName.startsWith("island_");
+        
+        if (isOnIsland) {
+            // Try to find the island by world name
+            UUID islandId = findIslandIdByWorldName(worldName);
+            if (islandId != null) {
+                // Display island scoreboard
+                updateIslandScoreboard(player, profile, islandId, bukkitManager);
+            } else {
+                // Island not found in cache, display default
+                updateDefaultScoreboard(player, profile, bukkitManager);
+            }
         } else {
             // Display default scoreboard
             updateDefaultScoreboard(player, profile, bukkitManager);
         }
+    }
+    
+    /**
+     * Finds an island ID by matching the world name.
+     * Checks all cached islands for a matching world name.
+     */
+    private UUID findIslandIdByWorldName(String worldName) {
+        try {
+            for (PlayerIsland island : islandManager.getCache().getAllIslands()) {
+                if (island.getWorldName().equals(worldName)) {
+                    return island.getIslandId();
+                }
+            }
+        } catch (Exception e) {
+            // Island cache not available or error occurred
+        }
+        return null;
     }
     
     private void updateDefaultScoreboard(Player player, PlayerProfile profile, org.bukkit.scoreboard.ScoreboardManager bukkitManager) {

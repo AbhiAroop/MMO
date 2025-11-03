@@ -164,6 +164,7 @@ com\server\crafting\gui\CustomFurnaceGUI.class
 com\server\profiles\skills\rewards\RewardManager.class
 com\server\islands\commands\IslandShopGUIListener$ShopItem.class
 com\server\enchantments\abilities\utility\PureReflection$2.class
+com\server\events\PlayerListener$8.class
 com\server\profiles\skills\skills\fishing\loot\FishingTreasure.class
 com\server\islands\commands\IslandInfoGUI$1.class
 com\server\events\CustomMobListener$1.class
