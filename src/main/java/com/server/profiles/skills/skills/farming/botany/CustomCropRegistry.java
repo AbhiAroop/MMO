@@ -191,6 +191,38 @@ public class CustomCropRegistry {
         ));
         registerCrop(moonpetal);
         
+        // Palmfruit - Tropical fruit with vibrant colors
+        // Create custom palmfruit drop item
+        ItemStack palmfruitDrop = new ItemStack(Material.ALLIUM, 1);
+        org.bukkit.inventory.meta.ItemMeta palmfruitMeta = palmfruitDrop.getItemMeta();
+        if (palmfruitMeta != null) {
+            palmfruitMeta.setDisplayName("§aPalmfruit");
+            palmfruitMeta.setCustomModelData(100075); // palmfruit.png
+            palmfruitDrop.setItemMeta(palmfruitMeta);
+        }
+        
+        CustomCrop palmfruit = new CustomCrop(
+            "palmfruit",
+            "Palmfruit",
+            CropRarity.UNCOMMON,
+            4,
+            800L, // 40 seconds per stage
+            // Index 0 = seed (100070), indices 1-4 = growth stages (100071-100074)
+            new int[]{100070, 100071, 100072, 100073, 100074},
+            "crops/palmfruit",
+            5, // Requires Botany level 5
+            palmfruitDrop, // Custom drop item with CMD 100075
+            3, 5,
+            0.12,
+            20.0,
+            30.0,
+            50.0
+        );
+        palmfruit.addBreedingRecipe(new BreedingRecipe(
+            "golden_wheat", "golden_wheat", 0.60, 5
+        ));
+        registerCrop(palmfruit);
+        
         // RARE CROPS
         
         // Ender Berry - Mysterious berry with ender properties
