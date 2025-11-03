@@ -235,8 +235,9 @@ public class ScoreboardManager {
         // Create a new scoreboard
         Scoreboard board = bukkitManager.getNewScoreboard();
         
-        // Create an objective with island title
-        Objective objective = board.registerNewObjective("islandStats", "dummy", islandTitleFrames.get(currentTitleFrame));
+        // Create an objective with island title (use modulo to ensure index is within bounds)
+        int islandFrameIndex = currentTitleFrame % islandTitleFrames.size();
+        Objective objective = board.registerNewObjective("islandStats", "dummy", islandTitleFrames.get(islandFrameIndex));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         
         // Get island data
