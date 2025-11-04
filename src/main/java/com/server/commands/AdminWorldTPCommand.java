@@ -129,20 +129,26 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
             return;
         }
         
-        // Teleport player to spawn location using vanilla teleport
-        Location spawnLocation = world.getSpawnLocation().add(0.5, 0, 0.5); // Center of block
+        // Get spawn location and ensure it's safe
+        Location spawnLocation = world.getSpawnLocation();
         
-        // Use Bukkit's dispatchCommand for vanilla teleport behavior
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), 
-            "tp " + player.getName() + " " + 
-            spawnLocation.getX() + " " + 
-            spawnLocation.getY() + " " + 
-            spawnLocation.getZ() + " " +
-            spawnLocation.getYaw() + " " +
-            spawnLocation.getPitch() + " " +
-            world.getName());
+        // Make sure we're on a solid block (Y should be at least 1 above bedrock)
+        if (spawnLocation.getY() < 1) {
+            spawnLocation.setY(64); // Default spawn height for superflat
+        }
         
-        player.sendMessage("§a✓ Teleported to admin world '§2" + args[1] + "§a'!");
+        // Center the player on the block
+        spawnLocation.setX(spawnLocation.getBlockX() + 0.5);
+        spawnLocation.setZ(spawnLocation.getBlockZ() + 0.5);
+        
+        // Use Bukkit's native teleport method
+        boolean success = player.teleport(spawnLocation);
+        
+        if (success) {
+            player.sendMessage("§a✓ Teleported to admin world '§2" + args[1] + "§a'!");
+        } else {
+            player.sendMessage("§cFailed to teleport to admin world!");
+        }
     }
     
     private void handleList(Player player) {
