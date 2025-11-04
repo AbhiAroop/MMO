@@ -284,15 +284,24 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
     private World createAdminWorld(String worldName) {
         try {
             // Create new flat world with vanilla default layers
-            // Vanilla superflat: 1 bedrock, 62 dirt, 1 grass (total height 64)
+            // WorldType.FLAT automatically creates: 1 bedrock, 2 dirt, 1 grass (default superflat)
+            // For proper 62 dirt layers, we need to use JSON format for generator settings
             WorldCreator creator = new WorldCreator(worldName);
             creator.type(WorldType.FLAT);
             creator.generateStructures(false);
             
-            // Use vanilla flat generator string: minecraft:bedrock,62*minecraft:dirt,minecraft:grass_block;minecraft:plains
-            // This is the standard superflat preset format
-            creator.generator("minecraft:flat");
-            creator.generatorSettings("minecraft:bedrock,62*minecraft:dirt,minecraft:grass_block;minecraft:plains");
+            // Use proper JSON format for flat world generation settings
+            // This creates the vanilla superflat preset with correct layers
+            String flatSettings = "{" +
+                "\"layers\": [" +
+                    "{\"block\":\"minecraft:bedrock\",\"height\":1}," +
+                    "{\"block\":\"minecraft:dirt\",\"height\":62}," +
+                    "{\"block\":\"minecraft:grass_block\",\"height\":1}" +
+                "]," +
+                "\"biome\":\"minecraft:plains\"" +
+            "}";
+            
+            creator.generatorSettings(flatSettings);
             
             plugin.getLogger().info("[AdminWorld] Creating admin build world: " + worldName);
             
@@ -308,7 +317,6 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
                 world.setTime(6000); // Set to noon
                 
                 plugin.getLogger().info("[AdminWorld] Admin build world created successfully: " + worldName);
-                plugin.getLogger().info("[AdminWorld] World key: " + world.getKey());
                 plugin.getLogger().info("[AdminWorld] World type: " + world.getWorldType());
                 
                 return world;
