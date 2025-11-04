@@ -15,6 +15,7 @@ import com.server.commands.AdminProfileCommand;
 import com.server.commands.AdminSkillsCommand;
 import com.server.commands.AdminStatsCommand;
 import com.server.commands.AdminTokensCommand;
+import com.server.commands.AdminWorldTPCommand;
 import com.server.commands.AnimationDebugCommand;
 import com.server.commands.BotanyCommand;
 import com.server.commands.CosmeticCommand;
@@ -624,6 +625,15 @@ public class Main extends JavaPlugin {
             getLogger().info("[Fishing] Fishing command registered successfully!");
         } else {
             LOGGER.warning("Command 'fishing' not registered in plugin.yml file!");
+        }
+
+        // Register Admin World TP command
+        org.bukkit.command.PluginCommand adminWorldTPCommand = this.getCommand("adminworldtp");
+        if (adminWorldTPCommand != null) {
+            adminWorldTPCommand.setExecutor(new AdminWorldTPCommand(this));
+            getLogger().info("Admin World TP command registered successfully!");
+        } else {
+            LOGGER.warning("Command 'adminworldtp' not registered in plugin.yml file!");
         }
 
         org.bukkit.command.PluginCommand adminFurnaceCommand = this.getCommand("adminfurnace");
