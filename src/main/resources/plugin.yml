@@ -135,8 +135,8 @@ commands:
     permission: mmo.admin.fishing
     aliases: [fish]
   adminworldtp:
-    description: Teleport to the admin build world for testing and creating structures
-    usage: /adminworldtp
+    description: Create and manage admin build worlds for testing and creating structures
+    usage: /adminworldtp <create|tp|list> <name>
     permission: mmo.admin.worldtp
     aliases: [awtp, buildworld, adminworld]
 

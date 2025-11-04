@@ -630,7 +630,9 @@ public class Main extends JavaPlugin {
         // Register Admin World TP command
         org.bukkit.command.PluginCommand adminWorldTPCommand = this.getCommand("adminworldtp");
         if (adminWorldTPCommand != null) {
-            adminWorldTPCommand.setExecutor(new AdminWorldTPCommand(this));
+            AdminWorldTPCommand adminWorldHandler = new AdminWorldTPCommand(this);
+            adminWorldTPCommand.setExecutor(adminWorldHandler);
+            adminWorldTPCommand.setTabCompleter(adminWorldHandler);
             getLogger().info("Admin World TP command registered successfully!");
         } else {
             LOGGER.warning("Command 'adminworldtp' not registered in plugin.yml file!");
