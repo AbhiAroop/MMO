@@ -156,7 +156,8 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         
         // Use vanilla execute command for cross-world teleportation (same as islands)
         // Format: /execute in <world> run tp <player> <x> <y> <z> <yaw> <pitch>
-        String command = String.format("execute in %s run tp %s %.2f %.2f %.2f %.2f %.2f",
+        // Note: Must use exact format without extra decimals to avoid "trailing data" error
+        String command = String.format("execute in %s run tp %s %f %f %f %f %f",
             world.getName(),
             player.getName(),
             spawnLocation.getX(),
