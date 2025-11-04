@@ -156,15 +156,17 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         
         // Use vanilla execute command for cross-world teleportation (same as islands)
         // Format: /execute in <world> run tp <player> <x> <y> <z> <yaw> <pitch>
-        // Note: Must use exact format without extra decimals to avoid "trailing data" error
-        String command = String.format("execute in %s run tp %s %f %f %f %f %f",
-            world.getName(),
+        // World name needs minecraft: prefix for execute command
+        java.text.DecimalFormat df = new java.text.DecimalFormat("0.##");
+        String worldKey = "minecraft:" + world.getName().toLowerCase();
+        String command = String.format("execute in %s run tp %s %s %s %s %s %s",
+            worldKey,
             player.getName(),
-            spawnLocation.getX(),
-            spawnLocation.getY(),
-            spawnLocation.getZ(),
-            spawnLocation.getYaw(),
-            spawnLocation.getPitch()
+            df.format(spawnLocation.getX()),
+            df.format(spawnLocation.getY()),
+            df.format(spawnLocation.getZ()),
+            df.format(spawnLocation.getYaw()),
+            df.format(spawnLocation.getPitch())
         );
         
         plugin.getLogger().info("[AdminWorld] Executing teleport command: /" + command);
