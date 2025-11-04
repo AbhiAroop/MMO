@@ -132,21 +132,41 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         // Get spawn location and ensure it's safe
         Location spawnLocation = world.getSpawnLocation();
         
-        // Make sure we're on a solid block (Y should be at least 1 above bedrock)
-        if (spawnLocation.getY() < 1) {
-            spawnLocation.setY(64); // Default spawn height for superflat
+        // Make sure we're on a solid block (Y should be at least 64 for superflat)
+        if (spawnLocation.getY() < 64) {
+            spawnLocation.setY(64); // Default spawn height for superflat (on top of grass)
         }
         
         // Center the player on the block
         spawnLocation.setX(spawnLocation.getBlockX() + 0.5);
         spawnLocation.setZ(spawnLocation.getBlockZ() + 0.5);
         
-        // Use Bukkit's native teleport method
-        boolean success = player.teleport(spawnLocation);
+        // Load chunk first
+        int chunkX = spawnLocation.getBlockX() >> 4;
+        int chunkZ = spawnLocation.getBlockZ() >> 4;
+        if (!world.isChunkLoaded(chunkX, chunkZ)) {
+            world.loadChunk(chunkX, chunkZ);
+        }
+        
+        // Use vanilla execute command for cross-world teleportation (same as islands)
+        // Format: /execute in <world> run tp <player> <x> <y> <z> <yaw> <pitch>
+        String command = String.format("execute in %s run tp %s %.2f %.2f %.2f %.2f %.2f",
+            world.getName(),
+            player.getName(),
+            spawnLocation.getX(),
+            spawnLocation.getY(),
+            spawnLocation.getZ(),
+            spawnLocation.getYaw(),
+            spawnLocation.getPitch()
+        );
+        
+        plugin.getLogger().info("[AdminWorld] Executing teleport command: /" + command);
+        boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
         
         if (success) {
             player.sendMessage("§a✓ Teleported to admin world '§2" + args[1] + "§a'!");
         } else {
+            plugin.getLogger().warning("[AdminWorld] Teleport failed for player " + player.getName());
             player.sendMessage("§cFailed to teleport to admin world!");
         }
     }
@@ -184,29 +204,35 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
             creator.type(WorldType.FLAT);
             creator.generateStructures(false);
             
-            // Generator settings for vanilla flat world
-            // Format matches vanilla superflat preset
-            creator.generatorSettings("{\"layers\": [{\"block\": \"minecraft:bedrock\", \"height\": 1}, {\"block\": \"minecraft:dirt\", \"height\": 62}, {\"block\": \"minecraft:grass_block\", \"height\": 1}], \"biome\":\"minecraft:plains\"}");
+            // Use vanilla flat generator string: minecraft:bedrock,62*minecraft:dirt,minecraft:grass_block;minecraft:plains
+            // This is the standard superflat preset format
+            creator.generator("minecraft:flat");
+            creator.generatorSettings("minecraft:bedrock,62*minecraft:dirt,minecraft:grass_block;minecraft:plains");
             
-            plugin.getLogger().info("Creating admin build world: " + worldName);
+            plugin.getLogger().info("[AdminWorld] Creating admin build world: " + worldName);
             
             World world = creator.createWorld();
             
             if (world != null) {
+                plugin.getLogger().info("[AdminWorld] World created, setting game rules...");
+                
                 // Set world rules for building
                 world.setGameRule(org.bukkit.GameRule.DO_DAYLIGHT_CYCLE, false);
                 world.setGameRule(org.bukkit.GameRule.DO_WEATHER_CYCLE, false);
                 world.setGameRule(org.bukkit.GameRule.DO_MOB_SPAWNING, false);
                 world.setTime(6000); // Set to noon
                 
-                plugin.getLogger().info("Admin build world created successfully: " + worldName);
+                plugin.getLogger().info("[AdminWorld] Admin build world created successfully: " + worldName);
+                plugin.getLogger().info("[AdminWorld] World key: " + world.getKey());
+                plugin.getLogger().info("[AdminWorld] World type: " + world.getWorldType());
+                
                 return world;
             } else {
-                plugin.getLogger().severe("Failed to create admin build world: " + worldName);
+                plugin.getLogger().severe("[AdminWorld] Failed to create admin build world: " + worldName);
                 return null;
             }
         } catch (Exception e) {
-            plugin.getLogger().severe("Error creating admin build world: " + e.getMessage());
+            plugin.getLogger().severe("[AdminWorld] Error creating admin build world: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
