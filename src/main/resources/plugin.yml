@@ -136,7 +136,7 @@ commands:
     aliases: [fish]
   adminworldtp:
     description: Create and manage admin build worlds for testing and creating structures
-    usage: /adminworldtp <create|tp|list> <name>
+    usage: /adminworldtp <create|tp|delete|list> <name>
     permission: mmo.admin.worldtp
     aliases: [awtp, buildworld, adminworld]
 

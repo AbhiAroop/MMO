@@ -61,6 +61,11 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
                 handleTeleport(player, args);
                 break;
                 
+            case "delete":
+            case "remove":
+                handleDelete(player, args);
+                break;
+                
             case "list":
                 handleList(player);
                 break;
@@ -78,6 +83,7 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§e§l[Admin World Commands]");
         player.sendMessage("§7/adminworld create <name> §f- Create a new admin build world");
         player.sendMessage("§7/adminworld tp <name> §f- Teleport to an admin build world");
+        player.sendMessage("§7/adminworld delete <name> §f- Delete an admin build world");
         player.sendMessage("§7/adminworld list §f- List all admin build worlds");
     }
     
@@ -171,6 +177,85 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         }
     }
     
+    private void handleDelete(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage("§cUsage: /adminworld delete <name>");
+            player.sendMessage("§7Example: /adminworld delete test_builds");
+            return;
+        }
+        
+        String worldName = "admin_" + args[1];
+        
+        // Get the world
+        World world = Bukkit.getWorld(worldName);
+        
+        if (world == null) {
+            player.sendMessage("§cAdmin world '§e" + args[1] + "§c' does not exist!");
+            return;
+        }
+        
+        player.sendMessage("§eDeleting admin world '§6" + args[1] + "§e'...");
+        
+        // Get all players in the world
+        List<Player> playersInWorld = new ArrayList<>(world.getPlayers());
+        
+        // Teleport all players out of the world first (to main world spawn)
+        World mainWorld = Bukkit.getWorlds().get(0); // Get the first world (usually "world")
+        Location mainSpawn = mainWorld.getSpawnLocation();
+        
+        if (!playersInWorld.isEmpty()) {
+            player.sendMessage("§7Teleporting " + playersInWorld.size() + " player(s) out of the world...");
+            for (Player p : playersInWorld) {
+                p.teleport(mainSpawn);
+                if (!p.equals(player)) {
+                    p.sendMessage("§eThe admin world you were in has been deleted.");
+                }
+            }
+        }
+        
+        // Unload the world
+        plugin.getLogger().info("[AdminWorld] Unloading world: " + worldName);
+        boolean unloaded = Bukkit.unloadWorld(world, false); // false = don't save
+        
+        if (!unloaded) {
+            player.sendMessage("§cFailed to unload the world! Cannot delete.");
+            return;
+        }
+        
+        // Delete the world folder
+        try {
+            java.io.File worldFolder = world.getWorldFolder();
+            deleteWorldFolder(worldFolder);
+            
+            plugin.getLogger().info("[AdminWorld] Deleted world: " + worldName);
+            player.sendMessage("§a✓ Admin world '§2" + args[1] + "§a' has been deleted!");
+            
+        } catch (Exception e) {
+            plugin.getLogger().severe("[AdminWorld] Error deleting world folder: " + e.getMessage());
+            player.sendMessage("§cFailed to delete world folder! Check console for errors.");
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Recursively deletes a world folder
+     */
+    private void deleteWorldFolder(java.io.File folder) {
+        if (folder.exists()) {
+            java.io.File[] files = folder.listFiles();
+            if (files != null) {
+                for (java.io.File file : files) {
+                    if (file.isDirectory()) {
+                        deleteWorldFolder(file);
+                    } else {
+                        file.delete();
+                    }
+                }
+            }
+            folder.delete();
+        }
+    }
+    
     private void handleList(Player player) {
         List<String> adminWorlds = new ArrayList<>();
         
@@ -245,9 +330,11 @@ public class AdminWorldTPCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             completions.add("create");
             completions.add("tp");
+            completions.add("delete");
             completions.add("list");
-        } else if (args.length == 2 && (args[0].equalsIgnoreCase("tp") || args[0].equalsIgnoreCase("teleport"))) {
-            // Suggest existing admin worlds
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("tp") || args[0].equalsIgnoreCase("teleport") || 
+                                        args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {
+            // Suggest existing admin worlds for tp and delete commands
             for (World world : Bukkit.getWorlds()) {
                 if (world.getName().startsWith("admin_")) {
                     completions.add(world.getName().substring(6)); // Remove "admin_" prefix
