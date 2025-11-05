@@ -6,6 +6,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -66,5 +67,19 @@ public class NametagListener implements Listener {
             // Update immediately on heal
             NametagManager.getInstance().updateNametag(player);
         }
+    }
+    
+    /**
+     * Format chat messages with [Member] prefix
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        
+        // Get the rank prefix (same as tablist)
+        String rank = "§7[§fMember§7]";
+        
+        // Format: [Member] PlayerName: message
+        event.setFormat(rank + " §f%s§7: §f%s");
     }
 }
