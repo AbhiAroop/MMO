@@ -142,12 +142,8 @@ public class PassiveNPC extends BaseNPC {
         // Update the nameplate
         NPCManager.getInstance().updateNameplate(npc, newHealth, stats.getMaxHealth());
         
-        // Play hurt sound and animation
-        npc.getEntity().getWorld().playSound(
-            npc.getEntity().getLocation(),
-            Sound.ENTITY_PLAYER_HURT,
-            0.8f, 1.0f
-        );
+        // REMOVED: Don't play hurt sound here - it's handled by NPCDamageListener to prevent duplicates
+        // The vanilla damage.playEffect() in NPCDamageListener already triggers the hurt sound
         
         // Display damage indicators
         if (plugin.getDamageIndicatorManager() != null) {
@@ -251,12 +247,8 @@ public class PassiveNPC extends BaseNPC {
                 true); // true for magic damage
         }
         
-        // Play magic damage sound
-        npc.getEntity().getWorld().playSound(
-            npc.getEntity().getLocation(),
-            Sound.ENTITY_PLAYER_HURT_ON_FIRE,
-            0.8f, 1.2f
-        );
+        // REMOVED: Don't play hurt sound here - would cause duplicate sounds
+        // Keep only the visual effects
         
         // Magic damage visual effects
         npc.getEntity().getWorld().spawnParticle(

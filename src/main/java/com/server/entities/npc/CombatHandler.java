@@ -1570,12 +1570,8 @@ public class CombatHandler {
             " health to " + newHealth + "/" + targetStats.getMaxHealth() + 
             " (stored in map and metadata)");
         
-        // Visual and sound effects
-        target.getEntity().getWorld().playSound(
-            target.getEntity().getLocation(),
-            Sound.ENTITY_PLAYER_HURT,
-            0.8f, 1.0f
-        );
+        // REMOVED: Don't play hurt sound here - the vanilla damage(0.1) call already triggers it
+        // This prevents duplicate hurt sounds when NPCs are attacked
         
         // IMPROVED KNOCKBACK SYSTEM with anti-stack protection
         if (target.isSpawned() && attacker != null && attacker.isSpawned()) {

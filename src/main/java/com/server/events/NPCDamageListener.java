@@ -57,11 +57,11 @@ public class NPCDamageListener implements Listener {
         NPC npc = passiveNPC.getNPC();
         if (npc == null || !npc.isSpawned()) return;
         
-        // Apply vanilla damage effect (this will trigger the red flash)
+        // Apply vanilla damage effect (this will trigger the red flash AND hurt sound)
+        // Using playEffect instead of damage() to avoid health changes and only get visual/sound
         if (npc.getEntity() instanceof LivingEntity) {
             LivingEntity living = (LivingEntity) npc.getEntity();
-            living.damage(0.1);
-            living.playEffect(EntityEffect.HURT);
+            living.playEffect(EntityEffect.HURT); // This triggers BOTH red flash AND hurt sound
         }
         
         // Let the passive NPC handle the damage with our custom system
