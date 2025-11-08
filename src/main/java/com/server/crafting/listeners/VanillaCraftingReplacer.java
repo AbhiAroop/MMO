@@ -32,6 +32,11 @@ public class VanillaCraftingReplacer implements Listener {
         
         // Handle crafting table interactions
         if (blockType == Material.CRAFTING_TABLE) {
+            // Allow shift-right-click to pass through (for placing blocks on top)
+            if (player.isSneaking()) {
+                return;
+            }
+            
             // Cancel the vanilla crafting table opening
             event.setCancelled(true);
             
