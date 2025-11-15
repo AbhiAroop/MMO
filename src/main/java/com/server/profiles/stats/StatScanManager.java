@@ -45,6 +45,16 @@ public class StatScanManager {
     private static final String MMO_MINING_SPEED_MODIFIER = "mmo.mining_speed";
     private static final String MMO_BUILD_RANGE_MODIFIER = "mmo.build_range";
     
+    // Fixed UUIDs for each modifier type - ensures proper removal
+    private static final UUID MMO_HEALTH_UUID = UUID.fromString("10000000-0000-0000-0000-000000000001");
+    private static final UUID MMO_SIZE_UUID = UUID.fromString("10000000-0000-0000-0000-000000000002");
+    private static final UUID MMO_ATTACK_RANGE_UUID = UUID.fromString("10000000-0000-0000-0000-000000000003");
+    private static final UUID MMO_ATTACK_SPEED_UUID = UUID.fromString("10000000-0000-0000-0000-000000000004");
+    private static final UUID MMO_MINING_SPEED_UUID = UUID.fromString("10000000-0000-0000-0000-000000000005");
+    private static final UUID MMO_BUILD_RANGE_UUID = UUID.fromString("10000000-0000-0000-0000-000000000006");
+    private static final UUID MMO_STEP_HEIGHT_UUID = UUID.fromString("10000000-0000-0000-0000-000000000007");
+    private static final UUID MMO_JUMP_STRENGTH_UUID = UUID.fromString("10000000-0000-0000-0000-000000000008");
+    
     /**
      * Constructor
      */
@@ -663,7 +673,7 @@ public class StatScanManager {
      * Enhanced extractStatsFromItem method - NOW READS FROM NBT DATA INSTEAD OF LORE
      */
     private void extractStatsFromItem(ItemStack item, ItemStatBonuses bonuses) {
-        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
+        if (item == null || !item.hasItemMeta()) return;
         
         // NEW APPROACH: Read stats from NBT data (persistent, reliable)
         if (com.server.items.ItemStatData.hasStats(item)) {
@@ -712,6 +722,11 @@ public class StatScanManager {
         }
         
         // FALLBACK: If no NBT data, use old lore parsing (for legacy items)
+        // Only process if item has lore
+        if (!item.getItemMeta().hasLore()) {
+            return;
+        }
+        
         if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
             plugin.debugLog(DebugSystem.ENCHANTING, 
                 "STAT SCAN (LORE FALLBACK): No NBT data found for " + item.getType().name() + 
@@ -1198,7 +1213,7 @@ public class StatScanManager {
                 
                 if (healthBonus != 0) {
                     AttributeModifier healthMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_HEALTH_UUID,
                         MMO_HEALTH_MODIFIER,
                         healthBonus,
                         AttributeModifier.Operation.ADD_NUMBER
@@ -1288,7 +1303,7 @@ public class StatScanManager {
                 
                 if (attackSpeedBonus != 0) {
                     AttributeModifier attackSpeedMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_ATTACK_SPEED_UUID,
                         MMO_ATTACK_SPEED_MODIFIER,
                         attackSpeedBonus,
                         AttributeModifier.Operation.ADD_NUMBER
@@ -1337,14 +1352,13 @@ public class StatScanManager {
             // 1. Update the GENERIC_SCALE attribute
             AttributeInstance scaleAttribute = player.getAttribute(Attribute.GENERIC_SCALE);
             if (scaleAttribute != null) {
-                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                // Remove ALL existing modifiers to ensure clean slate
                 for (AttributeModifier mod : new HashSet<>(scaleAttribute.getModifiers())) {
-                    if (mod.getName().equals(MMO_SIZE_MODIFIER) || 
-                        mod.getName().equals("mmo.temp_size_fix") ||
-                        mod.getName().equals("mmo.size.fixed")) {
-                        scaleAttribute.removeModifier(mod);
-                    }
+                    scaleAttribute.removeModifier(mod);
                 }
+                
+                // Set base value to 1.0 (normal size)
+                scaleAttribute.setBaseValue(1.0);
                 
                 // Apply bonus size if needed
                 double totalSize = stats.getSize();
@@ -1352,7 +1366,7 @@ public class StatScanManager {
                 
                 if (sizeBonus != 0) {
                     AttributeModifier sizeMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_SIZE_UUID,
                         MMO_SIZE_MODIFIER,
                         sizeBonus,
                         AttributeModifier.Operation.ADD_NUMBER
@@ -1369,12 +1383,13 @@ public class StatScanManager {
                 try {
                     AttributeInstance stepHeightAttribute = player.getAttribute(Attribute.GENERIC_STEP_HEIGHT);
                     if (stepHeightAttribute != null) {
-                        // Remove existing modifiers
+                        // Remove ALL existing modifiers
                         for (AttributeModifier mod : new HashSet<>(stepHeightAttribute.getModifiers())) {
-                            if (mod.getName().equals("mmo.step_height")) {
-                                stepHeightAttribute.removeModifier(mod);
-                            }
+                            stepHeightAttribute.removeModifier(mod);
                         }
+                        
+                        // Set base value to 0.6 (default step height)
+                        stepHeightAttribute.setBaseValue(0.6);
                         
                         // Calculate new step height (default step height is 0.6)
                         // Formula: stepHeight = 0.6 * size
@@ -1385,7 +1400,7 @@ public class StatScanManager {
                         // Apply step height modifier
                         if (stepHeightBonus != 0) {
                             AttributeModifier stepHeightMod = new AttributeModifier(
-                                UUID.randomUUID(),
+                                MMO_STEP_HEIGHT_UUID,
                                 "mmo.step_height",
                                 stepHeightBonus,
                                 AttributeModifier.Operation.ADD_NUMBER
@@ -1410,12 +1425,13 @@ public class StatScanManager {
                 try {
                     AttributeInstance jumpStrengthAttribute = player.getAttribute(Attribute.GENERIC_JUMP_STRENGTH);
                     if (jumpStrengthAttribute != null) {
-                        // Remove existing modifiers
+                        // Remove ALL existing modifiers
                         for (AttributeModifier mod : new HashSet<>(jumpStrengthAttribute.getModifiers())) {
-                            if (mod.getName().equals("mmo.jump_strength")) {
-                                jumpStrengthAttribute.removeModifier(mod);
-                            }
+                            jumpStrengthAttribute.removeModifier(mod);
                         }
+                        
+                        // Set base value to 0.42 (default jump strength)
+                        jumpStrengthAttribute.setBaseValue(0.42);
                         
                         // Calculate new jump strength (default is 0.42)
                         // Formula: jumpStrength = 0.42 * sqrt(size)
@@ -1426,7 +1442,7 @@ public class StatScanManager {
                         // Apply jump strength modifier
                         if (jumpStrengthBonus != 0) {
                             AttributeModifier jumpStrengthMod = new AttributeModifier(
-                                UUID.randomUUID(),
+                                MMO_JUMP_STRENGTH_UUID,
                                 "mmo.jump_strength",
                                 jumpStrengthBonus,
                                 AttributeModifier.Operation.ADD_NUMBER
@@ -1462,16 +1478,13 @@ public class StatScanManager {
         try {
             AttributeInstance rangeAttribute = player.getAttribute(Attribute.PLAYER_ENTITY_INTERACTION_RANGE);
             if (rangeAttribute != null) {
-                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                // Remove ALL existing modifiers
                 for (AttributeModifier mod : new HashSet<>(rangeAttribute.getModifiers())) {
-                    if (mod.getName().equals(MMO_ATTACK_RANGE_MODIFIER) || 
-                        mod.getName().equals("mmo.temp_range_fix")) {
-                        rangeAttribute.removeModifier(mod);
-                    }
+                    rangeAttribute.removeModifier(mod);
                 }
                 
-                // CRITICAL CHANGE: Don't change base value once initialized
-                // rangeAttribute.setBaseValue(3.0); - REMOVE THIS LINE
+                // Set base value to 3.0 (default attack range)
+                rangeAttribute.setBaseValue(3.0);
                 
                 // Apply bonus range if needed
                 double totalRange = stats.getAttackRange();
@@ -1479,7 +1492,7 @@ public class StatScanManager {
                 
                 if (rangeBonus != 0) {
                     AttributeModifier rangeMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_ATTACK_RANGE_UUID,
                         MMO_ATTACK_RANGE_MODIFIER,
                         rangeBonus,
                         AttributeModifier.Operation.ADD_NUMBER
@@ -1507,16 +1520,13 @@ public class StatScanManager {
         try {
             AttributeInstance buildRangeAttribute = player.getAttribute(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
             if (buildRangeAttribute != null) {
-                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                // Remove ALL existing modifiers
                 for (AttributeModifier mod : new HashSet<>(buildRangeAttribute.getModifiers())) {
-                    if (mod.getName().equals(MMO_BUILD_RANGE_MODIFIER) || 
-                        mod.getName().equals("mmo.temp_build_range_fix")) {
-                        buildRangeAttribute.removeModifier(mod);
-                    }
+                    buildRangeAttribute.removeModifier(mod);
                 }
                 
-                // CRITICAL CHANGE: Don't change base value once initialized
-                // buildRangeAttribute.setBaseValue(5.0); - Don't set this
+                // Set base value to 5.0 (default build range)
+                buildRangeAttribute.setBaseValue(5.0);
                 
                 // Apply bonus range if needed
                 double totalBuildRange = stats.getBuildRange();
@@ -1524,7 +1534,7 @@ public class StatScanManager {
                 
                 if (buildRangeBonus != 0) {
                     AttributeModifier buildRangeMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_BUILD_RANGE_UUID,
                         MMO_BUILD_RANGE_MODIFIER,
                         buildRangeBonus,
                         AttributeModifier.Operation.ADD_NUMBER
@@ -1559,16 +1569,13 @@ public class StatScanManager {
                                 ", total=" + miningSpeedAttr.getValue());
                 }
                 
-                // CRITICAL CHANGE: Only remove specific modifiers, keep the baseline modifier
+                // Remove ALL existing modifiers
                 for (AttributeModifier mod : new HashSet<>(miningSpeedAttr.getModifiers())) {
-                    if (mod.getName().equals(MMO_MINING_SPEED_MODIFIER) || 
-                        mod.getName().equals("mmo.temp_mining_speed_fix")) {
-                        miningSpeedAttr.removeModifier(mod);
-                    }
+                    miningSpeedAttr.removeModifier(mod);
                 }
                 
-                // CRITICAL CHANGE: Don't change base value once initialized
-                // miningSpeedAttr.setBaseValue(0.5); - REMOVE THIS LINE
+                // Set base value to 0.5 (default mining speed)
+                miningSpeedAttr.setBaseValue(0.5);
                 
                 // Apply bonus mining speed if needed
                 double totalMiningSpeed = stats.getMiningSpeed();
@@ -1576,7 +1583,7 @@ public class StatScanManager {
                 
                 if (miningSpeedBonus > 0) {
                     AttributeModifier miningSpeedMod = new AttributeModifier(
-                        UUID.randomUUID(),
+                        MMO_MINING_SPEED_UUID,
                         MMO_MINING_SPEED_MODIFIER,
                         miningSpeedBonus,
                         AttributeModifier.Operation.ADD_NUMBER
