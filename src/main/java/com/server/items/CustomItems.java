@@ -67,6 +67,12 @@ public class CustomItems {
         meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, 0);
         
         item.setItemMeta(meta);
+        
+        // Store stat data in NBT (replaces lore parsing)
+        item = new ItemStatData.Builder(item)
+            .physicalDamage(5)
+            .build();
+        
         return item;
     }
 
@@ -107,6 +113,12 @@ public class CustomItems {
         meta.getPersistentDataContainer().set(keyCooldown, PersistentDataType.LONG, 0L);
         
         item.setItemMeta(meta);
+        
+        // Store stat data in NBT (replaces lore parsing)
+        item = new ItemStatData.Builder(item)
+            .mana(20)
+            .build();
+        
         return item;
     }
 
@@ -150,6 +162,13 @@ public class CustomItems {
         meta.getPersistentDataContainer().set(keyCooldown, PersistentDataType.LONG, 0L);
         
         item.setItemMeta(meta);
+        
+        // Store stat data in NBT (replaces lore parsing)
+        item = new ItemStatData.Builder(item)
+            .physicalDamage(35)
+            .attackRange(1.0)
+            .build();
+        
         return item;
     }
 
@@ -190,6 +209,15 @@ public class CustomItems {
         meta.addAttributeModifier(Attribute.GENERIC_ARMOR, armorModifier);
         
         item.setItemMeta(meta);
+        
+        // Store stat data in NBT (replaces lore parsing)
+        item = new ItemStatData.Builder(item)
+            .health(300)
+            .armor(30)
+            .magicResist(20)
+            .size(0.5)
+            .build();
+        
         return item;
     }
 
@@ -217,6 +245,13 @@ public class CustomItems {
         ));
         
         item.setItemMeta(meta);
+        
+        // Store stat data in NBT (replaces lore parsing)
+        item = new ItemStatData.Builder(item)
+            .physicalDamage(7)
+            .lifeSteal(3.0)
+            .build();
+        
         return item;
     }
 

@@ -660,16 +660,62 @@ public class StatScanManager {
     }
 
     /**
-     * Enhanced extractStatsFromItem method - FIXED: Process critical stats properly
+     * Enhanced extractStatsFromItem method - NOW READS FROM NBT DATA INSTEAD OF LORE
      */
     private void extractStatsFromItem(ItemStack item, ItemStatBonuses bonuses) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return;
         
+        // NEW APPROACH: Read stats from NBT data (persistent, reliable)
+        if (com.server.items.ItemStatData.hasStats(item)) {
+            com.server.items.ItemStatData.Stats stats = com.server.items.ItemStatData.getStats(item);
+            
+            // Add all stats from NBT data
+            bonuses.health += stats.health;
+            bonuses.armor += stats.armor;
+            bonuses.magicResist += stats.magicResist;
+            bonuses.physicalDamage += stats.physicalDamage;
+            bonuses.rangedDamage += stats.rangedDamage;
+            bonuses.magicDamage += stats.magicDamage;
+            bonuses.mana += stats.mana;
+            bonuses.cooldownReduction += stats.cooldownReduction;
+            bonuses.healthRegen += stats.healthRegen;
+            bonuses.attackSpeed += stats.attackSpeed;
+            bonuses.attackRange += stats.attackRange;
+            bonuses.size += stats.size;
+            bonuses.lifeSteal += stats.lifeSteal;
+            bonuses.critChance += stats.critChance;
+            bonuses.critDamage += stats.critDamage;
+            bonuses.omnivamp += stats.omnivamp;
+            bonuses.miningFortune += stats.miningFortune;
+            bonuses.miningSpeed += stats.miningSpeed;
+            bonuses.buildRange += stats.buildRange;
+            bonuses.lurePotency += stats.lurePotency;
+            bonuses.fishingFortune += stats.fishingFortune;
+            bonuses.fishingResilience += stats.fishingResilience;
+            bonuses.fishingFocus += stats.fishingFocus;
+            bonuses.fishingPrecision += stats.fishingPrecision;
+            bonuses.seaMonsterAffinity += stats.seaMonsterAffinity;
+            bonuses.treasureSense += stats.treasureSense;
+            
+            if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
+                plugin.debugLog(DebugSystem.ENCHANTING, 
+                    "STAT SCAN (NBT): Extracting stats from " + item.getType().name() + 
+                    (item.hasItemMeta() && item.getItemMeta().hasDisplayName() ? 
+                        " (" + ChatColor.stripColor(item.getItemMeta().getDisplayName()) + ")" : "") +
+                    " | Health: +" + stats.health + " Armor: +" + stats.armor + 
+                    " PhysDmg: +" + stats.physicalDamage + " MagicDmg: +" + stats.magicDamage +
+                    " Mana: +" + stats.mana);
+            }
+            
+            // NBT data found - skip lore parsing
+            return;
+        }
+        
+        // FALLBACK: If no NBT data, use old lore parsing (for legacy items)
         if (plugin.isDebugEnabled(DebugSystem.ENCHANTING)) {
             plugin.debugLog(DebugSystem.ENCHANTING, 
-                "STAT SCAN: Extracting stats from " + item.getType().name() + 
-                (item.hasItemMeta() && item.getItemMeta().hasDisplayName() ? 
-                    " (" + ChatColor.stripColor(item.getItemMeta().getDisplayName()) + ")" : ""));
+                "STAT SCAN (LORE FALLBACK): No NBT data found for " + item.getType().name() + 
+                ", falling back to lore parsing for legacy items");
         }
         
         // Extract stats from any item with lore that contains stat information

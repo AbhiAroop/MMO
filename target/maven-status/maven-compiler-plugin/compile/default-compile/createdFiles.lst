@@ -79,6 +79,7 @@ com\server\profiles\skills\skills\mining\trees\MiningTreeBuilder.class
 com\server\islands\data\PlayerIsland.class
 com\server\display\DamageIndicatorManager$2.class
 com\server\profiles\skills\rewards\SkillRewardType.class
+com\server\commands\AdminWorldTPCommand.class
 com\server\profiles\skills\skills\farming\botany\BotanyManager$2.class
 com\server\profiles\PlayerProfile.class
 com\server\profiles\skills\events\MiningListener.class
@@ -214,6 +215,7 @@ com\server\enchantments\listeners\EnchantmentTableListener.class
 com\server\islands\commands\IslandMenuGUI.class
 com\server\islands\commands\ChallengeCategoryGUIListener.class
 com\server\islands\commands\IslandInfoGUI.class
+com\server\items\ItemStatData$Stats.class
 com\server\profiles\stats\BedrockMiningSpeedHandler$2.class
 com\server\profiles\skills\core\SubskillType.class
 com\server\profiles\gui\ProfileGUI.class
@@ -298,6 +300,7 @@ com\server\events\PlayerListener$4.class
 com\server\islands\commands\IslandCommand.class
 com\server\items\CustomItems.class
 com\server\entities\npc\behaviors\FleeingBehavior$2.class
+com\server\items\ItemStatData.class
 com\server\profiles\skills\tokens\SkillToken$1.class
 com\server\profiles\skills\tokens\SkillToken.class
 com\server\display\ScoreboardManager$2.class
@@ -345,6 +348,7 @@ com\server\commands\AdminSkillsCommand.class
 com\server\profiles\stats\health\HealthRegenerationManager.class
 com\server\islands\commands\IslandMembersGUI.class
 com\server\events\AutoRespawnListener$1.class
+com\server\items\ItemStatData$Builder.class
 com\server\enchantments\abilities\utility\SwiftCatch$1.class
 com\server\profiles\skills\skills\farming\botany\BotanyManager$1.class
 com\server\enchantments\data\CustomEnchantment$TriggerType.class
